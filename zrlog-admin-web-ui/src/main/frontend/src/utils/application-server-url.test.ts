@@ -1,5 +1,5 @@
-import { describe, expect, it } from "@jest/globals";
-import { resolveApplicationServerUrl } from "./application-server-url";
+import {describe, expect, it} from "@jest/globals";
+import {resolveApplicationServerUrl} from "./application-server-url";
 
 const backend = "https://backend.example/blog/";
 const frontend = "https://static-admin.example";

@@ -1,6 +1,6 @@
-import type { AxiosInstance, AxiosRequestConfig } from "axios";
-import { FileEntry, formatSize } from "../../file-manager/shared";
-import { getRes } from "../../../utils/constants";
+import type {AxiosInstance, AxiosRequestConfig} from "axios";
+import {FileEntry, formatSize} from "../../file-manager/shared";
+import {getRes} from "../../../utils/constants";
 
 export const aiAssetSizeLimit = (maxBytes: number) =>
     getRes().articleEdit.files.assetSizeLimit.replace("{size}", formatSize(maxBytes));
@@ -32,7 +32,7 @@ export async function loadAiAsset(
     if (entry.size > maxBytes) throw new Error(aiAssetSizeLimit(maxBytes));
     const controller = new AbortController();
     const abort = () => controller.abort();
-    signal.addEventListener("abort", abort, { once: true });
+    signal.addEventListener("abort", abort, {once: true});
     if (signal.aborted) controller.abort();
     let tooLarge = false;
     const checkSize = (size: number) => {
@@ -48,14 +48,14 @@ export async function loadAiAsset(
             const url = new URL(entry.path, window.location.href);
             if (!/^https?:$/.test(url.protocol) || url.username || url.password) throw new Error(res.assetReadFailed);
             // External library entries do not receive the admin session or Axios headers.
-            const response = await fetch(url.href, { credentials: "omit", signal: controller.signal });
+            const response = await fetch(url.href, {credentials: "omit", signal: controller.signal});
             if (!response.ok || !response.body) throw new Error(res.assetReadFailed);
             checkSize(Number(response.headers.get("content-length")) || 0);
             const reader = response.body.getReader();
             const chunks: Uint8Array[] = [];
             let size = 0;
             try {
-                for (;;) {
+                for (; ;) {
                     const next = await reader.read();
                     if (next.done) break;
                     checkSize((size += next.value.byteLength));
@@ -64,7 +64,7 @@ export async function loadAiAsset(
             } finally {
                 reader.releaseLock();
             }
-            blob = new Blob(chunks, { type: response.headers.get("content-type") || "" });
+            blob = new Blob(chunks, {type: response.headers.get("content-type") || ""});
         } else {
             if (
                 !entry.path.startsWith("/attached/") ||
@@ -73,12 +73,12 @@ export async function loadAiAsset(
             )
                 throw new Error(res.assetReadFailed);
             const requestConfig: AxiosRequestConfig & { showError: boolean } = {
-                params: { path: entry.path },
+                params: {path: entry.path},
                 responseType: "blob",
                 signal: controller.signal,
                 // The picker owns errors and cancellation, so do not open a global error dialog.
                 showError: false,
-                onDownloadProgress: ({ loaded }) => {
+                onDownloadProgress: ({loaded}) => {
                     if (loaded > maxBytes) {
                         tooLarge = true;
                         controller.abort();
@@ -100,10 +100,10 @@ export async function loadAiAsset(
             mime === "image/png"
                 ? startsWith([137, 80, 78, 71, 13, 10, 26, 10])
                 : mime === "image/jpeg"
-                ? startsWith([255, 216, 255])
-                : startsWith([82, 73, 70, 70]) && startsWith([87, 69, 66, 80], 8);
+                    ? startsWith([255, 216, 255])
+                    : startsWith([82, 73, 70, 70]) && startsWith([87, 69, 66, 80], 8);
         if (!valid) throw new Error(res.assetReadFailed);
-        return new File([blob], entry.name, { type: mime });
+        return new File([blob], entry.name, {type: mime});
     } catch (error) {
         if (tooLarge) throw new Error(aiAssetSizeLimit(maxBytes));
         throw error;

@@ -1,13 +1,13 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Link, MemoryRouter, NavigateFunction, Route, Routes, useNavigate, useLocation } from "react-router-dom";
-import { Grid } from "antd";
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Link, MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {Grid} from "antd";
+import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
 import System from "./index";
 import Version from "./Version";
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
+import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
 import AdminSettingsLayout from "../common/AdminSettingsLayout";
-import { SystemData } from "../../type";
+import {SystemData} from "../../type";
 import SliderMenu from "../../layout/slider";
 import SystemSettingsRedirect from "../website/system-settings-redirect";
 
@@ -27,15 +27,15 @@ jest.mock("@zrlog/ui/icons/time", () => () => null);
 jest.mock("@zrlog/ui/icons/cpu", () => () => null);
 jest.mock("@zrlog/ui/icons/memory", () => () => null);
 jest.mock("icons/ZrLogOutlined", () => () => null);
-jest.mock("../admin-dashboard-routes", () => ({ renderAdminDashboardRouteIcon: () => null }));
+jest.mock("../admin-dashboard-routes", () => ({renderAdminDashboardRouteIcon: () => null}));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: require("@jest/globals").jest.fn(),
 }));
 jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
     __esModule: true,
-    default: ({ htmlContent }: { htmlContent: string }) => require("react").createElement("div", null, htmlContent),
+    default: ({htmlContent}: { htmlContent: string }) => require("react").createElement("div", null, htmlContent),
 }));
-jest.mock("../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false, compactMode: false }) }));
+jest.mock("../../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false, compactMode: false})}));
 jest.mock("../../utils/helpers", () => ({
     parseQueryParamsToMap: () => new Map(),
     tryBlock: () => undefined,
@@ -48,12 +48,12 @@ let mockManage = true;
 let mockConfigure = true;
 let mockStatic = false;
 let mockLang = "en_US";
-jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
+jest.mock("../../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
 jest.mock("../../api", () => ({
     getCsrData: (...args: any[]) => mockGetCsrData(...args),
     getTimeInfoBySearchStr: () => ({}),
 }));
-jest.mock("../../utils/module-capabilities", () => ({ isFeaturePathEnabled: () => true }));
+jest.mock("../../utils/module-capabilities", () => ({isFeaturePathEnabled: () => true}));
 jest.mock("../../utils/account-access", () => ({
     hasAction: (action: string) => (action === "site.configure" ? mockConfigure : mockManage),
     actionForPath: (path: string) =>
@@ -68,7 +68,7 @@ jest.mock("../../utils/constants", () => ({
     },
 }));
 
-const entry = (key: string, name: string, value: string) => ({ key, name, value });
+const entry = (key: string, name: string, value: string) => ({key, name, value});
 const data: SystemData = {
     dockerMode: true,
     nativeImageMode: true,
@@ -113,8 +113,8 @@ beforeEach(() => {
         disconnect = jest.fn();
     };
     (globalThis as any).MessageChannel = class {
-        port1 = { onmessage: () => undefined };
-        port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+        port1 = {onmessage: () => undefined};
+        port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
     };
     window.matchMedia = (() => ({
         matches: false,
@@ -125,7 +125,7 @@ beforeEach(() => {
     })) as any;
     const computedStyle = window.getComputedStyle;
     jest.spyOn(window, "getComputedStyle").mockImplementation((element) => computedStyle(element));
-    jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, sm: true });
+    jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: true, sm: true});
     mockDevMode = false;
     mockManage = true;
     mockConfigure = true;
@@ -151,8 +151,8 @@ afterEach(() => {
 const renderSystem = async (value = data, offline = false) => {
     await act(async () =>
         root.render(
-            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <System data={value} offline={offline} />
+            <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
+                <System data={value} offline={offline}/>
             </MemoryRouter>
         )
     );
@@ -219,15 +219,15 @@ test.each([
             root.render(
                 <MemoryRouter
                     initialEntries={["/blog/admin/system", `/blog/admin/website/${page}${suffix}?value=a%2Bb#build`]}
-                    future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+                    future={{v7_startTransition: true, v7_relativeSplatPath: true}}
                 >
-                    <Location />
+                    <Location/>
                     <Routes>
                         <Route
                             path={`/blog/admin/website/${page}${suffix}`}
-                            element={<SystemSettingsRedirect page={page} />}
+                            element={<SystemSettingsRedirect page={page}/>}
                         />
-                        <Route path="*" element={<div />} />
+                        <Route path="*" element={<div/>}/>
                     </Routes>
                 </MemoryRouter>
             )
@@ -252,7 +252,7 @@ test("navigation respects system and site permissions and selects the current pa
     mockLang = "zh_CN";
     await act(async () =>
         root.render(
-            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
                 <AdminSettingsLayout activeKey="proxy">代理表单</AdminSettingsLayout>
             </MemoryRouter>
         )
@@ -293,7 +293,7 @@ test("refreshes all system readings together and stops polling on unmount", asyn
     expect(container.textContent).toContain("3 hours");
     expect(container.textContent).toContain("600M");
     expect(container.textContent).toContain("GraalVM 25");
-    await act(async () => root.render(<div />));
+    await act(async () => root.render(<div/>));
     await act(async () => {
         jest.advanceTimersByTime(10000);
     });
@@ -323,14 +323,14 @@ test.each([
 ])("system deep links and browser history work (static=%s, mobile=%s)", async (staticPage, mobile) => {
     mockStatic = staticPage;
     mockDevMode = true;
-    jest.mocked(Grid.useBreakpoint).mockReturnValue({ md: !mobile, sm: !mobile });
+    jest.mocked(Grid.useBreakpoint).mockReturnValue({md: !mobile, sm: !mobile});
     const suffix = staticPage ? ".html" : "";
     let navigate: NavigateFunction;
     const Pages = () => {
         navigate = useNavigate();
         return (
             <Routes>
-                <Route path={`/blog/admin/system${suffix}`} element={<System data={data} offline={false} />} />
+                <Route path={`/blog/admin/system${suffix}`} element={<System data={data} offline={false}/>}/>
                 <Route
                     path={`/blog/admin/website${suffix}`}
                     element={<AdminSettingsLayout activeKey="basic">Site content</AdminSettingsLayout>}
@@ -356,7 +356,7 @@ test.each([
                     path={`/blog/admin/dev${suffix}`}
                     element={<AdminSettingsLayout activeKey="dev">Developer content</AdminSettingsLayout>}
                 />
-                <Route path={`/blog/admin/system/version${suffix}`} element={<Version data={versionData} />} />
+                <Route path={`/blog/admin/system/version${suffix}`} element={<Version data={versionData}/>}/>
             </Routes>
         );
     };
@@ -364,9 +364,9 @@ test.each([
         root.render(
             <MemoryRouter
                 initialEntries={[`/blog/admin/system${suffix}`]}
-                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+                future={{v7_startTransition: true, v7_relativeSplatPath: true}}
             >
-                <Pages />
+                <Pages/>
             </MemoryRouter>
         )
     );
@@ -377,7 +377,7 @@ test.each([
             await act(async () =>
                 container
                     .querySelector('[role="combobox"]')!
-                    .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))
+                    .dispatchEvent(new MouseEvent("mousedown", {bubbles: true}))
             );
             await act(async () =>
                 Array.from(container.querySelectorAll<HTMLElement>(".ant-select-item-option"))
@@ -446,8 +446,8 @@ test("build details keep a permitted return path for accounts without system acc
     mockManage = false;
     await act(async () =>
         root.render(
-            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <Version data={versionData} />
+            <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
+                <Version data={versionData}/>
             </MemoryRouter>
         )
     );
@@ -470,8 +470,8 @@ test("build details render markdown once per document and ignore replaced docume
     const renderVersion = async (value: typeof versionData) => {
         await act(async () =>
             root.render(
-                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                    <Version data={value} />
+                <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
+                    <Version data={value}/>
                 </MemoryRouter>
             )
         );
@@ -481,9 +481,9 @@ test("build details render markdown once per document and ignore replaced docume
     await act(async () => callbacks[1]("Rendered build report"));
     expect(container.textContent).toContain("Rendered build report");
     expect(renderMarkdown).toHaveBeenCalledTimes(2);
-    await renderVersion({ ...versionData });
+    await renderVersion({...versionData});
     expect(renderMarkdown).toHaveBeenCalledTimes(2);
-    await renderVersion({ ...versionData, buildSystemInfo: "New build report" });
+    await renderVersion({...versionData, buildSystemInfo: "New build report"});
     expect(renderMarkdown).toHaveBeenCalledTimes(3);
     await act(async () => callbacks[1]("Outdated report"));
     expect(container.textContent).toContain("New build report");
@@ -508,9 +508,9 @@ test.each([false, true])(
                     <MemoryRouter
                         key={path}
                         initialEntries={[path]}
-                        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+                        future={{v7_startTransition: true, v7_relativeSplatPath: true}}
                     >
-                        <SliderMenu expanded={expanded} />
+                        <SliderMenu expanded={expanded}/>
                     </MemoryRouter>
                 )
             );
@@ -523,8 +523,8 @@ test.each([false, true])(
         mockConfigure = false;
         await act(async () =>
             root.render(
-                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                    <SliderMenu expanded={expanded} />
+                <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
+                    <SliderMenu expanded={expanded}/>
                 </MemoryRouter>
             )
         );

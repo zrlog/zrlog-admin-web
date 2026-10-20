@@ -1,20 +1,20 @@
 import Switch from "@zrlog/ui/antd/Switch";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
-import { isModuleEnabled } from "../../utils/module-capabilities";
+import {isModuleEnabled} from "../../utils/module-capabilities";
 import Form from "antd/es/form";
 
-import { Select } from "antd";
-import { useEffect } from "react";
-import { getRes } from "../../utils/constants";
-import { ArticleEditSetting } from "./index";
-import { editorLang } from "@zrlog/editor/dist/editor/lang/editor-lang";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {Select} from "antd";
+import {useEffect} from "react";
+import {getRes} from "../../utils/constants";
+import {ArticleEditSetting} from "./index";
+import {editorLang} from "@zrlog/editor/dist/editor/lang/editor-lang";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 const ARTICLE_COVER_ASPECT_RATIO_OPTIONS = ["16:9", "4:3", "3:2", "1:1", "21:9"].map((ratio) => ({
@@ -23,12 +23,12 @@ const ARTICLE_COVER_ASPECT_RATIO_OPTIONS = ["16:9", "4:3", "3:2", "1:1", "21:9"]
 }));
 
 const ArticleEditForm = ({
-    data,
-    offlineData,
-    offline,
-    onSubmit,
-    loading,
-}: {
+                             data,
+                             offlineData,
+                             offline,
+                             onSubmit,
+                             loading,
+                         }: {
     data: ArticleEditSetting;
     offlineData: boolean;
     offline: boolean;
@@ -36,7 +36,7 @@ const ArticleEditForm = ({
     loading?: boolean;
 }) => {
     const [form] = Form.useForm();
-    const { formLayout } = useResponsiveFormLayout(layout);
+    const {formLayout} = useResponsiveFormLayout(layout);
     const autoSaveIntervalOptions = [2, 5, 10].map((seconds) => ({
         label: getRes().websiteArticleEdit.autoSaveIntervalOption.replace("{seconds}", `${seconds}`),
         value: seconds,
@@ -52,7 +52,7 @@ const ArticleEditForm = ({
             form={form}
             disabled={offline || offlineData}
             initialValues={data}
-            onFinish={(values) => onSubmit({ ...data, ...values })}
+            onFinish={(values) => onSubmit({...data, ...values})}
         >
             <Form.Item
                 name="article_auto_digest_length"
@@ -61,7 +61,7 @@ const ArticleEditForm = ({
             >
                 <InputNumber
                     suffix={editorLang[getAppState().lang].wordsCount}
-                    style={{ width: 120 }}
+                    style={{width: 120}}
                     max={99999}
                     type={"number"}
                     min={-1}
@@ -73,14 +73,14 @@ const ArticleEditForm = ({
                 label={getRes().websiteArticleEdit.autoSaveInterval}
                 tooltip={getRes().websiteArticleEdit.autoSaveIntervalTip}
             >
-                <Select style={{ width: 120 }} options={autoSaveIntervalOptions} />
+                <Select style={{width: 120}} options={autoSaveIntervalOptions}/>
             </Form.Item>
             <Form.Item
                 name="article_cover_aspect_ratio"
                 label={getRes().websiteArticleEdit.coverAspectRatio}
                 tooltip={getRes().websiteArticleEdit.coverAspectRatioTip}
             >
-                <Select style={{ width: 120 }} options={ARTICLE_COVER_ASPECT_RATIO_OPTIONS} />
+                <Select style={{width: 120}} options={ARTICLE_COVER_ASPECT_RATIO_OPTIONS}/>
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
@@ -88,7 +88,7 @@ const ArticleEditForm = ({
                 label={getRes().websiteArticleEdit.linkPreview}
                 tooltip={getRes().websiteArticleEdit.linkPreviewTip}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
             {isModuleEnabled("ai") && (
                 <Form.Item
@@ -97,11 +97,11 @@ const ArticleEditForm = ({
                     label={getRes().websiteArticleEdit.publishCheck}
                     tooltip={getRes().websiteArticleEdit.publishCheckTip}
                 >
-                    <Switch />
+                    <Switch/>
                 </Form.Item>
             )}
 
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
         </Form>
     );
 };

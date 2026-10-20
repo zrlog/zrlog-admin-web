@@ -1,9 +1,10 @@
-import { Alert, Button, Card, Checkbox, Radio, Space, Typography } from "antd";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { useState } from "react";
+import {Alert, Button, Card, Checkbox, Radio, Space, Typography} from "antd";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {useState} from "react";
 
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getRes } from "../utils/constants";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getRes} from "../utils/constants";
+
 type Consent = {
     requestId: string;
     csrf: string;
@@ -14,12 +15,12 @@ type Consent = {
     availableScopes: string[];
     accountPermissions?: boolean;
 };
-export default function OAuthConsent({ data }: { data: Consent }) {
+export default function OAuthConsent({data}: { data: Consent }) {
     const [selected, setSelected] = useState<string[]>(
         data.availableScopes.filter((s) =>
             data.accountPermissions
                 ? s === "offline_access" ||
-                  (data.scopes.includes("account:inherit") ? s === "article.read" : s !== "account:inherit")
+                (data.scopes.includes("account:inherit") ? s === "article.read" : s !== "account:inherit")
                 : s === "articles:read"
         )
     );
@@ -50,17 +51,17 @@ export default function OAuthConsent({ data }: { data: Consent }) {
         }
     };
     return (
-        <Card title={res.authorizeTitle} style={{ maxWidth: 760, margin: "0 auto" }}>
+        <Card title={res.authorizeTitle} style={{maxWidth: 760, margin: "0 auto"}}>
             {contextHolder}
-            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+            <Space orientation="vertical" size="large" style={{width: "100%"}}>
                 <Typography.Paragraph>{res.authorizeDescription}</Typography.Paragraph>
                 <Typography.Title level={4}>{data.clientName}</Typography.Title>
                 <div>
                     <Typography.Text type="secondary">{res.redirectUris}</Typography.Text>
-                    <Typography.Paragraph style={{ overflowWrap: "anywhere" }}>{data.redirectUri}</Typography.Paragraph>
+                    <Typography.Paragraph style={{overflowWrap: "anywhere"}}>{data.redirectUri}</Typography.Paragraph>
                 </div>
                 {!data.scopes.includes("account:inherit") && data.availableScopes.length !== data.scopes.length && (
-                    <Alert type="warning" title={res.grantUnavailable} showIcon />
+                    <Alert type="warning" title={res.grantUnavailable} showIcon/>
                 )}
                 {data.accountPermissions ? (
                     <div>
@@ -99,7 +100,7 @@ export default function OAuthConsent({ data }: { data: Consent }) {
                         </Radio.Group>
                     </div>
                 )}
-                {inherit && <Alert type="info" showIcon title={res.personalTokens.inheritHelp} />}
+                {inherit && <Alert type="info" showIcon title={res.personalTokens.inheritHelp}/>}
                 <div>
                     <Typography.Paragraph strong>{res.permissions}</Typography.Paragraph>
                     <Checkbox.Group

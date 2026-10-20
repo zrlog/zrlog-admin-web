@@ -17,7 +17,6 @@ import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.util.BlogBuildInfoUtil;
-
 import jakarta.inject.Inject;
 
 import java.lang.reflect.Method;
@@ -26,7 +25,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 
-/** Executes an authenticated action with its request lock and cache/publication policy. */
+/**
+ * Executes an authenticated action with its request lock and cache/publication policy.
+ */
 public final class AdminActionDispatcher {
     private final DistributedLock.Factory locks;
 
@@ -42,6 +43,14 @@ public final class AdminActionDispatcher {
 
         this.cacheRefresh = cacheRefresh;
         this.staticSitePublisher = staticSitePublisher;
+    }
+
+    private static boolean isSseRefreshCacheRequest(HttpRequest request, Method method) {
+        if (Objects.isNull(method) || Objects.isNull(method.getAnnotation(RefreshCache.class))) {
+            return false;
+        }
+        String accept = request.getHeader("Accept");
+        return StringUtils.isNotEmpty(accept) && accept.contains("text/event-stream");
     }
 
     private Lock getLock(Method method, HttpRequest request) {
@@ -96,14 +105,6 @@ public final class AdminActionDispatcher {
         }
         boolean async = annotation.async() && !EnvKit.isFaaSMode();
         cacheRefresh.updateCache(async, request, Arrays.asList(annotation.updateStaticSites()));
-    }
-
-    private static boolean isSseRefreshCacheRequest(HttpRequest request, Method method) {
-        if (Objects.isNull(method) || Objects.isNull(method.getAnnotation(RefreshCache.class))) {
-            return false;
-        }
-        String accept = request.getHeader("Accept");
-        return StringUtils.isNotEmpty(accept) && accept.contains("text/event-stream");
     }
 
     private void doSseRefreshCache(HttpRequest request, HttpResponse response, Method method) throws Exception {

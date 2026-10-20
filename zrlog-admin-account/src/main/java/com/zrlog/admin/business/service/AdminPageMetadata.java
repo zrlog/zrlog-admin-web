@@ -2,7 +2,9 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 
-/** Values copied into the existing, flat page response contract. */
+/**
+ * Values copied into the existing, flat page response contract.
+ */
 public final class AdminPageMetadata {
     private final String pageBuildId;
     private final String documentTitle;
@@ -16,8 +18,20 @@ public final class AdminPageMetadata {
         this.systemNotification = systemNotification;
         this.messageCenter = messageCenter;
     }
-    public String getPageBuildId() { return pageBuildId; }
-    public String getDocumentTitle() { return documentTitle; }
-    public String getSystemNotification() { return systemNotification; }
-    public MessageCenterStatusResponse getMessageCenter() { return messageCenter; }
+
+    public String getPageBuildId() {
+        return pageBuildId;
+    }
+
+    public String getDocumentTitle() {
+        return documentTitle;
+    }
+
+    public String getSystemNotification() {
+        return systemNotification;
+    }
+
+    public MessageCenterStatusResponse getMessageCenter() {
+        return messageCenter;
+    }
 }

@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.ai;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.google.gson.Gson;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
@@ -10,32 +8,31 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
 import com.zrlog.admin.business.ai.model.AIChatModels;
-import com.zrlog.admin.business.ai.service.AIChatService;
-import com.zrlog.admin.business.ai.service.AIConversationService;
-import com.zrlog.admin.business.ai.service.AIFileService;
-import com.zrlog.admin.business.ai.service.AIImageService;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
-import com.zrlog.admin.business.ai.service.AIReferenceService;
+import com.zrlog.admin.business.ai.service.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels;
-import com.zrlog.admin.business.rest.request.*;
-import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.rest.request.ApplyArticleCoverRequest;
+import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
+import com.zrlog.admin.business.rest.request.UpdateAIMessageRequest;
+import com.zrlog.admin.business.rest.response.AdminSsePayloads;
+import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
+import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.UploadService;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Objects;
 
 public class AIArticleController extends BaseController {
     private final AIConversationService conversations;
@@ -48,6 +45,7 @@ public class AIArticleController extends BaseController {
     private final UploadService uploadService;
     private final AIChatService chat;
     private final AIReferenceService references;
+    private final AIPublishCheckService publishingService;
 
     @Inject
     public AIArticleController(
@@ -71,8 +69,6 @@ public class AIArticleController extends BaseController {
         this.chat = chat;
         this.uploadService = uploadService;
     }
-
-    private final AIPublishCheckService publishingService;
 
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
     @RequestMethod(method = HttpMethod.POST)

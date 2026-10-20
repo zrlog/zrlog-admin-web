@@ -1,12 +1,7 @@
 package com.zrlog.admin.support;
 
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.admin.business.service.AdminAuditService;
-import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.admin.business.service.MessageCenterOperationService;
-import com.zrlog.admin.business.service.MessageCenterStateService;
-import com.zrlog.admin.business.service.WebSiteService;
-import com.zrlog.admin.business.service.WebsiteCacheService;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.util.AdminStaticSiteProgress;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.util.AdminWebTools;
@@ -14,11 +9,7 @@ import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.admin.web.interceptor.AdminActionDispatcher;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.plugin.StaticSitePlugin;
-import com.zrlog.business.service.BackupProtectionService;
-import com.zrlog.business.service.CacheRefreshService;
-import com.zrlog.business.service.UpgradeNoticeService;
-import com.zrlog.business.service.UpgradeService;
-import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.business.service.*;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.PublicWebSiteInfo;
@@ -31,9 +22,12 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/** Assembles explicit dependencies from a test's application, without a global resolver. */
+/**
+ * Assembles explicit dependencies from a test's application, without a global resolver.
+ */
 public final class ApplicationServicesFixture {
-    private ApplicationServicesFixture() { }
+    private ApplicationServicesFixture() {
+    }
 
     private static DataSourceWrapper database(ZrLogConfig config) {
         return config == null ? null : (DataSourceWrapper) config.getDataSource();
@@ -103,7 +97,8 @@ public final class ApplicationServicesFixture {
 
     public static CacheRefreshService cacheRefresh(CacheService cache, ZrLogConfig config) {
         CacheService source = cache == null ? new InMemoryZrLogDatabase.TestCacheService() {
-            @Override public PublicWebSiteInfo getPublicWebSiteInfo() {
+            @Override
+            public PublicWebSiteInfo getPublicWebSiteInfo() {
                 WebSiteInfoProvider provider = config == null ? null : config.getWebSetup(WebSiteInfoProvider.class);
                 return provider == null ? super.getPublicWebSiteInfo() : provider.getPublicWebSiteInfo();
             }

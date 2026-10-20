@@ -1,27 +1,15 @@
 package com.zrlog.admin.web;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.Gson;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.AttachmentStorage;
-import com.zrlog.admin.business.knowledge.ContentToolFactory;
-import com.zrlog.admin.business.knowledge.ContentToolModels;
-import com.zrlog.admin.business.knowledge.KnowledgeModels;
-import com.zrlog.admin.business.knowledge.KnowledgeService;
-import com.zrlog.admin.business.knowledge.McpService;
+import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.AdminResourceProvider;
-import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.business.service.ArticlePublishingService;
-import com.zrlog.admin.business.service.ArticleQueryService;
-import com.zrlog.admin.business.service.FeatureLabService;
-import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.audit.AdminAuditContexts;
@@ -32,7 +20,6 @@ import com.zrlog.admin.web.interceptor.McpInterceptor;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.model.Log;
-
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -41,38 +28,9 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.*;
+
 public class AdminModuleSwitchTest {
-
-    @Test
-    public void realDiscoveryEnablesAiAndCanDisableItWithoutDisablingContentOrMcp() throws Exception {
-        probe("");
-        probe("admin-ai");
-        probe("admin-access");
-        probe("admin-mcp");
-        probe("admin-ui");
-        probe("admin");
-        probe("admin-content");
-        probe("admin-assets");
-        probe("admin-account");
-        probe("admin-ai,admin-mcp");
-    }
-
-    private void probe(String disabled) throws Exception {
-        Path output = Files.createTempFile("zrlog-module-probe-", ".log");
-        ProcessBuilder builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                "-cp", System.getProperty("java.class.path"), getClass().getName(), disabled)
-                .redirectErrorStream(true).redirectOutput(output.toFile());
-        builder.environment().put("DISABLE_MODULES", disabled);
-        builder.environment().put("WEB_SETUP_STRICT", "true");
-        Process process = builder.start();
-        try {
-            assertTrue("Module startup timed out: " + disabled, process.waitFor(30, TimeUnit.SECONDS));
-            assertEquals(Files.readString(output), 0, process.exitValue());
-        } finally {
-            process.destroyForcibly();
-            Files.deleteIfExists(output);
-        }
-    }
 
     public static void main(String[] args) throws Exception {
         var disabled = java.util.Set.of(args[0].split(","));
@@ -157,18 +115,18 @@ public class AdminModuleSwitchTest {
             if (!admin) return;
             var services = config.getServerConfig().getBindings().build();
             {
-            if (access) {
+                if (access) {
                     var oauth = services.get(OAuthService.class);
-                assertEquals(mcp, oauth.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()).mcpResource != null);
+                    assertEquals(mcp, oauth.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()).mcpResource != null);
                     var token = new OAuthModels.TokenRequest();
-                token.resource = oauth.mcpResource();
-                token.grant_type = "authorization_code";
+                    token.resource = oauth.mcpResource();
+                    token.grant_type = "authorization_code";
                     if (!mcp)
                         assertEquals(
                                 "invalid_target",
                                 assertThrows(OAuthException.class, () -> oauth.token(token))
                                         .getOAuthError());
-            }
+                }
             }
             if (!content) return;
             if (ai) assertEquals(AIArticleController.class,
@@ -178,8 +136,10 @@ public class AdminModuleSwitchTest {
             db.putWebsite("ai_model", "unreachable-model");
             db.putWebsite("ai_api_key", "test-key");
             CreateArticleRequest article = new CreateArticleRequest();
-            article.setTitle("Independent content"); article.setAlias("independent-content");
-            article.setTypeId(1L); article.setContent("<p>Saved without invoking a model</p>");
+            article.setTitle("Independent content");
+            article.setAlias("independent-content");
+            article.setTypeId(1L);
+            article.setContent("<p>Saved without invoking a model</p>");
             article.setRubbish(true);
             HttpRequest request = (HttpRequest) Proxy.newProxyInstance(AdminModuleSwitchTest.class.getClassLoader(),
                     new Class<?>[]{HttpRequest.class}, (proxy, method, values) -> {
@@ -187,7 +147,8 @@ public class AdminModuleSwitchTest {
                         if (method.getName().equals("getContextPath")) return "";
                         if (method.getName().equals("getRemoteHost")) return "127.0.0.1";
                         if (method.getName().equals("getScheme")) return "http";
-                        if (method.getName().equals("getHeader")) return "Host".equals(values[0]) ? "localhost:18080" : null;
+                        if (method.getName().equals("getHeader"))
+                            return "Host".equals(values[0]) ? "localhost:18080" : null;
                         return null;
                     });
             var resources = services.get(AdminResourceService.class);
@@ -233,7 +194,8 @@ public class AdminModuleSwitchTest {
                             () -> "https://blog.example",
                             () -> false,
                             () -> new Log(db.dataSource()));
-            var argsJson = new com.google.gson.JsonObject(); argsJson.addProperty("id", saved.getLogId());
+            var argsJson = new com.google.gson.JsonObject();
+            argsJson.addProperty("id", saved.getLogId());
             var source = (KnowledgeModels.ArticleResult) knowledge.call("read_article", argsJson);
             assertEquals("Independent content", source.source.title);
             if (mcp) {
@@ -261,6 +223,37 @@ public class AdminModuleSwitchTest {
             assertTrue(
                     services.get(com.zrlog.admin.business.service.AdminArticleService.class)
                             .delete(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), saved.getLogId()));
+        }
+    }
+
+    @Test
+    public void realDiscoveryEnablesAiAndCanDisableItWithoutDisablingContentOrMcp() throws Exception {
+        probe("");
+        probe("admin-ai");
+        probe("admin-access");
+        probe("admin-mcp");
+        probe("admin-ui");
+        probe("admin");
+        probe("admin-content");
+        probe("admin-assets");
+        probe("admin-account");
+        probe("admin-ai,admin-mcp");
+    }
+
+    private void probe(String disabled) throws Exception {
+        Path output = Files.createTempFile("zrlog-module-probe-", ".log");
+        ProcessBuilder builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-cp", System.getProperty("java.class.path"), getClass().getName(), disabled)
+                .redirectErrorStream(true).redirectOutput(output.toFile());
+        builder.environment().put("DISABLE_MODULES", disabled);
+        builder.environment().put("WEB_SETUP_STRICT", "true");
+        Process process = builder.start();
+        try {
+            assertTrue("Module startup timed out: " + disabled, process.waitFor(30, TimeUnit.SECONDS));
+            assertEquals(Files.readString(output), 0, process.exitValue());
+        } finally {
+            process.destroyForcibly();
+            Files.deleteIfExists(output);
         }
     }
 }

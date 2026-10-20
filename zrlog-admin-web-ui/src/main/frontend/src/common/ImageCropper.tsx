@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Grid, Modal, Slider, Space, Typography } from "antd";
-import { getRes } from "../utils/constants";
+import React, {useEffect, useRef, useState} from "react";
+import {Grid, Modal, Slider, Space, Typography} from "antd";
+import {getRes} from "../utils/constants";
 import styled from "styled-components";
-import { useTheme } from "antd-style";
+import {useTheme} from "antd-style";
 
-const { Text } = Typography;
+const {Text} = Typography;
 
 const Stage = styled.div<{ $height: number; $background: string }>`
     position: relative;
@@ -44,20 +44,20 @@ interface ImageCropperProps {
 }
 
 const ImageCropper: React.FC<ImageCropperProps> = ({
-    open,
-    onCancel,
-    onOk,
-    onError,
-    imageUrl,
-    resolveImageUrl = (url) => url,
-    aspectRatio = 16 / 9,
-}) => {
+                                                       open,
+                                                       onCancel,
+                                                       onOk,
+                                                       onError,
+                                                       imageUrl,
+                                                       resolveImageUrl = (url) => url,
+                                                       aspectRatio = 16 / 9,
+                                                   }) => {
     const [zoom, setZoom] = useState(1);
     const [minZoom, setMinZoom] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+    const [offset, setOffset] = useState({x: 0, y: 0});
+    const [imageSize, setImageSize] = useState({width: 0, height: 0});
     const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragStart, setDragStart] = useState({x: 0, y: 0});
     const [renderImageUrl, setRenderImageUrl] = useState(imageUrl);
     const [canExportImage, setCanExportImage] = useState(false);
     const imgRef = useRef<HTMLImageElement>(null);
@@ -94,9 +94,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     useEffect(() => {
         if (open) {
             setZoom(1);
-            setOffset({ x: 0, y: 0 });
+            setOffset({x: 0, y: 0});
             setMinZoom(1);
-            setImageSize({ width: 0, height: 0 });
+            setImageSize({width: 0, height: 0});
         }
     }, [open, imageUrl]);
 
@@ -116,7 +116,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         let objectUrl: string | undefined;
         setRenderImageUrl("");
         setCanExportImage(false);
-        fetch(resolveImageUrl(imageUrl), { credentials: "include", signal: controller.signal })
+        fetch(resolveImageUrl(imageUrl), {credentials: "include", signal: controller.signal})
             .then((response) => {
                 if (!response.ok) {
                     throw new Error(response.statusText);
@@ -162,15 +162,15 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         const baseWidth = Math.round(img.naturalWidth * fitScale);
         const baseHeight = Math.round(img.naturalHeight * fitScale);
         const nextMinZoom = roundZoom(Math.max(frameWidth / baseWidth, frameHeight / baseHeight));
-        setImageSize({ width: baseWidth, height: baseHeight });
+        setImageSize({width: baseWidth, height: baseHeight});
         setMinZoom(nextMinZoom);
         setZoom(nextMinZoom);
-        setOffset({ x: 0, y: 0 });
+        setOffset({x: 0, y: 0});
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
-        setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+        setDragStart({x: e.clientX - offset.x, y: e.clientY - offset.y});
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -238,12 +238,12 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
             open={open}
             onCancel={onCancel}
             onOk={handleOk}
-            okButtonProps={{ disabled: !canExportImage || !imageSize.width || !imageSize.height }}
+            okButtonProps={{disabled: !canExportImage || !imageSize.width || !imageSize.height}}
             width={narrow ? "calc(100vw - 32px)" : 600}
             destroyOnClose
             centered
         >
-            <div style={{ marginBottom: 16 }}>
+            <div style={{marginBottom: 16}}>
                 <Stage
                     ref={containerRef}
                     $height={stageHeight}
@@ -278,17 +278,17 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
                     />
                 </Stage>
             </div>
-            <Space direction="vertical" style={{ width: "100%" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Space direction="vertical" style={{width: "100%"}}>
+                <div style={{display: "flex", alignItems: "center", gap: 12}}>
                     <Text type="secondary">{getRes().articleEdit.assistant.cropZoom}</Text>
                     <Slider
                         min={minZoom}
                         max={Math.max(5, minZoom)}
                         step={0.1}
                         value={zoom}
-                        tooltip={{ formatter: (value) => `${Number(value || 0).toFixed(1)}x` }}
+                        tooltip={{formatter: (value) => `${Number(value || 0).toFixed(1)}x`}}
                         onChange={(v) => setZoom(roundZoom(v))}
-                        style={{ flex: 1 }}
+                        style={{flex: 1}}
                     />
                 </div>
                 <Text type="secondary">{getRes().articleEdit.assistant.cropDragTip}</Text>

@@ -1,9 +1,9 @@
-import { cacheUserInfo, getCacheByKey } from "../utils/cache";
-import { BasicUserInfo } from "../type";
-import { FunctionComponent, PropsWithChildren } from "react";
-import type { AdminRuntimeResourceInfo } from "../utils/constants";
-import { MessageCenterStatus, syncMessageCenterStatus } from "../utils/message-center-status";
-import { hasUserAppearance, userAppearanceResources } from "../utils/user-appearance";
+import {cacheUserInfo, getCacheByKey} from "../utils/cache";
+import {BasicUserInfo} from "../type";
+import {FunctionComponent, PropsWithChildren} from "react";
+import type {AdminRuntimeResourceInfo} from "../utils/constants";
+import {MessageCenterStatus, syncMessageCenterStatus} from "../utils/message-center-status";
+import {hasUserAppearance, userAppearanceResources} from "../utils/user-appearance";
 
 type SsDate = {
     data?: any;
@@ -50,7 +50,7 @@ export const setWindowPageBuildId = (id: string) => {
     window[SS_PAGE_BUILD_ID_KEY] = id;
 };
 
-const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
+const SsData: FunctionComponent<PropsWithChildren> = ({children}) => {
     const initSsData = (): SsDate => {
         const ssDataStr = document.getElementById(SS_DATA_KEY)?.innerText;
         let tSData: SsDate;
@@ -87,7 +87,7 @@ const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
     if (ssData.user?.key === ssData.key && hasUserAppearance(ssData.user)) {
         // Apply before ConfigProviderApp's first render, including offline static pages.
         if (ssData.resourceInfo && Object.keys(ssData.resourceInfo).length > 0) {
-            ssData.resourceInfo = { ...ssData.resourceInfo, ...userAppearanceResources(ssData.user) };
+            ssData.resourceInfo = {...ssData.resourceInfo, ...userAppearanceResources(ssData.user)};
         }
         document.documentElement.lang = ssData.user.language === "en_US" ? "en" : "zh";
         if (!ssData.userFromCache) cacheUserInfo(ssData.user);

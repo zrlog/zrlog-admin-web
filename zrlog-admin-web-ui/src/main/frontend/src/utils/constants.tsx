@@ -1,10 +1,11 @@
-import { getContextPath } from "./helpers";
-import { getSsDate } from "../base/SsData";
-import type { AdminI18nResource, AdminLang } from "../i18n/admin";
-import { getAdminI18n } from "../i18n/admin";
+import {getContextPath} from "./helpers";
+import {getSsDate} from "../base/SsData";
+import type {AdminI18nResource, AdminLang} from "../i18n/admin";
+import {getAdminI18n} from "../i18n/admin";
 
-import type { AdminTheme } from "./admin-themes";
-export type { AdminTheme } from "./admin-themes";
+import type {AdminTheme} from "./admin-themes";
+
+export type {AdminTheme} from "./admin-themes";
 
 class Constants {
     static getFillBackImg() {

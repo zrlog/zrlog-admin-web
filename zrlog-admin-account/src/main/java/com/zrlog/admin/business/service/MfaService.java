@@ -9,7 +9,6 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.util.MfaUtils;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -19,15 +18,13 @@ import java.util.Objects;
 
 @Singleton
 public class MfaService {
+    private static final String MFA_ENABLED_COLUMN = "mfaEnabled";
+    private static final String MFA_SECRET_COLUMN = "mfaSecret";
     private final jakarta.inject.Provider<User> userProvider;
-
     @Inject
     public MfaService(jakarta.inject.Provider<User> userProvider) {
         this.userProvider = userProvider;
     }
-
-    private static final String MFA_ENABLED_COLUMN = "mfaEnabled";
-    private static final String MFA_SECRET_COLUMN = "mfaSecret";
 
     public MfaStatusResponse getMfaStatus(int userId, String siteTitle) throws SQLException {
         Map<String, Object> user = this.userProvider.get().loadById(userId);

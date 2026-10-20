@@ -5,16 +5,16 @@ import {
     AiFilePreviewContext,
     rememberAiFilePreviews,
 } from "./article-ai-files";
-import { Alert, Space, Typography } from "antd";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {Alert, Space, Typography} from "antd";
+import {useCallback, useEffect, useRef, useState} from "react";
 
-import { AxiosInstance, AxiosRequestConfig } from "axios";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { AIButtonRenderMessageOptions } from "@zrlog/editor/core/ai/AIButton";
+import {AxiosInstance, AxiosRequestConfig} from "axios";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {AIButtonRenderMessageOptions} from "@zrlog/editor/core/ai/AIButton";
 import ArticleAiReasoning from "./article-ai-reasoning";
-import { getRes } from "../../../utils/constants";
-import { ArticleUpdatedEvent, EditorSnapshot, ToolAwareAIContent } from "./article-ai-assistant.types";
-import type { AiMentionInput } from "./article-ai-mentions";
+import {getRes} from "../../../utils/constants";
+import {ArticleUpdatedEvent, EditorSnapshot, ToolAwareAIContent} from "./article-ai-assistant.types";
+import type {AiMentionInput} from "./article-ai-mentions";
 
 type Source = { id: number; title: string; url: string; draft: boolean; privateArticle: boolean };
 export type ChatMessage = ToolAwareAIContent & {
@@ -96,7 +96,7 @@ const createdArticleUpdate = (updates: ArticleUpdatedEvent[]) => {
     if (!created) return undefined;
     return valid
         .filter((update) => update.articleId === created.articleId)
-        .reduce((latest, update) => (update.version > latest.version ? { ...update, created: true } : latest), created);
+        .reduce((latest, update) => (update.version > latest.version ? {...update, created: true} : latest), created);
 };
 
 export const parseChatEvents = (text: string): Event[] =>
@@ -120,7 +120,7 @@ export const isChatMessage = (message: AIContent): message is ChatMessage =>
     (message as ChatMessage).messageType === "knowledge";
 
 export const renderChatMessage = (
-    { content, defaultNode }: AIButtonRenderMessageOptions,
+    {content, defaultNode}: AIButtonRenderMessageOptions,
     status?: string,
     previewContext?: AiFilePreviewContext
 ) => {
@@ -135,7 +135,7 @@ export const renderChatMessage = (
     );
     if (message.role === "user" && message.attachments?.length && !message.failed) {
         return (
-            <Space orientation="vertical" size="small" style={{ width: "100%", minWidth: 0 }}>
+            <Space orientation="vertical" size="small" style={{width: "100%", minWidth: 0}}>
                 {defaultNode}
                 {attachments}
             </Space>
@@ -145,15 +145,15 @@ export const renderChatMessage = (
         <>
             {attachments}
             {!message.failed && message.role === "assistant" && (
-                <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} status={status} />
+                <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} status={status}/>
             )}
             {message.failed ? (
-                <Alert type="error" title={content.content} />
+                <Alert type="error" title={content.content}/>
             ) : content.content || !status ? (
                 defaultNode
             ) : null}
             {!!message.sources?.length && (
-                <Space orientation="vertical" style={{ width: "100%" }}>
+                <Space orientation="vertical" style={{width: "100%"}}>
                     <Typography.Text type="secondary">{res.sources}</Typography.Text>
                     {message.sources.map((source) => (
                         <Typography.Link
@@ -188,8 +188,8 @@ export const useArticleChat = (
     const outcome = useRef<boolean | undefined>(false);
     const onArticleUpdatedRef = useRef(onArticleUpdated);
     onArticleUpdatedRef.current = onArticleUpdated;
-    const contextRef = useRef({ api, session, onMessagesChange });
-    contextRef.current = { api, session, onMessagesChange };
+    const contextRef = useRef({api, session, onMessagesChange});
+    contextRef.current = {api, session, onMessagesChange};
     const mergeRun = useCallback((view: ChatRun, context: AIContent[]) => {
         const current = context as ChatMessage[];
         const belongsToRun = (message: ChatMessage) =>
@@ -224,26 +224,26 @@ export const useArticleChat = (
             view.status === "cancelled"
                 ? []
                 : view.status === "completed" && view.answer?.messages
-                ? view.answer.messages.map((message) => ({ ...message, thinking: false }))
-                : [
-                      {
-                          role: "user",
-                          content: view.input,
-                          attachments: view.attachments,
-                          messageType: "knowledge",
-                          runId: view.runId,
-                          thinking: false,
-                      },
-                      ...(view.skillMessages || []),
-                      {
-                          role: "assistant",
-                          content: "",
-                          messageType: "knowledge",
-                          runId: view.runId,
-                          run: view,
-                          thinking: false,
-                      },
-                  ];
+                    ? view.answer.messages.map((message) => ({...message, thinking: false}))
+                    : [
+                        {
+                            role: "user",
+                            content: view.input,
+                            attachments: view.attachments,
+                            messageType: "knowledge",
+                            runId: view.runId,
+                            thinking: false,
+                        },
+                        ...(view.skillMessages || []),
+                        {
+                            role: "assistant",
+                            content: "",
+                            messageType: "knowledge",
+                            runId: view.runId,
+                            run: view,
+                            thinking: false,
+                        },
+                    ];
         const next = [...history];
         next.splice(index < 0 ? history.length : index, 0, ...restored);
         setMessages(next);
@@ -256,7 +256,7 @@ export const useArticleChat = (
             try {
                 const response = await contextRef.current.api.get<{ error: number; data?: ChatRun }>(
                     "/api/admin/article/ai/run",
-                    { params: { id: articleId } }
+                    {params: {id: articleId}}
                 );
                 if (revision !== generation.current || response?.data?.error || !response?.data?.data) return false;
                 const view = response.data.data;
@@ -387,7 +387,7 @@ export const useArticleChat = (
             runId: approval?.run.runId,
         };
         const base: ChatMessage[] = [...context, question];
-        publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
+        publish([...base, {role: "assistant", content: "", thinking: true, messageType: "knowledge"}]);
         let lastReasoning = "";
         let lastContent = "";
         let lastSkillCount = 0;
@@ -424,7 +424,7 @@ export const useArticleChat = (
                     receiveUpdate({
                         articleId: event.articleId!,
                         version: event.version!,
-                        ...(event.created ? { created: true } : {}),
+                        ...(event.created ? {created: true} : {}),
                     });
             }
             const checkpoint = [...events]
@@ -465,8 +465,8 @@ export const useArticleChat = (
                     progress.type === "delta"
                         ? res.generating
                         : progress.type === "reasoning_delta" || progress.type === "reasoning"
-                        ? res.thinking
-                        : toolStatus[progress.tool || ""] || res.waitingForResponse
+                            ? res.thinking
+                            : toolStatus[progress.tool || ""] || res.waitingForResponse
                 );
             }
             const completedReasoning: string[] = [];
@@ -515,7 +515,7 @@ export const useArticleChat = (
                     throw new Error(res.saveFailed);
                 const sentQuestion = answer.messages.find((entry) => entry.role === "user");
                 if (sentQuestion) rememberAiFilePreviews(sentQuestion.attachments, localFiles);
-                publish([...context, ...answer.messages.map((entry) => ({ ...entry, thinking: false }))]);
+                publish([...context, ...answer.messages.map((entry) => ({...entry, thinking: false}))]);
                 outcome.current = true;
             }
         };
@@ -525,7 +525,7 @@ export const useArticleChat = (
                 signal: controller.signal,
                 adapter: "xhr",
                 responseType: "text",
-                headers: { accept: "text/event-stream" },
+                headers: {accept: "text/event-stream"},
                 onDownloadProgress: (progress) => {
                     const xhr = progress.event?.target as XMLHttpRequest | undefined;
                     try {
@@ -539,24 +539,24 @@ export const useArticleChat = (
                 approval?.interaction
                     ? "/api/admin/article/ai/input"
                     : approval
-                    ? "/api/admin/article/ai/approval"
-                    : "/api/admin/article/ai",
+                        ? "/api/admin/article/ai/approval"
+                        : "/api/admin/article/ai",
                 approval
                     ? {
-                          articleId,
-                          runId: approval.run.runId,
-                          decision: approval.decision,
-                          ...(approval.interaction
-                              ? { interactionId: approval.run.interaction?.id, ...approval.interaction }
-                              : { approvalId: approval.run.approval?.id }),
-                      }
+                        articleId,
+                        runId: approval.run.runId,
+                        decision: approval.decision,
+                        ...(approval.interaction
+                            ? {interactionId: approval.run.interaction?.id, ...approval.interaction}
+                            : {approvalId: approval.run.approval?.id}),
+                    }
                     : {
-                          input: prompt,
-                          articleId,
-                          ...snapshot,
-                          ...(files?.length ? { files } : {}),
-                          ...(references?.length ? { references } : {}),
-                      },
+                        input: prompt,
+                        articleId,
+                        ...snapshot,
+                        ...(files?.length ? {files} : {}),
+                        ...(references?.length ? {references} : {}),
+                    },
                 requestConfig
             );
             consume(typeof response.data === "string" ? response.data : "", true);
@@ -597,13 +597,13 @@ export const useArticleChat = (
         }
     };
     const decide = (view: ChatRun, decision: "approve" | "reject", context: AIContent[]) =>
-        send(view.input, context, view.articleId, { run: view, decision });
+        send(view.input, context, view.articleId, {run: view, decision});
     const respond = (
         view: ChatRun,
         decision: "submit" | "cancel",
         value: string | undefined,
         contextRevision: string,
         context: AIContent[]
-    ) => send(view.input, context, view.articleId, { run: view, decision, interaction: { value, contextRevision } });
-    return { messages, busy, status, send, clear, stop, decide, respond, refreshRun, outcome };
+    ) => send(view.input, context, view.articleId, {run: view, decision, interaction: {value, contextRevision}});
+    return {messages, busy, status, send, clear, stop, decide, respond, refreshRun, outcome};
 };

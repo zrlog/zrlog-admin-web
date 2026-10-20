@@ -27,10 +27,9 @@ import static org.junit.Assert.assertEquals;
 
 public class AdminStaticSiteProgressTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
-
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private com.zrlog.common.ZrLogConfig applicationConfig;
 
     @Test
     public void shouldAggregateStaticSiteProgressAcrossConfiguredPlugins() throws Exception {
@@ -93,16 +92,17 @@ public class AdminStaticSiteProgressTest {
 
     private static class FakeStaticSitePlugin implements StaticSitePlugin {
         private final com.zrlog.common.vo.PublicWebSiteInfo site = new com.zrlog.common.vo.PublicWebSiteInfo();
-        @Override public com.zrlog.common.vo.PublicWebSiteInfo getSiteInfo() { return site; }
-
-
         private final StaticSiteType type;
         private final Map<String, HandleState> stateMap;
         private final Lock lock = new ReentrantLock();
-
         FakeStaticSitePlugin(StaticSiteType type, Map<String, HandleState> stateMap) {
             this.type = type;
             this.stateMap = stateMap;
+        }
+
+        @Override
+        public com.zrlog.common.vo.PublicWebSiteInfo getSiteInfo() {
+            return site;
         }
 
         @Override

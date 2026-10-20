@@ -1,5 +1,5 @@
-import { ArticleEntry } from "../index.types";
-import { EditorSnapshot, ToolAwareAIContent } from "./article-ai-assistant.types";
+import {ArticleEntry} from "../index.types";
+import {EditorSnapshot, ToolAwareAIContent} from "./article-ai-assistant.types";
 
 const md5: (value: string) => string = require("md5");
 
@@ -65,11 +65,11 @@ export const createSkillApplicationSession = () => {
             accepted =
                 runId && message?.skillContract
                     ? {
-                          runId,
-                          original: message.skillContract.contextRevision,
-                          revision: articleContextRevision(article),
-                          articleId: article.logId,
-                      }
+                        runId,
+                        original: message.skillContract.contextRevision,
+                        revision: articleContextRevision(article),
+                        articleId: article.logId,
+                    }
                     : undefined;
         },
     };

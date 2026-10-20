@@ -3,9 +3,7 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
-
 import jakarta.inject.Inject;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -26,8 +24,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class LinkPreviewService {
-    private final WebsiteCacheService websiteCacheService;
-
     private static final Logger LOGGER = LoggerUtil.getLogger(LinkPreviewService.class);
     private static final String CACHE_KEY = "link_preview";
     private static final int MAX_CACHE_SIZE = 200;
@@ -38,7 +34,7 @@ public class LinkPreviewService {
     private static final long EMPTY_CACHE_TTL_MILLIS = Duration.ofMinutes(10).toMillis();
     private static final String BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
+    private final WebsiteCacheService websiteCacheService;
     private final HttpSender httpSender;
 
     @Inject
@@ -397,6 +393,11 @@ public class LinkPreviewService {
         return response;
     }
 
+    @FunctionalInterface
+    interface HttpSender {
+        HttpResponse<InputStream> send(HttpRequest request) throws IOException, InterruptedException;
+    }
+
     public static class LinkPreviewCacheEntry {
         private String url;
         private LinkPreviewResponse response;
@@ -444,10 +445,5 @@ public class LinkPreviewService {
         public void setAccessedAt(long accessedAt) {
             this.accessedAt = accessedAt;
         }
-    }
-
-    @FunctionalInterface
-    interface HttpSender {
-        HttpResponse<InputStream> send(HttpRequest request) throws IOException, InterruptedException;
     }
 }

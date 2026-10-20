@@ -1,10 +1,5 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.Gson;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
@@ -16,12 +11,14 @@ import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.User;
-
 import org.junit.Test;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
 import java.net.Authenticator;
 import java.net.CookieHandler;
@@ -34,206 +31,14 @@ import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Flow;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
+import static org.junit.Assert.*;
 
 public class AIImageServiceTest {
 
-    @Test
-    public void explicitWriterControlsPreferencesAndTemporaryOwnershipWithoutAmbientIdentity() throws Exception {
-        try (var db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "16:9");
-            db.execute("insert into user(userId,userName,role,preferences) values(2,'writer','author',?)",
-                    "{\"editor\":{\"coverAspectRatio\":\"1:1\"}}");
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(2));
-            var client = new FakeHttpClient(imageB64Response("writer-cover".getBytes(StandardCharsets.UTF_8)));
-            var service = new AIImageService(client,
-                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                    AIServiceDependencies.config(db.dataSource()), AIServiceDependencies.dbFiles(db.dataSource()),
-                    AIServiceDependencies.conversations(db.dataSource()),
-                    AccountServicesFixture.component(db.dataSource()).identities());
-            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
-            var result = service.generateArticleCover(actor, articleRequest());
-            assertTrue(result.getUrl(), result.getUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/2/ai/"));
-            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
-            assertStoredDbFile(db, result.getUrl(), "writer-cover".getBytes(StandardCharsets.UTF_8));
-            for (String source : List.of("/users/1/ai/secret.png", "/users/2/../1/secret.png", "/users/2/%2e%2e/secret.png")) {
-                var request = new ApplyArticleCoverRequest();
-                request.setDataUrl(AdminConstants.ADMIN_DB_ATTACHED_TMP + source);
-                assertThrows(PermissionErrorException.class,
-                        () -> service.applyArticleCover(actor, null, request, null, -2L, null));
-            }
-        }
-    }
-
-    @Test
-    public void revocationAfterImageProviderResponsePreventsTemporarySave() throws Exception {
-        try (var db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "1:1");
-            var actor = AIServiceDependencies.actor(db.dataSource());
-            var client = new FakeHttpClient(imageB64Response("revoked-cover".getBytes(StandardCharsets.UTF_8))) {
-                @Override public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> handler) {
-                    var result = super.send(request, handler);
-                    try { db.execute("update user set authVersion=1 where userId=1"); }
-                    catch (Exception error) { throw new RuntimeException(error); }
-                    return result;
-                }
-            };
-            var service = new AIImageService(client,
-                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                    AIServiceDependencies.config(db.dataSource()), AIServiceDependencies.dbFiles(db.dataSource()),
-                    AIServiceDependencies.conversations(db.dataSource()),
-                    AccountServicesFixture.component(db.dataSource()).identities());
-            assertThrows(PermissionErrorException.class, () -> service.generateArticleCover(actor, articleRequest()));
-            assertEquals(0, ((Number) db.scalar("select count(*) from website where name like 'db_file%'")).intValue());
-        }
-    }
-
     private static final Gson GSON = new Gson();
-
-    @Test
-    public void personalCoverRatioOverridesSiteConfiguration() throws Exception {
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "16:9");
-            new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
-                    .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"editor\":{\"coverAspectRatio\":\"1:1\"}}", "writing");
-            FakeHttpClient client = new FakeHttpClient(imageB64Response("cover".getBytes(StandardCharsets.UTF_8)));
-            new AIImageService(
-                            client,
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.config(db.dataSource()),
-                            AIServiceDependencies.dbFiles(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                        AccountServicesFixture.component(db.dataSource()).identities())
-                    .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
-            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
-            assertEquals("16:9", db.scalar("select value from website where name='article_cover_aspect_ratio'"));
-        }
-    }
-
-    @Test
-    public void shouldFallbackImageSizeAndPersistB64CoverFromRealWebsiteConfig() throws Exception {
-        byte[] coverBytes = "cover-bytes".getBytes(StandardCharsets.UTF_8);
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "16:9");
-            FakeHttpClient client = new FakeHttpClient(
-                    stringResponse(500, "{\"error\":{\"message\":\"size not supported\"}}"),
-                    imageB64Response(coverBytes)
-            );
-
-            GenerateArticleCoverResponse response =
-                    new AIImageService(
-                                    client,
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.config(db.dataSource()),
-                                    AIServiceDependencies.dbFiles(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                        AccountServicesFixture.component(db.dataSource()).identities())
-                            .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
-
-            assertEquals("png", response.getExtension());
-            assertEquals("image/png", response.getMimeType());
-            assertTrue(response.getUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/1/ai/article-cover-"));
-            assertStoredDbFile(db, response.getUrl(), coverBytes);
-            assertImageRequest(client, 0);
-            assertImageRequest(client, 1);
-            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1536x1024\""));
-            assertTrue(client.requestBodies.get(1).contains("\"size\":\"1024x1024\""));
-            assertTrue(client.requestBodies.get(1).contains("\"model\":\"gpt-image-2\""));
-            assertTrue(client.requestBodies.get(1).contains("Selected text from the current editor selection"));
-        }
-    }
-
-    @Test
-    public void shouldDownloadProviderImageUrlAndPersistCoverFromRealWebsiteConfig() throws Exception {
-        byte[] coverBytes = "downloaded-webp".getBytes(StandardCharsets.UTF_8);
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "1:1");
-            FakeHttpClient client = new FakeHttpClient(
-                    imageUrlResponse("https://cdn.example.com/generated-cover.webp?x=1"),
-                    byteResponse(200, coverBytes, "image/webp;charset=utf-8")
-            );
-
-            GenerateArticleCoverResponse response =
-                    new AIImageService(
-                                    client,
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.config(db.dataSource()),
-                                    AIServiceDependencies.dbFiles(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                        AccountServicesFixture.component(db.dataSource()).identities())
-                            .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
-
-            assertEquals("webp", response.getExtension());
-            assertEquals("image/webp", response.getMimeType());
-            assertStoredDbFile(db, response.getUrl(), coverBytes);
-            assertImageRequest(client, 0);
-            assertEquals("GET", client.requests.get(1).method());
-            assertEquals("https://cdn.example.com/generated-cover.webp?x=1", client.requests.get(1).uri().toString());
-            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
-            assertEquals("", client.requestBodies.get(1));
-        }
-    }
-
-    @Test
-    public void shouldUseCustomImageBaseUrlAndModelWithoutAuthorizationHeader() throws Exception {
-        byte[] coverBytes = "custom-cover".getBytes(StandardCharsets.UTF_8);
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "1:1");
-            db.putWebsite("ai_image_base_url", "http://localhost:11434/v1/");
-            db.putWebsite("ai_image_model", "local-image:latest");
-            db.putWebsite("ai_image_api_key", "");
-            FakeHttpClient client = new FakeHttpClient(imageB64Response(coverBytes));
-
-            new AIImageService(
-                            client,
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.config(db.dataSource()),
-                            AIServiceDependencies.dbFiles(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                        AccountServicesFixture.component(db.dataSource()).identities())
-                    .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
-
-            HttpRequest request = client.requests.get(0);
-            assertEquals("http://localhost:11434/v1/images/generations", request.uri().toString());
-            assertFalse(request.headers().firstValue("Authorization").isPresent());
-            assertTrue(client.requestBodies.get(0).contains("\"model\":\"local-image:latest\""));
-        }
-    }
-
-    @Test
-    public void shouldRejectUnknownImageModelForProviderDefaultEndpoint() throws Exception {
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            seedImageConfig(db, "1:1");
-            db.putWebsite("ai_image_model", "local-image:latest");
-
-            assertThrows(
-                    UnsupportedAIImageGenerationException.class,
-                    () ->
-                            new AIImageService(
-                                            new FakeHttpClient(),
-                                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                                            AIServiceDependencies.config(db.dataSource()),
-                                            AIServiceDependencies.dbFiles(db.dataSource()),
-                                            AIServiceDependencies.conversations(db.dataSource()),
-                        AccountServicesFixture.component(db.dataSource()).identities())
-                                    .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest()));
-        }
-    }
 
     private static void seedImageConfig(InMemoryZrLogDatabase db, String aspectRatio) throws Exception {
         db.putWebsite("ai_image_provider", "OPEN_AI");
@@ -241,16 +46,6 @@ public class AIImageServiceTest {
         db.putWebsite("ai_image_base_url", "");
         db.putWebsite("ai_image_api_key", "image-key");
         db.putWebsite("article_cover_aspect_ratio", aspectRatio);
-    }
-
-    private GenerateArticleFieldRequest articleRequest() {
-        GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
-        request.setTitle("Cover title");
-        request.setDigest("Cover digest");
-        request.setKeywords("java,zrlog");
-        request.setMarkdown(repeat("Markdown paragraph for cover prompt. ", 50));
-        request.setSelectedText("selected cover paragraph");
-        return request;
     }
 
     private static String repeat(String value, int count) {
@@ -380,6 +175,201 @@ public class AIImageServiceTest {
         BodyCollector collector = new BodyCollector();
         publisher.subscribe(collector);
         return collector.body();
+    }
+
+    @Test
+    public void explicitWriterControlsPreferencesAndTemporaryOwnershipWithoutAmbientIdentity() throws Exception {
+        try (var db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "16:9");
+            db.execute("insert into user(userId,userName,role,preferences) values(2,'writer','author',?)",
+                    "{\"editor\":{\"coverAspectRatio\":\"1:1\"}}");
+            var actor = AccountAccess.from(new User(db.dataSource()).loadById(2));
+            var client = new FakeHttpClient(imageB64Response("writer-cover".getBytes(StandardCharsets.UTF_8)));
+            var service = new AIImageService(client,
+                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                    AIServiceDependencies.config(db.dataSource()), AIServiceDependencies.dbFiles(db.dataSource()),
+                    AIServiceDependencies.conversations(db.dataSource()),
+                    AccountServicesFixture.component(db.dataSource()).identities());
+            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+            var result = service.generateArticleCover(actor, articleRequest());
+            assertTrue(result.getUrl(), result.getUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/2/ai/"));
+            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
+            assertStoredDbFile(db, result.getUrl(), "writer-cover".getBytes(StandardCharsets.UTF_8));
+            for (String source : List.of("/users/1/ai/secret.png", "/users/2/../1/secret.png", "/users/2/%2e%2e/secret.png")) {
+                var request = new ApplyArticleCoverRequest();
+                request.setDataUrl(AdminConstants.ADMIN_DB_ATTACHED_TMP + source);
+                assertThrows(PermissionErrorException.class,
+                        () -> service.applyArticleCover(actor, null, request, null, -2L, null));
+            }
+        }
+    }
+
+    @Test
+    public void revocationAfterImageProviderResponsePreventsTemporarySave() throws Exception {
+        try (var db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "1:1");
+            var actor = AIServiceDependencies.actor(db.dataSource());
+            var client = new FakeHttpClient(imageB64Response("revoked-cover".getBytes(StandardCharsets.UTF_8))) {
+                @Override
+                public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> handler) {
+                    var result = super.send(request, handler);
+                    try {
+                        db.execute("update user set authVersion=1 where userId=1");
+                    } catch (Exception error) {
+                        throw new RuntimeException(error);
+                    }
+                    return result;
+                }
+            };
+            var service = new AIImageService(client,
+                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                    AIServiceDependencies.config(db.dataSource()), AIServiceDependencies.dbFiles(db.dataSource()),
+                    AIServiceDependencies.conversations(db.dataSource()),
+                    AccountServicesFixture.component(db.dataSource()).identities());
+            assertThrows(PermissionErrorException.class, () -> service.generateArticleCover(actor, articleRequest()));
+            assertEquals(0, ((Number) db.scalar("select count(*) from website where name like 'db_file%'")).intValue());
+        }
+    }
+
+    @Test
+    public void personalCoverRatioOverridesSiteConfiguration() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "16:9");
+            new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                    new UserPreferenceStore(() -> new User(db.dataSource())))
+                    .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"editor\":{\"coverAspectRatio\":\"1:1\"}}", "writing");
+            FakeHttpClient client = new FakeHttpClient(imageB64Response("cover".getBytes(StandardCharsets.UTF_8)));
+            new AIImageService(
+                    client,
+                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                    AIServiceDependencies.config(db.dataSource()),
+                    AIServiceDependencies.dbFiles(db.dataSource()),
+                    AIServiceDependencies.conversations(db.dataSource()),
+                    AccountServicesFixture.component(db.dataSource()).identities())
+                    .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
+            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
+            assertEquals("16:9", db.scalar("select value from website where name='article_cover_aspect_ratio'"));
+        }
+    }
+
+    @Test
+    public void shouldFallbackImageSizeAndPersistB64CoverFromRealWebsiteConfig() throws Exception {
+        byte[] coverBytes = "cover-bytes".getBytes(StandardCharsets.UTF_8);
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "16:9");
+            FakeHttpClient client = new FakeHttpClient(
+                    stringResponse(500, "{\"error\":{\"message\":\"size not supported\"}}"),
+                    imageB64Response(coverBytes)
+            );
+
+            GenerateArticleCoverResponse response =
+                    new AIImageService(
+                            client,
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.config(db.dataSource()),
+                            AIServiceDependencies.dbFiles(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()),
+                            AccountServicesFixture.component(db.dataSource()).identities())
+                            .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
+
+            assertEquals("png", response.getExtension());
+            assertEquals("image/png", response.getMimeType());
+            assertTrue(response.getUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/1/ai/article-cover-"));
+            assertStoredDbFile(db, response.getUrl(), coverBytes);
+            assertImageRequest(client, 0);
+            assertImageRequest(client, 1);
+            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1536x1024\""));
+            assertTrue(client.requestBodies.get(1).contains("\"size\":\"1024x1024\""));
+            assertTrue(client.requestBodies.get(1).contains("\"model\":\"gpt-image-2\""));
+            assertTrue(client.requestBodies.get(1).contains("Selected text from the current editor selection"));
+        }
+    }
+
+    @Test
+    public void shouldDownloadProviderImageUrlAndPersistCoverFromRealWebsiteConfig() throws Exception {
+        byte[] coverBytes = "downloaded-webp".getBytes(StandardCharsets.UTF_8);
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "1:1");
+            FakeHttpClient client = new FakeHttpClient(
+                    imageUrlResponse("https://cdn.example.com/generated-cover.webp?x=1"),
+                    byteResponse(200, coverBytes, "image/webp;charset=utf-8")
+            );
+
+            GenerateArticleCoverResponse response =
+                    new AIImageService(
+                            client,
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.config(db.dataSource()),
+                            AIServiceDependencies.dbFiles(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()),
+                            AccountServicesFixture.component(db.dataSource()).identities())
+                            .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
+
+            assertEquals("webp", response.getExtension());
+            assertEquals("image/webp", response.getMimeType());
+            assertStoredDbFile(db, response.getUrl(), coverBytes);
+            assertImageRequest(client, 0);
+            assertEquals("GET", client.requests.get(1).method());
+            assertEquals("https://cdn.example.com/generated-cover.webp?x=1", client.requests.get(1).uri().toString());
+            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
+            assertEquals("", client.requestBodies.get(1));
+        }
+    }
+
+    @Test
+    public void shouldUseCustomImageBaseUrlAndModelWithoutAuthorizationHeader() throws Exception {
+        byte[] coverBytes = "custom-cover".getBytes(StandardCharsets.UTF_8);
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "1:1");
+            db.putWebsite("ai_image_base_url", "http://localhost:11434/v1/");
+            db.putWebsite("ai_image_model", "local-image:latest");
+            db.putWebsite("ai_image_api_key", "");
+            FakeHttpClient client = new FakeHttpClient(imageB64Response(coverBytes));
+
+            new AIImageService(
+                    client,
+                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                    AIServiceDependencies.config(db.dataSource()),
+                    AIServiceDependencies.dbFiles(db.dataSource()),
+                    AIServiceDependencies.conversations(db.dataSource()),
+                    AccountServicesFixture.component(db.dataSource()).identities())
+                    .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest());
+
+            HttpRequest request = client.requests.get(0);
+            assertEquals("http://localhost:11434/v1/images/generations", request.uri().toString());
+            assertFalse(request.headers().firstValue("Authorization").isPresent());
+            assertTrue(client.requestBodies.get(0).contains("\"model\":\"local-image:latest\""));
+        }
+    }
+
+    @Test
+    public void shouldRejectUnknownImageModelForProviderDefaultEndpoint() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "1:1");
+            db.putWebsite("ai_image_model", "local-image:latest");
+
+            assertThrows(
+                    UnsupportedAIImageGenerationException.class,
+                    () ->
+                            new AIImageService(
+                                    new FakeHttpClient(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.config(db.dataSource()),
+                                    AIServiceDependencies.dbFiles(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).identities())
+                                    .generateArticleCover(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), articleRequest()));
+        }
+    }
+
+    private GenerateArticleFieldRequest articleRequest() {
+        GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
+        request.setTitle("Cover title");
+        request.setDigest("Cover digest");
+        request.setKeywords("java,zrlog");
+        request.setMarkdown(repeat("Markdown paragraph for cover prompt. ", 50));
+        request.setSelectedText("selected cover paragraph");
+        return request;
     }
 
     private static class FakeHttpClient extends HttpClient {

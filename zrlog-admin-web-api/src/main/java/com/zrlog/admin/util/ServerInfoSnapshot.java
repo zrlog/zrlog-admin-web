@@ -45,6 +45,11 @@ public class ServerInfoSnapshot {
         );
     }
 
+    private static String value(Properties properties, String key) {
+        Object value = properties.get(key);
+        return value == null ? null : value.toString();
+    }
+
     public ServerInfoSnapshot withWebServer(String webServer) {
         return new ServerInfoSnapshot(osName, osArch, osVersion, runtimePath, javaVmName, javaVersion, webServer,
                 timezone, dbServerVersion, fileEncoding);
@@ -88,10 +93,5 @@ public class ServerInfoSnapshot {
 
     public String getFileEncoding() {
         return fileEncoding;
-    }
-
-    private static String value(Properties properties, String key) {
-        Object value = properties.get(key);
-        return value == null ? null : value.toString();
     }
 }

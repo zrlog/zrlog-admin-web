@@ -1,12 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
@@ -17,10 +10,8 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -29,7 +20,49 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class ArticleVersionServiceTest {
+
+    private static LoadEditArticleResponse article(Integer logId, Integer version, String title) {
+        LoadEditArticleResponse article = new LoadEditArticleResponse();
+        article.setLogId(logId);
+        article.setVersion(version);
+        article.setTitle(title);
+        article.setContent("content");
+        article.setMarkdown("markdown");
+        article.setDigest("digest");
+        article.setKeywords("keywords");
+        article.setAlias("alias");
+        article.setThumbnail("thumbnail");
+        article.setTypeId(2L);
+        article.setCanComment(true);
+        article.setRecommended(false);
+        article.setPrivacy(false);
+        article.setRubbish(false);
+        article.setEditorType("markdown");
+        article.setPreviewUrl("/preview/" + logId);
+        article.setLastUpdateDate(10L);
+        return article;
+    }
+
+    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
+        Method method = ArticleVersionService.class.getDeclaredMethod(name, parameterTypes);
+        method.setAccessible(true);
+        return method;
+    }
+
+    private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
+        return new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
+                () -> new Log(testDataSource),
+                () -> new LogVersion(testDataSource));
+    }
+
+    private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
+        FakeAdminArticleService fake = new FakeAdminArticleService(testDataSource);
+        fake.queries.current = current;
+        return fake;
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -187,47 +220,9 @@ public class ArticleVersionServiceTest {
                                 .rollback(null, request, null));
     }
 
-    private static LoadEditArticleResponse article(Integer logId, Integer version, String title) {
-        LoadEditArticleResponse article = new LoadEditArticleResponse();
-        article.setLogId(logId);
-        article.setVersion(version);
-        article.setTitle(title);
-        article.setContent("content");
-        article.setMarkdown("markdown");
-        article.setDigest("digest");
-        article.setKeywords("keywords");
-        article.setAlias("alias");
-        article.setThumbnail("thumbnail");
-        article.setTypeId(2L);
-        article.setCanComment(true);
-        article.setRecommended(false);
-        article.setPrivacy(false);
-        article.setRubbish(false);
-        article.setEditorType("markdown");
-        article.setPreviewUrl("/preview/" + logId);
-        article.setLastUpdateDate(10L);
-        return article;
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = ArticleVersionService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
-    }
-
-    private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
-        return new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
-                                () -> new Log(testDataSource),
-                                () -> new LogVersion(testDataSource));
-    }
-
-    private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
-        FakeAdminArticleService fake = new FakeAdminArticleService(testDataSource);
-        fake.queries.current = current;
-        return fake;
-    }
-
     private static class FakeAdminArticleService extends AdminArticleService {
+        private final FakeArticleQueryService queries = new FakeArticleQueryService();
+        private UpdateArticleRequest updatedRequest;
         private FakeAdminArticleService(DataSourceWrapper testDataSource) {
             super(
                     () -> null,
@@ -240,9 +235,6 @@ public class ArticleVersionServiceTest {
                     () -> new Log(testDataSource),
                     ApplicationServicesFixture.locks(testDataSource));
         }
-
-        private final FakeArticleQueryService queries = new FakeArticleQueryService();
-        private UpdateArticleRequest updatedRequest;
 
         @Override
         public CreateOrUpdateArticleResponse update(com.zrlog.data.security.AccountAccess actor, UpdateArticleRequest updateArticleRequest)

@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
@@ -13,7 +11,6 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.api.MemberController;
 import com.zrlog.common.ZrLogConfig;
-
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -24,6 +21,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 public class MemberHttpOriginTest {
 
@@ -69,16 +69,26 @@ public class MemberHttpOriginTest {
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(MemberHttpOriginTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class}, (proxy, method, args) -> {
                     switch (method.getName()) {
-                        case "getHeader": return "Origin".equals(args[0]) ? origin : null;
-                        case "getScheme": return URI.create(origin).getScheme();
-                        case "getInputStream": return new ByteArrayInputStream(bytes);
-                        case "getRequestBodyByteBuffer": return ByteBuffer.wrap(bytes);
-                        case "getAttr": return attrs;
-                        case "getUri": return "/api/admin/member";
-                        case "getHeaderMap": return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost": return "127.0.0.1";
-                        case "getContextPath": return "/sub";
-                        default: return null;
+                        case "getHeader":
+                            return "Origin".equals(args[0]) ? origin : null;
+                        case "getScheme":
+                            return URI.create(origin).getScheme();
+                        case "getInputStream":
+                            return new ByteArrayInputStream(bytes);
+                        case "getRequestBodyByteBuffer":
+                            return ByteBuffer.wrap(bytes);
+                        case "getAttr":
+                            return attrs;
+                        case "getUri":
+                            return "/api/admin/member";
+                        case "getHeaderMap":
+                            return Map.of("X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getContextPath":
+                            return "/sub";
+                        default:
+                            return null;
                     }
                 });
         MemberController controller =

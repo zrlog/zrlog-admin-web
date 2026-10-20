@@ -14,14 +14,15 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 
-/** Resolves incoming identity and dispatches HTTP page APIs before rendering their explicit result. */
+/**
+ * Resolves incoming identity and dispatches HTTP page APIs before rendering their explicit result.
+ */
 @Singleton
 public final class AdminPageRequestHandler {
     private final AdminRequestIdentity identities;
@@ -57,7 +58,7 @@ public final class AdminPageRequestHandler {
     }
 
     private ServerSideDataResponse<Object> load(AccountAccess actor, String sessionId, String uri,
-                                                 HttpRequest request, HttpResponse response) throws Throwable {
+                                                HttpRequest request, HttpResponse response) throws Throwable {
         if (actor == null) return renderer.serverSide(null, null, uri, request, null, pages.title(request.getUri()));
         var method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
         // A disabled feature keeps its authenticated shell so the frontend can display its 404.

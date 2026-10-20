@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -15,6 +14,7 @@ import com.zrlog.admin.business.service.ArticleTypeService;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.cache.dto.TypeDTO;
@@ -22,7 +22,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -31,7 +30,9 @@ import java.util.function.Supplier;
 
 public class TypeController extends BaseController {
     private final AdminRequestIdentity requestIdentity;
-
+    private final AdminPageDataFactory pages;
+    private final Supplier<PublicWebSiteInfo> site;
+    private final ArticleTypeService articleTypeService;
 
     @Inject
     public TypeController(
@@ -45,11 +46,6 @@ public class TypeController extends BaseController {
         this.pages = pages;
         this.site = site;
     }
-
-    private final AdminPageDataFactory pages;
-    private final Supplier<PublicWebSiteInfo> site;
-
-    private final ArticleTypeService articleTypeService;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

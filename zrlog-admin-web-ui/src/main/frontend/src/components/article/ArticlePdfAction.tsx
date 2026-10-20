@@ -1,13 +1,13 @@
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import PdfIcon from "@zrlog/ui/icons/pdf";
-import { formatDateTime } from "../../utils/date-time";
+import {formatDateTime} from "../../utils/date-time";
 
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import { Button, Tooltip } from "antd";
-import type { ButtonProps } from "antd";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { getBackendServerUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
-import type { ArticlePrintableEntry } from "./ArticlePreviewAction";
+import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
+import type {ButtonProps} from "antd";
+import {Button, Tooltip} from "antd";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {getBackendServerUrl, getRes, tryAppendBackendServerUrl} from "../../utils/constants";
+import type {ArticlePrintableEntry} from "./ArticlePreviewAction";
 
 const escapeHtml = (value?: string) =>
     (value || "")
@@ -358,14 +358,14 @@ type ArticlePdfActionProps = {
 };
 
 export const ArticlePdfAction = ({
-    article,
-    buttonClassName,
-    buttonSize = "small",
-    buttonType = "text",
-    disabled,
-    showText,
-}: ArticlePdfActionProps) => {
-    const { message } = useUiApp();
+                                     article,
+                                     buttonClassName,
+                                     buttonSize = "small",
+                                     buttonType = "text",
+                                     disabled,
+                                     showText,
+                                 }: ArticlePdfActionProps) => {
+    const {message} = useUiApp();
 
     const handleExportPdf = () => {
         exportArticlePdf(article, () => message.warning(getRes().article.exportPdfPopupBlocked));
@@ -379,7 +379,7 @@ export const ArticlePdfAction = ({
                 size={buttonSize}
                 title={getRes().article.exportPdf}
                 disabled={disabled}
-                icon={<PdfIcon style={{ color: getAppState().colorPrimary }} />}
+                icon={<PdfIcon style={{color: getAppState().colorPrimary}}/>}
                 onClick={handleExportPdf}
             >
                 {showText && <span>{getRes().article.exportPdf}</span>}

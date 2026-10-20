@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hibegin.http.server.api.HttpRequest;
@@ -18,7 +16,6 @@ import com.zrlog.admin.web.di.ai.AIComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -31,14 +28,41 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Set;
 
-/** Real generated graphs must preserve the caller's identity outside request threads. */
+import static org.junit.Assert.*;
+
+/**
+ * Real generated graphs must preserve the caller's identity outside request threads.
+ */
 @RunWith(Parameterized.class)
 public class ContentProtocolActorBoundaryTest {
-    @Parameterized.Parameters(name = "sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
     private final boolean sqlite;
-    public ContentProtocolActorBoundaryTest(boolean sqlite) { this.sqlite = sqlite; }
-    @Rule public TemporaryFolder temporary = new TemporaryFolder();
+    @Rule
+    public TemporaryFolder temporary = new TemporaryFolder();
+
+    public ContentProtocolActorBoundaryTest(boolean sqlite) {
+        this.sqlite = sqlite;
+    }
+
+    @Parameterized.Parameters(name = "sqlite={0}")
+    public static Boolean[] databases() {
+        return new Boolean[]{false, true};
+    }
+
+    private static AdminTokenVO credential(int userId) {
+        var token = new AdminTokenVO();
+        token.setUserId(userId);
+        return token;
+    }
+
+    private static HttpRequest request() {
+        return (HttpRequest) Proxy.newProxyInstance(ContentProtocolActorBoundaryTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("getContextPath")) return "/sub";
+                    if (method.getName().equals("getUri")) return "/mcp";
+                    if (method.getName().equals("getRemoteHost")) return "192.0.2.10";
+                    return null;
+                });
+    }
 
     @Test
     public void toolsAndKnowledgeKeepExplicitOwnershipAuditAndDelegationAcrossThreads() throws Exception {
@@ -49,7 +73,8 @@ public class ContentProtocolActorBoundaryTest {
             var tools = factory.create(actor, actor.scopes(), request(), "en_US", source, credential(2));
             var knowledge = factory.knowledge(actor, actor.scopes(), "en_US");
             assertEquals(1, AdminTokenThreadLocal.getUserId());
-            var other = new JsonObject(); other.addProperty("id", 10);
+            var other = new JsonObject();
+            other.addProperty("id", 10);
             assertThrows(PermissionErrorException.class, () -> tools.call("get_article", other));
             AdminTokenThreadLocal.remove();
             var write = JsonParser.parseString("{\"title\":\"Explicit writer\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Draft</p>\"}").getAsJsonObject();
@@ -58,7 +83,9 @@ public class ContentProtocolActorBoundaryTest {
                 try {
                     return DelegatedAccess.withPermissions(Set.of("article.read"), false,
                             () -> (ContentToolModels.SavedArticle) tools.call("create_article", write));
-                } catch (Exception e) { throw new java.util.concurrent.CompletionException(e); }
+                } catch (Exception e) {
+                    throw new java.util.concurrent.CompletionException(e);
+                }
             }).get();
             assertEquals(2, ((Number) db.scalar("select userId from log where logId=?", saved.id)).intValue());
             var hits = (KnowledgeModels.SearchResult) knowledge.call("search_articles", new JsonObject());
@@ -92,7 +119,8 @@ public class ContentProtocolActorBoundaryTest {
                 assertThrows(PermissionErrorException.class, () -> wrong.call("upload_attachment", args));
                 var transport = credential(2);
                 var tools = factory.create(actor, actor.scopes(), request(), "en_US", null, transport);
-                transport.setUserId(1); transport.setAuthVersion(99);
+                transport.setUserId(1);
+                transport.setAuthVersion(99);
                 AdminTokenThreadLocal.remove();
                 var saved = (ContentToolModels.Attachment) tools.call("upload_attachment", args);
                 assertTrue(saved.url, saved.url.startsWith("/sub/attached/users/2/"));
@@ -122,7 +150,9 @@ public class ContentProtocolActorBoundaryTest {
             var settings = db.component(AccountComponent.class).preferences().assistant(actor);
             var input = new AIChatModels.ChatRequest();
             input.input = "Read my article";
-            var reference = new AIChatModels.Reference(); reference.type = "article"; reference.articleId = 20L;
+            var reference = new AIChatModels.Reference();
+            reference.type = "article";
+            reference.articleId = 20L;
             input.references = List.of(reference);
             assertEquals(20, references.resolve(actor, input, settings).get(0).article.source.id);
             reference.articleId = 10L;
@@ -146,20 +176,9 @@ public class ContentProtocolActorBoundaryTest {
             db.execute("insert into log(logId,userId,typeId,title,markdown,privacy,rubbish) values(10,1,1,'Private','Owner secret',true,true),(20,2,1,'Author draft','Writer text',false,true)");
             db.loadAdminWebModules();
             return db;
-        } catch (Exception | Error error) { db.close(); throw error; }
-    }
-
-    private static AdminTokenVO credential(int userId) {
-        var token = new AdminTokenVO(); token.setUserId(userId); return token;
-    }
-
-    private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(ContentProtocolActorBoundaryTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("getContextPath")) return "/sub";
-                    if (method.getName().equals("getUri")) return "/mcp";
-                    if (method.getName().equals("getRemoteHost")) return "192.0.2.10";
-                    return null;
-                });
+        } catch (Exception | Error error) {
+            db.close();
+            throw error;
+        }
     }
 }

@@ -32,16 +32,16 @@ public class BlogWebSiteInfo implements Validator {
         return generator_html_status;
     }
 
+    public void setGenerator_html_status(Boolean generator_html_status) {
+        this.generator_html_status = generator_html_status;
+    }
+
     public Boolean getDisable_comment_status() {
         return disable_comment_status;
     }
 
     public void setDisable_comment_status(Boolean disable_comment_status) {
         this.disable_comment_status = disable_comment_status;
-    }
-
-    public void setGenerator_html_status(Boolean generator_html_status) {
-        this.generator_html_status = generator_html_status;
     }
 
     public String getHost() {

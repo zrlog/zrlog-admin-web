@@ -3,7 +3,10 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
-import com.hibegin.common.util.*;
+import com.hibegin.common.util.BeanUtil;
+import com.hibegin.common.util.LoggerUtil;
+import com.hibegin.common.util.ObjectHelpers;
+import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -25,7 +28,6 @@ import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
 import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -66,6 +68,72 @@ public class ArticleQueryService {
         this.logProvider = logProvider;
     }
 
+    private static long toLong(Map<String, Object> row, String key) {
+        if (row == null) {
+            return 0L;
+        }
+        Object value = row.get(key);
+        if (value == null) {
+            value = row.get(key.toLowerCase(Locale.ROOT));
+        }
+        if (value == null) {
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                    value = entry.getValue();
+                    break;
+                }
+            }
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return 0L;
+    }
+
+    private static String formatDateValue(Object date, String format) {
+        Long time = parseDateValue(date);
+        if (Objects.isNull(time)) {
+            if (Objects.isNull(date)) {
+                return "";
+            }
+            return date.toString();
+        }
+        return new SimpleDateFormat(format).format(new Date(time));
+    }
+
+    private static Long parseDateValue(Object date) {
+        try {
+            return ResultValueConvertUtils.parseDate(date);
+        } catch (RuntimeException e) {
+            Long parsed = parseGsonDateString(date);
+            if (parsed != null) {
+                return parsed;
+            }
+            throw e;
+        }
+    }
+
+    private static Long parseGsonDateString(Object date) {
+        if (!(date instanceof String)) {
+            return null;
+        }
+        String value = ((String) date).replace('\u202f', ' ').replace('\u00a0', ' ');
+        List<DateFormat> formats =
+                Arrays.asList(
+                        DateFormat.getDateTimeInstance(
+                                DateFormat.MEDIUM, DateFormat.MEDIUM, Locale.getDefault()),
+                        DateFormat.getDateTimeInstance(
+                                DateFormat.MEDIUM, DateFormat.MEDIUM, Locale.ENGLISH),
+                        new SimpleDateFormat("MMM d, yyyy, h:mm:ss a", Locale.ENGLISH));
+        for (DateFormat format : formats) {
+            try {
+                return format.parse(value).getTime();
+            } catch (java.text.ParseException ignored) {
+            }
+        }
+        return null;
+    }
+
     public int resolveAdminPageSize(AccountAccess access, int requestedSize) {
         if (requestedSize > 0) {
             return requestedSize;
@@ -85,9 +153,9 @@ public class ArticleQueryService {
                 + Constants.getArticleUri()
                 + key
                 + StaticSitePlugin.getSuffix(
-                        request,
-                        Boolean.TRUE.equals(
-                                cacheService.getPublicWebSiteInfo().getGenerator_html_status()));
+                request,
+                Boolean.TRUE.equals(
+                        cacheService.getPublicWebSiteInfo().getGenerator_html_status()));
     }
 
     /**
@@ -145,8 +213,8 @@ public class ArticleQueryService {
                                     + "where l.typeId is not null"
                                     + (authorId == null ? "" : " and l.userId=?")
                                     + (privateOwnerId == null
-                                            ? ""
-                                            : " and (l.privacy=? or l.userId=?)"),
+                                    ? ""
+                                    : " and (l.privacy=? or l.userId=?)"),
                             countParams.toArray());
             counts.setTotal(toLong(row, "totalCount"));
             counts.setPublished(toLong(row, "publishedCount"));
@@ -156,28 +224,6 @@ public class ArticleQueryService {
             LOGGER.warning("Query article counts error: " + e.getMessage());
         }
         return counts;
-    }
-
-    private static long toLong(Map<String, Object> row, String key) {
-        if (row == null) {
-            return 0L;
-        }
-        Object value = row.get(key);
-        if (value == null) {
-            value = row.get(key.toLowerCase(Locale.ROOT));
-        }
-        if (value == null) {
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                    value = entry.getValue();
-                    break;
-                }
-            }
-        }
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return 0L;
     }
 
     public ArticlePageData adminPage(
@@ -323,15 +369,15 @@ public class ArticleQueryService {
             return AdminConstants.ADMIN_URI_BASE_PATH
                     + "/403?message="
                     + I18nUtil.getAdminBackendStringFromRes(
-                            "admin.article.preview.error.forbidden");
+                    "admin.article.preview.error.forbidden");
         }
         return ZrLogUtil.getHomeUrlWithHost(request, cacheService.getPublicWebSiteInfo().getHost())
                 + Constants.getArticleUri()
                 + key
                 + StaticSitePlugin.getSuffix(
-                        request,
-                        Boolean.TRUE.equals(
-                                cacheService.getPublicWebSiteInfo().getGenerator_html_status()))
+                request,
+                Boolean.TRUE.equals(
+                        cacheService.getPublicWebSiteInfo().getGenerator_html_status()))
                 + "?v="
                 + articleResponseEntry.getVersion();
     }
@@ -396,49 +442,5 @@ public class ArticleQueryService {
         }
         permissionService.readArticle(access, log.getLogId());
         return toResponse(log, request);
-    }
-
-    private static String formatDateValue(Object date, String format) {
-        Long time = parseDateValue(date);
-        if (Objects.isNull(time)) {
-            if (Objects.isNull(date)) {
-                return "";
-            }
-            return date.toString();
-        }
-        return new SimpleDateFormat(format).format(new Date(time));
-    }
-
-    private static Long parseDateValue(Object date) {
-        try {
-            return ResultValueConvertUtils.parseDate(date);
-        } catch (RuntimeException e) {
-            Long parsed = parseGsonDateString(date);
-            if (parsed != null) {
-                return parsed;
-            }
-            throw e;
-        }
-    }
-
-    private static Long parseGsonDateString(Object date) {
-        if (!(date instanceof String)) {
-            return null;
-        }
-        String value = ((String) date).replace('\u202f', ' ').replace('\u00a0', ' ');
-        List<DateFormat> formats =
-                Arrays.asList(
-                        DateFormat.getDateTimeInstance(
-                                DateFormat.MEDIUM, DateFormat.MEDIUM, Locale.getDefault()),
-                        DateFormat.getDateTimeInstance(
-                                DateFormat.MEDIUM, DateFormat.MEDIUM, Locale.ENGLISH),
-                        new SimpleDateFormat("MMM d, yyyy, h:mm:ss a", Locale.ENGLISH));
-        for (DateFormat format : formats) {
-            try {
-                return format.parse(value).getTime();
-            } catch (java.text.ParseException ignored) {
-            }
-        }
-        return null;
     }
 }

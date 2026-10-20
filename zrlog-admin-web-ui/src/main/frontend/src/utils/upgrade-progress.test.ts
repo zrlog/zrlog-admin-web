@@ -1,8 +1,13 @@
-import { describe, expect, it } from "@jest/globals";
-import { getUpgradeStepProgress, mergeUpgradeProgress, UpgradeProgressEvent, UpgradeProgressItem } from "./upgrade-progress";
+import {describe, expect, it} from "@jest/globals";
+import {
+    getUpgradeStepProgress,
+    mergeUpgradeProgress,
+    UpgradeProgressEvent,
+    UpgradeProgressItem
+} from "./upgrade-progress";
 
 const apply = (items: UpgradeProgressItem[], stage: string, status: UpgradeProgressEvent["status"] = "running") =>
-    mergeUpgradeProgress(items, { stage, status, message: stage }, stage);
+    mergeUpgradeProgress(items, {stage, status, message: stage}, stage);
 
 describe("shared upgrade progress", () => {
     it("settles serial provider stages while keeping version verification independent", () => {
@@ -21,7 +26,7 @@ describe("shared upgrade progress", () => {
         let items = apply(apply([], "download"), "restart-check");
         items = apply(items, "restart-check", "complete");
         expect(items.every((item) => item.status === "complete")).toBe(true);
-        expect(getUpgradeStepProgress(items)).toEqual({ completed: 2, total: 3, percent: 67 });
+        expect(getUpgradeStepProgress(items)).toEqual({completed: 2, total: 3, percent: 67});
         items = apply(items, "admin-static-sync");
         expect(getUpgradeStepProgress(items).percent).toBe(67);
         items = apply(items, "admin-static-sync", "complete");

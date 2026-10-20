@@ -1,19 +1,19 @@
 import Input from "@zrlog/ui/antd/Input";
 import LoginIcon from "@zrlog/ui/icons/login";
-import { Button, Form, theme } from "antd";
-import { getBackendServerUrl } from "../../utils/constants";
+import {Button, Form, theme} from "antd";
+import {getBackendServerUrl} from "../../utils/constants";
 
-import { classes, StyledLoginPage } from "../login";
-import { FunctionComponent, useState } from "react";
+import {classes, StyledLoginPage} from "../login";
+import {FunctionComponent, useState} from "react";
 import zh_CN from "antd/es/locale/zh_CN";
 import en_US from "antd/es/locale/en_US";
-import { getAppState } from "../../base/ConfigProviderApp";
+import {getAppState} from "../../base/ConfigProviderApp";
 import Title from "antd/es/typography/Title";
-import { getAdminI18n } from "../../i18n/admin";
+import {getAdminI18n} from "../../i18n/admin";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 14 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 14},
 };
 
 type InitProps = {
@@ -21,7 +21,7 @@ type InitProps = {
     onSubmit: (backendServerUrl: string) => void;
 };
 
-const Init: FunctionComponent<InitProps> = ({ onSubmit, lang }) => {
+const Init: FunctionComponent<InitProps> = ({onSubmit, lang}) => {
     const res = getAdminI18n(lang);
 
     const getNextDesc = () => {
@@ -42,7 +42,7 @@ const Init: FunctionComponent<InitProps> = ({ onSubmit, lang }) => {
         onSubmit(url + "/");
     };
 
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
 
     return (
         <StyledLoginPage
@@ -75,12 +75,12 @@ const Init: FunctionComponent<InitProps> = ({ onSubmit, lang }) => {
                         <Form.Item
                             label={res.login.backendServerUrl}
                             name={"backendServerUrl"}
-                            rules={[{ required: true }]}
+                            rules={[{required: true}]}
                         >
-                            <Input styles={{ input: { width: "100%" } }} />
+                            <Input styles={{input: {width: "100%"}}}/>
                         </Form.Item>
-                        <Button type="primary" style={{ maxWidth: 208 }} htmlType="submit">
-                            <LoginIcon /> {getNextDesc()}
+                        <Button type="primary" style={{maxWidth: 208}} htmlType="submit">
+                            <LoginIcon/> {getNextDesc()}
                         </Button>
                     </Form>
                 </div>

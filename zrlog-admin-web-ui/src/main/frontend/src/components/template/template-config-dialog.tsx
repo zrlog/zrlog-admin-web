@@ -1,22 +1,22 @@
-import { Alert, Button, Drawer, Grid, Modal, Space, Spin } from "antd";
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import {Alert, Button, Drawer, Grid, Modal, Space, Spin} from "antd";
+import {lazy, Suspense, useEffect, useId, useRef, useState} from "react";
 
-import type { AxiosRequestConfig } from "axios";
-import { useTheme } from "antd-style";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import type { ApiResponse } from "../../type";
-import { getRes } from "../../utils/constants";
-import { hasConfigFields, isLargeConfig, TemplateConfigData } from "./template-config-model";
-import type { TemplateEntry } from "./template-model";
-import { useTemplateConfig } from "./use-template-config";
+import type {AxiosRequestConfig} from "axios";
+import {useTheme} from "antd-style";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import type {ApiResponse} from "../../type";
+import {getRes} from "../../utils/constants";
+import {hasConfigFields, isLargeConfig, TemplateConfigData} from "./template-config-model";
+import type {TemplateEntry} from "./template-model";
+import {useTemplateConfig} from "./use-template-config";
 
 const TemplateConfigForm = lazy(() => import("./template-config-form"));
 
 const TemplateConfigDialog = ({
-    template,
-    offline,
-    onClose,
-}: {
+                                  template,
+                                  offline,
+                                  onClose,
+                              }: {
     template: TemplateEntry;
     offline: boolean;
     onClose: () => void;
@@ -43,9 +43,9 @@ const TemplateConfigDialog = ({
         axiosInstance
             .get<ApiResponse<TemplateConfigData>>(
                 `/api/admin/template-config?shortTemplate=${encodeURIComponent(template.shortTemplate)}`,
-                { signal: controller.signal, showError: false } as AxiosRequestConfig
+                {signal: controller.signal, showError: false} as AxiosRequestConfig
             )
-            .then(({ data: response }) => {
+            .then(({data: response}) => {
                 if (controller.signal.aborted) return;
                 if (response.error || !response.data?.config || !response.data.template) {
                     setError(response.message || getRes().templateConfig.loadFailed);
@@ -72,7 +72,7 @@ const TemplateConfigDialog = ({
                     content: res.unsavedDescription,
                     okText: res.discard,
                     cancelText: res.continueEditing,
-                    okButtonProps: { danger: true },
+                    okButtonProps: {danger: true},
                 });
                 if (!discard) return;
             } finally {
@@ -83,12 +83,12 @@ const TemplateConfigDialog = ({
     };
 
     const spinner = (
-        <div style={{ padding: theme.paddingLG, textAlign: "center" }}>
-            <Spin />
+        <div style={{padding: theme.paddingLG, textAlign: "center"}}>
+            <Spin/>
         </div>
     );
     const content = offline ? (
-        <Alert type="warning" showIcon title={res.offline} />
+        <Alert type="warning" showIcon title={res.offline}/>
     ) : error ? (
         <Alert
             type="error"
@@ -111,7 +111,7 @@ const TemplateConfigDialog = ({
         </Suspense>
     );
     const footer = (
-        <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+        <Space style={{width: "100%", justifyContent: "flex-end"}}>
             <Button onClick={close} disabled={editor.saving}>
                 {getRes().close}
             </Button>
@@ -144,7 +144,7 @@ const TemplateConfigDialog = ({
                     footer={footer}
                     closable={editor.saving ? false : undefined}
                     keyboard={!editor.saving}
-                    mask={{ closable: !editor.saving }}
+                    mask={{closable: !editor.saving}}
                     afterOpenChange={afterOpenChange}
                 >
                     {content}
@@ -159,9 +159,9 @@ const TemplateConfigDialog = ({
                     footer={footer}
                     closable={!editor.saving}
                     keyboard={!editor.saving}
-                    mask={{ closable: !editor.saving }}
+                    mask={{closable: !editor.saving}}
                     afterOpenChange={afterOpenChange}
-                    styles={{ body: { maxHeight: "70dvh", overflowY: "auto", paddingTop: theme.paddingSM } }}
+                    styles={{body: {maxHeight: "70dvh", overflowY: "auto", paddingTop: theme.paddingSM}}}
                 >
                     {content}
                 </Modal>

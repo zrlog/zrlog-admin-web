@@ -1,6 +1,6 @@
-import { afterAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { MessageInstance } from "antd/es/message/interface";
-import { getRefreshCacheSse, postRefreshCacheSse } from "./sse-utils";
+import {afterAll, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import type {MessageInstance} from "antd/es/message/interface";
+import {getRefreshCacheSse, postRefreshCacheSse} from "./sse-utils";
 
 let mockSupportSse = true;
 
@@ -73,7 +73,7 @@ const messageApi = {
 const sseResponse = (read: () => Promise<ReadableStreamReadResult<Uint8Array>>) =>
     ({
         body: {
-            getReader: () => ({ read }),
+            getReader: () => ({read}),
         },
         headers: {
             get: () => "text/event-stream;charset=UTF-8",
@@ -85,33 +85,39 @@ describe("postRefreshCacheSse", () => {
     beforeEach(() => {
         mockSupportSse = true;
         mockFetch.mockReset();
-        Object.defineProperty(globalThis, "fetch", { configurable: true, value: mockFetch });
-        Object.defineProperty(globalThis, "TextDecoder", { configurable: true, value: NodeTextDecoder });
-        Object.defineProperty(globalThis, "TextEncoder", { configurable: true, value: NodeTextEncoder });
+        Object.defineProperty(globalThis, "fetch", {configurable: true, value: mockFetch});
+        Object.defineProperty(globalThis, "TextDecoder", {configurable: true, value: NodeTextDecoder});
+        Object.defineProperty(globalThis, "TextEncoder", {configurable: true, value: NodeTextEncoder});
         jest.clearAllMocks();
     });
 
     afterAll(() => {
-        Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
-        Object.defineProperty(globalThis, "TextDecoder", { configurable: true, value: originalTextDecoder });
-        Object.defineProperty(globalThis, "TextEncoder", { configurable: true, value: originalTextEncoder });
+        Object.defineProperty(globalThis, "fetch", {configurable: true, value: originalFetch});
+        Object.defineProperty(globalThis, "TextDecoder", {configurable: true, value: originalTextDecoder});
+        Object.defineProperty(globalThis, "TextEncoder", {configurable: true, value: originalTextEncoder});
     });
 
     it("uses GET with the same SSE events, credentials and abort signal", async () => {
         let readCount = 0;
         mockFetch.mockResolvedValueOnce(sseResponse(async () => readCount++ === 0
-            ? { done: false, value: encode('event: upgrade-progress\ndata: {"stage":"restart"}\n\nevent: response\ndata: {"error":0,"data":{"finish":true}}\n\n') }
-            : { done: true, value: undefined }));
+            ? {
+                done: false,
+                value: encode('event: upgrade-progress\ndata: {"stage":"restart"}\n\nevent: response\ndata: {"error":0,"data":{"finish":true}}\n\n')
+            }
+            : {done: true, value: undefined}));
         const controller = new AbortController();
         const onEvent = jest.fn();
         await expect(getRefreshCacheSse("/upgrade/docker-status?requestId=test", {
             signal: controller.signal, onEvent, waitForComplete: true,
-        })).resolves.toEqual({ error: 0, data: { finish: true } });
+        })).resolves.toEqual({error: 0, data: {finish: true}});
         expect(mockFetch).toHaveBeenCalledWith("https://api.example/upgrade/docker-status?requestId=test", {
             method: "GET", signal: controller.signal, body: undefined, credentials: "include",
-            headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+            headers: {"Content-Type": "application/json", Accept: "text/event-stream"},
         });
-        expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ event: "upgrade-progress", data: { stage: "restart" } }));
+        expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+            event: "upgrade-progress",
+            data: {stage: "restart"}
+        }));
     });
 
     it("propagates cancellation without opening another subscription", async () => {
@@ -119,9 +125,9 @@ describe("postRefreshCacheSse", () => {
         mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
             options!.signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
         }));
-        const request = getRefreshCacheSse("/upgrade/docker-status", { signal: controller.signal });
+        const request = getRefreshCacheSse("/upgrade/docker-status", {signal: controller.signal});
         controller.abort();
-        await expect(request).rejects.toMatchObject({ name: "AbortError" });
+        await expect(request).rejects.toMatchObject({name: "AbortError"});
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -142,7 +148,7 @@ describe("postRefreshCacheSse", () => {
             if (readCount === 2) {
                 return refreshEvent;
             }
-            return Promise.resolve({ done: true as const, value: undefined });
+            return Promise.resolve({done: true as const, value: undefined});
         });
         mockFetch.mockResolvedValueOnce(sseResponse(read));
 
@@ -162,7 +168,7 @@ describe("postRefreshCacheSse", () => {
             value: encode('event: refresh-complete\ndata: {"error":0,"data":true}\n\n'),
         });
 
-        await expect(request).resolves.toEqual({ error: 0, data: true });
+        await expect(request).resolves.toEqual({error: 0, data: true});
         expect(messageApi.success).toHaveBeenCalledWith({
             key: "refreshCache",
             content: "Sync complete",
@@ -187,11 +193,11 @@ describe("postRefreshCacheSse", () => {
                 if (readCount === 2) {
                     return refreshEvent;
                 }
-                return Promise.resolve({ done: true as const, value: undefined });
+                return Promise.resolve({done: true as const, value: undefined});
             })
         );
 
-        await expect(postRefreshCacheSse("/refresh", { messageApi })).resolves.toEqual({ error: 0, data: true });
+        await expect(postRefreshCacheSse("/refresh", {messageApi})).resolves.toEqual({error: 0, data: true});
         expect(messageApi.error).not.toHaveBeenCalled();
 
         releaseRefresh({
@@ -221,7 +227,7 @@ describe("postRefreshCacheSse", () => {
             })
         );
 
-        await expect(postRefreshCacheSse("/refresh", { messageApi })).resolves.toEqual({ error: 0, data: true });
+        await expect(postRefreshCacheSse("/refresh", {messageApi})).resolves.toEqual({error: 0, data: true});
         await flushPromises();
 
         expect(messageApi.error).toHaveBeenCalledWith({
@@ -239,10 +245,10 @@ describe("postRefreshCacheSse", () => {
                 return Promise.resolve(
                     readCount === 1
                         ? {
-                              done: false as const,
-                              value: encode('event: response\ndata: {"error":0,"data":true}\n\n'),
-                          }
-                        : { done: true as const, value: undefined }
+                            done: false as const,
+                            value: encode('event: response\ndata: {"error":0,"data":true}\n\n'),
+                        }
+                        : {done: true as const, value: undefined}
                 );
             })
         );
@@ -253,14 +259,14 @@ describe("postRefreshCacheSse", () => {
                 onBackgroundError,
                 requiredCompletionEvent: "refresh-complete",
             })
-        ).resolves.toEqual({ error: 0, data: true });
+        ).resolves.toEqual({error: 0, data: true});
         await flushPromises();
 
         expect(messageApi.error).toHaveBeenCalledWith({
             key: "refreshCache",
             content: "Sync failed",
         });
-        expect(onBackgroundError).toHaveBeenCalledWith(expect.objectContaining({ message: "Sync failed" }));
+        expect(onBackgroundError).toHaveBeenCalledWith(expect.objectContaining({message: "Sync failed"}));
     });
 
     it("stops consuming after the required completion event", async () => {
@@ -289,7 +295,7 @@ describe("postRefreshCacheSse", () => {
                 messageApi,
                 requiredCompletionEvent: "refresh-complete",
             })
-        ).resolves.toEqual({ error: 0, data: true });
+        ).resolves.toEqual({error: 0, data: true});
         await flushPromises();
 
         expect(readCount).toBe(2);
@@ -301,7 +307,7 @@ describe("postRefreshCacheSse", () => {
     });
 
     it("rejects instead of hanging when the stream ends before a response event", async () => {
-        mockFetch.mockResolvedValueOnce(sseResponse(() => Promise.resolve({ done: true as const, value: undefined })));
+        mockFetch.mockResolvedValueOnce(sseResponse(() => Promise.resolve({done: true as const, value: undefined})));
 
         await expect(postRefreshCacheSse("/refresh")).rejects.toThrow("Request failed");
     });
@@ -313,8 +319,8 @@ describe("postRefreshCacheSse", () => {
                 readCount += 1;
                 return Promise.resolve(
                     readCount === 1
-                        ? { done: false as const, value: encode("event: response\ndata: invalid-json\n\n") }
-                        : { done: true as const, value: undefined }
+                        ? {done: false as const, value: encode("event: response\ndata: invalid-json\n\n")}
+                        : {done: true as const, value: undefined}
                 );
             })
         );
@@ -324,14 +330,14 @@ describe("postRefreshCacheSse", () => {
 
     it("falls back to JSON when SSE is disabled", async () => {
         mockSupportSse = false;
-        const apiResponse = { error: 0, data: true };
+        const apiResponse = {error: 0, data: true};
         mockFetch.mockResolvedValueOnce({
-            headers: { get: () => "application/json" },
+            headers: {get: () => "application/json"},
             json: async () => apiResponse,
             ok: true,
         } as unknown as Response);
 
-        await expect(postRefreshCacheSse("/refresh", { body: { enabled: true }, messageApi })).resolves.toBe(
+        await expect(postRefreshCacheSse("/refresh", {body: {enabled: true}, messageApi})).resolves.toBe(
             apiResponse
         );
         expect(mockFetch).toHaveBeenCalledWith("https://api.example/refresh", {

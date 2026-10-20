@@ -5,11 +5,11 @@ export type SurfaceActionRefreshStrategy = "replace" | "reload" | "message" | "o
 export type SurfaceAdminRoute =
     | string
     | {
-          route?: string;
-          path?: string;
-          url?: string;
-          replace?: boolean;
-      };
+    route?: string;
+    path?: string;
+    url?: string;
+    replace?: boolean;
+};
 
 export interface SurfaceFieldOption {
     label: string;

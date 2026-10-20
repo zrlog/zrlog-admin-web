@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { browserSupportsWebAuthn, startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import type {
     PublicKeyCredentialCreationOptionsJSON,
     PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
-import { authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation, registerPasskey } from "./passkey";
+import {browserSupportsWebAuthn, startAuthentication, startRegistration} from "@simplewebauthn/browser";
+import {authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation, registerPasskey} from "./passkey";
 
 jest.mock("@simplewebauthn/browser", () => {
     const mockJest = require("@jest/globals").jest;
@@ -31,11 +31,11 @@ describe("passkey helpers", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         supportsWebAuthn.mockReturnValue(true);
-        Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+        Object.defineProperty(window, "isSecureContext", {configurable: true, value: true});
     });
 
     afterEach(() => {
-        Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+        Object.defineProperty(window, "location", {configurable: true, value: originalLocation});
     });
 
     it("allows an HTTPS API on another origin while keeping the page as the WebAuthn RP", () => {
@@ -80,10 +80,10 @@ describe("passkey helpers", () => {
             })
         ).toBe(false);
 
-        Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
+        Object.defineProperty(window, "isSecureContext", {configurable: true, value: false});
         expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(false);
 
-        Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+        Object.defineProperty(window, "isSecureContext", {configurable: true, value: true});
         supportsWebAuthn.mockReturnValue(false);
         expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(false);
     });
@@ -93,38 +93,38 @@ describe("passkey helpers", () => {
             challenge: "authentication-challenge",
             rpId: window.location.hostname,
         } as PublicKeyCredentialRequestOptionsJSON;
-        const response = { id: "credential-id" } as Awaited<ReturnType<typeof startAuthentication>>;
+        const response = {id: "credential-id"} as Awaited<ReturnType<typeof startAuthentication>>;
         startAuthenticationMock.mockResolvedValue(response);
 
         await expect(authenticateWithPasskey(options)).resolves.toBe(response);
-        expect(startAuthenticationMock).toHaveBeenCalledWith({ optionsJSON: options });
+        expect(startAuthenticationMock).toHaveBeenCalledWith({optionsJSON: options});
     });
 
     it("passes registration options to SimpleWebAuthn", async () => {
         const options = {
-            rp: { name: "ZrLog", id: window.location.hostname },
-            user: { id: "user-id", name: "admin", displayName: "admin" },
+            rp: {name: "ZrLog", id: window.location.hostname},
+            user: {id: "user-id", name: "admin", displayName: "admin"},
             challenge: "registration-challenge",
-            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            pubKeyCredParams: [{type: "public-key", alg: -7}],
         } as PublicKeyCredentialCreationOptionsJSON;
-        const response = { id: "credential-id" } as Awaited<ReturnType<typeof startRegistration>>;
+        const response = {id: "credential-id"} as Awaited<ReturnType<typeof startRegistration>>;
         startRegistrationMock.mockResolvedValue(response);
 
         await expect(registerPasskey(options)).resolves.toBe(response);
-        expect(startRegistrationMock).toHaveBeenCalledWith({ optionsJSON: options });
+        expect(startRegistrationMock).toHaveBeenCalledWith({optionsJSON: options});
     });
 
     it("recognizes browser cancellations without hiding other failures", () => {
-        expect(isPasskeyCancellation({ name: "NotAllowedError" })).toBe(false);
+        expect(isPasskeyCancellation({name: "NotAllowedError"})).toBe(false);
         expect(
             isPasskeyCancellation({
                 name: "NotAllowedError",
                 code: "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
-                cause: { name: "NotAllowedError" },
+                cause: {name: "NotAllowedError"},
             })
         ).toBe(false);
-        expect(isPasskeyCancellation({ cause: { name: "AbortError" } })).toBe(true);
-        expect(isPasskeyCancellation({ code: "ERROR_CEREMONY_ABORTED" })).toBe(true);
-        expect(isPasskeyCancellation({ name: "SecurityError" })).toBe(false);
+        expect(isPasskeyCancellation({cause: {name: "AbortError"}})).toBe(true);
+        expect(isPasskeyCancellation({code: "ERROR_CEREMONY_ABORTED"})).toBe(true);
+        expect(isPasskeyCancellation({name: "SecurityError"})).toBe(false);
     });
 });

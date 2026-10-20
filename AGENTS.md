@@ -1,6 +1,7 @@
 # AGENTS.md
 
-`zrlog-admin-web` 是 ZrLog 后台管理工程。先读本文件，再按任务读取源码和测试。若本地存在 `.codex/AGENTS.md`，同时读取其中的工作区约定；该目录不提交到仓库。
+`zrlog-admin-web` 是 ZrLog 后台管理工程。先读本文件，再按任务读取源码和测试。若本地存在 `.codex/AGENTS.md`
+，同时读取其中的工作区约定；该目录不提交到仓库。
 
 ## 工程职责
 
@@ -10,7 +11,8 @@
 - `zrlog-admin-web-ui`：React 界面、页面渲染、PWA 和静态资源。
 - `zrlog-admin-web`：兼容构件的组装、开发入口和集成测试。
 
-公开接入见 [API 文档](docs/api/README.md)。后台负责插件面板的宿主能力，插件业务由插件维护。修改接口结构时检查调用方和 Native/Gson 注册。
+公开接入见 [API 文档](docs/api/README.md)。后台负责插件面板的宿主能力，插件业务由插件维护。修改接口结构时检查调用方和
+Native/Gson 注册。
 
 ## 构建与验证
 

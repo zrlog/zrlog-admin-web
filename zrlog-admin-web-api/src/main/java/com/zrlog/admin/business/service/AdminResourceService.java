@@ -14,7 +14,6 @@ import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -25,9 +24,8 @@ import java.util.logging.Logger;
 
 @Singleton
 public class AdminResourceService {
-    private final jakarta.inject.Provider<UserPasskey> passkeys;
-
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminResourceService.class);
+    private final jakarta.inject.Provider<UserPasskey> passkeys;
     private final Supplier<AdminResourceInfoResponse.Capabilities> capabilities;
     private final FeatureLabService features;
     private final Supplier<PublicWebSiteInfo> site;

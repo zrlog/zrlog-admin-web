@@ -1,17 +1,17 @@
-import { Alert, Button, Form, Select, Typography, theme } from "antd";
+import {Alert, Button, Form, Select, theme, Typography} from "antd";
 import Switch from "@zrlog/ui/antd/Switch";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { isModuleEnabled } from "../utils/module-capabilities";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {isModuleEnabled} from "../utils/module-capabilities";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
-import { useEffect, useRef, useState } from "react";
+import {useEffect, useRef, useState} from "react";
 
-import { useLocation } from "react-router-dom";
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getSsDate } from "../base/SsData";
-import { getRes } from "../utils/constants";
-import { getPageDataCacheKey, putCache } from "../utils/cache";
-import { useResponsiveFormLayout } from "../utils/responsive-form";
+import {useLocation} from "react-router-dom";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getSsDate} from "../base/SsData";
+import {getRes} from "../utils/constants";
+import {getPageDataCacheKey, putCache} from "../utils/cache";
+import {useResponsiveFormLayout} from "../utils/responsive-form";
 import {
     applyUserPreferences,
     cacheUserAppearance,
@@ -21,17 +21,17 @@ import {
     UserPreferences,
     UserPreferencesResponse,
 } from "../utils/user-preferences";
-import type { AdminCommonProps, ApiResponse } from "../type";
+import type {AdminCommonProps, ApiResponse} from "../type";
 import AdminAppearanceFields from "./common/AdminAppearanceFields";
-import type { UserPreferencePage } from "../utils/account-page-routes";
-import { refreshUserInfo } from "../utils/user-info";
+import type {UserPreferencePage} from "../utils/account-page-routes";
+import {refreshUserInfo} from "../utils/user-info";
 
 const UserPreferencesForm = ({
-    data: initialData,
-    offline,
-    updateCache,
-    activePage = "appearance",
-}: Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache"> & {
+                                 data: initialData,
+                                 offline,
+                                 updateCache,
+                                 activePage = "appearance",
+                             }: Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache"> & {
     activePage?: UserPreferencePage;
 }) => {
     const axios = useAxiosBaseInstance();
@@ -48,8 +48,8 @@ const UserPreferencesForm = ({
     const savingRef = useRef(false);
     const [saving, setSaving] = useState(false);
     const [messageApi, contextHolder] = useUiMessage();
-    const { formLayout } = useResponsiveFormLayout();
-    const { token } = theme.useToken();
+    const {formLayout} = useResponsiveFormLayout();
+    const {token} = theme.useToken();
     const res = getRes().user.preferences;
     const dirty = !!data && JSON.stringify(draft) !== JSON.stringify(data.overrides);
 
@@ -125,7 +125,7 @@ const UserPreferencesForm = ({
         savingRef.current = true;
         setSaving(true);
         try {
-            const { data: response } = await axios.post<ApiResponse<UserPreferencesResponse>>(
+            const {data: response} = await axios.post<ApiResponse<UserPreferencesResponse>>(
                 `/api/admin/user/updatePreferences?section=${activePage}`,
                 draftRef.current
             );
@@ -162,10 +162,10 @@ const UserPreferencesForm = ({
     const pageSizes = Array.from(new Set([10, 20, 50, 100, ...(pageSize ? [pageSize] : [])])).sort((a, b) => a - b);
 
     return (
-        <div style={{ maxWidth: 800, width: "100%" }}>
+        <div style={{maxWidth: 800, width: "100%"}}>
             {contextHolder}
             {offline ? (
-                <Alert type="info" title={res.offline} />
+                <Alert type="info" title={res.offline}/>
             ) : (
                 <Form
                     {...formLayout}
@@ -199,7 +199,7 @@ const UserPreferencesForm = ({
                                     <>
                                         <Form.Item name={["articleList", "sort"]} label={res.listSort}>
                                             <Select
-                                                style={{ width: 300, maxWidth: "100%" }}
+                                                style={{width: 300, maxWidth: "100%"}}
                                                 options={[
                                                     ["id", res.listCreated],
                                                     ["lastUpdateDate", getRes().article.lastUpdateDate],
@@ -218,12 +218,12 @@ const UserPreferencesForm = ({
                                         </Form.Item>
                                         <Form.Item name={["articleList", "status"]} label={res.listStatus}>
                                             <Select
-                                                style={{ width: 200, maxWidth: "100%" }}
+                                                style={{width: 200, maxWidth: "100%"}}
                                                 options={[
-                                                    { value: "", label: getRes().article.tag.all },
-                                                    { value: "draft", label: getRes().article.status.draft },
-                                                    { value: "published", label: getRes().article.status.published },
-                                                    { value: "private", label: getRes().article.status.private },
+                                                    {value: "", label: getRes().article.tag.all},
+                                                    {value: "draft", label: getRes().article.status.draft},
+                                                    {value: "published", label: getRes().article.status.published},
+                                                    {value: "private", label: getRes().article.status.private},
                                                 ]}
                                             />
                                         </Form.Item>
@@ -234,7 +234,7 @@ const UserPreferencesForm = ({
                                         >
                                             <Select
                                                 mode="multiple"
-                                                style={{ width: "100%" }}
+                                                style={{width: "100%"}}
                                                 options={[
                                                     ["thumbnail", getRes().article.cover],
                                                     ["typeName", getRes().type],
@@ -243,12 +243,12 @@ const UserPreferencesForm = ({
                                                     ["commentSize", getRes().article.commentSize],
                                                     ["releaseTime", getRes().article.createTime],
                                                     ["lastUpdateDate", getRes().article.lastUpdateDate],
-                                                ].map(([value, label]) => ({ value, label }))}
+                                                ].map(([value, label]) => ({value, label}))}
                                             />
                                         </Form.Item>
                                         <Form.Item name="articlePageSize" label={res.articlePageSize}>
                                             <Select
-                                                style={{ width: 200, maxWidth: "100%" }}
+                                                style={{width: 200, maxWidth: "100%"}}
                                                 options={pageSizes.map((value) => ({
                                                     value,
                                                     label: res.articlesPerPage.replace("{count}", String(value)),
@@ -264,7 +264,7 @@ const UserPreferencesForm = ({
                                                 min={-1}
                                                 max={99999}
                                                 precision={0}
-                                                style={{ width: 200, maxWidth: "100%" }}
+                                                style={{width: 200, maxWidth: "100%"}}
                                             />
                                         </Form.Item>
                                         <Form.Item
@@ -272,7 +272,7 @@ const UserPreferencesForm = ({
                                             label={getRes().websiteArticleEdit.coverAspectRatio}
                                         >
                                             <Select
-                                                style={{ width: 200, maxWidth: "100%" }}
+                                                style={{width: 200, maxWidth: "100%"}}
                                                 options={["16:9", "4:3", "3:2", "1:1", "21:9"].map((value) => ({
                                                     value,
                                                     label: value,
@@ -284,7 +284,7 @@ const UserPreferencesForm = ({
                                             valuePropName="checked"
                                             label={getRes().websiteArticleEdit.linkPreview}
                                         >
-                                            <Switch />
+                                            <Switch/>
                                         </Form.Item>
                                         {isModuleEnabled("ai") && (
                                             <Form.Item
@@ -293,12 +293,12 @@ const UserPreferencesForm = ({
                                                 label={getRes().websiteArticleEdit.publishCheck}
                                                 extra={getRes().websiteArticleEdit.publishCheckTip}
                                             >
-                                                <Switch />
+                                                <Switch/>
                                             </Form.Item>
                                         )}
                                         <Form.Item name={["editor", "autoSaveInterval"]} label={res.autoSaveInterval}>
                                             <Select
-                                                style={{ width: 200, maxWidth: "100%" }}
+                                                style={{width: 200, maxWidth: "100%"}}
                                                 options={[2, 5, 10].map((value) => ({
                                                     value,
                                                     label: res.seconds.replace("{seconds}", String(value)),
@@ -322,7 +322,7 @@ const UserPreferencesForm = ({
                                             max={99999}
                                             precision={0}
                                             suffix={getRes().websiteAdmin.session.timeoutUnit}
-                                            style={{ width: 200, maxWidth: "100%" }}
+                                            style={{width: 200, maxWidth: "100%"}}
                                         />
                                     </Form.Item>
                                 ),
@@ -337,11 +337,11 @@ const UserPreferencesForm = ({
                                         extra={res.knowledgeHelp}
                                     >
                                         <Select
-                                            style={{ width: 360, maxWidth: "100%" }}
+                                            style={{width: 360, maxWidth: "100%"}}
                                             options={[
-                                                { value: "off", label: res.scopeOff },
-                                                { value: "own_public", label: res.scopeOwnPublic },
-                                                { value: "own_all", label: res.scopeOwnAll },
+                                                {value: "off", label: res.scopeOff},
+                                                {value: "own_public", label: res.scopeOwnPublic},
+                                                {value: "own_all", label: res.scopeOwnAll},
                                                 ...[
                                                     {
                                                         value: "accessible_public",
@@ -379,7 +379,7 @@ const UserPreferencesForm = ({
                         {activePage === "appearance" && (
                             <Typography.Paragraph
                                 type="secondary"
-                                style={{ marginTop: token.marginSM, marginBottom: 0 }}
+                                style={{marginTop: token.marginSM, marginBottom: 0}}
                             >
                                 {res.previewHint}
                             </Typography.Paragraph>

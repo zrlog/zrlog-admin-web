@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.util.NetworkProxy;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -39,17 +40,55 @@ public class ProxySettingsResponse {
         writable = parent != null && Files.isWritable(parent) && (!Files.exists(file) || Files.isWritable(file));
     }
 
-    public String getUrl() { return url; }
-    public String getNoProxy() { return noProxy; }
-    public String getSource() { return source; }
-    public String getHttpsSource() { return httpsSource; }
-    public String getNoProxySource() { return noProxySource; }
-    public String getHttpVariable() { return httpVariable; }
-    public String getHttpsVariable() { return httpsVariable; }
-    public String getNoProxyVariable() { return noProxyVariable; }
-    public String getActiveUrl() { return activeUrl; }
-    public String getActiveHttpsUrl() { return activeHttpsUrl; }
-    public String getActiveNoProxy() { return activeNoProxy; }
-    public boolean isRestartRequired() { return restartRequired; }
-    public boolean isWritable() { return writable; }
+    public String getUrl() {
+        return url;
+    }
+
+    public String getNoProxy() {
+        return noProxy;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getHttpsSource() {
+        return httpsSource;
+    }
+
+    public String getNoProxySource() {
+        return noProxySource;
+    }
+
+    public String getHttpVariable() {
+        return httpVariable;
+    }
+
+    public String getHttpsVariable() {
+        return httpsVariable;
+    }
+
+    public String getNoProxyVariable() {
+        return noProxyVariable;
+    }
+
+    public String getActiveUrl() {
+        return activeUrl;
+    }
+
+    public String getActiveHttpsUrl() {
+        return activeHttpsUrl;
+    }
+
+    public String getActiveNoProxy() {
+        return activeNoProxy;
+    }
+
+    public boolean isRestartRequired() {
+        return restartRequired;
+    }
+
+    public boolean isWritable() {
+        return writable;
+    }
 }

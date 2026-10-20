@@ -10,22 +10,15 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ArgsException;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
 import java.net.http.HttpClient;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AIToolService extends AIService {
-    private final AIConfigService aIConfigService;
-
     private static final int REWRITE_MIN_MARKDOWN_LENGTH = 120;
     private static final int PUBLISH_CHECK_REFERENCE_LIMIT = 8;
     private static final Pattern MARKDOWN_IMAGE_LINK_PATTERN =
@@ -34,6 +27,7 @@ public class AIToolService extends AIService {
             Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+[\"'][^\"']*[\"'])?\\)");
     private static final Pattern BARE_URL_PATTERN = Pattern.compile("\\bhttps?://[^\\s<>\"')]+",
             Pattern.CASE_INSENSITIVE);
+    private final AIConfigService aIConfigService;
 
     @Inject
     public AIToolService(AIConfigService aIConfigService) {

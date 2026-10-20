@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -20,7 +18,6 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,18 +31,29 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.*;
+
 public class AdminProxyControllerTest {
 
+    @Rule
+    public TemporaryFolder temporary = new TemporaryFolder();
     private ZrLogConfig applicationConfig;
-    @Rule public TemporaryFolder temporary = new TemporaryFolder();
     private String previousRoot;
 
-    @Before public void isolateConfiguration() throws Exception {
+    private static void set(Controller controller, String name, Object value) throws Exception {
+        Field field = Controller.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(controller, value);
+    }
+
+    @Before
+    public void isolateConfiguration() throws Exception {
         previousRoot = System.getProperty("sws.root.path");
         PathUtil.setRootPath(temporary.newFolder("runtime").toString());
     }
 
-    @After public void restoreConfiguration() {
+    @After
+    public void restoreConfiguration() {
         if (previousRoot == null) System.clearProperty("sws.root.path");
         else System.setProperty("sws.root.path", previousRoot);
     }
@@ -82,7 +90,10 @@ public class AdminProxyControllerTest {
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
                 (proxy, method, args) -> method.getName().equals("getMethod") ? HttpMethod.DELETE : null);
         HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class},
-                (proxy, method, args) -> { if (method.getName().equals("renderCode")) status.set((Integer) args[0]); return null; });
+                (proxy, method, args) -> {
+                    if (method.getName().equals("renderCode")) status.set((Integer) args[0]);
+                    return null;
+                });
         set(controller, "request", request);
         set(controller, "response", response);
         assertNull(controller.index());
@@ -106,7 +117,7 @@ public class AdminProxyControllerTest {
                                     ApplicationServicesFixture.buildId(database.resources()),
                                     ApplicationServicesFixture.messages(database.dataSource())),
                             new AdminProxyService(),
-                        AccountServicesFixture.component(database.dataSource()).requestIdentity());
+                            AccountServicesFixture.component(database.dataSource()).requestIdentity());
             set(controller, "request", request(HttpMethod.POST,
                     "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();
@@ -130,14 +141,9 @@ public class AdminProxyControllerTest {
                 (proxy, method, args) -> {
                     if (method.getName().equals("getMethod")) return verb;
                     if (method.getName().equals("getUri")) return "/api/admin/system/proxy";
-                    if (method.getName().equals("getInputStream")) return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                    if (method.getName().equals("getInputStream"))
+                        return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
                     return null;
                 });
-    }
-
-    private static void set(Controller controller, String name, Object value) throws Exception {
-        Field field = Controller.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(controller, value);
     }
 }

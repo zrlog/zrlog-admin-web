@@ -1,8 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.web.audit.AdminAuditContexts;
-import static org.junit.Assert.*;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -15,10 +12,10 @@ import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -26,14 +23,42 @@ import org.junit.runners.Parameterized;
 import java.lang.reflect.Proxy;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class ArticlePublishingServiceDatabaseTest {
-    @Parameterized.Parameters(name = "database={0}")
-    public static String[] databases() { return new String[]{"h2", "sqlite"}; }
-
     private final String database;
 
-    public ArticlePublishingServiceDatabaseTest(String database) { this.database = database; }
+    public ArticlePublishingServiceDatabaseTest(String database) {
+        this.database = database;
+    }
+
+    @Parameterized.Parameters(name = "database={0}")
+    public static String[] databases() {
+        return new String[]{"h2", "sqlite"};
+    }
+
+    private static JsonArray audit(InMemoryZrLogDatabase db) throws Exception {
+        return JsonParser.parseString(db.scalar("select value from website where name='admin_audit_log'").toString()).getAsJsonArray();
+    }
+
+    private static HttpRequest request() {
+        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
+                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getUri":
+                            return "/api/admin/article/update";
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getHeaderMap":
+                            return Map.of();
+                        case "getHeader":
+                            return null;
+                        default:
+                            throw new UnsupportedOperationException(method.getName());
+                    }
+                });
+    }
 
     private InMemoryZrLogDatabase open() throws Exception {
         return database.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
@@ -45,29 +70,29 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).identities(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
-                                                    .permissions(),
-                                () -> new Log(db.dataSource()),
-                                () -> new LogVersion(db.dataSource())),
-                                new ArticlePinningService(
+                                    db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
+                                            .permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    new ArticlePinningService(
                                             () -> new Log(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                () -> new Log(db.dataSource()),
-                                ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
+                                    ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
+                                    new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new Log(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new Log(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(
                                     db.unitCacheService(), db.config()),
                             markdown -> null,
@@ -128,35 +153,35 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setContent("Published content");
             body.setPreserveDraftAiMessages(true);
             new ArticlePublishingService(
-                            new AdminArticleService(ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).identities(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
-                                                    .permissions(),
-                                () -> new Log(db.dataSource()),
-                                () -> new LogVersion(db.dataSource())),
-                                new ArticlePinningService(
-                                            () -> new Log(db.dataSource()),
-                                            ApplicationServicesFixture.locks(db.dataSource())),
-                                () -> new Log(db.dataSource()),
-                                ApplicationServicesFixture.locks(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                            ApplicationServicesFixture.site(db.config()),
-                                            ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new Log(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(
-                                    db.unitCacheService(), db.config()),
-                            markdown -> null,
-                            ApplicationServicesFixture.audit(db.dataSource()),
-                            ApplicationServicesFixture.operations(db.dataSource()))
+                    new AdminArticleService(ApplicationServicesFixture.capability(
+                            db.config(), ArticleAssistant.class),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).identities(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
+                                    .permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource())),
+                    new ArticleQueryService(db.unitCacheService(),
+                            ApplicationServicesFixture.capability(
+                                    db.config(), ArticleAssistant.class),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(db.dataSource())),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            () -> new Log(db.dataSource())),
+                    ApplicationServicesFixture.cacheRefresh(
+                            db.unitCacheService(), db.config()),
+                    markdown -> null,
+                    ApplicationServicesFixture.audit(db.dataSource()),
+                    ApplicationServicesFixture.operations(db.dataSource()))
                     .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), body, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
             JsonArray audit = audit(db);
             assertEquals(2, audit.size());
@@ -178,29 +203,29 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).identities(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
-                                                    .permissions(),
-                                () -> new Log(db.dataSource()),
-                                () -> new LogVersion(db.dataSource())),
-                                new ArticlePinningService(
+                                    db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
+                                            .permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    new ArticlePinningService(
                                             () -> new Log(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                () -> new Log(db.dataSource()),
-                                ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
+                                    ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
+                                    new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new Log(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new Log(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(
                                     db.unitCacheService(), db.config()),
                             markdown -> null,
@@ -221,22 +246,5 @@ public class ArticlePublishingServiceDatabaseTest {
             assertThrows(PermissionErrorException.class, () -> publishing.deleteArticles(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "12", AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(audit.toString(), audit(db).toString());
         }
-    }
-
-    private static JsonArray audit(InMemoryZrLogDatabase db) throws Exception {
-        return JsonParser.parseString(db.scalar("select value from website where name='admin_audit_log'").toString()).getAsJsonArray();
-    }
-
-    private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
-                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri": return "/api/admin/article/update";
-                        case "getRemoteHost": return "127.0.0.1";
-                        case "getHeaderMap": return Map.of();
-                        case "getHeader": return null;
-                        default: throw new UnsupportedOperationException(method.getName());
-                    }
-                });
     }
 }

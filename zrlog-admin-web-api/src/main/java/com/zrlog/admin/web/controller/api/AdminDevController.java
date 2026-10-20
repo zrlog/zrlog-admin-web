@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -17,11 +14,13 @@ import com.zrlog.admin.business.service.WebsiteCacheService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.DevKit;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.LockVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
-
 import jakarta.inject.Inject;
 
 import java.util.List;
@@ -32,6 +31,7 @@ public class AdminDevController extends Controller {
     private final AdminAuditService adminAuditService;
     private final WebsiteCacheService websiteCacheService;
     private final DistributedLockManager lockManager;
+    private final AdminPageDataFactory pages;
 
     @Inject
     public AdminDevController(
@@ -47,9 +47,6 @@ public class AdminDevController extends Controller {
 
         this.pages = pages;
     }
-
-    private final AdminPageDataFactory pages;
-
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)

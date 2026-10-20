@@ -7,27 +7,22 @@ import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.common.CacheService;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 
 @Singleton
 public class AdminStatisticsService {
+    private static final Logger LOGGER = LoggerUtil.getLogger(AdminStatisticsService.class);
     private final AdminAuditService adminAuditService;
     private final jakarta.inject.Provider<Log> logProvider;
     private final jakarta.inject.Provider<Comment> commentProvider;
-
     private final CacheService cacheService;
     private final SystemInfoUtils systemInfo;
 
@@ -46,7 +41,27 @@ public class AdminStatisticsService {
         this.systemInfo = systemInfo;
     }
 
-    private static final Logger LOGGER = LoggerUtil.getLogger(AdminStatisticsService.class);
+    private static long toLong(Map<String, Object> row, String key) {
+        if (row == null) {
+            return 0L;
+        }
+        Object value = row.get(key);
+        if (value == null) {
+            value = row.get(key.toLowerCase(Locale.ROOT));
+        }
+        if (value == null) {
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                    value = entry.getValue();
+                    break;
+                }
+            }
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return 0L;
+    }
 
     public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor) {
         return statisticsInfo(executor, true);
@@ -157,27 +172,5 @@ public class AdminStatisticsService {
             info.setClickCount(-1L);
             LOGGER.warning("Query article counts error, " + e.getMessage());
         }
-    }
-
-    private static long toLong(Map<String, Object> row, String key) {
-        if (row == null) {
-            return 0L;
-        }
-        Object value = row.get(key);
-        if (value == null) {
-            value = row.get(key.toLowerCase(Locale.ROOT));
-        }
-        if (value == null) {
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                    value = entry.getValue();
-                    break;
-                }
-            }
-        }
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return 0L;
     }
 }

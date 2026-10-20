@@ -19,16 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class AdminStaticSiteSsePublisherTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
-
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private com.zrlog.common.ZrLogConfig applicationConfig;
 
     @Test
     public void shouldRunCacheStepsDirectlyWhenStaticSiteIsDisabled() throws Exception {

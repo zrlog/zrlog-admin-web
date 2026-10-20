@@ -1,8 +1,8 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { formatDateTime } from "./date-time";
+import {describe, expect, it, jest} from "@jest/globals";
+import {formatDateTime} from "./date-time";
 
 let mockLanguage = "en_US";
-jest.mock("./constants", () => ({ getRes: () => ({ lang: mockLanguage }) }));
+jest.mock("./constants", () => ({getRes: () => ({lang: mockLanguage})}));
 
 describe("account date and time formatting", () => {
     it("uses the selected language and updates when the preference changes", () => {

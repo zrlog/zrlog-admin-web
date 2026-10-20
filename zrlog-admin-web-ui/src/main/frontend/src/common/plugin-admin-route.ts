@@ -1,14 +1,14 @@
-import { NavigateFunction } from "react-router-dom";
-import { getRealRouteUrl } from "../utils/constants";
+import {NavigateFunction} from "react-router-dom";
+import {getRealRouteUrl} from "../utils/constants";
 
 export type PluginAdminRoute =
     | string
     | {
-          route?: string;
-          path?: string;
-          url?: string;
-          replace?: boolean;
-      };
+    route?: string;
+    path?: string;
+    url?: string;
+    replace?: boolean;
+};
 
 export type ResolvedPluginAdminRoute = {
     route: string;
@@ -29,7 +29,7 @@ const internalRoute = (route: string) => {
 export const resolvePluginAdminRoute = (value: unknown): ResolvedPluginAdminRoute | undefined => {
     if (typeof value === "string") {
         const route = internalRoute(value);
-        return route ? { route } : undefined;
+        return route ? {route} : undefined;
     }
     if (!value || typeof value !== "object") {
         return undefined;
@@ -39,10 +39,10 @@ export const resolvePluginAdminRoute = (value: unknown): ResolvedPluginAdminRout
         typeof routeValue.route === "string"
             ? routeValue.route
             : typeof routeValue.path === "string"
-              ? routeValue.path
-              : typeof routeValue.url === "string"
-                ? routeValue.url
-                : "";
+                ? routeValue.path
+                : typeof routeValue.url === "string"
+                    ? routeValue.url
+                    : "";
     const route = internalRoute(candidate);
     if (!route) {
         return undefined;
@@ -58,6 +58,6 @@ export const navigateToPluginAdminRoute = (navigate: NavigateFunction, value: un
     if (!target) {
         return false;
     }
-    navigate(getRealRouteUrl(target.route), { replace: target.replace === true });
+    navigate(getRealRouteUrl(target.route), {replace: target.replace === true});
     return true;
 };

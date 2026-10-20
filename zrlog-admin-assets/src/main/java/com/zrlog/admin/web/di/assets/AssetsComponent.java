@@ -1,21 +1,22 @@
 package com.zrlog.admin.web.di.assets;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.business.service.*;
-import com.zrlog.admin.web.controller.api.*;
+import com.zrlog.admin.business.service.AccountPermissionService;
+import com.zrlog.admin.business.service.ArticleResourceService;
+import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.web.controller.api.FileManagerController;
+import com.zrlog.admin.web.controller.api.UploadController;
 import com.zrlog.admin.web.di.account.AccountBindingsModule;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.interceptor.AdminTemporaryResourceInterceptor;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.di.ServiceBindingsModule;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.TokenService;
 import com.zrlog.data.di.DataBindingsModule;
 import com.zrlog.data.di.DataComponent;
-
 import dagger.BindsInstance;
 import dagger.Component;
-
 import jakarta.inject.Singleton;
 
 import java.util.function.BooleanSupplier;
@@ -24,9 +25,9 @@ import java.util.function.Supplier;
 @Singleton
 @Component(
         modules = {
-            DataBindingsModule.class,
-            ServiceBindingsModule.class,
-            AccountBindingsModule.class
+                DataBindingsModule.class,
+                ServiceBindingsModule.class,
+                AccountBindingsModule.class
         })
 public interface AssetsComponent {
     UploadService uploads();

@@ -5,9 +5,12 @@ import com.google.gson.JsonElement;
 
 import java.util.List;
 
-/** Provider protocol types. Opaque reasoning items stay in the private run checkpoint. */
+/**
+ * Provider protocol types. Opaque reasoning items stay in the private run checkpoint.
+ */
 public final class OpenAIResponses {
-    private OpenAIResponses() { }
+    private OpenAIResponses() {
+    }
 
     public static class Request {
         public String model;

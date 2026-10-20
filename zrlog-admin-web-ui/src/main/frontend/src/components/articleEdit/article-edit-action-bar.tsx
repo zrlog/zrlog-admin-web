@@ -1,23 +1,23 @@
 import SaveIcon from "@zrlog/ui/icons/save";
 import SendIcon from "@zrlog/ui/icons/send";
-import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
-import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
-import { isModuleEnabled } from "../../utils/module-capabilities";
-import { hasAction } from "../../utils/account-access";
-import { Button } from "antd";
+import {ApplyAiValues, SkillContextRevision} from "./use-article-field-ai";
+import {ArticleUpdatedEvent} from "./article-ai-assistant/article-ai-assistant.types";
+import {isModuleEnabled} from "../../utils/module-capabilities";
+import {hasAction} from "../../utils/account-access";
+import {Button} from "antd";
 
-import { getRes } from "../../utils/constants";
-import { ArticleEditState, ArticleEntry } from "./index.types";
-import { FunctionComponent, useEffect, useRef } from "react";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getAiDrawerOpen } from "@zrlog/editor/core/ai/AIDrawer";
-import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
+import {getRes} from "../../utils/constants";
+import {ArticleEditState, ArticleEntry} from "./index.types";
+import {FunctionComponent, useEffect, useRef} from "react";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {AIStateCache} from "@zrlog/editor/dist/ai/AIStateCache";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getAiDrawerOpen} from "@zrlog/editor/core/ai/AIDrawer";
+import {getShortcutTitle, isMacLikeDevice, isTouchLikeDevice} from "./shortcut-utils";
 import ArticleAiAssistantButton, {
     getArticleAiAssistantDrawerOpen,
 } from "./article-ai-assistant/article-ai-assistant-button";
-import { DraftAiSaveGate } from "./draft-ai-save-gate";
+import {DraftAiSaveGate} from "./draft-ai-save-gate";
 import useArticleEditorScreens from "./use-article-editor-screens";
 
 type ArticleEditActionBarProps = {
@@ -47,29 +47,29 @@ type ArticleEditActionBarProps = {
 };
 
 const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
-    data,
-    draftAiPending,
-    draftAiSaveGate,
-    offline,
-    shortcutsDisabled = false,
-    onSubmit,
-    onRequestPublish,
-    onPreview,
-    onOpenSettings,
-    onOpenVersionHistory,
-    canOpenVersionHistory,
-    getContainer,
-    onAiMessagesChange,
-    onArticleUpdated,
-    onAiDrawerSizeChange,
-    aiDrawerOpen,
-    onAiDrawerOpenChange,
-    aiDrawerWidth,
-    aiStateCache,
-    onApplyAiValues,
-    getSkillContextRevision,
-    onApplyGeneratedCover,
-}) => {
+                                                                                data,
+                                                                                draftAiPending,
+                                                                                draftAiSaveGate,
+                                                                                offline,
+                                                                                shortcutsDisabled = false,
+                                                                                onSubmit,
+                                                                                onRequestPublish,
+                                                                                onPreview,
+                                                                                onOpenSettings,
+                                                                                onOpenVersionHistory,
+                                                                                canOpenVersionHistory,
+                                                                                getContainer,
+                                                                                onAiMessagesChange,
+                                                                                onArticleUpdated,
+                                                                                onAiDrawerSizeChange,
+                                                                                aiDrawerOpen,
+                                                                                onAiDrawerOpenChange,
+                                                                                aiDrawerWidth,
+                                                                                aiStateCache,
+                                                                                onApplyAiValues,
+                                                                                getSkillContextRevision,
+                                                                                onApplyGeneratedCover,
+                                                                            }) => {
     const enterBtnRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
     const saveDraftBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -167,7 +167,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                     ctrlOrCmd: true,
                     key: "S",
                 })}
-                icon={<SaveIcon />}
+                icon={<SaveIcon/>}
                 loading={data.saving.rubbishSaving && !data.saving.autoSaving}
                 disabled={
                     offline ||
@@ -200,7 +200,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                 <Button
                     ref={enterBtnRef}
                     type="primary"
-                    style={{ width: screens.sm ? 120 : undefined }}
+                    style={{width: screens.sm ? 120 : undefined}}
                     title={getShortcutTitle(
                         data.article.privacy === true
                             ? getRes().articleEdit.actions.save
@@ -211,7 +211,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                         }
                     )}
                     disabled={offline || draftAiPending || data.saving.releaseSaving}
-                    icon={<SendIcon />}
+                    icon={<SendIcon/>}
                     onClick={async () => {
                         if (data.article.privacy === true) {
                             await onSubmit(data.article, true, false, false);

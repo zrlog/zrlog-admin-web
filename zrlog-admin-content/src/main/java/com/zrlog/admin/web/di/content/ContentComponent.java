@@ -1,6 +1,7 @@
 package com.zrlog.admin.web.di.content;
 
-import com.zrlog.admin.business.content.*;
+import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
@@ -12,10 +13,8 @@ import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.service.MarkdownRenderer;
 import com.zrlog.data.di.DataBindingsModule;
 import com.zrlog.data.di.DataComponent;
-
 import dagger.BindsInstance;
 import dagger.Component;
-
 import jakarta.inject.Singleton;
 
 import java.util.function.Supplier;
@@ -23,10 +22,10 @@ import java.util.function.Supplier;
 @Singleton
 @Component(
         modules = {
-            DataBindingsModule.class,
-            ServiceBindingsModule.class,
-            AccountBindingsModule.class,
-            ContentModule.class
+                DataBindingsModule.class,
+                ServiceBindingsModule.class,
+                AccountBindingsModule.class,
+                ContentModule.class
         })
 public interface ContentComponent {
     AdminArticleService articles();

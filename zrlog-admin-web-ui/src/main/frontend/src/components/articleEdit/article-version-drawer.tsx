@@ -1,19 +1,19 @@
 import Typography from "@zrlog/ui/antd/Typography";
 import Tag from "@zrlog/ui/antd/Tag";
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import HistoryIcon from "@zrlog/ui/icons/history";
 import UndoIcon from "@zrlog/ui/icons/undo";
-import React, { RefObject, useEffect, useState } from "react";
-import { Button, Drawer, Empty, Grid, List, Select, Space } from "antd";
+import React, {RefObject, useEffect, useState} from "react";
+import {Button, Drawer, Empty, Grid, List, Select, Space} from "antd";
 
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
-import { getRes } from "../../utils/constants";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { useTheme } from "antd-style";
-import { getShortcutTitle } from "./shortcut-utils";
-import { collectMarkdownReferenceSummary } from "./markdown-reference-utils";
+import {getRes} from "../../utils/constants";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {useTheme} from "antd-style";
+import {getShortcutTitle} from "./shortcut-utils";
+import {collectMarkdownReferenceSummary} from "./markdown-reference-utils";
 
-const { Paragraph, Text } = Typography;
+const {Paragraph, Text} = Typography;
 
 type DiffLineType = "context" | "add" | "remove";
 
@@ -52,7 +52,7 @@ type ArticleVersionDrawerProps = {
 const buildLineDiff = (beforeText: string, afterText: string): DiffLine[] => {
     const before = beforeText.split("\n");
     const after = afterText.split("\n");
-    const dp: number[][] = Array.from({ length: before.length + 1 }, () => Array(after.length + 1).fill(0));
+    const dp: number[][] = Array.from({length: before.length + 1}, () => Array(after.length + 1).fill(0));
 
     for (let i = before.length - 1; i >= 0; i--) {
         for (let j = after.length - 1; j >= 0; j--) {
@@ -69,24 +69,24 @@ const buildLineDiff = (beforeText: string, afterText: string): DiffLine[] => {
     let j = 0;
     while (i < before.length && j < after.length) {
         if (before[i] === after[j]) {
-            lines.push({ type: "context", content: before[i] });
+            lines.push({type: "context", content: before[i]});
             i++;
             j++;
         } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-            lines.push({ type: "remove", content: before[i] });
+            lines.push({type: "remove", content: before[i]});
             i++;
         } else {
-            lines.push({ type: "add", content: after[j] });
+            lines.push({type: "add", content: after[j]});
             j++;
         }
     }
 
     while (i < before.length) {
-        lines.push({ type: "remove", content: before[i] });
+        lines.push({type: "remove", content: before[i]});
         i++;
     }
     while (j < after.length) {
-        lines.push({ type: "add", content: after[j] });
+        lines.push({type: "add", content: after[j]});
         j++;
     }
 
@@ -153,15 +153,15 @@ const getArticleReferenceChanges = (fromArticle?: Record<string, any>, toArticle
 };
 
 const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
-    logId,
-    currentVersion,
-    axiosInstance,
-    onRollback,
-    containerRef,
-    open,
-    onOpenChange,
-    showTrigger = true,
-}) => {
+                                                                       logId,
+                                                                       currentVersion,
+                                                                       axiosInstance,
+                                                                       onRollback,
+                                                                       containerRef,
+                                                                       open,
+                                                                       onOpenChange,
+                                                                       showTrigger = true,
+                                                                   }) => {
     const theme = useTheme();
     const screens = Grid.useBreakpoint();
     const diffBorder = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
@@ -171,7 +171,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
     const [compareLoading, setCompareLoading] = useState(false);
     const [selectedVersion, setSelectedVersion] = useState<number | undefined>(undefined);
     const [compareData, setCompareData] = useState<CompareResponse | null>(null);
-    const { modal } = useUiApp();
+    const {modal} = useUiApp();
     const drawerOpen = open ?? innerOpen;
     const mobileMode = screens.sm !== true;
     const drawerWidth = screens.lg ? 960 : screens.md ? 720 : "100%";
@@ -195,7 +195,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
         }
         setLoading(true);
         try {
-            const { data } = await axiosInstance.get(`/api/admin/article-version?id=${logId}`);
+            const {data} = await axiosInstance.get(`/api/admin/article-version?id=${logId}`);
             const items = data.data ? (data.data as VersionItem[]) : [];
             setVersions(items);
             if (!selectedVersion && items.length > 1) {
@@ -219,7 +219,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
             }
             setCompareLoading(true);
             try {
-                const { data } = await axiosInstance.get(
+                const {data} = await axiosInstance.get(
                     `/api/admin/article-version/compare?id=${logId}&fromVersion=${selectedVersion}&toVersion=${currentVersion}`
                 );
                 setCompareData(data.data as CompareResponse);
@@ -253,9 +253,9 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
 
     const markdownDiffLines = compareData
         ? buildLineDiff(
-              compareData.fromArticle?.markdown || compareData.fromArticle?.content || "",
-              compareData.toArticle?.markdown || compareData.toArticle?.content || ""
-          )
+            compareData.fromArticle?.markdown || compareData.fromArticle?.content || "",
+            compareData.toArticle?.markdown || compareData.toArticle?.content || ""
+        )
         : [];
 
     const titleDiffLines = compareData
@@ -314,7 +314,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
     const fieldChangeDetails = compareData?.changedFields.filter((field) => !PRIMARY_DIFF_FIELDS.has(field)) || [];
     const referenceChanges = compareData
         ? getArticleReferenceChanges(compareData.fromArticle, compareData.toArticle)
-        : { added: [], removed: [] };
+        : {added: [], removed: []};
     const hasReferenceChanges = referenceChanges.added.length > 0 || referenceChanges.removed.length > 0;
     const referenceChangeGroups = [
         {
@@ -351,7 +351,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         cursor: !logId ? "not-allowed" : "pointer",
                         color: theme.colorTextTertiary,
                     }}
-                    icon={<HistoryIcon style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />}
+                    icon={<HistoryIcon style={{fontSize: getAppState().compactMode ? 18 : 24, display: "flex"}}/>}
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -366,8 +366,8 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                 onClose={() => updateOpen(false)}
                 getContainer={() => containerRef.current ?? document.body}
             >
-                <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                    <Space style={{ width: "100%", justifyContent: "space-between" }} wrap>
+                <Space direction="vertical" size={16} style={{width: "100%"}}>
+                    <Space style={{width: "100%", justifyContent: "space-between"}} wrap>
                         <Space wrap>
                             <Text type="secondary">{getRes().articleEdit.version.current}</Text>
                             <Tag color="blue">v{currentVersion}</Tag>
@@ -375,7 +375,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         <Space wrap>
                             <Text type="secondary">{getRes().articleEdit.version.compare}</Text>
                             <Select
-                                style={{ minWidth: 120 }}
+                                style={{minWidth: 120}}
                                 loading={loading}
                                 value={selectedVersion}
                                 options={versionOptions}
@@ -383,7 +383,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                 placeholder="v0"
                             />
                             {selectedVersion !== undefined && (
-                                <Button icon={<UndoIcon />} onClick={() => openRollbackConfirm(selectedVersion)}>
+                                <Button icon={<UndoIcon/>} onClick={() => openRollbackConfirm(selectedVersion)}>
                                     {getRes().articleEdit.version.rollback.label}
                                 </Button>
                             )}
@@ -393,7 +393,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         bordered
                         loading={loading}
                         locale={{
-                            emptyText: <Empty description={getRes().articleEdit.version.empty} />,
+                            emptyText: <Empty description={getRes().articleEdit.version.empty}/>,
                         }}
                         dataSource={versions}
                         renderItem={(item) => (
@@ -408,7 +408,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                         gap: 8,
                                     }}
                                 >
-                                    <Space style={{ minWidth: 0 }} wrap>
+                                    <Space style={{minWidth: 0}} wrap>
                                         <Tag color={item.current ? "blue" : "default"}>
                                             {item.current ? getRes().articleEdit.version.current : `v${item.version}`}
                                         </Tag>
@@ -420,11 +420,11 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                         }}
                                         wrap
                                     >
-                                        {item.createdAt ? <TimeAgo timestamp={item.createdAt} /> : null}
+                                        {item.createdAt ? <TimeAgo timestamp={item.createdAt}/> : null}
                                         {!item.current ? (
                                             <Button
                                                 type="link"
-                                                style={{ paddingInline: 0 }}
+                                                style={{paddingInline: 0}}
                                                 block={mobileMode}
                                                 onClick={() => setSelectedVersion(item.version)}
                                             >
@@ -437,7 +437,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         )}
                     />
                     {compareData ? (
-                        <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                        <Space direction="vertical" size={12} style={{width: "100%"}}>
                             <Space wrap>
                                 <Tag color="gold">v{compareData.fromVersion}</Tag>
                                 <Tag color="blue">v{compareData.toVersion}</Tag>
@@ -467,7 +467,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                         dataSource={fieldChangeDetails}
                                         renderItem={(field) => (
                                             <List.Item>
-                                                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                                                <Space direction="vertical" size={8} style={{width: "100%"}}>
                                                     <Text strong>{getChangedFieldLabel(field)}</Text>
                                                     <div
                                                         style={{
@@ -480,7 +480,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                                             <Text type="secondary">
                                                                 {getRes().articleEdit.version.from}
                                                             </Text>
-                                                            <Paragraph style={{ marginBottom: 0 }} copyable>
+                                                            <Paragraph style={{marginBottom: 0}} copyable>
                                                                 {formatChangedFieldValue(
                                                                     compareData.fromArticle?.[field]
                                                                 )}
@@ -490,7 +490,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                                             <Text type="secondary">
                                                                 {getRes().articleEdit.version.to}
                                                             </Text>
-                                                            <Paragraph style={{ marginBottom: 0 }} copyable>
+                                                            <Paragraph style={{marginBottom: 0}} copyable>
                                                                 {formatChangedFieldValue(
                                                                     compareData.toArticle?.[field]
                                                                 )}
@@ -525,7 +525,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                         dataSource={referenceChangeGroups}
                                         renderItem={(group) => (
                                             <List.Item>
-                                                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                                                <Space direction="vertical" size={8} style={{width: "100%"}}>
                                                     <Tag color={group.color}>{group.label}</Tag>
                                                     <div
                                                         style={{
@@ -569,14 +569,14 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                     }}
                                 >
                                     <div
-                                        style={{ color: theme.colorErrorText }}
+                                        style={{color: theme.colorErrorText}}
                                     >{`--- v${compareData.fromVersion}`}</div>
                                     <div
-                                        style={{ color: theme.colorSuccessText }}
+                                        style={{color: theme.colorSuccessText}}
                                     >{`+++ v${compareData.toVersion}`}</div>
                                 </div>
-                                <div style={{ padding: "10px 14px" }}>
-                                    <Paragraph style={{ marginBottom: 8 }} type="secondary">
+                                <div style={{padding: "10px 14px"}}>
+                                    <Paragraph style={{marginBottom: 8}} type="secondary">
                                         {getRes().articleEdit.version.fields.title}
                                     </Paragraph>
                                     <div
@@ -604,7 +604,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                             </div>
                                         ))}
                                     </div>
-                                    <Paragraph style={{ marginBottom: 8 }} type="secondary">
+                                    <Paragraph style={{marginBottom: 8}} type="secondary">
                                         {getRes().articleEdit.version.fields.markdown}
                                     </Paragraph>
                                     <div
@@ -637,7 +637,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                             </div>
                         </Space>
                     ) : !compareLoading ? (
-                        <Empty description={getRes().articleEdit.version.select} />
+                        <Empty description={getRes().articleEdit.version.select}/>
                     ) : null}
                 </Space>
             </Drawer>

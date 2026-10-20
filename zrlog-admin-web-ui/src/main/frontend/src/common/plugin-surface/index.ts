@@ -1,4 +1,4 @@
-export { default as InteractiveSurfaceView } from "./InteractiveSurfaceView";
+export {default as InteractiveSurfaceView} from "./InteractiveSurfaceView";
 export type {
     InteractiveSurface,
     StandardSurfaceResponse,

@@ -5,11 +5,12 @@ import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-/** Adapts browser/Bearer request context to an explicitly authenticated account. */
+/**
+ * Adapts browser/Bearer request context to an explicitly authenticated account.
+ */
 @Singleton
 public final class AdminRequestIdentity {
     private final AccountIdentityService identities;

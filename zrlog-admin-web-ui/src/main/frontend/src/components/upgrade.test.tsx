@@ -1,28 +1,28 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { UpgradeData } from "../type";
-import Upgrade, { UpgradeProps } from "./upgrade";
-import { getVersion } from "../api";
-import { finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
-import { DockerUpgradeJob, DockerUpgradeRequest, readDockerUpgrade, saveDockerUpgrade } from "../utils/docker-upgrade";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {MemoryRouter} from "react-router-dom";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {UpgradeData} from "../type";
+import Upgrade, {UpgradeProps} from "./upgrade";
+import {getVersion} from "../api";
+import {finishBackgroundTask, updateBackgroundTask} from "../utils/background-task-store";
+import {DockerUpgradeJob, DockerUpgradeRequest, readDockerUpgrade, saveDockerUpgrade} from "../utils/docker-upgrade";
 
 const mockGet = jest.fn<Promise<any>, [string, unknown]>();
 const mockUpgrade = jest.fn<Promise<any>, [string, any]>();
 const mockSubscribe = jest.fn<Promise<any>, [string, any]>();
 const mockPost = jest.fn<Promise<any>, [string, any, unknown?]>();
-const mockMessage = { error: jest.fn() };
-const mockModal = { success: jest.fn(), warning: jest.fn() };
-const mockAxios = { get: mockGet, post: mockPost };
+const mockMessage = {error: jest.fn()};
+const mockModal = {success: jest.fn(), warning: jest.fn()};
+const mockAxios = {get: mockGet, post: mockPost};
 
-jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
-jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
+jest.mock("../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
+jest.mock("../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false})}));
 jest.mock("../utils/constants", () => ({
     getRes: () => require("../i18n/admin").getAdminI18n("en_US"),
     getRealRouteUrl: (path: string) => path,
 }));
-jest.mock("../utils/helpers", () => ({ getContextPath: () => "/blog/" }));
+jest.mock("../utils/helpers", () => ({getContextPath: () => "/blog/"}));
 jest.mock("../api", () => ({
     API_DO_UPGRADE_PATH: "/api/admin/upgrade/doUpgrade",
     API_ADMIN_STATIC_SITE_SYNC_PATH: "/api/admin/static-site/sync",
@@ -37,14 +37,14 @@ jest.mock("../utils/background-task-store", () => ({
     updateBackgroundTask: require("@jest/globals").jest.fn(),
     finishBackgroundTask: require("@jest/globals").jest.fn(),
 }));
-jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({ markdownToHtml: async (text: string) => text }));
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({markdownToHtml: async (text: string) => text}));
 jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => () => null);
 jest.mock("./common/AdminSettingsLayout", () => ({
     __esModule: true,
-    default: ({ activeKey, title, extra, children, footer }: any) =>
+    default: ({activeKey, title, extra, children, footer}: any) =>
         require("react").createElement(
             "main",
-            { "data-settings-page": activeKey },
+            {"data-settings-page": activeKey},
             require("react").createElement("h1", null, title),
             extra,
             children,
@@ -53,22 +53,22 @@ jest.mock("./common/AdminSettingsLayout", () => ({
 }));
 jest.mock("./upgrade-content", () => ({
     __esModule: true,
-    default: ({ data }: { data: UpgradeData }) =>
-        require("react").createElement("div", { "data-version": data.version?.buildId }),
+    default: ({data}: { data: UpgradeData }) =>
+        require("react").createElement("div", {"data-version": data.version?.buildId}),
 }));
 jest.mock("./upgrade-readiness", () => ({
     __esModule: true,
-    default: ({ data, onRefresh, refreshing, refreshDisabled, refreshError, checkedAt }: any) => {
+    default: ({data, onRefresh, refreshing, refreshDisabled, refreshError, checkedAt}: any) => {
         const React = require("react");
         return React.createElement(
             "section",
-            { "data-backup": data.backupProtection?.status, "data-checked-at": checkedAt },
+            {"data-backup": data.backupProtection?.status, "data-checked-at": checkedAt},
             React.createElement(
                 "button",
-                { onClick: onRefresh, disabled: refreshing || refreshDisabled },
+                {onClick: onRefresh, disabled: refreshing || refreshDisabled},
                 "Refresh Check"
             ),
-            refreshError && React.createElement("p", { role: "alert" }, refreshError)
+            refreshError && React.createElement("p", {role: "alert"}, refreshError)
         );
     },
 }));
@@ -80,31 +80,31 @@ jest.mock("@ant-design/icons", () => ({
 }));
 jest.mock("antd/es/typography/Title", () => ({
     __esModule: true,
-    default: ({ children }: any) => require("react").createElement("h2", null, children),
+    default: ({children}: any) => require("react").createElement("h2", null, children),
 }));
 jest.mock("antd", () => {
     const React = require("react");
     return {
-        App: { useApp: () => ({ modal: mockModal }) },
-        message: { useMessage: () => [mockMessage, null] },
-        theme: { useToken: () => ({ token: {} }) },
-        Grid: { useBreakpoint: () => ({ xs: false, sm: true, md: true }) },
-        Empty: ({ description, children }: any) =>
-            React.createElement("div", { role: "status" }, description, children),
-        Progress: ({ percent, status, format, "aria-label": label }: any) =>
+        App: {useApp: () => ({modal: mockModal})},
+        message: {useMessage: () => [mockMessage, null]},
+        theme: {useToken: () => ({token: {}})},
+        Grid: {useBreakpoint: () => ({xs: false, sm: true, md: true})},
+        Empty: ({description, children}: any) =>
+            React.createElement("div", {role: "status"}, description, children),
+        Progress: ({percent, status, format, "aria-label": label}: any) =>
             React.createElement(
                 "div",
-                { role: "progressbar", "aria-label": label, "aria-valuenow": percent, "data-status": status },
+                {role: "progressbar", "aria-label": label, "aria-valuenow": percent, "data-status": status},
                 format(percent)
             ),
-        Alert: ({ message, description }: any) => React.createElement("div", null, message, description),
-        Button: ({ children, onClick, disabled, loading }: any) =>
-            React.createElement("button", { onClick, disabled: disabled || loading }, children),
-        Checkbox: ({ children, checked, disabled, onChange }: any) =>
+        Alert: ({message, description}: any) => React.createElement("div", null, message, description),
+        Button: ({children, onClick, disabled, loading}: any) =>
+            React.createElement("button", {onClick, disabled: disabled || loading}, children),
+        Checkbox: ({children, checked, disabled, onChange}: any) =>
             React.createElement(
                 "label",
                 null,
-                React.createElement("input", { type: "checkbox", checked, disabled, onChange }),
+                React.createElement("input", {type: "checkbox", checked, disabled, onChange}),
                 children
             ),
     };
@@ -115,7 +115,7 @@ const initialData = (): UpgradeData => ({
     upgrade: true,
     onlineUpgradable: true,
     disableUpgradeReason: "",
-    version: { buildId: "old", version: "4.0.0", type: "standard", changeLog: "" },
+    version: {buildId: "old", version: "4.0.0", type: "standard", changeLog: ""},
     backupProtection: {
         ready: false,
         requiresRiskAcceptance: true,
@@ -126,8 +126,8 @@ const initialData = (): UpgradeData => ({
 });
 const refreshedData = (): UpgradeData => ({
     ...initialData(),
-    version: { ...initialData().version!, buildId: "new" },
-    backupProtection: { ...initialData().backupProtection!, status: "READY", ready: true },
+    version: {...initialData().version!, buildId: "new"},
+    backupProtection: {...initialData().backupProtection!, status: "READY", ready: true},
 });
 const deferred = () => {
     let resolve!: (value: unknown) => void;
@@ -136,7 +136,7 @@ const deferred = () => {
         resolve = onResolve;
         reject = onReject;
     });
-    return { promise, resolve, reject };
+    return {promise, resolve, reject};
 };
 
 describe("upgrade readiness actions", () => {
@@ -144,10 +144,10 @@ describe("upgrade readiness actions", () => {
     let container: HTMLDivElement;
     let props: UpgradeProps;
     const render = async (changes: Partial<UpgradeProps> = {}) => {
-        props = { ...props, ...changes };
+        props = {...props, ...changes};
         await act(async () =>
             root.render(
-                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
                     <Upgrade {...props} />
                 </MemoryRouter>
             )
@@ -169,7 +169,7 @@ describe("upgrade readiness actions", () => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         mockGet.mockReset();
         mockUpgrade.mockReset();
-        props = { data: initialData(), offline: false, offlineData: false };
+        props = {data: initialData(), offline: false, offlineData: false};
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
@@ -193,7 +193,7 @@ describe("upgrade readiness actions", () => {
         await click(check());
         expect(mockGet).toHaveBeenCalledTimes(1);
         expect(mockGet).toHaveBeenCalledWith("/api/admin/upgrade", {
-            params: { fetch: true },
+            params: {fetch: true},
             showError: false,
             timeout: 30000,
         });
@@ -202,25 +202,25 @@ describe("upgrade readiness actions", () => {
         expect(execute().disabled).toBe(true);
         expect(mockUpgrade).not.toHaveBeenCalled();
 
-        await act(async () => pending.resolve({ data: { error: 0, data: refreshedData() } }));
+        await act(async () => pending.resolve({data: {error: 0, data: refreshedData()}}));
         expect(container.querySelector("[data-backup]")?.getAttribute("data-backup")).toBe("READY");
         expect(container.querySelector("[data-version]")?.getAttribute("data-version")).toBe("new");
         expect(container.querySelector("[data-checked-at]")?.getAttribute("data-checked-at")).toBe("1788829200000");
         expect(execute().disabled).toBe(true);
         expect(mockUpgrade).not.toHaveBeenCalled();
         await click(checkbox());
-        mockUpgrade.mockResolvedValue({ error: 0, data: { finish: false, message: "" } });
+        mockUpgrade.mockResolvedValue({error: 0, data: {finish: false, message: ""}});
         await click(execute());
         expect(mockUpgrade).toHaveBeenCalledTimes(1);
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
-            expect.objectContaining({ body: { upgradeRiskAccepted: true } })
+            expect.objectContaining({body: {upgradeRiskAccepted: true}})
         );
         expect(container.querySelector("[data-backup]")).toBeNull();
     });
 
     it("shows an empty state in update settings and can check for an update", async () => {
-        await render({ data: { ...initialData(), upgrade: false, version: null } });
+        await render({data: {...initialData(), upgrade: false, version: null}});
         expect(container.querySelector("main")?.getAttribute("data-settings-page")).toBe("upgrade");
         expect(container.querySelector("h1")?.textContent).toBe("Upgrade Wizard");
         expect(container.querySelector("a")?.getAttribute("href")).toBe("/system/upgrade");
@@ -232,7 +232,7 @@ describe("upgrade readiness actions", () => {
         expect(container.querySelector('[role="progressbar"]')).toBeNull();
         expect(button("Check for Updates").disabled).toBe(false);
 
-        mockGet.mockResolvedValueOnce({ data: { error: 0, data: refreshedData() } });
+        mockGet.mockResolvedValueOnce({data: {error: 0, data: refreshedData()}});
         await click(button("Check for Updates"));
         expect(container.querySelector("[data-backup]")).not.toBeNull();
         expect(checkbox().checked).toBe(false);
@@ -243,7 +243,7 @@ describe("upgrade readiness actions", () => {
     it.each([null, undefined])("accepts a no-update check without version metadata (%s)", async (version) => {
         await render();
         await click(checkbox());
-        mockGet.mockResolvedValueOnce({ data: { error: 0, data: { ...refreshedData(), upgrade: false, version } } });
+        mockGet.mockResolvedValueOnce({data: {error: 0, data: {...refreshedData(), upgrade: false, version}}});
         await click(check());
         expect(container.querySelector('[role="alert"]')).toBeNull();
         expect(container.textContent).toContain("No update is waiting to be installed");
@@ -261,7 +261,7 @@ describe("upgrade readiness actions", () => {
             if (failure === "transport") {
                 mockGet.mockRejectedValueOnce(new Error("Temporary connection failure"));
             } else {
-                mockGet.mockResolvedValueOnce({ data: { error: failure === "business" ? 1 : 0, data: {} } });
+                mockGet.mockResolvedValueOnce({data: {error: failure === "business" ? 1 : 0, data: {}}});
             }
             await click(check());
             expect(container.querySelector("[data-backup]")?.getAttribute("data-backup")).toBe("MISSING_BACKUP");
@@ -270,7 +270,7 @@ describe("upgrade readiness actions", () => {
             expect(checkbox().disabled).toBe(true);
             expect(execute().disabled).toBe(true);
             expect(check().disabled).toBe(false);
-            mockGet.mockResolvedValueOnce({ data: { error: 0, data: refreshedData() } });
+            mockGet.mockResolvedValueOnce({data: {error: 0, data: refreshedData()}});
             await click(check());
             expect(container.querySelector('[role="alert"]')).toBeNull();
             expect(container.querySelector("[data-backup]")?.getAttribute("data-backup")).toBe("READY");
@@ -279,13 +279,13 @@ describe("upgrade readiness actions", () => {
     );
 
     it("allows cached page data to be rechecked online, but not while offline", async () => {
-        await render({ offlineData: true, offline: true });
+        await render({offlineData: true, offline: true});
         expect(check().disabled).toBe(true);
         await click(check());
         expect(mockGet).not.toHaveBeenCalled();
-        await render({ offline: false });
+        await render({offline: false});
         expect(check().disabled).toBe(false);
-        mockGet.mockResolvedValueOnce({ data: { error: 0, data: refreshedData() } });
+        mockGet.mockResolvedValueOnce({data: {error: 0, data: refreshedData()}});
         await click(check());
         await click(checkbox());
         expect(execute().disabled).toBe(false);
@@ -299,11 +299,11 @@ describe("upgrade readiness actions", () => {
         if (transition === "unmount") {
             await act(async () => root.render(null));
         } else if (transition === "offline") {
-            await render({ offline: true });
+            await render({offline: true});
         } else {
-            await render({ data: { ...initialData(), version: { ...initialData().version!, buildId: "route-data" } } });
+            await render({data: {...initialData(), version: {...initialData().version!, buildId: "route-data"}}});
         }
-        await act(async () => pending.resolve({ data: { error: 0, data: refreshedData() } }));
+        await act(async () => pending.resolve({data: {error: 0, data: refreshedData()}}));
         expect(container.querySelector("[data-checked-at]")).toBeNull();
         expect(container.querySelector('[data-version="new"]')).toBeNull();
         expect(mockUpgrade).not.toHaveBeenCalled();
@@ -333,12 +333,12 @@ describe("Docker upgrade interaction and recovery", () => {
     });
     const job = (phase: DockerUpgradeJob["phase"], changes: Partial<DockerUpgradeJob> = {}) => ({
         error: 0,
-        data: { ...request, id: request.requestId, phase, recoveryRequired: false, ...changes },
+        data: {...request, id: request.requestId, phase, recoveryRequired: false, ...changes},
     });
     const render = async (changes: Partial<UpgradeProps> = {}) => {
         await act(async () =>
             root.render(
-                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
                     <Upgrade data={page()} offline={false} offlineData={false} {...changes} />
                 </MemoryRouter>
             )
@@ -364,7 +364,7 @@ describe("Docker upgrade interaction and recovery", () => {
         mockSubscribe.mockReset();
         mockUpgrade.mockReset();
         jest.mocked(getVersion).mockReset();
-        Object.defineProperty(globalThis, "crypto", { configurable: true, value: require("crypto").webcrypto });
+        Object.defineProperty(globalThis, "crypto", {configurable: true, value: require("crypto").webcrypto});
         localStorage.clear();
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -390,17 +390,17 @@ describe("Docker upgrade interaction and recovery", () => {
             savedAtSubmission = readDockerUpgrade();
             throw new Error("response lost during replacement");
         });
-        jest.mocked(getVersion).mockResolvedValue({ data: { buildId: "old-build" } } as any);
+        jest.mocked(getVersion).mockResolvedValue({data: {buildId: "old-build"}} as any);
         await render();
         await act(async () => (container.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
         await click("Update Now");
         const saved = readDockerUpgrade();
         expect(savedAtSubmission).toEqual(saved);
-        expect(saved).toEqual({ ...request, requestId: expect.stringMatching(/^[0-9a-f]{32}$/) });
+        expect(saved).toEqual({...request, requestId: expect.stringMatching(/^[0-9a-f]{32}$/)});
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
             expect.objectContaining({
-                body: { upgradeRiskAccepted: true, docker: saved },
+                body: {upgradeRiskAccepted: true, docker: saved},
                 waitForComplete: true,
             })
         );
@@ -414,16 +414,16 @@ describe("Docker upgrade interaction and recovery", () => {
 
     it.each([true, false])("recovers using one SSE subscription, with version metadata=%s", async (metadata) => {
         saveDockerUpgrade(request);
-        mockSubscribe.mockResolvedValue({ error: 0, data: { finish: true, message: "" } });
-        jest.mocked(getVersion).mockResolvedValueOnce({ data: { buildId: "old-build" } } as any);
-        jest.mocked(getVersion).mockResolvedValueOnce({ data: { buildId: request.buildId } } as any);
-        mockUpgrade.mockResolvedValue({ error: 0, data: { synced: true } });
-        mockPost.mockResolvedValue({ data: { error: 0 } });
-        await render({ data: { ...page(), upgrade: false, version: metadata ? page().version : undefined } });
+        mockSubscribe.mockResolvedValue({error: 0, data: {finish: true, message: ""}});
+        jest.mocked(getVersion).mockResolvedValueOnce({data: {buildId: "old-build"}} as any);
+        jest.mocked(getVersion).mockResolvedValueOnce({data: {buildId: request.buildId}} as any);
+        mockUpgrade.mockResolvedValue({error: 0, data: {synced: true}});
+        mockPost.mockResolvedValue({data: {error: 0}});
+        await render({data: {...page(), upgrade: false, version: metadata ? page().version : undefined}});
         expect(container.textContent).not.toContain("No update is waiting to be installed");
         expect(mockSubscribe).toHaveBeenCalledWith(
             "/api/admin/upgrade/docker-status?requestId=" + request.requestId,
-            expect.objectContaining({ waitForComplete: true, responseEvents: ["response"] })
+            expect.objectContaining({waitForComplete: true, responseEvents: ["response"]})
         );
         expect(mockModal.success).not.toHaveBeenCalled();
         expect(readDockerUpgrade()).toEqual(request);
@@ -439,7 +439,7 @@ describe("Docker upgrade interaction and recovery", () => {
     it("shows recovery while the saved task is loading without version metadata", async () => {
         saveDockerUpgrade(request);
         mockSubscribe.mockReturnValue(deferred().promise);
-        await render({ data: { ...page(), upgrade: false, onlineUpgradable: false, version: null } });
+        await render({data: {...page(), upgrade: false, onlineUpgradable: false, version: null}});
         expect(container.textContent).toContain("Checking the existing update task");
         expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
         expect(container.textContent).not.toContain("Manual Update Instructions");
@@ -460,7 +460,7 @@ describe("Docker upgrade interaction and recovery", () => {
                     detail: "Inspect the updater task before recovery",
                 },
             });
-            return { error: 1, message: phase, data: { finish: false } };
+            return {error: 1, message: phase, data: {finish: false}};
         });
         await render();
         expect(readDockerUpgrade()).toBeUndefined();
@@ -476,7 +476,7 @@ describe("Docker upgrade interaction and recovery", () => {
         mockSubscribe.mockImplementation(async (_path, options) => {
             options.onEvent({
                 event: "upgrade-progress",
-                data: { stage: "error", status: "error", message: "failed" },
+                data: {stage: "error", status: "error", message: "failed"},
             });
             throw new Error("connection closed");
         });
@@ -487,7 +487,7 @@ describe("Docker upgrade interaction and recovery", () => {
 
     it.each([null, undefined])("retries the same missing task only on an explicit click (%s)", async (data) => {
         saveDockerUpgrade(request);
-        mockSubscribe.mockResolvedValue({ error: 0, data });
+        mockSubscribe.mockResolvedValue({error: 0, data});
         mockUpgrade.mockReturnValue(deferred().promise);
         await render();
         await tick();
@@ -498,15 +498,15 @@ describe("Docker upgrade interaction and recovery", () => {
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
             expect.objectContaining({
-                body: { upgradeRiskAccepted: true, docker: request },
+                body: {upgradeRiskAccepted: true, docker: request},
             })
         );
         expect(readDockerUpgrade()).toEqual(request);
     });
 
     it("recovers a rejected submission by ID without another POST", async () => {
-        mockUpgrade.mockResolvedValue({ error: 1, message: "Rejected" });
-        mockSubscribe.mockResolvedValue({ error: 0 });
+        mockUpgrade.mockResolvedValue({error: 1, message: "Rejected"});
+        mockSubscribe.mockResolvedValue({error: 0});
         await render();
         await act(async () => (container.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
         await click("Update Now");
@@ -520,7 +520,7 @@ describe("Docker upgrade interaction and recovery", () => {
 
     it("retains the request and rejects a mismatched JSON fallback", async () => {
         saveDockerUpgrade(request);
-        mockSubscribe.mockResolvedValue(job("succeeded", { id: "another-request-1234567890" }));
+        mockSubscribe.mockResolvedValue(job("succeeded", {id: "another-request-1234567890"}));
         await render();
         expect(readDockerUpgrade()).toEqual(request);
         expect(getVersion).not.toHaveBeenCalled();
@@ -529,7 +529,7 @@ describe("Docker upgrade interaction and recovery", () => {
 
     it.each(["failed", "interrupted"] as const)("rejects %s in the JSON fallback", async (phase) => {
         saveDockerUpgrade(request);
-        mockSubscribe.mockResolvedValue(job(phase, { recoveryRequired: true }));
+        mockSubscribe.mockResolvedValue(job(phase, {recoveryRequired: true}));
         await render();
         expect(readDockerUpgrade()).toBeUndefined();
         expect(getVersion).not.toHaveBeenCalled();
@@ -542,9 +542,9 @@ describe("Docker upgrade interaction and recovery", () => {
             saveDockerUpgrade(request);
             mockSubscribe.mockResolvedValue(job(phase));
             jest.mocked(getVersion)
-                .mockResolvedValueOnce({ data: { buildId: "old-build" } } as any)
-                .mockResolvedValue({ data: { buildId: request.buildId } } as any);
-            mockUpgrade.mockResolvedValue({ error: 0, data: { synced: true } });
+                .mockResolvedValueOnce({data: {buildId: "old-build"}} as any)
+                .mockResolvedValue({data: {buildId: request.buildId}} as any);
+            mockUpgrade.mockResolvedValue({error: 0, data: {synced: true}});
             await render();
             expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe(
                 phase === "succeeded" ? "33" : "0"
@@ -565,14 +565,14 @@ describe("Docker upgrade interaction and recovery", () => {
         await render();
         const options = mockSubscribe.mock.calls[0][1];
         if (transition === "offline") {
-            await render({ offline: true });
+            await render({offline: true});
         } else {
             await act(async () => root.render(null));
         }
         expect(options.signal.aborted).toBe(true);
         await act(async () => {
-            options.onEvent({ event: "upgrade-progress", data: { stage: "error", status: "error", message: "late" } });
-            pending.resolve({ error: 0, data: { finish: true } });
+            options.onEvent({event: "upgrade-progress", data: {stage: "error", status: "error", message: "late"}});
+            pending.resolve({error: 0, data: {finish: true}});
         });
         await tick();
         expect(getVersion).not.toHaveBeenCalled();
@@ -585,9 +585,9 @@ describe("Docker upgrade interaction and recovery", () => {
         mockSubscribe.mockReturnValueOnce(previous.promise);
         mockSubscribe.mockReturnValue(deferred().promise);
         await render();
-        await render({ offline: true });
+        await render({offline: true});
         await render();
-        await act(async () => previous.resolve({ error: 1, message: "old rejection" }));
+        await act(async () => previous.resolve({error: 1, message: "old rejection"}));
         await tick();
         expect(mockSubscribe).toHaveBeenCalledTimes(2);
         expect(readDockerUpgrade()).toEqual(request);
@@ -608,7 +608,7 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         await act(async () =>
             mockUpgrade.mock.calls[0][1].onEvent({
                 event: "upgrade-progress",
-                data: { stage, status, message: `Stage: ${stage}` },
+                data: {stage, status, message: `Stage: ${stage}`},
             })
         );
     };
@@ -618,12 +618,12 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
             onlineUpgradable: online,
             dockerMode: docker,
             dockerUpdaterAvailable: docker,
-            version: { ...initialData().version!, buildId: targetBuild, artifactVersion: "4.0.0", channel: "release" },
+            version: {...initialData().version!, buildId: targetBuild, artifactVersion: "4.0.0", channel: "release"},
         };
         await act(async () =>
             root.render(
-                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                    <Upgrade data={data} offline={false} offlineData={false} />
+                <MemoryRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
+                    <Upgrade data={data} offline={false} offlineData={false}/>
                 </MemoryRouter>
             )
         );
@@ -641,10 +641,10 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         jest.clearAllMocks();
         mockUpgrade.mockReset();
         mockSubscribe.mockReset();
-        mockPost.mockResolvedValue({ data: { error: 0 } });
+        mockPost.mockResolvedValue({data: {error: 0}});
         jest.mocked(getVersion).mockReset();
-        jest.mocked(getVersion).mockResolvedValue({ data: { buildId: "previous-build" } } as any);
-        Object.defineProperty(globalThis, "crypto", { configurable: true, value: require("crypto").webcrypto });
+        jest.mocked(getVersion).mockResolvedValue({data: {buildId: "previous-build"}} as any);
+        Object.defineProperty(globalThis, "crypto", {configurable: true, value: require("crypto").webcrypto});
         localStorage.clear();
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -677,13 +677,13 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         expect(running()).toHaveLength(1);
         await emit("complete", "complete");
         expect(percent()).toBe("33");
-        await act(async () => stream.resolve({ error: 0, data: { finish: true } }));
+        await act(async () => stream.resolve({error: 0, data: {finish: true}}));
         expect(percent()).toBe("33");
-        await act(async () => version.resolve({ data: { buildId: targetBuild } }));
+        await act(async () => version.resolve({data: {buildId: targetBuild}}));
         expect(percent()).toBe("67");
         expect(running()).toHaveLength(1);
         expect(mockModal.success).not.toHaveBeenCalled();
-        await act(async () => sync.resolve({ error: 0, data: { synced: true } }));
+        await act(async () => sync.resolve({error: 0, data: {synced: true}}));
         expect(percent()).toBe("100");
         expect(running()).toHaveLength(0);
         expect(mockModal.success).toHaveBeenCalledTimes(1);
@@ -701,10 +701,10 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         "verifies the version after disconnect at %s without submitting again",
         async (stage) => {
             const stream = deferred();
-            mockUpgrade.mockReturnValueOnce(stream.promise).mockResolvedValue({ error: 0, data: { synced: true } });
+            mockUpgrade.mockReturnValueOnce(stream.promise).mockResolvedValue({error: 0, data: {synced: true}});
             jest.mocked(getVersion)
-                .mockResolvedValueOnce({ data: { buildId: "previous-build" } } as any)
-                .mockResolvedValue({ data: { buildId: targetBuild } } as any);
+                .mockResolvedValueOnce({data: {buildId: "previous-build"}} as any)
+                .mockResolvedValue({data: {buildId: targetBuild}} as any);
             await start();
             if (stage !== "before-progress") await emit(stage);
             await act(async () => stream.reject(new Error("connection closed")));
@@ -731,11 +731,11 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
             await emit("restart");
             await act(async () => {
                 if (source === "json") {
-                    stream.resolve({ error: 1, message: "Update rejected" });
+                    stream.resolve({error: 1, message: "Update rejected"});
                 } else {
                     mockUpgrade.mock.calls[0][1].onEvent({
                         event: source,
-                        data: { stage: "error", status: "error", error: 1, message: "Update rejected" },
+                        data: {stage: "error", status: "error", error: 1, message: "Update rejected"},
                     });
                     stream.reject(new Error("connection closed after rejection"));
                 }
@@ -773,12 +773,12 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
 
     it("keeps waiting through unavailable and unsuccessful version responses", async () => {
         mockUpgrade
-            .mockResolvedValueOnce({ error: 0, data: { finish: true } })
-            .mockResolvedValue({ error: 0, data: { synced: true } });
+            .mockResolvedValueOnce({error: 0, data: {finish: true}})
+            .mockResolvedValue({error: 0, data: {synced: true}});
         jest.mocked(getVersion)
             .mockRejectedValueOnce(new Error("version request timed out"))
-            .mockResolvedValueOnce({ error: 1, data: { buildId: targetBuild } } as any)
-            .mockResolvedValue({ error: 0, data: { buildId: targetBuild } } as any);
+            .mockResolvedValueOnce({error: 1, data: {buildId: targetBuild}} as any)
+            .mockResolvedValue({error: 0, data: {buildId: targetBuild}} as any);
         await start();
         await act(async () => jest.advanceTimersByTime(3000));
         expect(mockModal.success).not.toHaveBeenCalled();
@@ -794,11 +794,11 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         mockPost.mockReturnValue(deferred().promise);
         const stream = deferred();
         mockUpgrade.mockReturnValueOnce(stream.promise).mockRejectedValueOnce(new Error("sync failed"));
-        jest.mocked(getVersion).mockResolvedValue({ data: { buildId: targetBuild } } as any);
+        jest.mocked(getVersion).mockResolvedValue({data: {buildId: targetBuild}} as any);
         await start();
         await emit("download");
         await emit("restart");
-        await act(async () => stream.resolve({ error: 0, data: { finish: true } }));
+        await act(async () => stream.resolve({error: 0, data: {finish: true}}));
         expect(percent()).toBe("67");
         expect(container.querySelector('[role="progressbar"]')?.getAttribute("data-status")).toBe("exception");
         expect(running()).toHaveLength(0);
@@ -814,7 +814,7 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
             await start(false);
             await emit("download");
             await emit("manual", "manual");
-            await act(async () => stream.resolve({ error: 0, data: { finish: false } }));
+            await act(async () => stream.resolve({error: 0, data: {finish: false}}));
             expect(running()).toHaveLength(0);
             expect(percent()).toBeUndefined();
             expect(getVersion).not.toHaveBeenCalled();

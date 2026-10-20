@@ -1,19 +1,14 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
-import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
-import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
-import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
-import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
+import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class WebSiteServiceDatabaseTest {
 
@@ -84,11 +79,11 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.FEATURE_PERSONAL_DATA_ENABLED_KEY, true);
             FeatureLabWebSiteInfo featureLab =
                     new FeatureLabService(
-                                    () -> true,
-                                    new WebhookService(
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    () -> new WebSite(db.dataSource()))
+                            () -> true,
+                            new WebhookService(
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    ApplicationServicesFixture.websiteCache(db.dataSource())),
+                            () -> new WebSite(db.dataSource()))
                             .featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());

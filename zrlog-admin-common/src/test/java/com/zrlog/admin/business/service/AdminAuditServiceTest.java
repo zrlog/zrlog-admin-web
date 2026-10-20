@@ -1,17 +1,24 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-
 import org.junit.Test;
 
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 public class AdminAuditServiceTest {
+
+    private static AdminAuditLogEntryResponse entry(String action, String type, String content) {
+        AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
+        entry.setAction(action);
+        entry.setType(type);
+        entry.setContent(content);
+        return entry;
+    }
 
     @Test
     public void shouldReadOnlyValidAuditLogEntriesFromJson() throws Exception {
@@ -94,13 +101,5 @@ public class AdminAuditServiceTest {
         assertEquals("", service.sanitizeContent(AdminAuditAction.UPDATE_PASSWORD, "secret"));
         assertEquals("", service.sanitizeContent(AdminAuditAction.REFRESH_CACHE, null));
         assertEquals("done", service.sanitizeContent(AdminAuditAction.REFRESH_CACHE, "done"));
-    }
-
-    private static AdminAuditLogEntryResponse entry(String action, String type, String content) {
-        AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
-        entry.setAction(action);
-        entry.setType(type);
-        entry.setContent(content);
-        return entry;
     }
 }

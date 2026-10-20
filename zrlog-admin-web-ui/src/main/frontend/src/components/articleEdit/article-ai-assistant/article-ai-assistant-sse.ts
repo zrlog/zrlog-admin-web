@@ -1,5 +1,11 @@
 import {getRes} from "../../../utils/constants";
-import {ArticleAiErrorMeta, ArticleAiErrorType, AssistantToolPayload, isAssistantTool, ParsedSseResponse} from "./article-ai-assistant.types";
+import {
+    ArticleAiErrorMeta,
+    ArticleAiErrorType,
+    AssistantToolPayload,
+    isAssistantTool,
+    ParsedSseResponse
+} from "./article-ai-assistant.types";
 
 const errorTypes = new Set<ArticleAiErrorType>([
     "incomplete_response",
@@ -36,7 +42,7 @@ const toArticleAiErrorMeta = (chunk: Record<string, unknown>): ArticleAiErrorMet
 
 export const parseSseResponse = (responseText: string): ParsedSseResponse => {
     if (!responseText) {
-        return { content: "" };
+        return {content: ""};
     }
     const normalizedResponse = responseText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     const trimmedResponse = normalizedResponse.trim();
@@ -51,7 +57,7 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
                 };
             }
         } catch (_) {
-            return { content: "", errorMessage: getRes().error.unknown };
+            return {content: "", errorMessage: getRes().error.unknown};
         }
     }
 
@@ -91,7 +97,7 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
                     continue;
                 }
                 if (isAssistantTool(chunk.tool) && chunk.payload) {
-                    toolPayload = { tool: chunk.tool, payload: chunk.payload } as AssistantToolPayload;
+                    toolPayload = {tool: chunk.tool, payload: chunk.payload} as AssistantToolPayload;
                 }
                 if (typeof chunk.messageId === "string") {
                     messageId = chunk.messageId;
@@ -110,5 +116,5 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
             }
         }
     }
-    return { content, reasoningContent, toolPayload, messageId, errorMessage, errorMeta };
+    return {content, reasoningContent, toolPayload, messageId, errorMessage, errorMeta};
 };

@@ -1,10 +1,13 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.util.NativeImageUtils;
-import java.util.*;
+
+import java.util.Arrays;
 
 public final class CommonNativeImageUtils {
-    private CommonNativeImageUtils() { }
+    private CommonNativeImageUtils() {
+    }
+
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
                 com.zrlog.common.vo.TemplateVO.TemplateConfigMap.class,

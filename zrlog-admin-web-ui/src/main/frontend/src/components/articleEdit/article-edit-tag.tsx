@@ -2,12 +2,12 @@ import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import IdeaIcon from "@zrlog/ui/icons/idea";
 import AddIcon from "@zrlog/ui/icons/add";
-import { Button, InputRef, Space } from "antd";
+import {Button, InputRef, Space} from "antd";
 
 import Title from "antd/es/typography/Title";
-import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { getRes } from "../../utils/constants";
-import { getAppState } from "base/ConfigProviderApp";
+import {FunctionComponent, useEffect, useRef, useState} from "react";
+import {getRes} from "../../utils/constants";
+import {getAppState} from "base/ConfigProviderApp";
 import Tags from "../../common/Tags";
 
 type ArticleEditTagProps = {
@@ -25,12 +25,12 @@ type ArticleEditTagState = {
 };
 
 const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
-    allTags,
-    keywords,
-    onKeywordsChange,
-    generatingTags,
-    onGenerateTags,
-}) => {
+                                                                    allTags,
+                                                                    keywords,
+                                                                    onKeywordsChange,
+                                                                    generatingTags,
+                                                                    onGenerateTags,
+                                                                }) => {
     const [state, setState] = useState<ArticleEditTagState>({
         keywords: "",
         inputVisible: false,
@@ -67,16 +67,16 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
                     inputRef.current.input.focus();
                 }
             }, 0);
-            return { ...prevState, inputVisible: true };
+            return {...prevState, inputVisible: true};
         });
     };
 
     const handleInputChange = (e: any) => {
-        setState({ ...state, inputValue: e.target.value });
+        setState({...state, inputValue: e.target.value});
     };
 
     const handleInputConfirm = () => {
-        const { inputValue } = state;
+        const {inputValue} = state;
         let keywords = state.keywords + "";
         if (inputValue) {
             if (keywords) {
@@ -113,7 +113,7 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
         onKeywordsChange(nowKeywords);
     };
 
-    const { inputVisible, inputValue } = state;
+    const {inputVisible, inputValue} = state;
     if (state.keywords === "") {
         if (keywords != null) {
             state.keywords = keywords;
@@ -128,7 +128,7 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
     return (
         <>
             {state.keywords.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
+                <div style={{marginBottom: 8}}>
                     <Space size={[0, 4]} wrap>
                         <Tags
                             keywords={state.keywords}
@@ -146,7 +146,7 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
                     ref={inputRef}
                     type="text"
                     size={"small"}
-                    style={{ width: 98 }}
+                    style={{width: 98}}
                     value={inputValue}
                     onChange={handleInputChange}
                     onBlur={handleInputConfirm}
@@ -156,23 +156,23 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
             {!inputVisible && (
                 <>
                     <Space size={[0, 8]} wrap>
-                        <Tag color={getAppState().colorPrimary} onClick={showInput} style={{ userSelect: "none" }}>
-                            <AddIcon /> {getRes().articleEdit.tag.tips}
+                        <Tag color={getAppState().colorPrimary} onClick={showInput} style={{userSelect: "none"}}>
+                            <AddIcon/> {getRes().articleEdit.tag.tips}
                         </Tag>
                         {onGenerateTags && (
                             <Button
                                 type="link"
                                 size="small"
-                                icon={<IdeaIcon />}
+                                icon={<IdeaIcon/>}
                                 loading={generatingTags}
                                 onClick={onGenerateTags}
-                                style={{ paddingInline: 0, color: getAppState().colorPrimary }}
+                                style={{paddingInline: 0, color: getAppState().colorPrimary}}
                             >
                                 {getRes().articleEdit.tag.generate}
                             </Button>
                         )}
                     </Space>
-                    <Title level={5} style={{ marginTop: 12, fontSize: 14 }}>
+                    <Title level={5} style={{marginTop: 12, fontSize: 14}}>
                         {getRes().articleEdit.tag.all}
                     </Title>
                     <div
@@ -186,7 +186,7 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
                                 allTagsOnClick(e);
                             }}
                             keywords={allTags.join(",")}
-                            tagStyle={{ cursor: "pointer" }}
+                            tagStyle={{cursor: "pointer"}}
                             closeable={false}
                         />
                     </div>

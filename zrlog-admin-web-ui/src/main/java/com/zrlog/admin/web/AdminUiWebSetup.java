@@ -4,11 +4,7 @@ import com.hibegin.http.server.ApplicationContext;
 import com.hibegin.http.server.api.Interceptor;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.service.AdminPageService;
-import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.admin.business.service.AdminResourceImpl;
-import com.zrlog.admin.business.service.AdminResourceProvider;
-import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.util.AdminUiNativeImageUtils;
 import com.zrlog.admin.web.config.AdminAccountPages;
@@ -21,6 +17,7 @@ import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.ui.AdminUiComponent;
 import com.zrlog.admin.web.di.ui.DaggerAdminUiComponent;
 import com.zrlog.admin.web.interceptor.*;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.plugin.PluginCorePlugin;
@@ -33,11 +30,12 @@ import com.zrlog.data.di.DataComponent;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSiteInfoProvider;
-import com.zrlog.admin.web.page.AdminPageRequestHandler;
 
 import java.util.List;
 
-/** React pages, PWA and static publishing; the API can run without this provider. */
+/**
+ * React pages, PWA and static publishing; the API can run without this provider.
+ */
 public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
     private final ZrLogConfig config;
     private final String contextPath;
@@ -53,11 +51,13 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
         if (config.getServerConfig().isNativeImageAgent()) AdminUiNativeImageUtils.reg(resources);
     }
 
-    @Override public AdminResource getAdminResource() {
+    @Override
+    public AdminResource getAdminResource() {
         return resources;
     }
 
-    @Override public void setup() {
+    @Override
+    public void setup() {
         config.getServerConfig()
                 .getBindings()
                 .singleton(
@@ -118,7 +118,8 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
         }
     }
 
-    @Override public Plugins getPlugins() {
+    @Override
+    public Plugins getPlugins() {
         Plugins plugins = new Plugins();
         ApplicationContext context = new ApplicationContext(config.getServerConfig());
         context.init();

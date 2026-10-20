@@ -1,18 +1,18 @@
-import { useEffect, useId, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
-import type { AxiosInstance } from "axios";
-import { Alert, Button, Space, Typography } from "antd";
+import type {KeyboardEvent} from "react";
+import {useEffect, useId, useRef, useState} from "react";
+import type {AxiosInstance} from "axios";
+import {Alert, Button, Space, Typography} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import CloseIcon from "@zrlog/ui/icons/close";
-import { getRes } from "../../../utils/constants";
-import { ApiResponse } from "../../../type";
-import { formatSize } from "../../file-manager/shared";
+import {getRes} from "../../../utils/constants";
+import {ApiResponse} from "../../../type";
+import {formatSize} from "../../file-manager/shared";
 import {
     AiMention,
     AiMentionArticle,
-    MAX_AI_MENTIONS,
     aiMentionLabel,
     findAiMention,
+    MAX_AI_MENTIONS,
     sameAiMention,
 } from "./article-ai-mentions";
 
@@ -55,23 +55,23 @@ export const useArticleAiMentions = (
         if (!open) return;
         setActive(0);
         if (!api) {
-            setSearch({ key, articles: [] });
+            setSearch({key, articles: []});
             return;
         }
         const controller = new AbortController();
-        setSearch({ key, articles: [], loading: true });
+        setSearch({key, articles: [], loading: true});
         const timer = window.setTimeout(async () => {
             try {
-                const config = { params: { query: queryText }, signal: controller.signal, showError: false };
+                const config = {params: {query: queryText}, signal: controller.signal, showError: false};
                 const response = await api.get<ApiResponse<{ articles: AiMentionArticle[] }>>(
                     "/api/admin/article/ai/references",
                     config
                 );
                 if (controller.signal.aborted) return;
                 if (response.data.error || !Array.isArray(response.data.data?.articles)) throw new Error();
-                setSearch({ key, articles: response.data.data.articles });
+                setSearch({key, articles: response.data.data.articles});
             } catch {
-                if (!controller.signal.aborted) setSearch({ key, articles: [], failed: true });
+                if (!controller.signal.aborted) setSearch({key, articles: [], failed: true});
             }
         }, 200);
         return () => {
@@ -85,14 +85,14 @@ export const useArticleAiMentions = (
     const candidates: AiMention[] = [
         ...files
             .filter((file) => file.name.toLowerCase().includes(query))
-            .map((file): AiMention => ({ type: "file", file })),
-        ...(results?.articles || []).map((article): AiMention => ({ type: "article", article })),
+            .map((file): AiMention => ({type: "file", file})),
+        ...(results?.articles || []).map((article): AiMention => ({type: "article", article})),
     ].filter((candidate) => !mentions.some((mention) => sameAiMention(mention, candidate)));
     const activeIndex = Math.min(active, Math.max(0, candidates.length - 1));
     const atLimit = mentions.length >= MAX_AI_MENTIONS;
 
     useEffect(() => {
-        if (open) optionRefs.current[activeIndex]?.scrollIntoView?.({ block: "nearest" });
+        if (open) optionRefs.current[activeIndex]?.scrollIntoView?.({block: "nearest"});
     }, [open, activeIndex]);
 
     const choose = (mention: AiMention) => {
@@ -144,12 +144,12 @@ export const useArticleAiMentions = (
         tags: mentions.length > 0 && (
             <Space wrap size={theme.marginXXS}>
                 {mentions.map((mention, index) => (
-                    <Tag key={index} style={{ maxWidth: "100%", whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                    <Tag key={index} style={{maxWidth: "100%", whiteSpace: "normal", overflowWrap: "anywhere"}}>
                         @{aiMentionLabel(mention)}
                         <Button
                             type="text"
                             size="small"
-                            icon={<CloseIcon />}
+                            icon={<CloseIcon/>}
                             disabled={disabled}
                             aria-label={`${res.remove} ${aiMentionLabel(mention)}`}
                             onClick={() => {
@@ -177,7 +177,7 @@ export const useArticleAiMentions = (
                             id={id}
                             role="listbox"
                             aria-label={res.choose}
-                            style={{ maxHeight: 240, overflowY: "auto" }}
+                            style={{maxHeight: 240, overflowY: "auto"}}
                         >
                             {candidates.map((candidate, index) => (
                                 <Button
@@ -201,7 +201,7 @@ export const useArticleAiMentions = (
                                         background: index === activeIndex ? theme.colorFillSecondary : undefined,
                                     }}
                                 >
-                                    <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>
+                                    <span style={{overflowWrap: "anywhere", minWidth: 0}}>
                                         <Typography.Text type="secondary">
                                             {candidate.type === "article" ? res.article : res.file} ·{" "}
                                         </Typography.Text>
@@ -217,8 +217,8 @@ export const useArticleAiMentions = (
                                             {candidate.type === "article"
                                                 ? candidate.article.url
                                                 : `${files.indexOf(candidate.file) + 1} · ${formatSize(
-                                                      candidate.file.size
-                                                  )}`}
+                                                    candidate.file.size
+                                                )}`}
                                         </Typography.Text>
                                     </span>
                                 </Button>

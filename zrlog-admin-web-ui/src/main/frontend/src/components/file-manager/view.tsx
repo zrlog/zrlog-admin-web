@@ -1,13 +1,13 @@
 import Input from "@zrlog/ui/antd/Input";
 import AppsIcon from "@zrlog/ui/icons/apps";
 import ListIcon from "@zrlog/ui/icons/list";
-import { CSSProperties, FunctionComponent, HTMLAttributes, ReactNode, useEffect, useRef, useState } from "react";
-import { Breadcrumb, Button, Empty, Grid, Menu, Space, Spin, Tooltip } from "antd";
+import {CSSProperties, FunctionComponent, HTMLAttributes, ReactNode, useEffect, useRef, useState} from "react";
+import {Breadcrumb, Button, Empty, Grid, Menu, Space, Spin, Tooltip} from "antd";
 
-import { FileEntry, getShortcutIcon } from "./shared";
+import {FileEntry, getShortcutIcon} from "./shared";
 import SidebarNavItem from "../common/SidebarNavItem";
 
-const { useBreakpoint } = Grid;
+const {useBreakpoint} = Grid;
 const SEARCH_DEBOUNCE_MS = 500;
 const GRID_ITEM_MIN_WIDTH = 168;
 const GRID_ITEM_MIN_WIDTH_MOBILE = 112;
@@ -47,10 +47,10 @@ type FileManagerSearchInputProps = {
 };
 
 const FileManagerSearchInput: FunctionComponent<FileManagerSearchInputProps> = ({
-    value = "",
-    placeholder,
-    onChange,
-}) => {
+                                                                                    value = "",
+                                                                                    placeholder,
+                                                                                    onChange,
+                                                                                }) => {
     const [draft, setDraft] = useState(value);
     const onChangeRef = useRef(onChange);
     const timerRef = useRef<number | null>(null);
@@ -107,7 +107,7 @@ const FileManagerSearchInput: FunctionComponent<FileManagerSearchInputProps> = (
             placeholder={placeholder}
             onChange={(e) => scheduleCommit(e.target.value)}
             onSearch={commit}
-            style={{ width: "100%" }}
+            style={{width: "100%"}}
             onCompositionStart={() => {
                 composingRef.current = true;
                 clearTimer();
@@ -121,35 +121,35 @@ const FileManagerSearchInput: FunctionComponent<FileManagerSearchInputProps> = (
 };
 
 const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
-    style,
-    screens,
-    token,
-    themeVars,
-    res,
-    shortcuts,
-    activeRoot,
-    breadcrumbItems,
-    viewMode,
-    visibleEntries,
-    renderGridItem,
-    renderListItem,
-    setCurrentPath,
-    setViewMode,
-    searchValue,
-    onSearchChange,
-    toolbarActions,
-    filterActions,
-    categoryActions,
-    contentNotice,
-    detailPanel,
-    overlays,
-    loading = false,
-    contentKeyboardProps,
-    contentKeyboardRef,
-}) => {
+                                                                      style,
+                                                                      screens,
+                                                                      token,
+                                                                      themeVars,
+                                                                      res,
+                                                                      shortcuts,
+                                                                      activeRoot,
+                                                                      breadcrumbItems,
+                                                                      viewMode,
+                                                                      visibleEntries,
+                                                                      renderGridItem,
+                                                                      renderListItem,
+                                                                      setCurrentPath,
+                                                                      setViewMode,
+                                                                      searchValue,
+                                                                      onSearchChange,
+                                                                      toolbarActions,
+                                                                      filterActions,
+                                                                      categoryActions,
+                                                                      contentNotice,
+                                                                      detailPanel,
+                                                                      overlays,
+                                                                      loading = false,
+                                                                      contentKeyboardProps,
+                                                                      contentKeyboardRef,
+                                                                  }) => {
     const mobileMode = screens.sm !== true;
     const searchInput = onSearchChange ? (
-        <FileManagerSearchInput value={searchValue} placeholder={res.searchPlaceholder} onChange={onSearchChange} />
+        <FileManagerSearchInput value={searchValue} placeholder={res.searchPlaceholder} onChange={onSearchChange}/>
     ) : null;
     const gridItemMinWidth = mobileMode ? GRID_ITEM_MIN_WIDTH_MOBILE : GRID_ITEM_MIN_WIDTH;
     const gridTemplateColumns = `repeat(auto-fill, minmax(${gridItemMinWidth}px, 1fr))`;
@@ -202,12 +202,12 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                                     justifyContent: "center",
                                 }}
                             >
-                                <Spin />
+                                <Spin/>
                             </div>
                         ) : (
                             <>
                                 {categoryActions}
-                                {categoryActions ? <div style={{ height: token.marginSM }} /> : null}
+                                {categoryActions ? <div style={{height: token.marginSM}}/> : null}
 
                                 <Menu
                                     mode="inline"
@@ -226,13 +226,13 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                                         ),
                                         style: sidebarMenuItemStyle,
                                     }))}
-                                    onClick={({ key }) => setCurrentPath(String(key))}
+                                    onClick={({key}) => setCurrentPath(String(key))}
                                 />
                             </>
                         )}
                     </div>
                 )}
-                <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, minHeight: 0 }}>
+                <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0, minHeight: 0}}>
                     <div
                         style={{
                             display: "flex",
@@ -269,7 +269,7 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                             {filterActions}
                             {toolbarActions}
                             <Button
-                                icon={viewMode === "grid" ? <ListIcon /> : <AppsIcon />}
+                                icon={viewMode === "grid" ? <ListIcon/> : <AppsIcon/>}
                                 onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
                             >
                                 {viewMode === "grid" ? res.view.list : res.view.grid}
@@ -285,8 +285,8 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                         }}
                     >
                         <Tooltip title={res.title}>
-                            <div style={{ minWidth: 0, overflow: "hidden", paddingLeft: token.padding }}>
-                                <Breadcrumb items={breadcrumbItems} />
+                            <div style={{minWidth: 0, overflow: "hidden", paddingLeft: token.padding}}>
+                                <Breadcrumb items={breadcrumbItems}/>
                             </div>
                         </Tooltip>
                     </div>
@@ -301,7 +301,7 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                             background: workspaceBackground,
                         }}
                     >
-                        {contentNotice ? <div style={{ marginBottom: token.marginSM }}>{contentNotice}</div> : null}
+                        {contentNotice ? <div style={{marginBottom: token.marginSM}}>{contentNotice}</div> : null}
                         <div
                             ref={contentKeyboardRef}
                             style={{
@@ -323,7 +323,7 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                                         justifyContent: "center",
                                     }}
                                 >
-                                    <Spin />
+                                    <Spin/>
                                 </div>
                             )}
                             {!loading && visibleEntries.length === 0 && (

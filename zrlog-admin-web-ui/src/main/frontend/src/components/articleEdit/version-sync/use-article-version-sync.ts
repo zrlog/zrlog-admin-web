@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AxiosInstance } from "axios";
-import { articleTabStorageKey } from "../../../utils/article-draft-storage";
-import { ApiResponse } from "../../../type";
-import { ArticleEditState, ArticleEntry } from "../index.types";
-import {
-    ArticleMergePlan,
-    buildArticleMerge,
-    MergeResolutions,
-    MergeValue,
-    resolveArticleMerge,
-} from "./article-merge";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {AxiosInstance} from "axios";
+import {articleTabStorageKey} from "../../../utils/article-draft-storage";
+import {ApiResponse} from "../../../type";
+import {ArticleEditState, ArticleEntry} from "../index.types";
+import {ArticleMergePlan, buildArticleMerge, MergeResolutions, MergeValue, resolveArticleMerge,} from "./article-merge";
 
 type Options = {
     conflict: ArticleEditState["contentConflict"];
@@ -28,15 +22,15 @@ const readProgress = (key: string): StoredMerge | undefined => {
 };
 
 // Part of the save coordinator: the UI submits decisions, never reads versions or writes articles.
-const useArticleVersionSync = ({ conflict, serverArticle, axiosInstance, offline, onResolve }: Options) => {
+const useArticleVersionSync = ({conflict, serverArticle, axiosInstance, offline, onResolve}: Options) => {
     const [prepared, setPrepared] = useState<{ signature: string; plan: ArticleMergePlan }>();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState(false);
     const [resolutions, setResolutions] = useState<MergeResolutions>({});
     const [drafts, setDrafts] = useState<Record<string, string>>({});
-    const context = useRef({ axiosInstance, onResolve, conflict, serverArticle });
-    context.current = { axiosInstance, onResolve, conflict, serverArticle };
+    const context = useRef({axiosInstance, onResolve, conflict, serverArticle});
+    context.current = {axiosInstance, onResolve, conflict, serverArticle};
     const automaticAttempt = useRef<string>();
     const savingRef = useRef(false);
     const signature = conflict
@@ -47,7 +41,7 @@ const useArticleVersionSync = ({ conflict, serverArticle, axiosInstance, offline
 
     useEffect(() => {
         let cancelled = false;
-        const { conflict, serverArticle } = context.current;
+        const {conflict, serverArticle} = context.current;
         setLoading(true);
         setPrepared(undefined);
         setSaveError(false);
@@ -62,7 +56,7 @@ const useArticleVersionSync = ({ conflict, serverArticle, axiosInstance, offline
                     : undefined;
             try {
                 if (!base && conflict.localVersion <= conflict.serverVersion) {
-                    const { data } = await context.current.axiosInstance.get<
+                    const {data} = await context.current.axiosInstance.get<
                         ApiResponse<{ fromArticle: ArticleEntry; toArticle: ArticleEntry }>
                     >("/api/admin/article-version/compare", {
                         params: {
@@ -95,7 +89,7 @@ const useArticleVersionSync = ({ conflict, serverArticle, axiosInstance, offline
                 });
             setResolutions(restored);
             setDrafts(stored?.signature === signature ? stored.drafts || {} : {});
-            setPrepared({ signature, plan: nextPlan });
+            setPrepared({signature, plan: nextPlan});
             setLoading(false);
         };
         void load();
@@ -149,7 +143,7 @@ const useArticleVersionSync = ({ conflict, serverArticle, axiosInstance, offline
     const persist = (nextResolutions: MergeResolutions, nextDrafts: Record<string, string>) => {
         setResolutions(nextResolutions);
         setDrafts(nextDrafts);
-        const stored: StoredMerge = { signature, resolutions: nextResolutions, drafts: nextDrafts };
+        const stored: StoredMerge = {signature, resolutions: nextResolutions, drafts: nextDrafts};
         try {
             localStorage.setItem(cacheKey, JSON.stringify(stored));
         } catch (error) {
@@ -159,14 +153,14 @@ const useArticleVersionSync = ({ conflict, serverArticle, axiosInstance, offline
     const choose = (id: string, value: MergeValue) => {
         const item = plan?.conflicts.find((item) => item.id === id);
         if (!item || typeof value !== typeof item.local || savingRef.current) return;
-        persist({ ...resolutions, [id]: value }, drafts);
+        persist({...resolutions, [id]: value}, drafts);
     };
     const edit = (id: string, value: string) => {
         if (!plan?.conflicts.some((item) => item.id === id && typeof item.local === "string") || savingRef.current)
             return;
-        const next = { ...resolutions };
+        const next = {...resolutions};
         delete next[id];
-        persist(next, { ...drafts, [id]: value });
+        persist(next, {...drafts, [id]: value});
     };
     return {
         plan,

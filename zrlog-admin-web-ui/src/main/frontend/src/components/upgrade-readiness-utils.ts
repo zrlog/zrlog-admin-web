@@ -1,4 +1,4 @@
-import { BackupProtectionStatus, UpgradeData } from "../type";
+import {BackupProtectionStatus, UpgradeData} from "../type";
 
 export type UpgradeRuntimeMode =
     | "docker"

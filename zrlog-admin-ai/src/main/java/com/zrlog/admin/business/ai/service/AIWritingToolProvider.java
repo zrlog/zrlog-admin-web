@@ -1,21 +1,27 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.google.gson.*;
-import com.zrlog.admin.business.ai.model.AIChatModels.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.zrlog.admin.business.ai.model.AIChatModels.Interaction;
+import com.zrlog.admin.business.ai.model.AIChatModels.Run;
+import com.zrlog.admin.business.ai.model.AIChatModels.SkillContract;
 import com.zrlog.admin.business.knowledge.ContentToolCatalog;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Tool;
 import com.zrlog.admin.business.knowledge.ToolProvider;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry;
 import com.zrlog.common.exception.ArgsException;
-
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 
-import java.util.*;
+import java.util.List;
 
-/** Internal writing tools, independent of knowledge-library permissions. */
+/**
+ * Internal writing tools, independent of knowledge-library permissions.
+ */
 final class AIWritingToolProvider implements ToolProvider {
     private final AIPublishCheckService publishing;
 
@@ -32,15 +38,23 @@ final class AIWritingToolProvider implements ToolProvider {
         this.skills = skills;
     }
 
-    @AssistedFactory
-    interface Factory {
-        AIWritingToolProvider create(Run run, AIWritingSkillService skills);
+    static JsonObject modelResult(AIContentEntry entry) {
+        JsonObject result = new JsonObject();
+        result.addProperty("resultId", entry.getMessageId());
+        result.addProperty("skill", entry.getTool());
+        result.addProperty("status", "candidate");
+        if (!"cover".equals(entry.getTool())) result.add("payload", new Gson().toJsonTree(entry.getPayload()));
+        result.addProperty("notice", "Validated candidate displayed in the editor. It has not been applied, saved or published.");
+        return result;
     }
 
-    @Override public List<Tool> definitions(String language) {
+    @Override
+    public List<Tool> definitions(String language) {
         return run.editorContext == null ? List.of() : AIWritingSkillCatalog.tools();
     }
-    @Override public Object call(String name, JsonObject args) throws Exception {
+
+    @Override
+    public Object call(String name, JsonObject args) throws Exception {
         validate(name, args);
         String key = name.substring("writing_".length());
         // Keep runtime settings and per-call adjustments out of the original editor snapshot.
@@ -59,21 +73,27 @@ final class AIWritingToolProvider implements ToolProvider {
         AIWritingSkillCatalog.validateResult(key, entry.getPayload());
         entry.setMessageId(run.id + ":skill:" + run.calls + ":" + run.nextTool);
         entry.setMessageType("writingSkill");
-        entry.setProvider(run.provider); entry.setModel(run.model);
-        SkillContract contract = new SkillContract(); contract.contextRevision = run.contextRevision;
+        entry.setProvider(run.provider);
+        entry.setModel(run.model);
+        SkillContract contract = new SkillContract();
+        contract.contextRevision = run.contextRevision;
         contract.applicableFields = AIWritingSkillCatalog.applicableFields(key);
         entry.setSkillContract(contract);
         return entry;
     }
+
     void validate(String name, JsonObject args) {
         Tool tool = definitions(run.language).stream().filter(t -> t.name.equals(name)).findFirst().orElseThrow(ArgsException::new);
         ContentToolCatalog.validate(tool, args, run.language);
     }
+
     Interaction prepareInput(JsonObject args) {
         validate(AIWritingSkillCatalog.INPUT_TOOL, args);
-        Interaction input = new Interaction(); input.question = args.get("question").getAsString();
+        Interaction input = new Interaction();
+        input.question = args.get("question").getAsString();
         if (input.question.isBlank()) throw new ArgsException();
-        input.kind = "text"; input.contextRevision = run.contextRevision;
+        input.kind = "text";
+        input.contextRevision = run.contextRevision;
         input.expiresAt = System.currentTimeMillis() + AIApprovalStore.APPROVAL_TTL;
         if (args.has("resultId")) {
             input.resultId = args.get("resultId").getAsString();
@@ -86,11 +106,9 @@ final class AIWritingToolProvider implements ToolProvider {
         }
         return input;
     }
-    static JsonObject modelResult(AIContentEntry entry) {
-        JsonObject result = new JsonObject(); result.addProperty("resultId", entry.getMessageId());
-        result.addProperty("skill", entry.getTool()); result.addProperty("status", "candidate");
-        if (!"cover".equals(entry.getTool())) result.add("payload", new Gson().toJsonTree(entry.getPayload()));
-        result.addProperty("notice", "Validated candidate displayed in the editor. It has not been applied, saved or published.");
-        return result;
+
+    @AssistedFactory
+    interface Factory {
+        AIWritingToolProvider create(Run run, AIWritingSkillService skills);
     }
 }

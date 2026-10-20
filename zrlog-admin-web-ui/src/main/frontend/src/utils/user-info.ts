@@ -1,11 +1,11 @@
-import type { AxiosInstance } from "axios";
-import type { ApiResponse, BasicUserInfo } from "../type";
-import { getCsrData } from "../api";
-import { getSsDate, ssKeyStorageKey } from "../base/SsData";
-import { cacheUserInfo } from "./cache";
-import { isStaticPage } from "./constants";
-import { hasUserAppearance } from "./user-appearance";
-import { applyUserPreferences, getUserPreferenceRevision } from "./user-preferences";
+import type {AxiosInstance} from "axios";
+import type {ApiResponse, BasicUserInfo} from "../type";
+import {getCsrData} from "../api";
+import {getSsDate, ssKeyStorageKey} from "../base/SsData";
+import {cacheUserInfo} from "./cache";
+import {isStaticPage} from "./constants";
+import {hasUserAppearance} from "./user-appearance";
+import {applyUserPreferences, getUserPreferenceRevision} from "./user-preferences";
 
 const listeners = new Set<(user: BasicUserInfo) => void>();
 export const subscribeUserInfo = (listener: (user: BasicUserInfo) => void) => {
@@ -38,7 +38,7 @@ export const refreshUserInfo = async (axios: AxiosInstance, isActive = () => tru
     const saved = getSsDate().user;
     const user =
         !unchanged && saved && hasUserAppearance(saved)
-            ? { ...response.data, language: saved.language, appearance: saved.appearance }
+            ? {...response.data, language: saved.language, appearance: saved.appearance}
             : response.data;
     getSsDate().key = user.key;
     getSsDate().user = user;

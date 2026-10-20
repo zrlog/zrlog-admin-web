@@ -6,7 +6,6 @@ import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.Log;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -15,7 +14,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-/** Content owns all article mutations, including those initiated by file operations. */
+/**
+ * Content owns all article mutations, including those initiated by file operations.
+ */
 @Singleton
 public class ArticleResourceService {
     private final AdminArticleService articles;

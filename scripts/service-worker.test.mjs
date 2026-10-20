@@ -31,27 +31,47 @@ function worker(urls = [asset]) {
     };
     vm.runInNewContext(source.replace('const urlsToCache = []', `const urlsToCache = ${JSON.stringify(urls)}`), {
         URL, Response, caches,
-        fetch: async request => { requests.push(key(request)); return network(); },
+        fetch: async request => {
+            requests.push(key(request));
+            return network();
+        },
         self: {
             location: {href: `${origin}/sub/admin/service-worker.js`},
-            skipWaiting() {},
-            clients: {claim: async () => { claimed = true; }},
+            skipWaiting() {
+            },
+            clients: {
+                claim: async () => {
+                    claimed = true;
+                }
+            },
             addEventListener: (name, callback) => listeners.set(name, callback),
         },
     });
     return {
         stores, caches, requests,
-        get claimed() { return claimed; },
-        set network(value) { network = value; },
+        get claimed() {
+            return claimed;
+        },
+        set network(value) {
+            network = value;
+        },
         async lifecycle(name) {
             let pending;
-            listeners.get(name)({waitUntil: promise => { pending = promise; }});
+            listeners.get(name)({
+                waitUntil: promise => {
+                    pending = promise;
+                }
+            });
             await pending;
         },
         fetch(url, options = {}) {
             let response;
-            listeners.get('fetch')({request: {url, method: 'GET', mode: 'cors', destination: '', ...options},
-                respondWith: promise => { response = promise; }});
+            listeners.get('fetch')({
+                request: {url, method: 'GET', mode: 'cors', destination: '', ...options},
+                respondWith: promise => {
+                    response = promise;
+                }
+            });
             return response;
         },
     };
@@ -76,7 +96,9 @@ test('account switches and offline requests never reuse cached HTML or API data'
         `${origin}/sub/admin/plugins/private.js`, `${origin}/sub/admin/attached/private.png`];
     const sw = worker();
     for (const url of pages) await (await sw.caches.open('my-cache-v8')).put(url, html());
-    for (const network of [() => new Response('access denied', {status: 403}), () => { throw new Error('offline'); }]) {
+    for (const network of [() => new Response('access denied', {status: 403}), () => {
+        throw new Error('offline');
+    }]) {
         sw.network = network;
         for (const url of pages) {
             // Undefined means the browser must use the network, including its authorization checks.
@@ -90,7 +112,9 @@ test('account switches and offline requests never reuse cached HTML or API data'
 test('unavailable assets do not leave the legacy worker and its private cache active', async () => {
     const sw = worker();
     await (await sw.caches.open('my-cache-v8')).put(page, html());
-    sw.network = () => { throw new Error('asset unavailable'); };
+    sw.network = () => {
+        throw new Error('asset unavailable');
+    };
     await sw.lifecycle('install');
     await sw.lifecycle('activate');
     assert.equal(sw.claimed, true);
@@ -107,7 +131,9 @@ test('precache excludes HTML even when an old server injects page URLs', async (
 test('build assets remain available offline and document requests always bypass them', async () => {
     const sw = worker();
     await sw.lifecycle('install');
-    sw.network = () => { throw new Error('offline'); };
+    sw.network = () => {
+        throw new Error('offline');
+    };
     assert.equal(await (await sw.fetch(asset)).text(), '/* shared build asset */');
     assert.equal(sw.fetch(asset, {mode: 'navigate', destination: 'document'}), undefined);
     assert.equal(sw.fetch(asset, {method: 'POST'}), undefined);

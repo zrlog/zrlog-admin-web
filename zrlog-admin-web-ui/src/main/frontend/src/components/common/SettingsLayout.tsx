@@ -1,7 +1,7 @@
-import { ReactNode } from "react";
-import { Card, Grid, Menu, Select, theme } from "antd";
-import { Link, useNavigate } from "react-router-dom";
-import { getRealRouteUrl } from "../../utils/constants";
+import {ReactNode} from "react";
+import {Card, Grid, Menu, Select, theme} from "antd";
+import {Link, useNavigate} from "react-router-dom";
+import {getRealRouteUrl} from "../../utils/constants";
 import SidebarNavItem from "./SidebarNavItem";
 
 export type SettingsNavigationGroup = {
@@ -20,18 +20,18 @@ type SettingsLayoutProps = {
 };
 
 const SettingsLayout = ({
-    activeKey,
-    title,
-    summary,
-    extra,
-    groups,
-    children,
-    footer,
-    replaceNavigation = false,
-}: SettingsLayoutProps) => {
+                            activeKey,
+                            title,
+                            summary,
+                            extra,
+                            groups,
+                            children,
+                            footer,
+                            replaceNavigation = false,
+                        }: SettingsLayoutProps) => {
     const navigate = useNavigate();
     const screens = Grid.useBreakpoint();
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const compact = screens.md !== true;
     const showTitle =
         !compact || !groups.some((group) => group.items.some((item) => item.key === activeKey && item.label === title));
@@ -41,12 +41,12 @@ const SettingsLayout = ({
         label: group.label,
         options: group.items.map((item) => ({
             value: item.key,
-            label: <SidebarNavItem icon={item.icon} label={item.label} />,
+            label: <SidebarNavItem icon={item.icon} label={item.label}/>,
         })),
     }));
     const content = (
         <>
-            <div style={{ marginBottom: token.marginLG }}>
+            <div style={{marginBottom: token.marginLG}}>
                 {(showTitle || extra) && (
                     <div
                         style={{
@@ -59,7 +59,7 @@ const SettingsLayout = ({
                         }}
                     >
                         {showTitle && (
-                            <h2 style={{ fontSize: token.fontSizeHeading5, fontWeight: 600, margin: 0 }}>{title}</h2>
+                            <h2 style={{fontSize: token.fontSizeHeading5, fontWeight: 600, margin: 0}}>{title}</h2>
                         )}
                         {extra}
                     </div>
@@ -102,7 +102,7 @@ const SettingsLayout = ({
             }}
         >
             {compact ? (
-                <div style={{ padding: token.padding, paddingBottom: 0, flexShrink: 0 }}>
+                <div style={{padding: token.padding, paddingBottom: 0, flexShrink: 0}}>
                     <Select
                         aria-label={title}
                         value={activeKey}
@@ -110,12 +110,12 @@ const SettingsLayout = ({
                         listHeight={screens.sm ? 360 : 288}
                         virtual={false}
                         getPopupContainer={(node) => node.parentElement || document.body}
-                        classNames={{ popup: { root: "settings-select-popup", list: "settings-select-popup-list" } }}
+                        classNames={{popup: {root: "settings-select-popup", list: "settings-select-popup-list"}}}
                         onChange={(key) => {
                             const item = groups.flatMap((group) => group.items).find((entry) => entry.key === key);
-                            if (item) navigate(getRealRouteUrl(item.path), { replace: replaceNavigation });
+                            if (item) navigate(getRealRouteUrl(item.path), {replace: replaceNavigation});
                         }}
-                        style={{ width: "100%" }}
+                        style={{width: "100%"}}
                     />
                 </div>
             ) : (
@@ -133,7 +133,7 @@ const SettingsLayout = ({
                 >
                     {groups.map((group, index) => (
                         <div key={group.label}>
-                            {index > 0 && <div style={{ borderTop: border, margin: `${token.marginXS}px 0` }} />}
+                            {index > 0 && <div style={{borderTop: border, margin: `${token.marginXS}px 0`}}/>}
                             <div
                                 style={{
                                     color: token.colorTextTertiary,
@@ -149,7 +149,7 @@ const SettingsLayout = ({
                                 selectedKeys={[activeKey]}
                                 mode="inline"
                                 inlineIndent={0}
-                                style={{ borderInlineEnd: "none", background: "transparent" }}
+                                style={{borderInlineEnd: "none", background: "transparent"}}
                                 items={group.items.map((item) => ({
                                     key: item.key,
                                     style: {
@@ -173,7 +173,7 @@ const SettingsLayout = ({
                                                 textAlign: "left",
                                             }}
                                         >
-                                            <SidebarNavItem icon={item.icon} label={item.label} />
+                                            <SidebarNavItem icon={item.icon} label={item.label}/>
                                         </Link>
                                     ),
                                 }))}
@@ -192,7 +192,7 @@ const SettingsLayout = ({
                     padding: footer ? 0 : token.padding,
                     paddingBottom: 0,
                     overflow: footer ? "hidden" : compact ? "visible" : "auto",
-                    ...(footer && { display: "flex", flexDirection: "column" }),
+                    ...(footer && {display: "flex", flexDirection: "column"}),
                 }}
             >
                 {footer ? (

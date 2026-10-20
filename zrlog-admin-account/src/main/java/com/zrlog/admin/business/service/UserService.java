@@ -22,7 +22,6 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -36,6 +35,7 @@ public class UserService {
     private final jakarta.inject.Provider<User> userProvider;
 
     private final Supplier<Set<String>> cacheableApiUris;
+    private final MfaService mfaService;
 
     @Inject
     public UserService(
@@ -49,8 +49,6 @@ public class UserService {
 
         this.cacheableApiUris = Objects.requireNonNull(cacheableApiUris);
     }
-
-    private final MfaService mfaService;
 
     public UpdateRecordResponse updatePassword(int currentUserId, UpdatePasswordRequest updatePasswordRequest) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
@@ -126,7 +124,9 @@ public class UserService {
                                             .loadById(userBasicDTO.getUserId().intValue()))
                             .getRole());
             fillDisplayPreferences(basicInfoResponse, userBasicDTO.getUserId().intValue());
-        } catch (SQLException e) { throw new PermissionErrorException(); }
+        } catch (SQLException e) {
+            throw new PermissionErrorException();
+        }
         basicInfoResponse.setCacheableApiUris(EnvKit.isFaaSMode()
                 ? new HashSet<>() : new HashSet<>(cacheableApiUris.get()));
         return basicInfoResponse;
@@ -175,7 +175,7 @@ public class UserService {
     }
 
     public void update(int userId, UpdateAdminRequest updateAdminRequest,
-                                        HttpRequest request, AvatarStorage storage) throws SQLException {
+                       HttpRequest request, AvatarStorage storage) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }

@@ -1,15 +1,15 @@
-import { DEFAULT_PRIMARY_COLOR } from "@zrlog/ui/themes";
-import AppBase, { useAxiosBaseInstance } from "base/AppBase";
-import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { AdminTheme, getRes, isStaticPage, setBackendServerUrl, setRes } from "../utils/constants";
+import {DEFAULT_PRIMARY_COLOR} from "@zrlog/ui/themes";
+import AppBase, {useAxiosBaseInstance} from "base/AppBase";
+import {FunctionComponent, useEffect, useRef, useState} from "react";
+import {AdminTheme, getRes, isStaticPage, setBackendServerUrl, setRes} from "../utils/constants";
 import Init from "../components/init";
 import Spin from "antd/es/spin";
 import UnknownErrorPage from "../components/unknown-error-page";
-import { AppState } from "../type";
-import { changeAppState, getAppState } from "./ConfigProviderApp";
-import { getSsDate } from "./SsData";
-import { getAdminThemeDefinition, supportsDarkMode } from "../utils/admin-themes";
-import { hasUserAppearance, userAppearanceResources } from "../utils/user-appearance";
+import {AppState} from "../type";
+import {changeAppState, getAppState} from "./ConfigProviderApp";
+import {getSsDate} from "./SsData";
+import {getAdminThemeDefinition, supportsDarkMode} from "../utils/admin-themes";
+import {hasUserAppearance, userAppearanceResources} from "../utils/user-appearance";
 
 declare global {
     interface Window {
@@ -59,7 +59,7 @@ export const isSupportDarkMode = (theme: string): boolean => {
 };
 
 export const isDarkByTheme = (theme: string) => {
-    const { colorMode } = getAdminThemeDefinition(theme);
+    const {colorMode} = getAdminThemeDefinition(theme);
     if (colorMode !== "selectable") return colorMode === "dark";
     const configDarkMode = getRes().admin_darkMode;
     if (configDarkMode !== undefined) {
@@ -92,7 +92,7 @@ export const getLangByAppState = (): "en_US" | "zh_CN" => {
     return getAppState().lang;
 };
 
-const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
+const AppInit: FunctionComponent<AppInitProps> = ({lang, offline}) => {
     const [appState, setAppState] = useState<AppInitState>({
         resLoaded: false,
         resLoadErrorMsg: "",
@@ -108,14 +108,14 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
         }
         axiosInstance
             .get(resourceApi)
-            .then(({ data }: { data: Record<string, any> }) => {
+            .then(({data}: { data: Record<string, any> }) => {
                 if (baseUrl.length > 0) {
                     setBackendServerUrl(baseUrl);
                 }
                 const user = getSsDate().user;
                 handleRes(
                     user?.key === getSsDate().key && hasUserAppearance(user)
-                        ? { ...data.data, ...userAppearanceResources(user) }
+                        ? {...data.data, ...userAppearanceResources(user)}
                         : data.data
                 );
             })
@@ -212,15 +212,15 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
             />
         );
     } else if (appState.resLoaded) {
-        return <AppBase offline={offline} />;
+        return <AppBase offline={offline}/>;
     } else if (appState.resLoadErrorMsg.length === 0) {
-        return <Spin delay={1000} fullscreen={true} />;
+        return <Spin delay={1000} fullscreen={true}/>;
     }
     return (
         <UnknownErrorPage
             code={500}
-            data={{ message: appState.resLoadErrorMsg }}
-            style={{ width: "100vw", height: "100vh" }}
+            data={{message: appState.resLoadErrorMsg}}
+            style={{width: "100vw", height: "100vh"}}
         />
     );
 };

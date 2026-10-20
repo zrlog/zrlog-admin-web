@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.google.gson.Gson;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
@@ -15,9 +13,10 @@ import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.business.service.WebhookService;
 import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
-
 import jakarta.inject.Inject;
 
 import java.io.ByteArrayInputStream;
@@ -27,7 +26,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/** Bearer API adapter sharing the controller action bindings and account authorization. */
+/**
+ * Bearer API adapter sharing the controller action bindings and account authorization.
+ */
 public final class BearerTokenInterceptor implements HandleAbleInterceptor {
     private final UserPreferenceService userPreferenceService;
     private final WebhookService webhookService;
@@ -56,7 +57,8 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
         this.oauth = Objects.requireNonNull(oauth);
     }
 
-    @Override public boolean isHandleAble(HttpRequest request) {
+    @Override
+    public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
         String header = request.getHeader("Authorization");
         if (header == null) return false;
@@ -71,16 +73,19 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                 || path.equals("/admin") || path.startsWith("/admin/");
     }
 
-    @Override public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
+    @Override
+    public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("Pragma", "no-cache");
         try {
             String authorization = request.getHeader("Authorization");
-            if (authorization == null || !authorization.matches("(?i)Bearer +[^ ]+")) throw new OAuthException("invalid_token", 401);
+            if (authorization == null || !authorization.matches("(?i)Bearer +[^ ]+"))
+                throw new OAuthException("invalid_token", 401);
             String token = authorization.substring(authorization.indexOf(' ') + 1).trim();
             boolean notification = request.getUri().equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT);
             OAuthModels.Identity identity = oauth.authenticate(token, oauth.adminResource(), Set.of());
-            if (!notification && !request.getUri().startsWith("/api/admin/")) throw new OAuthException("insufficient_scope", 403);
+            if (!notification && !request.getUri().startsWith("/api/admin/"))
+                throw new OAuthException("insufficient_scope", 403);
             Method method = request.getServerConfig().getRouter().getMethod(request.getUri(), request.getMethod());
             AdminTokenVO actor = new AdminTokenVO();
             actor.setUserId(identity.userId);
@@ -100,10 +105,10 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                             throw new OAuthException("insufficient_scope", 403);
                                         }
                                         try (AdminLanguageContext ignored =
-                                                AdminLanguageContext.open(
-                                                        this.userPreferenceService.effective(
-                                                                        identity.userId)
-                                                                .language)) {
+                                                     AdminLanguageContext.open(
+                                                             this.userPreferenceService.effective(
+                                                                     identity.userId)
+                                                                     .language)) {
                                             try {
                                                 dispatcher
                                                         .get()
@@ -114,7 +119,7 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                                 int status =
                                                         failure instanceof HttpCodeException
                                                                 ? ((HttpCodeException) failure)
-                                                                        .getCode()
+                                                                .getCode()
                                                                 : 500;
                                                 var handler =
                                                         request.getServerConfig()
@@ -124,13 +129,13 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                                         request,
                                                         response,
                                                         failure
-                                                                        instanceof
-                                                                        java.lang.reflect
-                                                                                .InvocationTargetException
+                                                                instanceof
+                                                                java.lang.reflect
+                                                                        .InvocationTargetException
                                                                 ? ((java.lang.reflect
-                                                                                        .InvocationTargetException)
-                                                                                failure)
-                                                                        .getTargetException()
+                                                                .InvocationTargetException)
+                                                                failure)
+                                                                .getTargetException()
                                                                 : failure);
                                             }
                                         }

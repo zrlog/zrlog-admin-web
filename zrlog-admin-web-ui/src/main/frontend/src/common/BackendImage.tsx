@@ -1,6 +1,6 @@
 import Image from "@zrlog/ui/antd/Image";
-import { ImageProps } from "antd";
-import { tryAppendBackendServerUrl } from "../utils/constants";
+import {ImageProps} from "antd";
+import {tryAppendBackendServerUrl} from "../utils/constants";
 
 const shouldResolveBackendUrl = (src?: string) => {
     if (!src) {
@@ -23,8 +23,8 @@ type BackendImageProps = Omit<ImageProps, "src"> & {
     src?: string;
 };
 
-const BackendImage = ({ src, ...props }: BackendImageProps) => {
-    return <Image {...props} src={resolveBackendImageSrc(src)} />;
+const BackendImage = ({src, ...props}: BackendImageProps) => {
+    return <Image {...props} src={resolveBackendImageSrc(src)}/>;
 };
 
 export default BackendImage;

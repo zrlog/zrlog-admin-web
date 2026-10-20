@@ -1,26 +1,26 @@
-import { Button, Radio, Space } from "antd";
-import { FunctionComponent } from "react";
-import { useTheme } from "antd-style";
-import { getRes } from "../../../../../utils/constants";
-import { AssistantToolPayload } from "../../article-ai-assistant.types";
+import {Button, Radio, Space} from "antd";
+import {FunctionComponent} from "react";
+import {useTheme} from "antd-style";
+import {getRes} from "../../../../../utils/constants";
+import {AssistantToolPayload} from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
 import ArticleAiAssistantToolResultCard from "../article-ai-assistant-tool-result-card";
-import { SpecificToolContentProps } from "../article-ai-assistant-tool-content.types";
+import {SpecificToolContentProps} from "../article-ai-assistant-tool-content.types";
 
 type TitleToolPayload = Extract<AssistantToolPayload, { tool: "title" }>;
 
 const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayload>> = ({
-    aiProvider,
-    messageIndex,
-    offline,
-    loadingKey,
-    selectedTitle,
-    toolPayload,
-    onApplyValues,
-    applyDisabled,
-    onSelectTitle,
-    onRefine,
-}) => {
+                                                                                             aiProvider,
+                                                                                             messageIndex,
+                                                                                             offline,
+                                                                                             loadingKey,
+                                                                                             selectedTitle,
+                                                                                             toolPayload,
+                                                                                             onApplyValues,
+                                                                                             applyDisabled,
+                                                                                             onSelectTitle,
+                                                                                             onRefine,
+                                                                                         }) => {
     const theme = useTheme();
     const titles = toolPayload.payload.titles || [];
     const currentSelectedTitle = selectedTitle || toolPayload.payload.selectedTitle || titles[0] || "";
@@ -29,15 +29,15 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
     }
     return (
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
-            <Space direction="vertical" style={{ width: "100%" }}>
+            <Space direction="vertical" style={{width: "100%"}}>
                 <Radio.Group
                     aria-label={getRes().articleEdit.assistant.titleSuggestion}
                     disabled={applyDisabled}
                     value={currentSelectedTitle}
                     onChange={(e) => onSelectTitle(messageIndex, e.target.value)}
-                    style={{ width: "100%" }}
+                    style={{width: "100%"}}
                 >
-                    <Space direction="vertical" size={theme.marginXXS} style={{ width: "100%" }}>
+                    <Space direction="vertical" size={theme.marginXXS} style={{width: "100%"}}>
                         {titles.map((title) => (
                             <Radio
                                 key={title}
@@ -61,7 +61,7 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
                     size="small"
                     type="primary"
                     disabled={applyDisabled || !currentSelectedTitle}
-                    onClick={() => onApplyValues({ title: currentSelectedTitle })}
+                    onClick={() => onApplyValues({title: currentSelectedTitle})}
                 >
                     {getRes().articleEdit.assistant.apply}
                 </Button>

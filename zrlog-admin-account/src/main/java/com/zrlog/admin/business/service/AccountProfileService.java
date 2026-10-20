@@ -4,13 +4,14 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 
-/** Assembles account details from user data and registered passkeys. */
+/**
+ * Assembles account details from user data and registered passkeys.
+ */
 @Singleton
 public class AccountProfileService {
     private final UserService users;

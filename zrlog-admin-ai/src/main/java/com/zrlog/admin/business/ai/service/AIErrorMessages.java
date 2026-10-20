@@ -3,11 +3,15 @@ package com.zrlog.admin.business.ai.service;
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.util.I18nUtil;
+
 import java.net.http.HttpTimeoutException;
 
-/** Translate failures at the AI response boundary; provider diagnostics are not UI copy. */
+/**
+ * Translate failures at the AI response boundary; provider diagnostics are not UI copy.
+ */
 public final class AIErrorMessages {
-    private AIErrorMessages() { }
+    private AIErrorMessages() {
+    }
 
     public static String message(Throwable failure, String fallbackKey) {
         if (failure instanceof AbstractAdminBusinessException) {

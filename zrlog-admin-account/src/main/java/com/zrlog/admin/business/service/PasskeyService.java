@@ -28,7 +28,6 @@ import com.zrlog.model.User;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.UserPasskeyChallenge;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -48,11 +47,6 @@ import java.util.stream.Collectors;
 
 @Singleton
 public class PasskeyService {
-    private final jakarta.inject.Provider<User> userProvider;
-    private final jakarta.inject.Provider<UserPasskey> userPasskeyProvider;
-    private final jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider;
-    private final DistributedLock.Factory locks;
-
     private static final String REGISTRATION = "registration";
     private static final String AUTHENTICATION = "authentication";
     private static final long CHALLENGE_TTL_MS = 2 * 60 * 1000L;
@@ -68,7 +62,10 @@ public class PasskeyService {
     private static final List<PublicKeyCredentialParameters> ES256_PARAMETERS = Collections.singletonList(
             new PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, COSEAlgorithmIdentifier.ES256));
     private static final Logger LOGGER = LoggerUtil.getLogger(PasskeyService.class);
-
+    private final jakarta.inject.Provider<User> userProvider;
+    private final jakarta.inject.Provider<UserPasskey> userPasskeyProvider;
+    private final jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider;
+    private final DistributedLock.Factory locks;
     private final Gson gson = new Gson();
     private final UserService userService;
     private final PasskeyRequestContext requestContext;
@@ -111,6 +108,118 @@ public class PasskeyService {
             throw new IllegalArgumentException("maxActiveAuthenticationChallenges must be positive");
         }
         this.maxActiveAuthenticationChallenges = maxActiveAuthenticationChallenges;
+    }
+
+    static PasskeyVerificationException verificationFailure(String ceremony, RuntimeException exception) {
+        if (exception instanceof MaliciousCounterValueException) {
+            LOGGER.log(Level.WARNING,
+                    "Passkey authentication rejected due to a non-increasing signature counter", exception);
+        } else {
+            LOGGER.log(Level.FINE, "Passkey " + ceremony + " verification failed", exception);
+        }
+        return new PasskeyVerificationException();
+    }
+
+    private static PasskeySummaryResponse toSummary(Map<String, Object> row) {
+        if (row == null) {
+            throw new PasskeyVerificationException();
+        }
+        Object lastUsedAt = value(row, "lastUsedAt");
+        return new PasskeySummaryResponse(longValue(row, "id"), stringValue(row, "name"),
+                longValue(row, "createdAt"), lastUsedAt == null ? null : ((Number) lastUsedAt).longValue(),
+                transportNames(stringValue(row, "transports")));
+    }
+
+    private static String randomBase64Url(int size) {
+        byte[] bytes = new byte[size];
+        SECURE_RANDOM.nextBytes(bytes);
+        return encode(bytes);
+    }
+
+    private static String encode(byte[] bytes) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static byte[] decodeRequired(String value) {
+        if (StringUtils.isEmpty(value)) {
+            throw new PasskeyVerificationException();
+        }
+        return Base64.getUrlDecoder().decode(value.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    private static String sha256Hex(byte[] value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value);
+            StringBuilder builder = new StringBuilder(digest.length * 2);
+            for (byte item : digest) {
+                builder.append(String.format(Locale.ROOT, "%02x", item & 0xff));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static String transportString(Set<AuthenticatorTransport> transports) {
+        if (transports == null || transports.isEmpty()) {
+            return "";
+        }
+        return transports.stream().map(AuthenticatorTransport::getValue).sorted().collect(Collectors.joining(","));
+    }
+
+    private static Set<AuthenticatorTransport> transportSet(String transports) {
+        return transportNames(transports).stream().map(AuthenticatorTransport::create).collect(Collectors.toSet());
+    }
+
+    private static List<String> transportNames(String transports) {
+        if (StringUtils.isEmpty(transports)) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(transports.split(","))
+                .map(String::trim).filter(item -> !item.isEmpty()).collect(Collectors.toList());
+    }
+
+    private static List<String> safeList(List<String> value) {
+        return value == null ? Collections.emptyList() : value;
+    }
+
+    private static Object value(Map<String, Object> row, String key) {
+        if (row == null) {
+            return null;
+        }
+        Object value = row.get(key);
+        if (value != null || row.containsKey(key)) {
+            return value;
+        }
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private static String stringValue(Map<String, Object> row, String key) {
+        return Objects.toString(value(row, key), "");
+    }
+
+    private static long longValue(Map<String, Object> row, String key) {
+        return ((Number) Objects.requireNonNull(value(row, key))).longValue();
+    }
+
+    private static int intValue(Map<String, Object> row, String key) {
+        return ((Number) Objects.requireNonNull(value(row, key))).intValue();
+    }
+
+    private static boolean booleanValue(Map<String, Object> row, String key) {
+        Object value = value(row, key);
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue() != 0;
+        }
+        return "true".equalsIgnoreCase(Objects.toString(value, "")) || "1".equals(Objects.toString(value, ""));
     }
 
     public String requestProtocol(HttpRequest request) {
@@ -425,16 +534,6 @@ public class PasskeyService {
         }
     }
 
-    static PasskeyVerificationException verificationFailure(String ceremony, RuntimeException exception) {
-        if (exception instanceof MaliciousCounterValueException) {
-            LOGGER.log(Level.WARNING,
-                    "Passkey authentication rejected due to a non-increasing signature counter", exception);
-        } else {
-            LOGGER.log(Level.FINE, "Passkey " + ceremony + " verification failed", exception);
-        }
-        return new PasskeyVerificationException();
-    }
-
     private String getOrCreateUserHandle(int userId, Map<String, Object> user) throws SQLException {
         String current = Objects.toString(value(user, "passkeyUserHandle"), "");
         if (StringUtils.isNotEmpty(current)) {
@@ -451,16 +550,6 @@ public class PasskeyService {
         return stringValue(this.userProvider.get().loadById(userId), "passkeyUserHandle");
     }
 
-    private static PasskeySummaryResponse toSummary(Map<String, Object> row) {
-        if (row == null) {
-            throw new PasskeyVerificationException();
-        }
-        Object lastUsedAt = value(row, "lastUsedAt");
-        return new PasskeySummaryResponse(longValue(row, "id"), stringValue(row, "name"),
-                longValue(row, "createdAt"), lastUsedAt == null ? null : ((Number) lastUsedAt).longValue(),
-                transportNames(stringValue(row, "transports")));
-    }
-
     private String normalizeName(String value) {
         String name = Objects.toString(value, "").trim();
         return name.isEmpty() ? "Passkey" : name;
@@ -472,96 +561,9 @@ public class PasskeyService {
         }
     }
 
-    private static String randomBase64Url(int size) {
-        byte[] bytes = new byte[size];
-        SECURE_RANDOM.nextBytes(bytes);
-        return encode(bytes);
-    }
-
-    private static String encode(byte[] bytes) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private static byte[] decodeRequired(String value) {
-        if (StringUtils.isEmpty(value)) {
-            throw new PasskeyVerificationException();
-        }
-        return Base64.getUrlDecoder().decode(value.getBytes(StandardCharsets.US_ASCII));
-    }
-
-    private static String sha256Hex(byte[] value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value);
-            StringBuilder builder = new StringBuilder(digest.length * 2);
-            for (byte item : digest) {
-                builder.append(String.format(Locale.ROOT, "%02x", item & 0xff));
-            }
-            return builder.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private static String transportString(Set<AuthenticatorTransport> transports) {
-        if (transports == null || transports.isEmpty()) {
-            return "";
-        }
-        return transports.stream().map(AuthenticatorTransport::getValue).sorted().collect(Collectors.joining(","));
-    }
-
-    private static Set<AuthenticatorTransport> transportSet(String transports) {
-        return transportNames(transports).stream().map(AuthenticatorTransport::create).collect(Collectors.toSet());
-    }
-
-    private static List<String> transportNames(String transports) {
-        if (StringUtils.isEmpty(transports)) {
-            return Collections.emptyList();
-        }
-        return Arrays.stream(transports.split(","))
-                .map(String::trim).filter(item -> !item.isEmpty()).collect(Collectors.toList());
-    }
-
-    private static List<String> safeList(List<String> value) {
-        return value == null ? Collections.emptyList() : value;
-    }
-
-    private static Object value(Map<String, Object> row, String key) {
-        if (row == null) {
-            return null;
-        }
-        Object value = row.get(key);
-        if (value != null || row.containsKey(key)) {
-            return value;
-        }
-        for (Map.Entry<String, Object> entry : row.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    private static String stringValue(Map<String, Object> row, String key) {
-        return Objects.toString(value(row, key), "");
-    }
-
-    private static long longValue(Map<String, Object> row, String key) {
-        return ((Number) Objects.requireNonNull(value(row, key))).longValue();
-    }
-
-    private static int intValue(Map<String, Object> row, String key) {
-        return ((Number) Objects.requireNonNull(value(row, key))).intValue();
-    }
-
-    private static boolean booleanValue(Map<String, Object> row, String key) {
-        Object value = value(row, key);
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).intValue() != 0;
-        }
-        return "true".equalsIgnoreCase(Objects.toString(value, "")) || "1".equals(Objects.toString(value, ""));
+    @FunctionalInterface
+    private interface LockedOperation<T> {
+        T run() throws SQLException;
     }
 
     public static class ChallengeState {
@@ -609,10 +611,5 @@ public class PasskeyService {
             this.backupEligible = backupEligible;
             this.backupState = backupState;
         }
-    }
-
-    @FunctionalInterface
-    private interface LockedOperation<T> {
-        T run() throws SQLException;
     }
 }

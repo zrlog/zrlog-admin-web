@@ -1,5 +1,5 @@
-import { CSSProperties, FunctionComponent, ReactNode } from "react";
-import { theme } from "antd";
+import {CSSProperties, FunctionComponent, ReactNode} from "react";
+import {theme} from "antd";
 
 type SidebarNavItemProps = {
     icon?: ReactNode;
@@ -8,8 +8,8 @@ type SidebarNavItemProps = {
     style?: CSSProperties;
 };
 
-const SidebarNavItem: FunctionComponent<SidebarNavItemProps> = ({ icon, label }) => {
-    const { token } = theme.useToken();
+const SidebarNavItem: FunctionComponent<SidebarNavItemProps> = ({icon, label}) => {
+    const {token} = theme.useToken();
 
     return (
         <span

@@ -1,4 +1,4 @@
-import { ArticleEntry } from "../index.types";
+import {ArticleEntry} from "../index.types";
 
 const scalarFields = [
     "title",
@@ -44,15 +44,15 @@ const edits = (before: string[], after: string[], side: TextEdit["side"]): TextE
         suffix < before.length - prefix &&
         suffix < after.length - prefix &&
         before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
-    )
+        )
         suffix++;
     const a = before.slice(prefix, before.length - suffix),
         b = after.slice(prefix, after.length - suffix);
     if (!a.length && !b.length) return [];
     if ((a.length + 1) * (b.length + 1) > 1_000_000) {
-        return [{ start: prefix, end: before.length - suffix, text: b.join(""), side }];
+        return [{start: prefix, end: before.length - suffix, text: b.join(""), side}];
     }
-    const table = Array.from({ length: a.length + 1 }, () => new Uint32Array(b.length + 1));
+    const table = Array.from({length: a.length + 1}, () => new Uint32Array(b.length + 1));
     for (let i = a.length - 1; i >= 0; i--)
         for (let j = b.length - 1; j >= 0; j--) {
             table[i][j] = a[i] === b[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
@@ -72,7 +72,7 @@ const edits = (before: string[], after: string[], side: TextEdit["side"]): TextE
             j++;
             continue;
         }
-        pending ||= { start: prefix + i, end: prefix + i, text: "", side };
+        pending ||= {start: prefix + i, end: prefix + i, text: "", side};
         if (j < b.length && (i === a.length || table[i][j + 1] > table[i + 1][j])) pending.text += b[j++];
         else {
             i++;
@@ -106,11 +106,11 @@ const mergeText = (
     field: "markdown" | "content",
     conflicts: ArticleMergeConflict[]
 ): BodyPart[] => {
-    if (local === server || baseText === local) return [{ text: server }];
-    if (baseText === server) return [{ text: local }];
+    if (local === server || baseText === local) return [{text: server}];
+    if (baseText === server) return [{text: local}];
     if (baseText === undefined) {
-        conflicts.push({ id: field, field, local, server });
-        return [{ conflictId: field }];
+        conflicts.push({id: field, field, local, server});
+        return [{conflictId: field}];
     }
     const base = lines(baseText);
     const changes = [...edits(base, lines(local), "local"), ...edits(base, lines(server), "server")].sort(
@@ -127,7 +127,7 @@ const mergeText = (
     groups.forEach((group, index) => {
         const start = group[0].start,
             end = Math.max(...group.map((change) => change.end));
-        parts.push({ text: base.slice(cursor, start).join("") });
+        parts.push({text: base.slice(cursor, start).join("")});
         const original = base.slice(start, end).join("");
         const localText = applyEdits(
             base,
@@ -141,16 +141,16 @@ const mergeText = (
             end,
             group.filter((change) => change.side === "server")
         );
-        if (localText === serverText || localText === original) parts.push({ text: serverText });
-        else if (serverText === original) parts.push({ text: localText });
+        if (localText === serverText || localText === original) parts.push({text: serverText});
+        else if (serverText === original) parts.push({text: localText});
         else {
             const id = `${field}:${index}`;
-            conflicts.push({ id, field, base: original, local: localText, server: serverText });
-            parts.push({ conflictId: id });
+            conflicts.push({id, field, base: original, local: localText, server: serverText});
+            parts.push({conflictId: id});
         }
         cursor = end;
     });
-    parts.push({ text: base.slice(cursor).join("") });
+    parts.push({text: base.slice(cursor).join("")});
     return parts;
 };
 
@@ -165,15 +165,15 @@ export const buildArticleMerge = (
     local: ArticleEntry,
     server: ArticleEntry
 ): ArticleMergePlan => {
-    const article = { ...server };
+    const article = {...server};
     const conflicts: ArticleMergeConflict[] = [];
     scalarFields.forEach((field) => {
         const mine = valueOf(local, field),
             theirs = valueOf(server, field),
             original = base && valueOf(base, field);
-        if (mine === theirs || mine === original) Object.assign(article, { [field]: theirs });
-        else if (theirs === original) Object.assign(article, { [field]: mine });
-        else conflicts.push({ id: field, field, base: original, local: mine, server: theirs });
+        if (mine === theirs || mine === original) Object.assign(article, {[field]: theirs});
+        else if (theirs === original) Object.assign(article, {[field]: mine});
+        else conflicts.push({id: field, field, base: original, local: mine, server: theirs});
     });
     const bodyField = [base, local, server].some((value) => value?.markdown !== undefined && value.markdown !== null)
         ? "markdown"
@@ -181,7 +181,7 @@ export const buildArticleMerge = (
     const bodyText = (value: ArticleEntry) =>
         bodyField === "markdown" ? value.markdown ?? value.content ?? "" : value.content || "";
     const body = mergeText(base ? bodyText(base) : undefined, bodyText(local), bodyText(server), bodyField, conflicts);
-    return { article, conflicts, bodyField, body, baseAvailable: Boolean(base) };
+    return {article, conflicts, bodyField, body, baseAvailable: Boolean(base)};
 };
 
 export const resolveArticleMerge = (
@@ -190,11 +190,11 @@ export const resolveArticleMerge = (
 ): ArticleEntry | undefined => {
     if (plan.conflicts.some((conflict) => !Object.prototype.hasOwnProperty.call(resolutions, conflict.id)))
         return undefined;
-    const article = { ...plan.article };
+    const article = {...plan.article};
     plan.conflicts
         .filter((conflict) => conflict.field !== plan.bodyField)
         .forEach((conflict) => {
-            Object.assign(article, { [conflict.field]: resolutions[conflict.id] });
+            Object.assign(article, {[conflict.field]: resolutions[conflict.id]});
         });
     article[plan.bodyField] = plan.body
         .map((part) => ("text" in part ? part.text : String(resolutions[part.conflictId])))

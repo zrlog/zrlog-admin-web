@@ -1,17 +1,18 @@
 import Table from "@zrlog/ui/antd/Table";
-import { Grid, List, Select, Space, Tabs, Typography } from "antd";
-import { useState } from "react";
-import { getRes } from "../../utils/constants";
-import type { AccountRole } from "../../utils/account-access";
+import {Grid, List, Select, Space, Tabs, Typography} from "antd";
+import {useState} from "react";
+import {getRes} from "../../utils/constants";
+import type {AccountRole} from "../../utils/account-access";
+
 type Route = { path: string; descriptionKey: string };
 type Action = { id: string; roles: AccountRole[]; routes: string[]; routeDetails?: Route[]; scope?: string };
 export type AccessPage = { currentRole: AccountRole; roles: AccountRole[]; actions: Action[] };
 export type PermissionHelpView = "roles" | "scopes";
 
 export default function PermissionHelpContent({
-    data,
-    initialView = "roles",
-}: {
+                                                  data,
+                                                  initialView = "roles",
+                                              }: {
     data: AccessPage;
     initialView?: PermissionHelpView;
 }) {
@@ -20,7 +21,7 @@ export default function PermissionHelpContent({
         <Tabs
             defaultActiveKey={initialView}
             items={[
-                { key: "roles", label: res.access.rolePermissions, children: <RolePermissions data={data} /> },
+                {key: "roles", label: res.access.rolePermissions, children: <RolePermissions data={data}/>},
                 {
                     key: "scopes",
                     label: res.access.applicationScopes,
@@ -32,7 +33,7 @@ export default function PermissionHelpContent({
                                 <Typography.Text strong>
                                     {res.members.current} · {res.access.roles[data.currentRole]}
                                 </Typography.Text>
-                                <br />
+                                <br/>
                                 {res.access.ranges[data.currentRole]}
                             </Typography.Paragraph>
                             <Typography.Paragraph type="secondary">{res.access.mcpAccess}</Typography.Paragraph>
@@ -55,7 +56,7 @@ export default function PermissionHelpContent({
     );
 }
 
-function RolePermissions({ data }: { data: AccessPage }) {
+function RolePermissions({data}: { data: AccessPage }) {
     const res = getRes().access;
     const [role, setRole] = useState<AccountRole>(data.currentRole);
     const screens = Grid.useBreakpoint();
@@ -65,13 +66,13 @@ function RolePermissions({ data }: { data: AccessPage }) {
     return (
         <>
             <Typography.Paragraph>{res.description}</Typography.Paragraph>
-            <Space orientation="vertical" style={{ width: "100%" }} size="large">
+            <Space orientation="vertical" style={{width: "100%"}} size="large">
                 <Select
                     aria-label={getRes().members.role}
                     value={role}
                     onChange={setRole}
-                    options={data.roles.map((value) => ({ value, label: res.roles[value] }))}
-                    style={{ minWidth: 180 }}
+                    options={data.roles.map((value) => ({value, label: res.roles[value]}))}
+                    style={{minWidth: 180}}
                 />
                 <Typography.Paragraph>{res.ranges[role]}</Typography.Paragraph>
                 <Table
@@ -80,7 +81,7 @@ function RolePermissions({ data }: { data: AccessPage }) {
                     pagination={false}
                     size="small"
                     columns={[
-                        { title: res.action, dataIndex: "id", render: (id: string) => labels[id] ?? id },
+                        {title: res.action, dataIndex: "id", render: (id: string) => labels[id] ?? id},
                         ...shownRoles.map((value) => ({
                             title: res.roles[value],
                             key: value,
@@ -89,7 +90,7 @@ function RolePermissions({ data }: { data: AccessPage }) {
                     ]}
                     expandable={{
                         expandedRowRender: (action) => (
-                            <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+                            <Space orientation="vertical" size="middle" style={{width: "100%"}}>
                                 <Space wrap>
                                     <Typography.Text code>{action.id}</Typography.Text>
                                     {action.scope && <Typography.Text code>{action.scope}</Typography.Text>}
@@ -99,14 +100,14 @@ function RolePermissions({ data }: { data: AccessPage }) {
                                     <Typography.Paragraph type="secondary">{res.routesHelp}</Typography.Paragraph>
                                 </div>
                                 {(
-                                    action.routeDetails ?? action.routes.map((path) => ({ path, descriptionKey: "" }))
+                                    action.routeDetails ?? action.routes.map((path) => ({path, descriptionKey: ""}))
                                 ).map((route) => (
                                     <div key={route.path}>
                                         <Typography.Text>
                                             {descriptions[route.descriptionKey] ?? res.unknownEndpoint}
                                         </Typography.Text>
                                         <div>
-                                            <Typography.Text type="secondary" style={{ overflowWrap: "anywhere" }}>
+                                            <Typography.Text type="secondary" style={{overflowWrap: "anywhere"}}>
                                                 {route.path}
                                             </Typography.Text>
                                         </div>

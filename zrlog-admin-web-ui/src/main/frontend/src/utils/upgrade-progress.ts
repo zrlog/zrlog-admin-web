@@ -21,12 +21,12 @@ export function mergeUpgradeProgress(items: UpgradeProgressItem[], event: Upgrad
     const providerAdvanced = !isLocalStage(event.stage) && !failed && !manual;
     const next = items.map((item): UpgradeProgressItem => {
         if (item.key === key || !isRunning(item)) return item;
-        if (failed || manual) return { ...item, status: event.status };
+        if (failed || manual) return {...item, status: event.status};
         // Starting a version check after a disconnected stream proves nothing about installation.
-        if (verified || (providerAdvanced && !isLocalStage(item.stage))) return { ...item, status: "complete" };
+        if (verified || (providerAdvanced && !isLocalStage(item.stage))) return {...item, status: "complete"};
         return item;
     });
-    const item = { ...event, key };
+    const item = {...event, key};
     const index = next.findIndex((entry) => entry.key === key);
     if (index < 0) next.push(item);
     else next[index] = item;
@@ -37,5 +37,5 @@ export function mergeUpgradeProgress(items: UpgradeProgressItem[], event: Upgrad
 export function getUpgradeStepProgress(items: UpgradeProgressItem[]) {
     const completed = (stage: string) => items.some((item) => item.stage === stage && item.status === "complete");
     const steps = completed("admin-static-sync") ? 3 : completed("restart-check") ? 2 : completed("complete") ? 1 : 0;
-    return { completed: steps, total: 3, percent: Math.round((steps / 3) * 100) };
+    return {completed: steps, total: 3, percent: Math.round((steps / 3) * 100)};
 }

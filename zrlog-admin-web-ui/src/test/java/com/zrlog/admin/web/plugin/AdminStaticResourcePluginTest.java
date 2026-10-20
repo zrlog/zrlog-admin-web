@@ -1,20 +1,15 @@
 package com.zrlog.admin.web.plugin;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.http.server.ApplicationContext;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.plugin.StaticSiteRenderer;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.util.concurrent.ExecutorService;
+
+import static org.junit.Assert.*;
 
 public class AdminStaticResourcePluginTest {
 

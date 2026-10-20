@@ -1,4 +1,4 @@
-import { getSsDate } from "../base/SsData";
+import {getSsDate} from "../base/SsData";
 
 export type TabArticleDraft = {
     article: unknown;
@@ -45,7 +45,7 @@ export const listTabArticleDrafts = () => {
         const key = localStorage.key(i)!;
         if (!key.startsWith(prefix())) continue;
         const entry = readStoredArticleDraft(key);
-        if (entry) entries.push({ key, articleKey: key.slice(key.lastIndexOf(":") + 1), entry });
+        if (entry) entries.push({key, articleKey: key.slice(key.lastIndexOf(":") + 1), entry});
     }
     return entries;
 };
@@ -53,7 +53,7 @@ export const listTabArticleDrafts = () => {
 export const selectTabArticleDraft = (key: string, articleKey: string) => {
     const entry = readStoredArticleDraft(key);
     if (!entry || key === articleTabStorageKey(articleKey)) return;
-    writeTabArticleDraft(articleKey, { ...entry, source: { key, article: entry.article } });
+    writeTabArticleDraft(articleKey, {...entry, source: {key, article: entry.article}});
 };
 
 export const removeStoredArticleDraft = (key: string) => {

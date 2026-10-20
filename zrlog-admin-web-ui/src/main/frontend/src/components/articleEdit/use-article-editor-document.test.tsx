@@ -1,8 +1,8 @@
-import { act, useLayoutEffect, useRef } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {act, useLayoutEffect, useRef} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {EditorState} from "@codemirror/state";
+import {EditorView} from "@codemirror/view";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import useArticleEditorDocument from "./use-article-editor-document";
 
 // CRA's Jest resolver ignores this package's CommonJS export. Use its real CJS build.
@@ -17,9 +17,9 @@ describe("article body replacement in the mounted editor", () => {
     let renderedChanges: (() => void)[];
     const onChange = jest.fn();
 
-    function Harness({ markdown, revision = 0 }: { markdown?: string; revision?: number }) {
+    function Harness({markdown, revision = 0}: { markdown?: string; revision?: number }) {
         editor = useArticleEditorDocument(markdown, revision, onChange);
-        const { onLoad, onChange: onEditorChange } = editor;
+        const {onLoad, onChange: onEditorChange} = editor;
         const parent = useRef<HTMLDivElement>(null);
         const initialValue = useRef(markdown);
         useLayoutEffect(() => {
@@ -32,7 +32,7 @@ describe("article body replacement in the mounted editor", () => {
                         EditorView.updateListener.of((update) => {
                             if (!update.docChanged) return;
                             const value = update.state.doc.toString();
-                            renderedChanges.push(() => onEditorChange({ value, previewContent: `<p>${value}</p>` }));
+                            renderedChanges.push(() => onEditorChange({value, previewContent: `<p>${value}</p>`}));
                         }),
                     ],
                 }),
@@ -40,15 +40,15 @@ describe("article body replacement in the mounted editor", () => {
             onLoad(view);
             return () => view.destroy();
         }, [onLoad, onEditorChange]);
-        return <div ref={parent} />;
+        return <div ref={parent}/>;
     }
 
     const render = (markdown?: string, revision = 0) =>
-        act(() => root.render(<Harness markdown={markdown} revision={revision} />));
+        act(() => root.render(<Harness markdown={markdown} revision={revision}/>));
     const replaceByTyping = (value: string) =>
         act(() => {
             const view = editor.viewRef.current!;
-            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+            view.dispatch({changes: {from: 0, to: view.state.doc.length, insert: value}});
         });
     const finishRendering = () => act(() => renderedChanges.splice(0).forEach((callback) => callback()));
 
@@ -78,7 +78,7 @@ describe("article body replacement in the mounted editor", () => {
         expect(originalView!.state.doc.toString()).toBe("AI updated body");
         expect(container.querySelector(".cm-content")?.textContent).toBe("AI updated body");
         finishRendering();
-        act(() => earlierCallback({ value: "Original body", previewContent: "<p>Old preview</p>" }));
+        act(() => earlierCallback({value: "Original body", previewContent: "<p>Old preview</p>"}));
         expect(onChange).not.toHaveBeenCalled();
         replaceByTyping("AI updated body with local edits");
         finishRendering();
@@ -98,7 +98,7 @@ describe("article body replacement in the mounted editor", () => {
 
     it("leaves selection and pending typing alone during unrelated page updates", () => {
         const view = editor.viewRef.current!;
-        act(() => view.dispatch({ selection: { anchor: 4 } }));
+        act(() => view.dispatch({selection: {anchor: 4}}));
         render("Original body");
         expect(view.state.selection.main.anchor).toBe(4);
         replaceByTyping("First keystroke");

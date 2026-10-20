@@ -1,19 +1,11 @@
 package com.zrlog.admin.web;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.controller.api.AdminDevController;
 import com.zrlog.admin.web.controller.page.AdminPageController;
-import com.zrlog.admin.web.interceptor.AdminCrossOriginInterceptor;
-import com.zrlog.admin.web.interceptor.AdminInterceptor;
-import com.zrlog.admin.web.interceptor.AdminLoginInterceptor;
-import com.zrlog.admin.web.interceptor.AdminPwaInterceptor;
-import com.zrlog.admin.web.interceptor.AdminStaticResourceInterceptor;
+import com.zrlog.admin.web.interceptor.*;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.business.web.ServiceWebSetup;
@@ -24,12 +16,13 @@ import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSetupContext;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.List;
+
+import static org.junit.Assert.*;
 
 public class AdminWebSetupProviderTest {
 

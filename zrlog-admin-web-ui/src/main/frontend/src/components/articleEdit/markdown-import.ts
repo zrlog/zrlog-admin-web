@@ -1,5 +1,5 @@
-import { parse as parseYaml } from "yaml";
-import { ArticleEntry } from "./index.types";
+import {parse as parseYaml} from "yaml";
+import {ArticleEntry} from "./index.types";
 
 export const MARKDOWN_IMPORT_MAX_FILE_SIZE = 2 * 1024 * 1024;
 
@@ -195,8 +195,8 @@ const toStringList = (
         typeof value === "string"
             ? value.split(",")
             : Array.isArray(value) && value.every((entry) => typeof entry === "string")
-            ? value
-            : undefined;
+                ? value
+                : undefined;
     if (!entries) {
         invalidFields.add(field);
         return [];
@@ -364,7 +364,7 @@ const parseFrontMatter = (source: string) => {
         if (DANGEROUS_KEYS.has(key)) {
             throw new MarkdownImportError("front-matter-too-complex");
         }
-        fields.set(key, { originalKey, value });
+        fields.set(key, {originalKey, value});
     });
     return {
         body: source.slice(closing.index + closing[0].length),
@@ -380,7 +380,7 @@ const getFirstField = (
     for (const key of keys) {
         const field = fields.get(key);
         if (field) {
-            return { key: field.originalKey, value: field.value };
+            return {key: field.originalKey, value: field.value};
         }
     }
     return undefined;
@@ -470,14 +470,14 @@ export const readMarkdownImportFile = async (file: File): Promise<MarkdownImport
         typeof file.arrayBuffer === "function"
             ? await file.arrayBuffer()
             : await new Promise<ArrayBuffer>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(reader.result as ArrayBuffer);
-                  reader.onerror = () => reject(reader.error);
-                  reader.readAsArrayBuffer(file);
-              });
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as ArrayBuffer);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file);
+            });
     let source: string;
     try {
-        source = new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(buffer));
+        source = new TextDecoder("utf-8", {fatal: true}).decode(new Uint8Array(buffer));
     } catch (_error) {
         throw new MarkdownImportError("invalid-utf8");
     }
@@ -492,12 +492,12 @@ const hasArticleBody = (article: ArticleEntry, currentMarkdown?: string) => {
 const hasArticleMetadata = (article: ArticleEntry) =>
     Boolean(
         article.title?.trim() ||
-            article.alias?.trim() ||
-            article.digest?.trim() ||
-            article.keywords?.trim() ||
-            article.thumbnail?.trim() ||
-            article.recommended === true ||
-            article.canComment === false
+        article.alias?.trim() ||
+        article.digest?.trim() ||
+        article.keywords?.trim() ||
+        article.thumbnail?.trim() ||
+        article.recommended === true ||
+        article.canComment === false
     );
 
 export const getMarkdownImportTargetPolicy = (
@@ -615,11 +615,11 @@ export const getMarkdownImportApplyFields = (
 };
 
 export const buildMarkdownImportedPatch = ({
-    preview,
-    selectedFields,
-    selectedTypeId,
-    html,
-}: {
+                                               preview,
+                                               selectedFields,
+                                               selectedTypeId,
+                                               html,
+                                           }: {
     preview: MarkdownImportPreview;
     selectedFields: Set<MarkdownImportField>;
     selectedTypeId?: number;
@@ -648,13 +648,13 @@ export const buildMarkdownImportedPatch = ({
 };
 
 export const buildMarkdownImportedArticle = ({
-    article,
-    preview,
-    selectedFields,
-    selectedTypeId,
-    target,
-    html,
-}: {
+                                                 article,
+                                                 preview,
+                                                 selectedFields,
+                                                 selectedTypeId,
+                                                 target,
+                                                 html,
+                                             }: {
     article: ArticleEntry;
     preview: MarkdownImportPreview;
     selectedFields: Set<MarkdownImportField>;
@@ -671,22 +671,22 @@ export const buildMarkdownImportedArticle = ({
     const nextArticle: ArticleEntry =
         target === "current"
             ? {
-                  ...article,
-                  ...importedPatch,
-              }
+                ...article,
+                ...importedPatch,
+            }
             : {
-                  title: preview.metadata.title,
-                  markdown: preview.markdown,
-                  content: html,
-                  typeId: selectedTypeId,
-                  keywords: "",
-                  canComment: article.canComment !== false,
-                  recommended: false,
-                  privacy: false,
-                  rubbish: true,
-                  version: -1,
-                  editorType: "markdown",
-              };
+                title: preview.metadata.title,
+                markdown: preview.markdown,
+                content: html,
+                typeId: selectedTypeId,
+                keywords: "",
+                canComment: article.canComment !== false,
+                recommended: false,
+                privacy: false,
+                rubbish: true,
+                version: -1,
+                editorType: "markdown",
+            };
 
     if (target === "newDraft") {
         Object.assign(nextArticle, importedPatch);

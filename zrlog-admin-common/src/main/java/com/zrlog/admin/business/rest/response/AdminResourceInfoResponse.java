@@ -4,23 +4,6 @@ public class AdminResourceInfoResponse {
 
     private Capabilities capabilities;
     private boolean devMode;
-
-    public boolean isDevMode() { return devMode; }
-    public void setDevMode(boolean devMode) { this.devMode = devMode; }
-
-    public Capabilities getCapabilities() { return capabilities; }
-    public void setCapabilities(Capabilities capabilities) { this.capabilities = capabilities; }
-
-    /** Enabled server modules, independent of account permissions and model configuration. */
-    public static class Capabilities {
-        public boolean account;
-        public boolean content;
-        public boolean assets;
-        public boolean ai;
-        public boolean access;
-        public boolean mcp;
-    }
-
     private String currentVersion;
     private String websiteTitle;
     private Boolean admin_darkMode;
@@ -41,6 +24,22 @@ public class AdminResourceInfoResponse {
     private Boolean feature_personal_data_enabled;
     private Boolean feature_article_arrangement_enabled;
     private Boolean passkeyLoginEnabled;
+
+    public boolean isDevMode() {
+        return devMode;
+    }
+
+    public void setDevMode(boolean devMode) {
+        this.devMode = devMode;
+    }
+
+    public Capabilities getCapabilities() {
+        return capabilities;
+    }
+
+    public void setCapabilities(Capabilities capabilities) {
+        this.capabilities = capabilities;
+    }
 
     public String getCurrentVersion() {
         return currentVersion;
@@ -200,6 +199,18 @@ public class AdminResourceInfoResponse {
 
     public void setPasskeyLoginEnabled(Boolean passkeyLoginEnabled) {
         this.passkeyLoginEnabled = passkeyLoginEnabled;
+    }
+
+    /**
+     * Enabled server modules, independent of account permissions and model configuration.
+     */
+    public static class Capabilities {
+        public boolean account;
+        public boolean content;
+        public boolean assets;
+        public boolean ai;
+        public boolean access;
+        public boolean mcp;
     }
 
     public static class DefaultLoginInfo {

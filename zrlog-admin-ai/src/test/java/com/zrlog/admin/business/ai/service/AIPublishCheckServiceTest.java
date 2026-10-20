@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.*;
-
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
@@ -12,16 +10,19 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.util.I18nUtil;
-
 import org.junit.Test;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.*;
+
 public class AIPublishCheckServiceTest {
-    @Test public void publishCheckUsesTheSameSiteSnapshotWithoutGlobalConfig() throws Exception {
+    @Test
+    public void publishCheckUsesTheSameSiteSnapshotWithoutGlobalConfig() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             var service =
                     new AIPublishCheckService(
@@ -29,8 +30,8 @@ public class AIPublishCheckServiceTest {
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AIServiceDependencies.writing(db.dataSource()),
                             AIServiceDependencies.conversations(db.dataSource()),
-                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions());
+                            com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
+                            com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions());
             var context = new GenerateArticleFieldRequest();
             db.putWebsite("generator_html_status", "1");
             db.putWebsite("host", "blog.example");
@@ -45,7 +46,9 @@ public class AIPublishCheckServiceTest {
             assertFalse(context.getStaticSiteEnabled());
         }
     }
-    @Test public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer() throws Exception {
+
+    @Test
+    public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.unitCacheService().getPublicWebSiteInfo().setLanguage("zh_CN");
             for (String language : List.of("en_US", "zh_CN")) {
@@ -57,8 +60,8 @@ public class AIPublishCheckServiceTest {
                                 ApplicationServicesFixture.operations(db.dataSource()),
                                 AIServiceDependencies.writing(db.dataSource()),
                                 AIServiceDependencies.conversations(db.dataSource()),
-                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions()) {
+                                com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions()) {
                             @Override
                             PublishCheckResponse buildPublishCheckPayload(
                                     com.zrlog.data.security.AccountAccess actor, Long id,
@@ -76,8 +79,11 @@ public class AIPublishCheckServiceTest {
                             }
                         };
                 AIArticleGlobalResponse detail = new AIArticleGlobalResponse();
-                LoadEditArticleResponse article = new LoadEditArticleResponse(); article.setLogId(1);
-                detail.setArticle(article); detail.setAiConfigured(true); detail.setPublishCheckEnabled(true);
+                LoadEditArticleResponse article = new LoadEditArticleResponse();
+                article.setLogId(1);
+                detail.setArticle(article);
+                detail.setAiConfigured(true);
+                detail.setPublishCheckEnabled(true);
                 AIPublishCheckService.PublishCheckTask task;
                 try (var ignored = AdminLanguageContext.open(language)) {
                     task = service.startPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail, new CreateArticleRequest());
@@ -89,10 +95,13 @@ public class AIPublishCheckServiceTest {
                         assertEquals(
                                 language, task.getFuture().get(5, TimeUnit.SECONDS).getContent());
                     }
-                } finally { proceed.countDown(); }
+                } finally {
+                    proceed.countDown();
+                }
             }
         }
     }
+
     @Test
     public void shouldExtractScoresAndItemCountsFromKnownPayloads() throws Exception {
         AIPublishCheckService service =

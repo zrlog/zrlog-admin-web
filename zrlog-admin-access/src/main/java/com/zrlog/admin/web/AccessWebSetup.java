@@ -24,9 +24,13 @@ import java.util.List;
 
 public class AccessWebSetup implements WebSetup {
     private final WebSetupContext context;
-    public AccessWebSetup(WebSetupContext context) { this.context = context; }
 
-    @Override public void setup() {
+    public AccessWebSetup(WebSetupContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public void setup() {
         context.getZrLogConfig()
                 .getServerConfig()
                 .getBindings()
@@ -40,8 +44,8 @@ public class AccessWebSetup implements WebSetup {
                                                 r.get(AccountComponent.class),
                                                 () ->
                                                         context.getZrLogConfig()
-                                                                        .getWebSetup(
-                                                                                McpWebSetup.class)
+                                                                .getWebSetup(
+                                                                        McpWebSetup.class)
                                                                 != null,
                                                 () -> r.get(AdminActionDispatcher.class),
                                                 () -> r.get(ContentToolFactory.class),
@@ -55,7 +59,7 @@ public class AccessWebSetup implements WebSetup {
                                                             provider == null
                                                                     ? null
                                                                     : provider
-                                                                            .getPublicWebSiteInfo();
+                                                                    .getPublicWebSiteInfo();
                                                     return site == null ? "" : site.getTitle();
                                                 }))
                 .singleton(OAuthService.class, r -> r.get(AccessComponent.class).oauth())

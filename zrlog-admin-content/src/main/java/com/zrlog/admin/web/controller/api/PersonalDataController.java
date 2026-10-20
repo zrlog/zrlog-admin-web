@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
@@ -13,12 +11,13 @@ import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.PersonalDataService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -27,6 +26,8 @@ public class PersonalDataController extends BaseController {
     private final AdminRequestIdentity requestIdentity;
 
     private final AdminAuditService adminAuditService;
+    private final AdminPageDataFactory pages;
+    private final PersonalDataService personalDataService;
 
     @Inject
     public PersonalDataController(
@@ -40,10 +41,6 @@ public class PersonalDataController extends BaseController {
 
         this.pages = pages;
     }
-
-    private final AdminPageDataFactory pages;
-
-    private final PersonalDataService personalDataService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.page")

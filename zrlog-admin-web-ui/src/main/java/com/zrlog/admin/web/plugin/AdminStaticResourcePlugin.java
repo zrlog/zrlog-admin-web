@@ -14,7 +14,6 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.dto.FaviconBase64DTO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.ThreadUtils;
-
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -31,14 +30,10 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class AdminStaticResourcePlugin extends BaseLockObject implements StaticSitePlugin {
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
-
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminStaticResourcePlugin.class);
-
-    private final AdminResource adminResource;
-
     private static final String ID_CACHE_KEY = "admin_static_version";
-
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final AdminResource adminResource;
     private final Map<String, StaticSitePlugin.HandleState> handleStatusPageMap = new ConcurrentHashMap<>();
     private final String contextPath;
     private final StaticSiteRenderer renderer;

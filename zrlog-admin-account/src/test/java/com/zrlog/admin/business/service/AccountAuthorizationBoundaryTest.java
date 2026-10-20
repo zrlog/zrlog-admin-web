@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.JsonParser;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -14,7 +12,6 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -23,17 +20,35 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class AccountAuthorizationBoundaryTest {
+    private final String database;
+
+    public AccountAuthorizationBoundaryTest(String database) {
+        this.database = database;
+    }
+
     @Parameterized.Parameters(name = "{0}")
     public static List<String> databases() {
         return List.of("h2", "sqlite");
     }
 
-    private final String database;
+    private static AdminTokenVO token(int userId, int authVersion) {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(userId);
+        token.setAuthVersion(authVersion);
+        token.setSessionId("explicit-" + userId);
+        return token;
+    }
 
-    public AccountAuthorizationBoundaryTest(String database) {
-        this.database = database;
+    private static HttpRequest query(String id) {
+        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
+                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("getParaToStr")) return id;
+                    throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     @Test
@@ -215,33 +230,21 @@ public class AccountAuthorizationBoundaryTest {
         return "sqlite".equals(database) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
     }
 
-    private static AdminTokenVO token(int userId, int authVersion) {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(userId);
-        token.setAuthVersion(authVersion);
-        token.setSessionId("explicit-" + userId);
-        return token;
-    }
-
-    private static HttpRequest query(String id) {
-        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
-                new Class<?>[] {HttpRequest.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("getParaToStr")) return id;
-                    throw new UnsupportedOperationException(method.getName());
-                });
-    }
-
     public static class Routes {
         @RequiresAction(value = AccountAction.ARTICLE_READ, descriptionKey = "test.read")
-        public void read() {}
+        public void read() {
+        }
 
         @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "test.manage")
-        public void manage() {}
+        public void manage() {
+        }
 
         @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "test.detail")
-        public void detail() {}
+        public void detail() {
+        }
 
         @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, optionalArticleId = true, descriptionKey = "test.new")
-        public void newDraft() {}
+        public void newDraft() {
+        }
     }
 }

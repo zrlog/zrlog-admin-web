@@ -1,25 +1,25 @@
-import { addToCache, getCacheByKey } from "../utils/cache";
-import { getSsDate } from "../base/SsData";
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Simulate } from "react-dom/test-utils";
-import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {addToCache, getCacheByKey} from "../utils/cache";
+import {getSsDate} from "../base/SsData";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Simulate} from "react-dom/test-utils";
+import {MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import UserPreferencesForm from "./user-preferences";
 import UserSettingsLayout from "./common/UserSettingsLayout";
-import { Grid } from "antd";
-import { USER_ROUTES, USER_PREFERENCE_PAGES } from "../utils/account-page-routes";
-import { getRes } from "../utils/constants";
-import { resolveUserPreferences, UserPreferences, UserPreferencesResponse } from "../utils/user-preferences";
+import {Grid} from "antd";
+import {USER_PREFERENCE_PAGES, USER_ROUTES} from "../utils/account-page-routes";
+import {getRes} from "../utils/constants";
+import {resolveUserPreferences, UserPreferences, UserPreferencesResponse} from "../utils/user-preferences";
 
 const mockGet = jest.fn<Promise<any>, any[]>();
 const mockPost = jest.fn<Promise<any>, any[]>();
-const mockAxios = { get: mockGet, post: mockPost };
-jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
+const mockAxios = {get: mockGet, post: mockPost};
+jest.mock("../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
 const mockChangeAppState = jest.fn();
 jest.mock("../base/ConfigProviderApp", () => ({
     changeAppState: (...args: any[]) => mockChangeAppState(...args),
-    getAppState: () => ({ compactMode: false }),
+    getAppState: () => ({compactMode: false}),
 }));
 jest.mock("../base/AppInit", () => ({
     isSupportDarkMode: (theme: string) => ["default", "antd"].includes(theme),
@@ -40,7 +40,7 @@ describe("personal preferences", () => {
     };
     const defaults: UserPreferences = {
         language: "zh_CN",
-        appearance: { theme: "default", darkMode: true, compactMode: false, colorPrimary: "#1677ff" },
+        appearance: {theme: "default", darkMode: true, compactMode: false, colorPrimary: "#1677ff"},
         articlePageSize: 20,
         editor: {
             autoSaveInterval: 5,
@@ -49,31 +49,33 @@ describe("personal preferences", () => {
             autoDigestLength: 200,
             coverAspectRatio: "16:9",
         },
-        session: { timeoutMinutes: 1440 },
-        articleList: { sort: "id,DESC", status: "", columns: ["typeName", "click", "lastUpdateDate"] },
-        assistant: { knowledgeScope: "own_public" },
+        session: {timeoutMinutes: 1440},
+        articleList: {sort: "id,DESC", status: "", columns: ["typeName", "click", "lastUpdateDate"]},
+        assistant: {knowledgeScope: "own_public"},
     };
     const response = {
-        overrides: { appearance: { darkMode: false, colorPrimary: "#123456" } },
+        overrides: {appearance: {darkMode: false, colorPrimary: "#123456"}},
         defaults,
-        effective: resolveUserPreferences(defaults, { appearance: { darkMode: false, colorPrimary: "#123456" } }),
+        effective: resolveUserPreferences(defaults, {appearance: {darkMode: false, colorPrimary: "#123456"}}),
     };
 
     beforeEach(() => {
-        process.env = { ...previousEnv, NODE_ENV: "production" };
-        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
+        process.env = {...previousEnv, NODE_ENV: "production"};
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: true});
         (globalThis as any).MessageChannel = class {
-            port1 = { onmessage: () => undefined };
-            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+            port1 = {onmessage: () => undefined};
+            port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
         };
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         global.ResizeObserver = class {
             observe() {
                 return undefined;
             }
+
             unobserve() {
                 return undefined;
             }
+
             disconnect() {
                 return undefined;
             }
@@ -100,7 +102,7 @@ describe("personal preferences", () => {
                 language: response.effective.language,
                 appearance: response.effective.appearance,
             },
-            resourceInfo: { lang: "zh_CN" },
+            resourceInfo: {lang: "zh_CN"},
         };
         localStorage.clear();
         addToCache("/user", getSsDate().user);
@@ -108,7 +110,7 @@ describe("personal preferences", () => {
             data: {
                 error: 0,
                 data: url.startsWith("/api/admin/user/info")
-                    ? { ...getSsDate().user, userName: "fresh-owner" }
+                    ? {...getSsDate().user, userName: "fresh-owner"}
                     : response,
             },
         }));
@@ -127,7 +129,7 @@ describe("personal preferences", () => {
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
         delete (globalThis as any).MessageChannel;
     });
-    const PreferencePages = ({ data, offline }: { data: UserPreferencesResponse; offline: boolean }) => (
+    const PreferencePages = ({data, offline}: { data: UserPreferencesResponse; offline: boolean }) => (
         <Routes>
             {USER_PREFERENCE_PAGES.flatMap((page) =>
                 ["", ".html"].map((suffix) => (
@@ -158,8 +160,8 @@ describe("personal preferences", () => {
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={[entry]}>
-                    <Location />
-                    <PreferencePages data={data} offline={offline} />
+                    <Location/>
+                    <PreferencePages data={data} offline={offline}/>
                 </MemoryRouter>
             )
         );
@@ -175,7 +177,7 @@ describe("personal preferences", () => {
     it.each(["", ".html"])(
         "opens independent preference pages and restores saved values after leaving (%s)",
         async (suffix) => {
-            window.__SS_DATA__!.resourceInfo = { lang: "zh_CN", staticPage: suffix === ".html" };
+            window.__SS_DATA__!.resourceInfo = {lang: "zh_CN", staticPage: suffix === ".html"};
             const url = (page: keyof typeof USER_ROUTES) => USER_ROUTES[page] + suffix + "?v=test";
             await render(false, url("writing"));
             const selected = () => container.querySelector('nav a[aria-current="page"]')?.textContent;
@@ -209,15 +211,15 @@ describe("personal preferences", () => {
         expect(container.querySelector("#appearance_darkMode")?.getAttribute("aria-checked")).toBe("false");
         toggle("appearance_compactMode");
         expect(mockChangeAppState).toHaveBeenLastCalledWith(
-            expect.objectContaining({ compactMode: true, dark: false, colorPrimary: "#123456" })
+            expect.objectContaining({compactMode: true, dark: false, colorPrimary: "#123456"})
         );
         expect(getRes().admin_compactMode).toBe(true);
         expect(mockPost).not.toHaveBeenCalled();
         expect(getCacheByKey("/user").appearance.compactMode).toBe(false);
-        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        mockPost.mockResolvedValue({data: {error: 9012, message: "Invalid"}});
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=appearance", {
-            appearance: { darkMode: false, colorPrimary: "#123456", compactMode: true },
+            appearance: {darkMode: false, colorPrimary: "#123456", compactMode: true},
         });
         expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
         expect(mockGet).not.toHaveBeenCalled();
@@ -229,7 +231,7 @@ describe("personal preferences", () => {
         await render();
         const refreshed = {
             overrides: {},
-            defaults: { ...defaults, appearance: { ...defaults.appearance, colorPrimary: "#654321" } },
+            defaults: {...defaults, appearance: {...defaults.appearance, colorPrimary: "#654321"}},
             effective: {},
         } as UserPreferencesResponse;
         refreshed.effective = resolveUserPreferences(refreshed.defaults, refreshed.overrides);
@@ -250,15 +252,15 @@ describe("personal preferences", () => {
         expect(getRes().admin_darkMode).toBe(true);
         expect(getRes().admin_color_primary).toBe("#1677ff");
         expect(mockPost).not.toHaveBeenCalled();
-        mockPost.mockResolvedValue({ data: { error: 0, data: { overrides: {}, defaults, effective: defaults } } });
+        mockPost.mockResolvedValue({data: {error: 0, data: {overrides: {}, defaults, effective: defaults}}});
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=appearance", {});
-        expect(getCacheByKey("/user")).toMatchObject({ language: defaults.language, appearance: defaults.appearance });
+        expect(getCacheByKey("/user")).toMatchObject({language: defaults.language, appearance: defaults.appearance});
         expect(getSsDate().user?.appearance).toEqual(defaults.appearance);
         expect(getSsDate().user?.userName).toBe("fresh-owner");
         expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/admin\/user\/info\?/));
         expect(updateCache).toHaveBeenCalledWith(
-            { overrides: {}, defaults, effective: defaults },
+            {overrides: {}, defaults, effective: defaults},
             USER_ROUTES.appearance
         );
         toggle("appearance_darkMode");
@@ -273,27 +275,27 @@ describe("personal preferences", () => {
         const overrides: UserPreferences = {
             ...response.overrides,
             articlePageSize: 50,
-            editor: { autoSaveInterval: 10 },
-            assistant: { knowledgeScope: "off" },
+            editor: {autoSaveInterval: 10},
+            assistant: {knowledgeScope: "off"},
         };
-        const data = { overrides, defaults, effective: resolveUserPreferences(defaults, overrides) };
+        const data = {overrides, defaults, effective: resolveUserPreferences(defaults, overrides)};
         await render(false, USER_ROUTES.writing, data);
         act(() => button(getRes().user.preferences.reset).click());
         const latestOverrides: UserPreferences = {
             ...overrides,
-            appearance: { darkMode: true },
-            assistant: { knowledgeScope: "own_all" },
+            appearance: {darkMode: true},
+            assistant: {knowledgeScope: "own_all"},
         };
         await render(false, USER_ROUTES.writing, {
             overrides: latestOverrides,
             defaults,
             effective: resolveUserPreferences(defaults, latestOverrides),
         });
-        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        mockPost.mockResolvedValue({data: {error: 9012, message: "Invalid"}});
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=writing", {
-            appearance: { darkMode: true },
-            assistant: { knowledgeScope: "own_all" },
+            appearance: {darkMode: true},
+            assistant: {knowledgeScope: "own_all"},
         });
         expect(container.querySelector("#appearance_darkMode")).toBeNull();
         expect(container.querySelector("#assistant_knowledgeScope")).toBeNull();
@@ -310,7 +312,7 @@ describe("personal preferences", () => {
                 .click();
         });
         expect(document.documentElement.lang).toBe("en");
-        expect(mockChangeAppState).toHaveBeenLastCalledWith(expect.objectContaining({ lang: "en_US" }));
+        expect(mockChangeAppState).toHaveBeenLastCalledWith(expect.objectContaining({lang: "en_US"}));
         expect(container.textContent).toContain("Appearance");
         act(() => root.render(null));
         expect(document.documentElement.lang).toBe("zh");
@@ -326,33 +328,33 @@ describe("personal preferences", () => {
                 .find((item) => item.getAttribute("title") === getRes().user.preferences.scopeOwnAll)!
                 .click();
         });
-        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        mockPost.mockResolvedValue({data: {error: 9012, message: "Invalid"}});
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=assistant", {
             appearance: response.overrides.appearance,
-            assistant: { knowledgeScope: "own_all" },
+            assistant: {knowledgeScope: "own_all"},
         });
     });
 
     it("edits writing switches without copying inherited fields and keeps the session partition", async () => {
-        const overrides: UserPreferences = { session: { timeoutMinutes: 60 } };
+        const overrides: UserPreferences = {session: {timeoutMinutes: 60}};
         await render(false, USER_ROUTES.writing, {
             overrides,
             defaults,
             effective: resolveUserPreferences(defaults, overrides),
         });
         toggle("editor_linkPreviewEnabled");
-        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        mockPost.mockResolvedValue({data: {error: 9012, message: "Invalid"}});
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=writing", {
-            session: { timeoutMinutes: 60 },
-            editor: { linkPreviewEnabled: false },
+            session: {timeoutMinutes: 60},
+            editor: {linkPreviewEnabled: false},
         });
         expect(container.querySelector("#editor_linkPreviewEnabled")?.getAttribute("aria-checked")).toBe("false");
     });
 
     it("resets only session settings and displays the inherited duration", async () => {
-        const overrides: UserPreferences = { session: { timeoutMinutes: 60 }, editor: { autoDigestLength: 0 } };
+        const overrides: UserPreferences = {session: {timeoutMinutes: 60}, editor: {autoDigestLength: 0}};
         await render(false, USER_ROUTES.session, {
             overrides,
             defaults,
@@ -361,16 +363,16 @@ describe("personal preferences", () => {
         expect((container.querySelector("#session_timeoutMinutes") as HTMLInputElement).value).toBe("60");
         act(() => button(getRes().user.preferences.reset).click());
         expect((container.querySelector("#session_timeoutMinutes") as HTMLInputElement).value).toBe("1440");
-        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        mockPost.mockResolvedValue({data: {error: 9012, message: "Invalid"}});
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=session", {
-            editor: { autoDigestLength: 0 },
+            editor: {autoDigestLength: 0},
         });
         expect(container.querySelector("#editor_autoDigestLength")).toBeNull();
     });
 
     it("supports English and prevents offline writes", async () => {
-        window.__SS_DATA__!.resourceInfo = { lang: "en_US" };
+        window.__SS_DATA__!.resourceInfo = {lang: "en_US"};
         await render(true);
         expect(container.textContent).toContain("Connect to view and edit preferences");
         expect(container.textContent).toContain(getRes().user.preferences.offline);

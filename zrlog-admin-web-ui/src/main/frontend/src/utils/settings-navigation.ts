@@ -1,8 +1,8 @@
-import { getRes, isServerDevelopmentMode } from "./constants";
-import { WEBSITE_ROUTES } from "./account-page-routes";
-import { actionForPath, hasAction } from "./account-access";
-import { isFeaturePathEnabled } from "./module-capabilities";
-import type { AdminDashboardRouteIconKey } from "../components/admin-dashboard-routes";
+import {getRes, isServerDevelopmentMode} from "./constants";
+import {WEBSITE_ROUTES} from "./account-page-routes";
+import {actionForPath, hasAction} from "./account-access";
+import {isFeaturePathEnabled} from "./module-capabilities";
+import type {AdminDashboardRouteIconKey} from "../components/admin-dashboard-routes";
 
 export type WebsiteSettingsPage =
     | "basic"
@@ -119,10 +119,10 @@ export const getWebsiteSettingsItems = () => {
             item.key === "members"
                 ? WEBSITE_ROUTES.members
                 : item.key === "basic"
-                ? "/website"
-                : item.key === "upgrade"
-                ? "/system/upgrade"
-                : "/website/" + item.key,
+                    ? "/website"
+                    : item.key === "upgrade"
+                        ? "/system/upgrade"
+                        : "/website/" + item.key,
     }));
 };
 

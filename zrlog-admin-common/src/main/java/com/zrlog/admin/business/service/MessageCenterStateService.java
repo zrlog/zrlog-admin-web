@@ -5,7 +5,6 @@ import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 import com.zrlog.model.WebSite;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -17,21 +16,19 @@ import java.util.logging.Logger;
 
 @Singleton
 public class MessageCenterStateService {
+    private static final String STATUS_KEY = "message_center_status";
+    private static final String STATUS_DB_KEY = WebsiteCacheService.KEY_PREFIX + STATUS_KEY;
+    private static final int UPDATE_RETRY_COUNT = 3;
+    private static final Gson GSON = new Gson();
+    private static final Logger LOGGER = LoggerUtil.getLogger(MessageCenterStateService.class);
     private final jakarta.inject.Provider<WebSite> webSiteProvider;
-
+    private final WebsiteCacheService cacheService;
     @Inject
     public MessageCenterStateService(
             WebsiteCacheService cacheService, jakarta.inject.Provider<WebSite> webSiteProvider) {
         this.cacheService = cacheService;
         this.webSiteProvider = webSiteProvider;
     }
-
-    private static final String STATUS_KEY = "message_center_status";
-    private static final String STATUS_DB_KEY = WebsiteCacheService.KEY_PREFIX + STATUS_KEY;
-    private static final int UPDATE_RETRY_COUNT = 3;
-    private static final Gson GSON = new Gson();
-    private static final Logger LOGGER = LoggerUtil.getLogger(MessageCenterStateService.class);
-    private final WebsiteCacheService cacheService;
 
     public MessageCenterStatusResponse current() {
         return parseStatus(cacheService.getString(STATUS_KEY));

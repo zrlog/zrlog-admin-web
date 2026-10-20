@@ -1,8 +1,8 @@
 import MenuIcon from "@zrlog/ui/icons/menu";
-import { Button } from "antd";
-import { FunctionComponent } from "react";
-import { useTheme } from "antd-style";
-import { getRes } from "../utils/constants";
+import {Button} from "antd";
+import {FunctionComponent} from "react";
+import {useTheme} from "antd-style";
+import {getRes} from "../utils/constants";
 
 type NavigationTriggerButtonProps = {
     active: boolean;
@@ -11,7 +11,7 @@ type NavigationTriggerButtonProps = {
     onClick: () => void;
 };
 
-const NavigationTriggerButton: FunctionComponent<NavigationTriggerButtonProps> = ({ active, siderWidth, onClick }) => {
+const NavigationTriggerButton: FunctionComponent<NavigationTriggerButtonProps> = ({active, siderWidth, onClick}) => {
     const theme = useTheme();
 
     return (
@@ -41,7 +41,7 @@ const NavigationTriggerButton: FunctionComponent<NavigationTriggerButtonProps> =
                     boxShadow: "none",
                     paddingInline: 7,
                 }}
-                icon={<MenuIcon style={{ fontSize: 18 }} />}
+                icon={<MenuIcon style={{fontSize: 18}}/>}
             />
         </div>
     );

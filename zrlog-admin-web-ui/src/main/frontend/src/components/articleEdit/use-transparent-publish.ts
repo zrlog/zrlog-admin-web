@@ -1,10 +1,10 @@
-import { SetStateAction, useCallback } from "react";
-import { MessageInstance } from "antd/es/message/interface";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { getRes } from "../../utils/constants";
-import { getStaticProgressText, postRefreshCacheSse } from "../../utils/sse-utils";
-import { ArticleEntry, PublishStatusPopoverState } from "./index.types";
-import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
+import {SetStateAction, useCallback} from "react";
+import {MessageInstance} from "antd/es/message/interface";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {getRes} from "../../utils/constants";
+import {getStaticProgressText, postRefreshCacheSse} from "../../utils/sse-utils";
+import {ArticleEntry, PublishStatusPopoverState} from "./index.types";
+import {ToolAwareAIContent} from "./article-ai-assistant/article-ai-assistant.types";
 
 type UseTransparentPublishOptions = {
     messageApi: MessageInstance;
@@ -34,7 +34,7 @@ const appendUniqueAiMessages = (current: AIContent[], incoming: AIContent[]) => 
     return additions.length === 0 ? current : [...current, ...additions];
 };
 
-const useTransparentPublish = ({ messageApi, onAiMessagesChange, updatePublishStatus }: UseTransparentPublishOptions) =>
+const useTransparentPublish = ({messageApi, onAiMessagesChange, updatePublishStatus}: UseTransparentPublishOptions) =>
     useCallback(
         async (uri: string, article: ArticleEntry) => {
             updatePublishStatus({
@@ -70,7 +70,7 @@ const useTransparentPublish = ({ messageApi, onAiMessagesChange, updatePublishSt
             };
             try {
                 const response = await postRefreshCacheSse(uri, {
-                    body: getRes().supportSse === false ? { ...article, transparentPublish: false } : article,
+                    body: getRes().supportSse === false ? {...article, transparentPublish: false} : article,
                     messageApi,
                     messageKey: "transparentPublish",
                     responseEvents: ["article"],

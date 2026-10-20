@@ -1,19 +1,19 @@
-import { act, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AssistantToolPayload } from "../../article-ai-assistant.types";
-import { SpecificToolContentProps } from "../article-ai-assistant-tool-content.types";
+import {act, useState} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {AssistantToolPayload} from "../../article-ai-assistant.types";
+import {SpecificToolContentProps} from "../article-ai-assistant-tool-content.types";
 import RewriteToolContent from "./rewrite-tool-content";
 
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     return {
-        Button: ({ children, disabled, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
-            React.createElement("button", { disabled, onClick }, children),
-        Space: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
+        Button: ({children, disabled, onClick}: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
+            React.createElement("button", {disabled, onClick}, children),
+        Space: ({children}: { children?: React.ReactNode }) => React.createElement("div", null, children),
         Typography: {
-            Paragraph: ({ children }: { children?: React.ReactNode }) => React.createElement("p", null, children),
-            Text: ({ children }: { children?: React.ReactNode }) => React.createElement("span", null, children),
+            Paragraph: ({children}: { children?: React.ReactNode }) => React.createElement("p", null, children),
+            Text: ({children}: { children?: React.ReactNode }) => React.createElement("span", null, children),
         },
     };
 });
@@ -35,8 +35,8 @@ jest.mock("../../../../../utils/constants", () => ({
 
 jest.mock("../../../markdown-diff-view", () => ({
     __esModule: true,
-    default: ({ afterText }: { afterText: string }) =>
-        require("react").createElement("div", { "data-testid": "rewrite-diff" }, afterText),
+    default: ({afterText}: { afterText: string }) =>
+        require("react").createElement("div", {"data-testid": "rewrite-diff"}, afterText),
 }));
 
 jest.mock("../article-ai-assistant-tool-refine-actions", () => ({
@@ -46,7 +46,7 @@ jest.mock("../article-ai-assistant-tool-refine-actions", () => ({
 
 jest.mock("../article-ai-assistant-tool-result-card", () => ({
     __esModule: true,
-    default: ({ children }: { children?: import("react").ReactNode }) => children,
+    default: ({children}: { children?: import("react").ReactNode }) => children,
 }));
 
 const reactActEnvironment = globalThis as typeof globalThis & {
@@ -87,7 +87,7 @@ describe("RewriteToolContent", () => {
         const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
         expect(button).toBeDefined();
         act(() => {
-            button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            button?.dispatchEvent(new MouseEvent("click", {bubbles: true}));
         });
     };
 
@@ -117,7 +117,7 @@ describe("RewriteToolContent", () => {
         clickButton("Apply");
 
         expect(onApplyValues).toHaveBeenCalledTimes(1);
-        expect(onApplyValues).toHaveBeenCalledWith({ markdown: "Rewritten body" });
+        expect(onApplyValues).toHaveBeenCalledWith({markdown: "Rewritten body"});
         expect(onUpdateToolPayload).not.toHaveBeenCalled();
     });
 
@@ -138,7 +138,7 @@ describe("RewriteToolContent", () => {
             );
         };
         act(() => {
-            root.render(<Harness />);
+            root.render(<Harness/>);
         });
 
         expect(container.querySelector('[data-testid="rewrite-diff"]')?.textContent).toBe("Rewritten body");

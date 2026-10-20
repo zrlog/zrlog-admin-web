@@ -1,22 +1,21 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Simulate } from "react-dom/test-utils";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import { UserApplications, UserApplicationsData } from "./oauth";
-import { getRes, setBackendServerUrl } from "../utils/constants";
-import { BasicUserInfo } from "../type";
-import { ComponentProps } from "react";
-import { Grid } from "antd";
+import {act, ComponentProps} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Simulate} from "react-dom/test-utils";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import PersonalAccessTokens, {PersonalAccessToken} from "./personal-access-tokens";
+import {UserApplications, UserApplicationsData} from "./oauth";
+import {getRes, setBackendServerUrl} from "../utils/constants";
+import {BasicUserInfo} from "../type";
+import {Grid} from "antd";
 import UserSettingsLayout from "./common/UserSettingsLayout";
-import { USER_ROUTES, USER_APPLICATION_PAGES } from "../utils/account-page-routes";
+import {USER_APPLICATION_PAGES, USER_ROUTES} from "../utils/account-page-routes";
 
 const mockPost = jest.fn<Promise<any>, any[]>();
 const mockGet = jest.fn<Promise<any>, any[]>();
-const mockApi = { post: mockPost, get: mockGet };
-jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
-jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
+const mockApi = {post: mockPost, get: mockGet};
+jest.mock("../base/AppBase", () => ({useAxiosBaseInstance: () => mockApi}));
+jest.mock("../base/ConfigProviderApp", () => ({getAppState: () => ({compactMode: false})}));
 
 const ApplicationsPage = (props: ComponentProps<typeof UserApplications>) => (
     <Routes>
@@ -27,7 +26,7 @@ const ApplicationsPage = (props: ComponentProps<typeof UserApplications>) => (
                     path={USER_ROUTES[page] + suffix}
                     element={
                         <UserSettingsLayout activeKey={page} administrator={props.data.administrator}>
-                            <UserApplications key={page} {...props} activePage={page} />
+                            <UserApplications key={page} {...props} activePage={page}/>
                         </UserSettingsLayout>
                     }
                 />
@@ -58,20 +57,22 @@ describe("personal access tokens", () => {
     let container: HTMLDivElement;
     const changed = jest.fn<Promise<void>, []>();
     beforeEach(() => {
-        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: true});
         setBackendServerUrl("");
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         (globalThis as any).MessageChannel = class {
-            port1 = { onmessage: () => undefined };
-            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+            port1 = {onmessage: () => undefined};
+            port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
         };
         global.ResizeObserver = class {
             observe() {
                 return undefined;
             }
+
             unobserve() {
                 return undefined;
             }
+
             disconnect() {
                 return undefined;
             }
@@ -90,8 +91,8 @@ describe("personal access tokens", () => {
             key: "token-test",
             pageBuildId: "test",
             systemNotification: "",
-            resourceInfo: { lang: "zh_CN" },
-            user: { userId: 1, userName: "writer", role: "author", actions: ["oauth.grant.manage"] } as BasicUserInfo,
+            resourceInfo: {lang: "zh_CN"},
+            user: {userId: 1, userName: "writer", role: "author", actions: ["oauth.grant.manage"]} as BasicUserInfo,
         };
         mockPost.mockReset();
         mockGet.mockReset();
@@ -113,12 +114,12 @@ describe("personal access tokens", () => {
             (b) => b.textContent?.replace(/\s/g, "") === text.replace(/\s/g, "")
         )!;
     const render = (allowed = permissions, tokens: PersonalAccessToken[] = []) =>
-        act(() => root.render(<PersonalAccessTokens tokens={tokens} permissions={allowed} onChange={changed} />));
+        act(() => root.render(<PersonalAccessTokens tokens={tokens} permissions={allowed} onChange={changed}/>));
     const open = () => act(() => button(getRes().oauth.personalTokens.create).click());
     const name = () =>
         act(() =>
             Simulate.change(document.querySelector<HTMLInputElement>("input[placeholder]")!, {
-                target: { value: "Desktop assistant" },
+                target: {value: "Desktop assistant"},
             } as any)
         );
     const submit = async () => {
@@ -126,7 +127,7 @@ describe("personal access tokens", () => {
     };
 
     it.each(["zh_CN", "en_US"])("defaults to selected article reading and a 30-day lifetime in %s", (lang) => {
-        window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+        window.__SS_DATA__!.resourceInfo = {lang: lang as "zh_CN" | "en_US"};
         render();
         open();
         expect(document.querySelector<HTMLInputElement>('input[value="custom"]')!.checked).toBe(true);
@@ -146,7 +147,7 @@ describe("personal access tokens", () => {
         expect(document.querySelector('input[value="all"]')).toBeNull();
         act(() => document.querySelector<HTMLInputElement>('input[value="taxonomy.read"]')!.click());
         mockPost.mockResolvedValue({
-            data: { error: 0, data: { token: "zrpat_one-time-secret", info: { ...info, resource } } },
+            data: {error: 0, data: {token: "zrpat_one-time-secret", info: {...info, resource}}},
         });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/createPersonalToken", {
@@ -172,7 +173,7 @@ describe("personal access tokens", () => {
         expect(document.body.textContent).toContain(getRes().oauth.personalTokens.inheritHelp);
         expect(document.querySelector('input[value="taxonomy.read"]')).toBeNull();
         mockPost.mockResolvedValue({
-            data: { error: 0, data: { token: "zrpat_inherited", info: { ...info, permissionMode: "inherit" } } },
+            data: {error: 0, data: {token: "zrpat_inherited", info: {...info, permissionMode: "inherit"}}},
         });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/createPersonalToken", {
@@ -184,7 +185,7 @@ describe("personal access tokens", () => {
     });
     it("keeps old MCP scope restrictions visible", () => {
         render(permissions, [
-            { ...info, permissionMode: "legacy", scopes: ["articles:read", "articles:read_private"] },
+            {...info, permissionMode: "legacy", scopes: ["articles:read", "articles:read_private"]},
         ]);
         expect(container.textContent).toContain(getRes().oauth.personalTokens.legacy);
         expect(container.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
@@ -194,7 +195,7 @@ describe("personal access tokens", () => {
         open();
         name();
         changed.mockRejectedValue(new Error("offline"));
-        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrpat_keep-this-secret", info } } });
+        mockPost.mockResolvedValue({data: {error: 0, data: {token: "zrpat_keep-this-secret", info}}});
         await submit();
         expect(document.body.textContent).toContain("zrpat_keep-this-secret");
         expect(document.querySelector("form")).toBeNull();
@@ -204,16 +205,16 @@ describe("personal access tokens", () => {
         render();
         open();
         name();
-        mockPost.mockResolvedValueOnce({ data: { error: 1, message: "Rejected" } });
+        mockPost.mockResolvedValueOnce({data: {error: 1, message: "Rejected"}});
         await submit();
         expect(document.querySelector<HTMLInputElement>("input[placeholder]")!.value).toBe("Desktop assistant");
         expect(document.body.textContent).not.toContain(getRes().oauth.personalTokens.once);
         act(() => document.querySelector<HTMLButtonElement>(".ant-drawer-close")!.click());
         render(permissions, [info]);
         act(() => button(getRes().oauth.personalTokens.revoke).click());
-        mockPost.mockResolvedValueOnce({ data: { error: 0, data: true } });
+        mockPost.mockResolvedValueOnce({data: {error: 0, data: true}});
         await act(async () => document.querySelector<HTMLButtonElement>(".ant-popconfirm .ant-btn-primary")!.click());
-        expect(mockPost).toHaveBeenLastCalledWith("/api/admin/oauth/revokePersonalToken", { id: info.id });
+        expect(mockPost).toHaveBeenLastCalledWith("/api/admin/oauth/revokePersonalToken", {id: info.id});
     });
     it("renders cached account connections, accepts refreshed data and hides mutations while offline", async () => {
         const data: UserApplicationsData = {
@@ -230,7 +231,7 @@ describe("personal access tokens", () => {
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={[USER_ROUTES.tokens]}>
-                    <ApplicationsPage data={data} offline />
+                    <ApplicationsPage data={data} offline/>
                 </MemoryRouter>
             )
         );
@@ -239,7 +240,7 @@ describe("personal access tokens", () => {
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={[USER_ROUTES.tokens]}>
-                    <ApplicationsPage data={data} offline={false} />
+                    <ApplicationsPage data={data} offline={false}/>
                 </MemoryRouter>
             )
         );
@@ -250,7 +251,7 @@ describe("personal access tokens", () => {
             root.render(
                 <MemoryRouter initialEntries={[USER_ROUTES.tokens]}>
                     <ApplicationsPage
-                        data={{ ...data, personalTokens: [{ ...info, name: "Updated token" }] }}
+                        data={{...data, personalTokens: [{...info, name: "Updated token"}]}}
                         offline={false}
                     />
                 </MemoryRouter>
@@ -268,14 +269,14 @@ describe("personal access tokens", () => {
             personalTokenPermissions: permissions,
             grants: [],
             administrator: true,
-            clients: [{ clientId: "client", name: "App", redirectUris: ["https://client.example/callback"] }],
+            clients: [{clientId: "client", name: "App", redirectUris: ["https://client.example/callback"]}],
             issuer: "/blog",
             resource: "/blog/api/oauth",
         };
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={["/user/applications/clients.html?v=test"]}>
-                    <ApplicationsPage data={data} offline={false} />
+                    <ApplicationsPage data={data} offline={false}/>
                 </MemoryRouter>
             )
         );
@@ -306,16 +307,16 @@ describe("personal access tokens", () => {
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={["/user/applications/tokens.html?v=test"]}>
-                    <ApplicationsPage data={data} offline={false} updateCache={updateCache} />
+                    <ApplicationsPage data={data} offline={false} updateCache={updateCache}/>
                 </MemoryRouter>
             )
         );
         expect(mockGet).not.toHaveBeenCalled();
         open();
         name();
-        const refreshed = { ...data, personalTokens: [info] };
-        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrpat_one-time-secret", info } } });
-        mockGet.mockResolvedValue({ data: { error: 0, data: refreshed } });
+        const refreshed = {...data, personalTokens: [info]};
+        mockPost.mockResolvedValue({data: {error: 0, data: {token: "zrpat_one-time-secret", info}}});
+        mockGet.mockResolvedValue({data: {error: 0, data: refreshed}});
         await submit();
         expect(updateCache).toHaveBeenCalledWith(refreshed, USER_ROUTES.tokens);
         expect(JSON.stringify(updateCache.mock.calls)).not.toContain("zrpat_one-time-secret");
@@ -341,13 +342,13 @@ describe("personal access tokens", () => {
                 resource: "https://blog.example/sub/api/oauth",
                 mcpResource: info.resource + "/mcp",
             };
-            window.__SS_DATA__!.resourceInfo = { lang: "zh_CN", staticPage: true };
+            window.__SS_DATA__!.resourceInfo = {lang: "zh_CN", staticPage: true};
             const page = (administrator ? USER_ROUTES.clients : USER_ROUTES.tokens) + ".html?v=test";
             await act(async () =>
                 root.render(
                     <MemoryRouter initialEntries={[page]}>
-                        <Location />
-                        <ApplicationsPage data={data} offline={false} />
+                        <Location/>
+                        <ApplicationsPage data={data} offline={false}/>
                     </MemoryRouter>
                 )
             );

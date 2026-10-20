@@ -28,9 +28,8 @@ import java.util.stream.Collectors;
 
 public class AIService {
 
-    private final HttpClient client;
-
     protected final Gson gson = new Gson();
+    private final HttpClient client;
 
     public AIService() {
         this(HttpClient.newBuilder()
@@ -41,6 +40,29 @@ public class AIService {
 
     protected AIService(HttpClient client) {
         this.client = client;
+    }
+
+    protected static String resolveEndpointUrl(String configuredBaseUrl, String defaultBaseUrl, String endpointPath) {
+        String baseUrl = StringUtils.isEmpty(configuredBaseUrl) ? defaultBaseUrl : configuredBaseUrl;
+        int queryIndex = baseUrl.indexOf('?');
+        String query = queryIndex >= 0 ? baseUrl.substring(queryIndex) : "";
+        String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        // Existing configurations may contain a full text endpoint instead of a base URL.
+        if (endpointPath.equals("/responses") || endpointPath.equals("/chat/completions")) {
+            for (String textEndpoint : List.of("/chat/completions", "/responses")) {
+                if (path.endsWith(textEndpoint)) {
+                    path = path.substring(0, path.length() - textEndpoint.length());
+                    break;
+                }
+            }
+        }
+        if (!path.endsWith(endpointPath)) {
+            path += endpointPath;
+        }
+        return path + query;
     }
 
     protected HttpClient client() {
@@ -115,29 +137,6 @@ public class AIService {
             builder.header("Authorization", "Bearer " + info.getAi_api_key());
         }
         return builder.build();
-    }
-
-    protected static String resolveEndpointUrl(String configuredBaseUrl, String defaultBaseUrl, String endpointPath) {
-        String baseUrl = StringUtils.isEmpty(configuredBaseUrl) ? defaultBaseUrl : configuredBaseUrl;
-        int queryIndex = baseUrl.indexOf('?');
-        String query = queryIndex >= 0 ? baseUrl.substring(queryIndex) : "";
-        String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
-        while (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
-        // Existing configurations may contain a full text endpoint instead of a base URL.
-        if (endpointPath.equals("/responses") || endpointPath.equals("/chat/completions")) {
-            for (String textEndpoint : List.of("/chat/completions", "/responses")) {
-                if (path.endsWith(textEndpoint)) {
-                    path = path.substring(0, path.length() - textEndpoint.length());
-                    break;
-                }
-            }
-        }
-        if (!path.endsWith(endpointPath)) {
-            path += endpointPath;
-        }
-        return path + query;
     }
 
     protected String buildProviderErrorDetail(int statusCode, String body) {

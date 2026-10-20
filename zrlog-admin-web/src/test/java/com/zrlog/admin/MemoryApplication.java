@@ -26,7 +26,10 @@ import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 public class MemoryApplication {
@@ -108,12 +111,13 @@ public class MemoryApplication {
     }
 
     private static class MemoryZrLogConfig extends DevZrLogConfig {
-        @Override
-        public boolean isTest() { return true; }
-
-
         private MemoryZrLogConfig(Integer port, Updater updater, String contextPath) {
             super(port, updater, contextPath);
+        }
+
+        @Override
+        public boolean isTest() {
+            return true;
         }
 
         @Override

@@ -21,7 +21,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -32,6 +31,24 @@ public class OAuthAdminController extends BaseController {
     private final AdminAuditService adminAuditService;
 
     private final AdminPageDataFactory pages;
+    private final OAuthService service;
+    private final AdminRequestIdentity requestIdentity;
+
+    @Inject
+    public OAuthAdminController(
+            OAuthService service,
+            AdminPageDataFactory pages,
+            AdminAuditService adminAuditService,
+            PersonalAccessTokenService.Factory personalTokens,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
+        this.personalTokens = personalTokens;
+
+        this.adminAuditService = adminAuditService;
+
+        this.pages = pages;
+        this.service = service;
+    }
 
     private void audit(AccountAccess actor, AdminAuditAction action) {
         this.adminAuditService.record(AdminAuditContexts.from(request, actor.getUserId()), action);
@@ -49,42 +66,33 @@ public class OAuthAdminController extends BaseController {
         return new AdminPageDataResponse<>(data, "", pages.metadata(actor, request.getUri()));
     }
 
-    private final OAuthService service;
-    private final AdminRequestIdentity requestIdentity;
-
-    @Inject
-    public OAuthAdminController(
-            OAuthService service,
-            AdminPageDataFactory pages,
-            AdminAuditService adminAuditService,
-            PersonalAccessTokenService.Factory personalTokens,
-            AdminRequestIdentity requestIdentity) {
-        this.requestIdentity = requestIdentity;
-        this.personalTokens = personalTokens;
-
-        this.adminAuditService = adminAuditService;
-
-        this.pages = pages; this.service = service; }
-    @ResponseBody @RequestMethod(method = HttpMethod.GET)
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.list")
     public AdminPageDataResponse<Page> index() throws SQLException {
         var actor = requestIdentity.current();
         return page(actor, service.page(actor));
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.GET)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.list")
     public AdminPageDataResponse<Page> clients() throws SQLException {
         var actor = requestIdentity.current();
         return page(actor, service.page(actor));
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.GET)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.consent")
     public AdminPageDataResponse<Consent> consent() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
         var authority = grantAuthority();
         return page(authority.actor(), service.consent(authority, sessionId(), getParamWithEmptyCheck("request_id")));
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.POST)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.decide")
     public ApiStandardResponse<Redirect> decide() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
@@ -93,7 +101,9 @@ public class OAuthAdminController extends BaseController {
         audit(authority.actor(), AdminAuditAction.AUTHORIZE_APPLICATION);
         return new ApiStandardResponse<>(result);
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.POST)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.register")
     public ApiStandardResponse<Client> register() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
@@ -102,7 +112,9 @@ public class OAuthAdminController extends BaseController {
         audit(actor, AdminAuditAction.REGISTER_APPLICATION);
         return new ApiStandardResponse<>(result);
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.POST)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.revokeGrant")
     public ApiStandardResponse<Boolean> revokeGrant() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
@@ -130,7 +142,9 @@ public class OAuthAdminController extends BaseController {
         audit(authority.actor(), AdminAuditAction.CREATE_PERSONAL_TOKEN);
         return new ApiStandardResponse<>(result);
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.POST)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.revokePersonalToken")
     public ApiStandardResponse<Boolean> revokePersonalToken() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
@@ -141,7 +155,9 @@ public class OAuthAdminController extends BaseController {
         audit(actor, AdminAuditAction.REVOKE_PERSONAL_TOKEN);
         return new ApiStandardResponse<>(true);
     }
-    @ResponseBody @RequestMethod(method = HttpMethod.POST)
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.disableClient")
     public ApiStandardResponse<Boolean> disableClient() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));

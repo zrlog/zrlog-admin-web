@@ -10,16 +10,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-/** Hot-loads a small local catalog. Network synchronization is an external scheduled job. */
+/**
+ * Hot-loads a small local catalog. Network synchronization is an external scheduled job.
+ */
 public final class AIModelCatalog {
     public static final String RESOURCE = "/ai/models.json";
     private static final int MAX_BYTES = 1024 * 1024;
@@ -30,10 +27,6 @@ public final class AIModelCatalog {
     private Path currentPath;
     private String observedContent;
     private boolean readFailure;
-
-    private static class Holder {
-        private static final AIModelCatalog INSTANCE = new AIModelCatalog();
-    }
 
     AIModelCatalog() {
         try (InputStream input = AIModelCatalog.class.getResourceAsStream(RESOURCE)) {
@@ -52,42 +45,6 @@ public final class AIModelCatalog {
         Path path = override == null || override.isBlank()
                 ? PathUtil.getConfFile("ai-models.json").toPath() : Path.of(override);
         return Holder.INSTANCE.getModels(provider, path);
-    }
-
-    synchronized List<AIModelEntry> getModels(AIProviderType provider, Path path) {
-        path = path.toAbsolutePath().normalize();
-        if (!path.equals(currentPath)) {
-            currentPath = path;
-            current = bundled;
-            observedContent = null;
-            readFailure = false;
-        }
-        try (InputStream input = Files.newInputStream(path)) {
-            String content = read(input);
-            readFailure = false;
-            if (!Objects.equals(content, observedContent)) {
-                // Remember rejected contents too, to avoid logging the same bad update on every request.
-                observedContent = content;
-                try {
-                    current = parse(content);
-                } catch (RuntimeException e) {
-                    LOGGER.warning("Invalid AI model catalog; keeping previous models: " + path);
-                }
-            }
-        } catch (NoSuchFileException e) {
-            current = bundled;
-            observedContent = null;
-            readFailure = false;
-        } catch (IOException | SecurityException e) {
-            if (!readFailure) {
-                LOGGER.warning("Unable to read AI model catalog; keeping previous models: " + path);
-                readFailure = true;
-            }
-        }
-        // DTOs are mutable; callers must not be able to corrupt the shared snapshot.
-        return current.get(provider).stream()
-                .map(AIModelEntry::new)
-                .collect(Collectors.toList());
     }
 
     private static String read(InputStream input) throws IOException {
@@ -129,5 +86,45 @@ public final class AIModelCatalog {
         if (!condition) {
             throw new IllegalArgumentException("Invalid AI model catalog");
         }
+    }
+
+    synchronized List<AIModelEntry> getModels(AIProviderType provider, Path path) {
+        path = path.toAbsolutePath().normalize();
+        if (!path.equals(currentPath)) {
+            currentPath = path;
+            current = bundled;
+            observedContent = null;
+            readFailure = false;
+        }
+        try (InputStream input = Files.newInputStream(path)) {
+            String content = read(input);
+            readFailure = false;
+            if (!Objects.equals(content, observedContent)) {
+                // Remember rejected contents too, to avoid logging the same bad update on every request.
+                observedContent = content;
+                try {
+                    current = parse(content);
+                } catch (RuntimeException e) {
+                    LOGGER.warning("Invalid AI model catalog; keeping previous models: " + path);
+                }
+            }
+        } catch (NoSuchFileException e) {
+            current = bundled;
+            observedContent = null;
+            readFailure = false;
+        } catch (IOException | SecurityException e) {
+            if (!readFailure) {
+                LOGGER.warning("Unable to read AI model catalog; keeping previous models: " + path);
+                readFailure = true;
+            }
+        }
+        // DTOs are mutable; callers must not be able to corrupt the shared snapshot.
+        return current.get(provider).stream()
+                .map(AIModelEntry::new)
+                .collect(Collectors.toList());
+    }
+
+    private static class Holder {
+        private static final AIModelCatalog INSTANCE = new AIModelCatalog();
     }
 }

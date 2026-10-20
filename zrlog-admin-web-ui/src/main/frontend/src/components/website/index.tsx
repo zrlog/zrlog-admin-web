@@ -1,27 +1,27 @@
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 
-import { getRealRouteUrl, getRes, setRes } from "../../utils/constants";
+import {getRealRouteUrl, getRes, setRes} from "../../utils/constants";
 import BlogForm from "./BlogForm";
 import BasicForm from "./BasicForm";
 import OtherForm from "./OtherForm";
 import UpgradeSettingForm from "./UpgradeSettingForm";
-import { useLocation } from "react-router-dom";
+import {useLocation} from "react-router-dom";
 import AdminForm from "./AdminForm";
-import { FunctionComponent, useState } from "react";
-import { AdminCommonProps, AIProviderType } from "../../type";
-import { getPageDataCacheKeyByPath } from "../../utils/cache";
-import { useAxiosBaseInstance } from "../../base/AppBase";
+import {FunctionComponent, useState} from "react";
+import {AdminCommonProps, AIProviderType} from "../../type";
+import {getPageDataCacheKeyByPath} from "../../utils/cache";
+import {useAxiosBaseInstance} from "../../base/AppBase";
 import AIForm from "./AIForm";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
 import ArticleEditForm from "./ArticleEditForm";
 import FeatureLabForm from "./FeatureLabForm";
 import AdminSettingsLayout from "../common/AdminSettingsLayout";
-import { getWebsiteSettingsItems, WebsiteSettingsPage } from "../../utils/settings-navigation";
+import {getWebsiteSettingsItems, WebsiteSettingsPage} from "../../utils/settings-navigation";
 import ContentProtectorForm from "./ContentProtectorForm";
 import WebhookForm from "./WebhookForm";
 import PrivacyForm from "./PrivacyForm";
-import { refreshUserInfo } from "../../utils/user-info";
-import { getSsDate } from "../../base/SsData";
+import {refreshUserInfo} from "../../utils/user-info";
+import {getSsDate} from "../../base/SsData";
 
 export interface Basic {
     second_title: string;
@@ -167,13 +167,13 @@ export type WebSiteProps = AdminCommonProps<WebSiteEntry> & {
     activeKey: Exclude<WebsiteSettingsPage, "members">;
 };
 
-const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, activeKey, updateCache }) => {
+const WebSite: FunctionComponent<WebSiteProps> = ({data, offline, offlineData, activeKey, updateCache}) => {
     const location = useLocation();
     const activeMeta = getWebsiteSettingsItems().find((item) => item.key === activeKey)!;
-    const layoutSurface = { formContainer: { maxWidth: 800 } };
+    const layoutSurface = {formContainer: {maxWidth: 800}};
 
     const [loading, setLoading] = useState<boolean>(false);
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
 
     const axiosInstance = useAxiosBaseInstance();
 
@@ -206,18 +206,18 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
             const useRefreshCacheSse = ["basic", "blog", "admin", "other", "content-protector"].includes(activeKey);
             const data = useRefreshCacheSse
                 ? await postRefreshCacheSse<any>("/api/admin/website/" + activeKey, {
-                      body: { ...form },
-                      messageApi,
-                      messageKey: "websiteRefreshCache",
-                      waitForComplete: true,
-                      backgroundTaskTitle: activeMeta.text,
-                  })
+                    body: {...form},
+                    messageApi,
+                    messageKey: "websiteRefreshCache",
+                    waitForComplete: true,
+                    backgroundTaskTitle: activeMeta.text,
+                })
                 : (
-                      await axiosInstance.post(
-                          activeKey === "upgrade" ? "/api/admin/system/upgrade" : "/api/admin/website/" + activeKey,
-                          { ...form }
-                      )
-                  ).data;
+                    await axiosInstance.post(
+                        activeKey === "upgrade" ? "/api/admin/system/upgrade" : "/api/admin/website/" + activeKey,
+                        {...form}
+                    )
+                ).data;
             setLoading(false);
             if (data.error) {
                 await messageApi.error(data.message);
@@ -386,7 +386,7 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
             } else if (activeKey === "privacy") {
                 return (
                     <div style={layoutSurface.formContainer}>
-                        <PrivacyForm offlineData={offlineData} offline={offline} data={data as PersonalDataPreview} />
+                        <PrivacyForm offlineData={offlineData} offline={offline} data={data as PersonalDataPreview}/>
                     </div>
                 );
             } else if (activeKey === "ai") {

@@ -1,4 +1,4 @@
-import { ArticleEntry } from "../index.types";
+import {ArticleEntry} from "../index.types";
 
 export const isRetryableArticleSyncError = (error: unknown) => {
     if (!error || typeof error !== "object") {

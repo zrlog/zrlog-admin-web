@@ -12,14 +12,19 @@ public class ArticlePageData extends PageData<ArticleResponseEntry> implements S
     private Boolean article_thumbnail_status;
     private String status;
     private List<String> columns;
-    public List<String> getColumns() { return columns; }
-    public void setColumns(List<String> columns) { this.columns = columns; }
     private ArticleStatusCountResponse statusCounts;
+    private List<TypeDTO> types = new ArrayList<>();
 
     public ArticlePageData() {
     }
 
-    private List<TypeDTO> types = new ArrayList<>();
+    public List<String> getColumns() {
+        return columns;
+    }
+
+    public void setColumns(List<String> columns) {
+        this.columns = columns;
+    }
 
     public List<TypeDTO> getTypes() {
         return types;

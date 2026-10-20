@@ -1,5 +1,5 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import type { EditorView } from "@uiw/react-codemirror";
+import {useCallback, useLayoutEffect, useRef, useState} from "react";
+import type {EditorView} from "@uiw/react-codemirror";
 
 // The public editor height sizes its content, excluding its toolbar. Measure that
 // difference in our own wrappers so density, language and wrapped actions can vary.
@@ -34,7 +34,7 @@ const useArticleEditorHeight = () => {
         };
     }, [view]);
 
-    return { slotRef, contentRef, height: `${height}px`, onLoad };
+    return {slotRef, contentRef, height: `${height}px`, onLoad};
 };
 
 export default useArticleEditorHeight;

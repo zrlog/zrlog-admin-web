@@ -1,11 +1,11 @@
-import { Alert, Checkbox, Descriptions, Divider, Grid, Modal, Radio, Select, Space, Typography } from "antd";
-import { FunctionComponent, RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { getRes } from "../../utils/constants";
-import { ArticleEntry } from "./index.types";
+import {Alert, Checkbox, Descriptions, Divider, Grid, Modal, Radio, Select, Space, Typography} from "antd";
+import {FunctionComponent, RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {getRes} from "../../utils/constants";
+import {ArticleEntry} from "./index.types";
 import {
     ArticleTypeOption,
-    getMarkdownImportApplyFields,
     getDefaultMarkdownImportFields,
+    getMarkdownImportApplyFields,
     getMarkdownImportTargetPolicy,
     MarkdownImportField,
     MarkdownImportPreview,
@@ -45,17 +45,17 @@ const formatBytes = (size: number) => {
 };
 
 const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
-    article,
-    contentConflict,
-    containerRef,
-    offline,
-    open,
-    preview,
-    currentMarkdown,
-    typeOptions,
-    onApply,
-    onCancel,
-}) => {
+                                                                              article,
+                                                                              contentConflict,
+                                                                              containerRef,
+                                                                              offline,
+                                                                              open,
+                                                                              preview,
+                                                                              currentMarkdown,
+                                                                              typeOptions,
+                                                                              onApply,
+                                                                              onCancel,
+                                                                          }) => {
     const res = getRes().articleEdit.markdownImport;
     const screens = Grid.useBreakpoint();
     const targetPolicy = useMemo(
@@ -111,7 +111,7 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
         }
         const requiredForNewDraft = target === "newDraft" && field === "title";
         return (
-            <div key={field} style={{ minWidth: 0 }}>
+            <div key={field} style={{minWidth: 0}}>
                 <Checkbox
                     checked={requiredForNewDraft || selectedFields.has(field)}
                     disabled={requiredForNewDraft}
@@ -121,8 +121,8 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                 </Checkbox>
                 <Typography.Paragraph
                     type="secondary"
-                    ellipsis={{ rows: 2, expandable: true }}
-                    style={{ margin: "4px 0 0 24px", wordBreak: "break-word" }}
+                    ellipsis={{rows: 2, expandable: true}}
+                    style={{margin: "4px 0 0 24px", wordBreak: "break-word"}}
                 >
                     {value}
                 </Typography.Paragraph>
@@ -182,13 +182,13 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                 danger: targetPolicy.dangerousCurrentReplace && target === "current",
                 disabled: applying || applyDisabled,
             }}
-            cancelButtonProps={{ disabled: applying }}
+            cancelButtonProps={{disabled: applying}}
             confirmLoading={applying}
             closable={!applying}
             keyboard={!applying}
             maskClosable={!applying}
             width={screens.md ? 720 : "calc(100vw - 24px)"}
-            style={screens.md ? undefined : { top: 8, paddingBottom: 8 }}
+            style={screens.md ? undefined : {top: 8, paddingBottom: 8}}
             getContainer={() => containerRef.current as HTMLElement}
             destroyOnClose
             styles={{
@@ -200,7 +200,7 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
         >
             <Descriptions size="small" column={screens.sm ? 2 : 1}>
                 <Descriptions.Item label={res.fileName}>
-                    <span style={{ overflowWrap: "anywhere" }}>{preview.fileName}</span>
+                    <span style={{overflowWrap: "anywhere"}}>{preview.fileName}</span>
                 </Descriptions.Item>
                 <Descriptions.Item label={res.fileSize}>{formatBytes(preview.fileSize)}</Descriptions.Item>
                 <Descriptions.Item label={res.bodyLength}>{preview.markdown.length}</Descriptions.Item>
@@ -231,24 +231,24 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                         targetPolicy.forcedNewDraftReason === "private"
                             ? res.privateCreatesDraft
                             : targetPolicy.forcedNewDraftReason === "contentConflict"
-                            ? res.conflictCreatesDraft
-                            : targetPolicy.forcedNewDraftReason === "published"
-                            ? res.publishedCreatesDraft
-                            : res.blankImportsCurrent
+                                ? res.conflictCreatesDraft
+                                : targetPolicy.forcedNewDraftReason === "published"
+                                    ? res.publishedCreatesDraft
+                                    : res.blankImportsCurrent
                     }
                 />
             )}
             {targetPolicy.dangerousCurrentReplace && target === "current" ? (
-                <Alert type="warning" showIcon message={res.replaceWarning} style={{ marginTop: 12 }} />
+                <Alert type="warning" showIcon message={res.replaceWarning} style={{marginTop: 12}}/>
             ) : null}
             {targetUnavailable ? (
-                <Alert type="error" showIcon message={res.offlineCreateUnavailable} style={{ marginTop: 12 }} />
+                <Alert type="error" showIcon message={res.offlineCreateUnavailable} style={{marginTop: 12}}/>
             ) : null}
 
             <Divider titlePlacement="start" plain>
                 {res.metadata}
             </Divider>
-            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            <Space direction="vertical" size={12} style={{width: "100%"}}>
                 {renderMetadataField("title", res.fieldTitle, preview.metadata.title)}
                 {renderMetadataField("alias", res.fieldAlias, preview.metadata.alias)}
                 {renderMetadataField("digest", res.fieldDigest, preview.metadata.digest)}
@@ -267,7 +267,7 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                         disabled={!categorySelected}
                         placeholder={getRes().pleaseChoose + getRes().articleType.title}
                         onChange={setSelectedTypeId}
-                        style={{ display: "block", margin: "6px 0 0 24px", maxWidth: 360 }}
+                        style={{display: "block", margin: "6px 0 0 24px", maxWidth: 360}}
                         getPopupContainer={(triggerNode) => triggerNode.parentElement}
                     />
                 </div>
@@ -280,7 +280,7 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                     message={formatMessage(res.unknownCategories, {
                         categories: categoryResolution.unmatchedNames.join(", "),
                     })}
-                    style={{ marginTop: 12 }}
+                    style={{marginTop: 12}}
                 />
             ) : null}
             {categoryResolution.additionalMatchedNames.length > 0 ? (
@@ -291,30 +291,30 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                         category: categoryResolution.matchedName || "",
                         categories: categoryResolution.additionalMatchedNames.join(", "),
                     })}
-                    style={{ marginTop: 12 }}
+                    style={{marginTop: 12}}
                 />
             ) : null}
             {preview.invalidFields.length > 0 ? (
                 <Alert
                     type="warning"
                     showIcon
-                    message={formatMessage(res.invalidFields, { fields: preview.invalidFields.join(", ") })}
-                    style={{ marginTop: 12 }}
+                    message={formatMessage(res.invalidFields, {fields: preview.invalidFields.join(", ")})}
+                    style={{marginTop: 12}}
                 />
             ) : null}
             {ignoredFields.length > 0 ? (
                 <Alert
                     type="info"
                     showIcon
-                    message={formatMessage(res.ignoredFields, { fields: ignoredFields.join(", ") })}
-                    style={{ marginTop: 12 }}
+                    message={formatMessage(res.ignoredFields, {fields: ignoredFields.join(", ")})}
+                    style={{marginTop: 12}}
                 />
             ) : null}
 
             <Divider titlePlacement="start" plain>
                 {res.resources}
             </Divider>
-            <Space direction="vertical" size={8} style={{ width: "100%" }}>
+            <Space direction="vertical" size={8} style={{width: "100%"}}>
                 {remoteImageCount > 0 ? (
                     <Alert
                         type="info"
@@ -323,28 +323,28 @@ const MarkdownImportModal: FunctionComponent<MarkdownImportModalProps> = ({
                             count: remoteImageCount,
                             hosts: preview.resources.remoteHosts.join(", "),
                         })}
-                        style={{ overflowWrap: "anywhere" }}
+                        style={{overflowWrap: "anywhere"}}
                     />
                 ) : null}
                 {relativeImageCount > 0 ? (
                     <Alert
                         type="warning"
                         showIcon
-                        message={formatMessage(res.relativeImagesUnresolved, { count: relativeImageCount })}
+                        message={formatMessage(res.relativeImagesUnresolved, {count: relativeImageCount})}
                     />
                 ) : null}
                 {siteAbsoluteImageCount > 0 ? (
                     <Alert
                         type="warning"
                         showIcon
-                        message={formatMessage(res.siteAbsoluteImagesPreserved, { count: siteAbsoluteImageCount })}
+                        message={formatMessage(res.siteAbsoluteImagesPreserved, {count: siteAbsoluteImageCount})}
                     />
                 ) : null}
                 {otherUnsupportedImageCount > 0 ? (
                     <Alert
                         type="warning"
                         showIcon
-                        message={formatMessage(res.unsupportedImages, { count: otherUnsupportedImageCount })}
+                        message={formatMessage(res.unsupportedImages, {count: otherUnsupportedImageCount})}
                     />
                 ) : null}
                 {preview.resources.imageReferences.length === 0 ? (

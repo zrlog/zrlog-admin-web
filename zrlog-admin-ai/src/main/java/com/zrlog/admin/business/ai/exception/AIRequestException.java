@@ -15,6 +15,8 @@ public class AIRequestException extends AbstractAdminBusinessException {
         this.statusCode = statusCode;
     }
 
-    public Integer getStatusCode() { return statusCode; }
+    public Integer getStatusCode() {
+        return statusCode;
+    }
 
 }

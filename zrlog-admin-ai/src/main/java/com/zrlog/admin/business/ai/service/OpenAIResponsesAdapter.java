@@ -10,13 +10,26 @@ import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.ai.model.OpenAIResponses.*;
 import com.zrlog.admin.business.knowledge.ContentToolCatalog;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/** Maps the assistant's normalized conversation to OpenAI's stateless Responses protocol. */
+/**
+ * Maps the assistant's normalized conversation to OpenAI's stateless Responses protocol.
+ */
 final class OpenAIResponsesAdapter {
     private final Gson gson = new Gson();
+
+    private static void emit(AIChatStreamReader.Progress progress, String type, String text) throws IOException {
+        if (text != null && !text.isEmpty()) progress.emit(type, text);
+    }
+
+    private static AIResponseException invalid() {
+        return new AIResponseException("Invalid OpenAI response");
+    }
 
     Request request(AIProviderRequests.CompletionRequest completion, boolean summaries) {
         return request(completion, summaries, Map.of());
@@ -33,14 +46,19 @@ final class OpenAIResponsesAdapter {
             if (message.responsesOutput != null) {
                 request.input.addAll(message.responsesOutput);
             } else if ("tool".equals(message.getRole())) {
-                Item result = new Item(); result.type = "function_call_output";
-                result.call_id = message.toolCallId; result.output = message.getContent();
+                Item result = new Item();
+                result.type = "function_call_output";
+                result.call_id = message.toolCallId;
+                result.output = message.getContent();
                 request.input.add(result);
             } else {
                 if (message.getContent() != null && !message.getContent().isEmpty()
                         || message.attachments != null && !message.attachments.isEmpty()) {
-                    Item input = new Item(); input.type = "message"; input.role = message.getRole();
-                    Content text = new Content(); text.text = message.getContent();
+                    Item input = new Item();
+                    input.type = "message";
+                    input.role = message.getRole();
+                    Content text = new Content();
+                    text.text = message.getContent();
                     // Persisted conversation history has no raw Responses output to replay.
                     // Assistant text must still use the output content type on later turns.
                     boolean assistant = "assistant".equals(message.getRole());
@@ -53,9 +71,13 @@ final class OpenAIResponsesAdapter {
                         Content part = new Content();
                         String data = Objects.requireNonNull(files.get(file.id), "Missing file input");
                         if (file.mimeType != null && file.mimeType.startsWith("image/")) {
-                            part.type = "input_image"; part.image_url = data; part.detail = "auto";
+                            part.type = "input_image";
+                            part.image_url = data;
+                            part.detail = "auto";
                         } else {
-                            part.type = "input_file"; part.filename = file.name; part.file_data = data;
+                            part.type = "input_file";
+                            part.filename = file.name;
+                            part.file_data = data;
                         }
                         input.content.add(part);
                     }
@@ -63,17 +85,23 @@ final class OpenAIResponsesAdapter {
                 }
                 // Also accepts checkpoints created before Responses was enabled.
                 if (message.toolCalls != null) for (AIProviderRequests.ToolCall call : message.toolCalls) {
-                    Item function = new Item(); function.type = "function_call"; function.call_id = call.id;
-                    function.name = call.function.name; function.arguments = call.function.arguments;
+                    Item function = new Item();
+                    function.type = "function_call";
+                    function.call_id = call.id;
+                    function.name = call.function.name;
+                    function.arguments = call.function.arguments;
                     request.input.add(function);
                 }
             }
         }
         if (completion.tools != null && !completion.tools.isEmpty()) {
-            request.tools = new ArrayList<>(); request.tool_choice = "auto";
+            request.tools = new ArrayList<>();
+            request.tool_choice = "auto";
             for (AIProviderRequests.Tool definition : completion.tools) {
-                Tool tool = new Tool(); tool.name = definition.function.name;
-                tool.description = definition.function.description; tool.parameters = definition.function.parameters;
+                Tool tool = new Tool();
+                tool.name = definition.function.name;
+                tool.description = definition.function.description;
+                tool.parameters = definition.function.parameters;
                 request.tools.add(tool);
             }
         }
@@ -117,13 +145,6 @@ final class OpenAIResponsesAdapter {
         }
     }
 
-    private static class ProgressState {
-        boolean text;
-        boolean summary;
-        String summaryPart;
-        final Map<Integer, Integer> argumentLengths = new HashMap<>();
-    }
-
     private AIProviderResponses.Choice frame(String data, boolean summaries, AIChatStreamReader.Progress progress, ProgressState state)
             throws IOException {
         if (data.isEmpty()) return null;
@@ -142,14 +163,16 @@ final class OpenAIResponsesAdapter {
                 if (summaries && !event.delta.isEmpty()) {
                     String part = event.item_id + "/" + event.summary_index;
                     if (state.summary && !part.equals(state.summaryPart)) emit(progress, "reasoning_delta", "\n\n");
-                    state.summary = true; state.summaryPart = part;
+                    state.summary = true;
+                    state.summaryPart = part;
                     emit(progress, "reasoning_delta", event.delta);
                 }
                 break;
             case "response.function_call_arguments.delta":
                 if (event.output_index == null || event.output_index < 0 || event.delta == null) throw invalid();
                 int length = state.argumentLengths.merge(event.output_index, event.delta.length(), Integer::sum);
-                if (length > ContentToolCatalog.MAX_ARGUMENT_LENGTH || state.argumentLengths.size() > 8) throw invalid();
+                if (length > ContentToolCatalog.MAX_ARGUMENT_LENGTH || state.argumentLengths.size() > 8)
+                    throw invalid();
                 break;
             case "response.completed":
             case "response.incomplete":
@@ -206,8 +229,12 @@ final class OpenAIResponsesAdapter {
                             || item.arguments == null || item.arguments.length() > ContentToolCatalog.MAX_ARGUMENT_LENGTH || calls.size() >= 8)
                         throw invalid();
                     AIProviderRequests.ToolCall call = new AIProviderRequests.ToolCall();
-                    call.id = item.call_id; call.type = "function"; call.function = new AIProviderRequests.FunctionCall();
-                    call.function.name = item.name; call.function.arguments = item.arguments; calls.add(call);
+                    call.id = item.call_id;
+                    call.type = "function";
+                    call.function = new AIProviderRequests.FunctionCall();
+                    call.function.name = item.name;
+                    call.function.arguments = item.arguments;
+                    calls.add(call);
                     break;
                 default:
                     throw invalid();
@@ -218,23 +245,30 @@ final class OpenAIResponsesAdapter {
         message.reasoningContent = reasoning.isEmpty() ? null : String.join("\n\n", reasoning);
         message.toolCalls = calls.isEmpty() ? null : calls;
         message.responsesOutput = response.output;
-        AIProviderResponses.Choice choice = new AIProviderResponses.Choice(); choice.setMessage(message);
+        AIProviderResponses.Choice choice = new AIProviderResponses.Choice();
+        choice.setMessage(message);
         choice.setFinishReason(incomplete ? "length" : calls.isEmpty() ? "stop" : "tool_calls");
         return choice;
     }
 
-    private boolean identifier(String value) { return value != null && !value.isBlank() && value.length() <= 256; }
+    private boolean identifier(String value) {
+        return value != null && !value.isBlank() && value.length() <= 256;
+    }
 
     private <T> T parse(String data, Class<T> type) {
         try {
             T value = gson.fromJson(data, type);
             if (value == null) throw invalid();
             return value;
-        } catch (JsonParseException e) { throw invalid(); }
+        } catch (JsonParseException e) {
+            throw invalid();
+        }
     }
 
-    private static void emit(AIChatStreamReader.Progress progress, String type, String text) throws IOException {
-        if (text != null && !text.isEmpty()) progress.emit(type, text);
+    private static class ProgressState {
+        final Map<Integer, Integer> argumentLengths = new HashMap<>();
+        boolean text;
+        boolean summary;
+        String summaryPart;
     }
-    private static AIResponseException invalid() { return new AIResponseException("Invalid OpenAI response"); }
 }

@@ -7,14 +7,15 @@ import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAccess;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 
-/** HTTP route metadata and parameter parsing stay at the Web boundary. */
+/**
+ * HTTP route metadata and parameter parsing stay at the Web boundary.
+ */
 @Singleton
 public final class AdminRouteAuthorizer {
     private final AccountPermissionService permissions;

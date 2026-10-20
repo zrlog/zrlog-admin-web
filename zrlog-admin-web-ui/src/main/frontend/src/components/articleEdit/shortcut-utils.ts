@@ -24,7 +24,7 @@ export const isMacLikeDevice = () => {
     return /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
 };
 
-export const formatShortcutLabel = ({ ctrlOrCmd, alt, shift, key }: ShortcutOptions) => {
+export const formatShortcutLabel = ({ctrlOrCmd, alt, shift, key}: ShortcutOptions) => {
     const parts: string[] = [];
     if (ctrlOrCmd) {
         parts.push(isMacLikeDevice() ? "Cmd" : "Ctrl");

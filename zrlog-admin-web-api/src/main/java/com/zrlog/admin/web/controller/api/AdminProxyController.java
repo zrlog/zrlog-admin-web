@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.AdminConstants;
@@ -10,12 +9,12 @@ import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminProxyService;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -24,17 +23,16 @@ public class AdminProxyController extends BaseController {
     private final AdminRequestIdentity requestIdentity;
 
     private final AdminProxyService adminProxyService;
+    private final AdminPageDataFactory pages;
 
     @Inject
     public AdminProxyController(AdminPageDataFactory pages, AdminProxyService adminProxyService,
-            AdminRequestIdentity requestIdentity) {
+                                AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.adminProxyService = adminProxyService;
 
         this.pages = pages;
     }
-
-    private final AdminPageDataFactory pages;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.proxy")

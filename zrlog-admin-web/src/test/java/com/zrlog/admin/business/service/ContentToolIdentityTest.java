@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.JsonParser;
 import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -11,21 +9,32 @@ import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class ContentToolIdentityTest {
-    @Parameterized.Parameters(name = "sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
-
     private final boolean sqlite;
 
-    public ContentToolIdentityTest(boolean sqlite) { this.sqlite = sqlite; }
+    public ContentToolIdentityTest(boolean sqlite) {
+        this.sqlite = sqlite;
+    }
+
+    @Parameterized.Parameters(name = "sqlite={0}")
+    public static Boolean[] databases() {
+        return new Boolean[]{false, true};
+    }
+
+    private static AdminTokenVO token(int userId) {
+        var token = new AdminTokenVO();
+        token.setUserId(userId);
+        return token;
+    }
 
     @Test
     public void explicitToolActorKeepsOwnershipDelegationAndWriteTimeRevocation() throws Exception {
@@ -59,11 +68,5 @@ public class ContentToolIdentityTest {
             assertEquals(1, ((Number) db.scalar("select count(*) from log where userId=2")).intValue());
             assertNull(AdminTokenThreadLocal.getUser());
         }
-    }
-
-    private static AdminTokenVO token(int userId) {
-        var token = new AdminTokenVO();
-        token.setUserId(userId);
-        return token;
     }
 }

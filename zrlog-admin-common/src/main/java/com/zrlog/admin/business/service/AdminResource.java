@@ -6,7 +6,9 @@ import com.zrlog.admin.business.AdminConstants;
 import java.io.InputStream;
 import java.util.Set;
 
-/** UI asset catalog and PWA resources owned by one application. */
+/**
+ * UI asset catalog and PWA resources owned by one application.
+ */
 public interface AdminResource {
 
     String ADMIN_ASSET_MANIFEST_JSON = AdminConstants.ADMIN_URI_BASE_PATH + "/asset-manifest.json";

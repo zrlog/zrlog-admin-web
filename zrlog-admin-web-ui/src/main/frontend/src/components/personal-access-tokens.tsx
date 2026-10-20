@@ -1,17 +1,17 @@
 import Typography from "@zrlog/ui/antd/Typography";
-import { Alert, Button, Checkbox, Drawer, Empty, Form, List, Radio, Select, Space } from "antd";
+import {Alert, Button, Checkbox, Drawer, Empty, Form, List, Radio, Select, Space} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { formatDateTime } from "../utils/date-time";
-import { useState } from "react";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {formatDateTime} from "../utils/date-time";
+import {useState} from "react";
 import SettingsSection from "./common/SettingsSection";
 
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getRes } from "../utils/constants";
-import { getSsDate } from "../base/SsData";
-import { resolveApplicationServerUrl } from "../utils/application-server-url";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getRes} from "../utils/constants";
+import {getSsDate} from "../base/SsData";
+import {resolveApplicationServerUrl} from "../utils/application-server-url";
 
 export type PersonalAccessToken = {
     id: string;
@@ -31,11 +31,11 @@ type Created = { token: string; info: PersonalAccessToken };
 type FormValues = { name: string; expiresInDays: number; permissionMode: "custom" | "inherit"; permissions: string[] };
 
 export default function PersonalAccessTokens({
-    tokens,
-    permissions,
-    siteUrl,
-    onChange,
-}: {
+                                                 tokens,
+                                                 permissions,
+                                                 siteUrl,
+                                                 onChange,
+                                             }: {
     tokens: PersonalAccessToken[];
     permissions: string[];
     siteUrl?: string;
@@ -81,7 +81,7 @@ export default function PersonalAccessTokens({
     const revoke = async (id: string) => {
         setBusy(true);
         try {
-            const response = await api.post("/api/admin/oauth/revokePersonalToken", { id });
+            const response = await api.post("/api/admin/oauth/revokePersonalToken", {id});
             if (response.data.error) {
                 notice.error(response.data.message);
                 return;
@@ -116,7 +116,7 @@ export default function PersonalAccessTokens({
                 {res.personalTokens.account}: {getSsDate().user?.userName}
             </Typography.Paragraph>
             <List
-                locale={{ emptyText: <Empty description={res.personalTokens.empty} /> }}
+                locale={{emptyText: <Empty description={res.personalTokens.empty}/>}}
                 dataSource={tokens}
                 renderItem={(token) => (
                     <List.Item
@@ -124,14 +124,14 @@ export default function PersonalAccessTokens({
                             token.revoked
                                 ? []
                                 : [
-                                      <Popconfirm
-                                          key="revoke"
-                                          title={res.personalTokens.confirmRevoke}
-                                          onConfirm={() => revoke(token.id)}
-                                      >
-                                          <Button disabled={busy}>{res.personalTokens.revoke}</Button>
-                                      </Popconfirm>,
-                                  ]
+                                    <Popconfirm
+                                        key="revoke"
+                                        title={res.personalTokens.confirmRevoke}
+                                        onConfirm={() => revoke(token.id)}
+                                    >
+                                        <Button disabled={busy}>{res.personalTokens.revoke}</Button>
+                                    </Popconfirm>,
+                                ]
                         }
                     >
                         <List.Item.Meta
@@ -142,10 +142,10 @@ export default function PersonalAccessTokens({
                                         {token.revoked
                                             ? res.revoked
                                             : token.invalidated
-                                            ? res.personalTokens.invalidated
-                                            : token.expired
-                                            ? res.personalTokens.expired
-                                            : res.active}
+                                                ? res.personalTokens.invalidated
+                                                : token.expired
+                                                    ? res.personalTokens.expired
+                                                    : res.active}
                                     </Tag>
                                 </Space>
                             }
@@ -155,19 +155,19 @@ export default function PersonalAccessTokens({
                                         {token.permissionMode === "inherit"
                                             ? res.personalTokens.inherit
                                             : token.permissionMode === "custom"
-                                            ? res.personalTokens.custom
-                                            : res.personalTokens.legacy}
+                                                ? res.personalTokens.custom
+                                                : res.personalTokens.legacy}
                                     </Typography.Text>
                                     {token.permissionMode !== "inherit" && (
                                         <Space wrap>
                                             {(token.permissionMode === "custom"
-                                                ? token.permissions ?? []
-                                                : token.scopes
+                                                    ? token.permissions ?? []
+                                                    : token.scopes
                                             ).map((permission) => (
                                                 <Tag key={permission}>
                                                     {(token.permissionMode === "custom" ? labels : scopeLabels)[
                                                         permission
-                                                    ] ?? permission}
+                                                        ] ?? permission}
                                                 </Tag>
                                             ))}
                                         </Space>
@@ -194,11 +194,11 @@ export default function PersonalAccessTokens({
                 keyboard={!busy}
             >
                 {created ? (
-                    <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-                        <Alert type="info" showIcon title={res.personalTokens.once} />
+                    <Space orientation="vertical" size="large" style={{width: "100%"}}>
+                        <Alert type="info" showIcon title={res.personalTokens.once}/>
                         <div>
                             <Typography.Paragraph strong>{res.personalTokens.siteUrl}</Typography.Paragraph>
-                            <Typography.Paragraph copyable style={{ overflowWrap: "anywhere" }}>
+                            <Typography.Paragraph copyable style={{overflowWrap: "anywhere"}}>
                                 {resolveApplicationServerUrl(
                                     created.info.permissionMode && created.info.permissionMode !== "legacy"
                                         ? created.info.resource
@@ -209,7 +209,7 @@ export default function PersonalAccessTokens({
                         </div>
                         <div>
                             <Typography.Paragraph strong>{res.personalTokens.value}</Typography.Paragraph>
-                            <Typography.Paragraph copyable code style={{ overflowWrap: "anywhere" }}>
+                            <Typography.Paragraph copyable code style={{overflowWrap: "anywhere"}}>
                                 {created.token}
                             </Typography.Paragraph>
                         </div>
@@ -243,7 +243,7 @@ export default function PersonalAccessTokens({
                         <Form.Item
                             name="name"
                             label={res.personalTokens.name}
-                            rules={[{ required: true, whitespace: true, max: 128 }]}
+                            rules={[{required: true, whitespace: true, max: 128}]}
                         >
                             <Input
                                 placeholder={res.personalTokens.namePlaceholder}
@@ -255,9 +255,9 @@ export default function PersonalAccessTokens({
                             <Select
                                 disabled={busy}
                                 options={[
-                                    { value: 7, label: res.personalTokens.days7 },
-                                    { value: 30, label: res.personalTokens.days30 },
-                                    { value: 90, label: res.personalTokens.days90 },
+                                    {value: 7, label: res.personalTokens.days7},
+                                    {value: 30, label: res.personalTokens.days30},
+                                    {value: 90, label: res.personalTokens.days90},
                                 ]}
                             />
                         </Form.Item>
@@ -273,7 +273,7 @@ export default function PersonalAccessTokens({
                             noStyle
                             shouldUpdate={(previous, next) => previous.permissionMode !== next.permissionMode}
                         >
-                            {({ getFieldValue }) =>
+                            {({getFieldValue}) =>
                                 getFieldValue("permissionMode") === "custom" ? (
                                     <Form.Item
                                         name="permissions"
@@ -303,7 +303,7 @@ export default function PersonalAccessTokens({
                                         type="info"
                                         showIcon
                                         title={res.personalTokens.inheritHelp}
-                                        style={{ marginBottom: 16 }}
+                                        style={{marginBottom: 16}}
                                     />
                                 )
                             }

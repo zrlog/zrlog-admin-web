@@ -7,34 +7,10 @@ import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
-import com.zrlog.admin.business.service.AdminDashboardService;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.AdminResourceProvider;
-import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.business.service.AdminStatisticsService;
-import com.zrlog.admin.business.service.FeatureLabService;
-import com.zrlog.admin.business.service.MessageCenterService;
-import com.zrlog.admin.business.service.PasskeyRequestContext;
-import com.zrlog.admin.business.service.TemplateService;
-import com.zrlog.admin.business.service.UpgradeSettingsService;
-import com.zrlog.admin.business.service.WebSiteSettingsService;
-import com.zrlog.admin.util.AdminNativeImageUtils;
-import com.zrlog.admin.util.AdminStaticSiteProgress;
-import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
-import com.zrlog.admin.util.BackendServerUrl;
-import com.zrlog.admin.util.DevKit;
-import com.zrlog.admin.util.SystemInfoUtils;
+import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.util.*;
 import com.zrlog.admin.web.config.AdminRouters;
-import com.zrlog.admin.web.controller.api.AdminController;
-import com.zrlog.admin.web.controller.api.AdminDevController;
-import com.zrlog.admin.web.controller.api.AdminProxyController;
-import com.zrlog.admin.web.controller.api.AdminPublicController;
-import com.zrlog.admin.web.controller.api.AdminSystemController;
-import com.zrlog.admin.web.controller.api.MessageCenterController;
-import com.zrlog.admin.web.controller.api.PluginUploadController;
-import com.zrlog.admin.web.controller.api.TemplateController;
-import com.zrlog.admin.web.controller.api.UpgradeController;
-import com.zrlog.admin.web.controller.api.WebSiteController;
+import com.zrlog.admin.web.controller.api.*;
 import com.zrlog.admin.web.di.AdminComponent;
 import com.zrlog.admin.web.di.DaggerAdminComponent;
 import com.zrlog.admin.web.di.account.AccountComponent;
@@ -119,7 +95,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                     return provider == null
                                                             ? java.util.Collections.emptySet()
                                                             : provider.getAdminResource()
-                                                                    .getAdminCacheableApiUris();
+                                                            .getAdminCacheableApiUris();
                                                 },
                                                 this::siteInfo,
                                                 () -> {
@@ -129,7 +105,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                     return provider == null
                                                             ? ""
                                                             : provider.getAdminResource()
-                                                                    .getStaticResourceBuildId();
+                                                            .getStaticResourceBuildId();
                                                 },
                                                 zrLogConfig.getServerConfig()::getPort,
                                                 zrLogConfig.getServerConfig()::getContextPath))
@@ -213,7 +189,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                 this::staticHtmlEnabled,
                                                 () ->
                                                         zrLogConfig.getWebSetup(
-                                                                        AccessWebSetup.class)
+                                                                AccessWebSetup.class)
                                                                 != null,
                                                 this::capabilities,
                                                 this::siteInfo))

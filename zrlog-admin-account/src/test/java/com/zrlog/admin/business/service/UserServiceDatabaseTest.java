@@ -1,11 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.account.AvatarStorage;
@@ -26,14 +20,30 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.User;
-
 import org.junit.Test;
 
 import java.util.HashSet;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class UserServiceDatabaseTest {
 
+
+    private static LoginRequest loginRequest(String userName, String password) {
+        LoginRequest request = new LoginRequest();
+        request.setUserName(userName);
+        request.setPassword(password);
+        return request;
+    }
+
+    private static UpdateAdminRequest profileRequest(String header) {
+        UpdateAdminRequest request = new UpdateAdminRequest();
+        request.setUserName("root");
+        request.setEmail("root@example.com");
+        request.setHeader(header);
+        return request;
+    }
 
     @Test
     public void accountCacheMetadataComesFromInjectedResourcesWithoutGlobals() throws Exception {
@@ -66,10 +76,10 @@ public class UserServiceDatabaseTest {
 
             UserLoginDTO login =
                     new UserService(
-                                    java.util.Collections::emptySet,
-                                    AccountServicesFixture.component(db.dataSource()).mfa(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new User(db.dataSource()))
+                            java.util.Collections::emptySet,
+                            AccountServicesFixture.component(db.dataSource()).mfa(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            () -> new User(db.dataSource()))
                             .login(request);
             String upgradedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -94,10 +104,10 @@ public class UserServiceDatabaseTest {
 
             UpdateRecordResponse response =
                     new UserService(
-                                    java.util.Collections::emptySet,
-                                    AccountServicesFixture.component(db.dataSource()).mfa(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new User(db.dataSource()))
+                            java.util.Collections::emptySet,
+                            AccountServicesFixture.component(db.dataSource()).mfa(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            () -> new User(db.dataSource()))
                             .updatePassword(1, request);
             String updatedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -113,10 +123,10 @@ public class UserServiceDatabaseTest {
 
             UserInfoResponse response =
                     new UserService(
-                                    java.util.Collections::emptySet,
-                                    AccountServicesFixture.component(db.dataSource()).mfa(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new User(db.dataSource()))
+                            java.util.Collections::emptySet,
+                            AccountServicesFixture.component(db.dataSource()).mfa(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            () -> new User(db.dataSource()))
                             .getUserInfoWithCache(1, "session-key", db.unitCacheService());
 
             assertEquals("admin", response.getUserName());
@@ -161,7 +171,7 @@ public class UserServiceDatabaseTest {
             db.putWebsite("admin_theme", "desk");
             assertEquals("desk", service.getUserInfoWithCache(1, "owner-session", db.unitCacheService()).getAppearance().theme);
             new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                    new UserPreferenceStore(() -> new User(db.dataSource())))
                     .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{}", "appearance");
             UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
             assertEquals("zh_CN", reset.getLanguage());
@@ -269,14 +279,15 @@ public class UserServiceDatabaseTest {
                 var storage =
                         new AvatarStorage() {
                             @Override
-                            public void setup() {}
+                            public void setup() {
+                            }
 
                             @Override
                             public String saveAvatar(
                                     byte[] bytes,
                                     String extension,
                                     com.hibegin.http.server.api.HttpRequest request) {
-                                org.junit.Assert.assertArrayEquals(new byte[] {1, 2, 3}, bytes);
+                                org.junit.Assert.assertArrayEquals(new byte[]{1, 2, 3}, bytes);
                                 assertEquals("webp", extension);
                                 return "https://assets.example/avatars/profile.webp";
                             }
@@ -286,20 +297,5 @@ public class UserServiceDatabaseTest {
                 assertEquals("https://assets.example/avatars/profile.webp", db.scalar("select header from user where userId=1"));
             }
         }
-    }
-
-    private static LoginRequest loginRequest(String userName, String password) {
-        LoginRequest request = new LoginRequest();
-        request.setUserName(userName);
-        request.setPassword(password);
-        return request;
-    }
-
-    private static UpdateAdminRequest profileRequest(String header) {
-        UpdateAdminRequest request = new UpdateAdminRequest();
-        request.setUserName("root");
-        request.setEmail("root@example.com");
-        request.setHeader(header);
-        return request;
     }
 }

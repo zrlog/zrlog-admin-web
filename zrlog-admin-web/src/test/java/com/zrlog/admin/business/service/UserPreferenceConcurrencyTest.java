@@ -1,32 +1,46 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.User;
-
 import org.junit.Test;
 
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.*;
+
 public class UserPreferenceConcurrencyTest {
-    @Test public void personalSaveSurvivesConcurrentDashboardUpdates() throws Exception {
+    private static JsonObject stored(InMemoryZrLogDatabase db) throws SQLException {
+        Object raw = db.scalar("select preferences from user where userId=1");
+        return raw == null ? new JsonObject() : json(raw.toString());
+    }
+
+    private static JsonObject json(String value) {
+        return JsonParser.parseString(value).getAsJsonObject();
+    }
+
+    private static com.zrlog.data.security.AccountAccess actor(InMemoryZrLogDatabase db) {
+        return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
+    }
+
+    @Test
+    public void personalSaveSurvivesConcurrentDashboardUpdates() throws Exception {
         savesAfterCompetingWrites(true);
     }
 
-    @Test public void dashboardSaveSurvivesConcurrentPersonalUpdates() throws Exception {
+    @Test
+    public void dashboardSaveSurvivesConcurrentPersonalUpdates() throws Exception {
         savesAfterCompetingWrites(false);
     }
 
-    @Test public void pageSavePreservesConcurrentSessionAndAppearanceUpdates() throws Exception {
+    @Test
+    public void pageSavePreservesConcurrentSessionAndAppearanceUpdates() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competing = new AtomicInteger();
             db.beforeWebApiUpdate((sql, args) -> {
@@ -34,7 +48,7 @@ public class UserPreferenceConcurrencyTest {
                 db.execute("update user set preferences=? where userId=1", "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
             });
             new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                    new UserPreferenceStore(() -> new User(db.dataSource())))
                     .updateBody(actor(db), "{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}",
                             "writing");
             JsonObject saved = stored(db);
@@ -74,7 +88,8 @@ public class UserPreferenceConcurrencyTest {
         }
     }
 
-    @Test(timeout = 15000) public void sustainedContentionStopsWithoutOverwritingCompetingUpdates() throws Exception {
+    @Test(timeout = 15000)
+    public void sustainedContentionStopsWithoutOverwritingCompetingUpdates() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competingWrites = new AtomicInteger();
             db.beforeWebApiUpdate((sql, args) -> {
@@ -88,7 +103,7 @@ public class UserPreferenceConcurrencyTest {
                             SQLException.class,
                             () ->
                                     new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                            new UserPreferenceStore(() -> new User(db.dataSource())))
                                             .update(actor(db), json("{\"articlePageSize\":50}")));
             assertTrue(error.getMessage().contains("Concurrent account preference update"));
             JsonObject saved = stored(db);
@@ -97,7 +112,8 @@ public class UserPreferenceConcurrencyTest {
         }
     }
 
-    @Test public void interruptedRetryPreservesInterruptAndCompetingUpdate() throws Exception {
+    @Test
+    public void interruptedRetryPreservesInterruptAndCompetingUpdate() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("update user set preferences=")) {
@@ -111,16 +127,19 @@ public class UserPreferenceConcurrencyTest {
                                 SQLException.class,
                                 () ->
                                         new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                                new UserPreferenceStore(() -> new User(db.dataSource())))
                                                 .update(actor(db), json("{\"articlePageSize\":50}")));
                 assertTrue(error.getCause() instanceof InterruptedException);
                 assertTrue(Thread.currentThread().isInterrupted());
-            } finally { Thread.interrupted(); }
+            } finally {
+                Thread.interrupted();
+            }
             assertEquals(json("{\"future\":{\"key\":1}}"), stored(db));
         }
     }
 
-    @Test public void databaseErrorsAreReportedWithoutRetrying() throws Exception {
+    @Test
+    public void databaseErrorsAreReportedWithoutRetrying() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger writes = new AtomicInteger();
             SQLException unavailable = new SQLException("Database unavailable");
@@ -136,21 +155,11 @@ public class UserPreferenceConcurrencyTest {
                             SQLException.class,
                             () ->
                                     new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                            new UserPreferenceStore(() -> new User(db.dataSource())))
                                             .update(actor(db), json("{\"articlePageSize\":50}"))));
             assertEquals(1, writes.get());
             assertEquals(new JsonObject(), stored(db));
         }
-    }
-
-    private static JsonObject stored(InMemoryZrLogDatabase db) throws SQLException {
-        Object raw = db.scalar("select preferences from user where userId=1");
-        return raw == null ? new JsonObject() : json(raw.toString());
-    }
-
-    private static JsonObject json(String value) { return JsonParser.parseString(value).getAsJsonObject(); }
-    private static com.zrlog.data.security.AccountAccess actor(InMemoryZrLogDatabase db) {
-        return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
     }
 
 }

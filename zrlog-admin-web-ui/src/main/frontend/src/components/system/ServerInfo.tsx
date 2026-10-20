@@ -10,17 +10,17 @@ import GlobeIcon from "@zrlog/ui/icons/globe";
 import PartitionIcon from "@zrlog/ui/icons/partition";
 import ServerIcon from "@zrlog/ui/icons/server";
 import TimeIcon from "@zrlog/ui/icons/time";
-import { Flex, Typography, theme } from "antd";
-import { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import {Flex, theme, Typography} from "antd";
+import {ReactNode} from "react";
+import {Link} from "react-router-dom";
 import GraalVmOutlined from "icons/GraalVMOutlined";
 import ZrLogOutlined from "icons/ZrLogOutlined";
 import CPUIcon from "../../icons/CPUIcon";
 import MemoryIcon from "../../icons/MemoryIcon";
-import { RiJavaLine } from "../../icons/ri/RiJavaLine";
-import { ServerInfoEntry, SystemData } from "../../type";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
-import { actionForPath, hasAction } from "../../utils/account-access";
+import {RiJavaLine} from "../../icons/ri/RiJavaLine";
+import {ServerInfoEntry, SystemData} from "../../type";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
+import {actionForPath, hasAction} from "../../utils/account-access";
 import SettingsSection from "../common/SettingsSection";
 
 const APPLICATION_KEYS = ["programInfo", "buildInfo", "runtime", "webServer", "system", "runPath"];
@@ -74,8 +74,8 @@ const getItemsByKeys = (itemMap: Map<string, ServerInfoEntry>, keys: string[]) =
     return keys.map((key) => itemMap.get(key)).filter((item): item is ServerInfoEntry => Boolean(item));
 };
 
-const ServerInfo = ({ data }: { data: SystemData }) => {
-    const { token } = theme.useToken();
+const ServerInfo = ({data}: { data: SystemData }) => {
+    const {token} = theme.useToken();
     const text = getRes().system;
     const canViewBuildInfo = hasAction(actionForPath("/system/version"));
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
@@ -92,11 +92,11 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
             item: cpu,
             value: cpuPercent === undefined ? cpu?.value : formatPercent(cpuPercent),
             percent: cpuPercent,
-            icon: <CPUIcon />,
+            icon: <CPUIcon/>,
         },
-        { item: memory, icon: <MemoryIcon /> },
-        { item: connections, percent: parseConnectionUsage(connections?.value), icon: <DatabaseIcon /> },
-        { item: uptime, icon: <TimeIcon /> },
+        {item: memory, icon: <MemoryIcon/>},
+        {item: connections, percent: parseConnectionUsage(connections?.value), icon: <DatabaseIcon/>},
+        {item: uptime, icon: <TimeIcon/>},
     ];
 
     const externalUrl = (item: ServerInfoEntry) => {
@@ -113,32 +113,32 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
     };
 
     const detailIcon = (item: ServerInfoEntry) => {
-        if (item.key === "programInfo") return <ZrLogOutlined size={18} />;
-        if (item.key === "buildInfo" || item.key === "encoding") return <CodeIcon />;
-        if (item.key === "dbInfo") return <DatabaseIcon />;
-        if (item.key === "timezone") return <TimeIcon />;
-        if (item.key === "locale") return <GlobeIcon />;
-        if (item.key === "webServer") return <ServerIcon />;
-        if (item.key === "runPath" || item.key === "usedDiskSpace") return <DiskIcon />;
-        if (item.key === "cpuInfo") return <CPUIcon />;
-        if (item.key === "totalMemorySpace") return <MemoryIcon />;
-        if (item.key === "usedCacheSpace") return <PartitionIcon />;
+        if (item.key === "programInfo") return <ZrLogOutlined size={18}/>;
+        if (item.key === "buildInfo" || item.key === "encoding") return <CodeIcon/>;
+        if (item.key === "dbInfo") return <DatabaseIcon/>;
+        if (item.key === "timezone") return <TimeIcon/>;
+        if (item.key === "locale") return <GlobeIcon/>;
+        if (item.key === "webServer") return <ServerIcon/>;
+        if (item.key === "runPath" || item.key === "usedDiskSpace") return <DiskIcon/>;
+        if (item.key === "cpuInfo") return <CPUIcon/>;
+        if (item.key === "totalMemorySpace") return <MemoryIcon/>;
+        if (item.key === "usedCacheSpace") return <PartitionIcon/>;
         if (item.key === "runtime") {
             return (
                 <>
-                    {data.dockerMode && <DockerOutlined />}
+                    {data.dockerMode && <DockerOutlined/>}
                     {data.nativeImageMode ? (
-                        <GraalVmOutlined size={18} />
+                        <GraalVmOutlined size={18}/>
                     ) : (
-                        <RiJavaLine style={{ width: 18, height: 18 }} />
+                        <RiJavaLine style={{width: 18, height: 18}}/>
                     )}
                 </>
             );
         }
         if (item.key === "system") {
-            if (item.value.startsWith("Linux")) return <LinuxOutlined />;
-            if (item.value.startsWith("Darwin") || item.value.startsWith("Mac")) return <AppleOutlined />;
-            return <WindowsOutlined />;
+            if (item.value.startsWith("Linux")) return <LinuxOutlined/>;
+            if (item.value.startsWith("Darwin") || item.value.startsWith("Mac")) return <AppleOutlined/>;
+            return <WindowsOutlined/>;
         }
         return null;
     };
@@ -190,8 +190,8 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                         >
                             {detailIcon(item)}
                         </span>
-                        <dl style={{ margin: 0, minWidth: 0 }}>
-                            <dt style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM }}>{item.name}</dt>
+                        <dl style={{margin: 0, minWidth: 0}}>
+                            <dt style={{color: token.colorTextSecondary, fontSize: token.fontSizeSM}}>{item.name}</dt>
                             <dd
                                 style={{
                                     margin: `${token.marginXXS}px 0 0`,
@@ -214,7 +214,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                     color: token.colorPrimary,
                                 }}
                             >
-                                <ArrowRightIcon />
+                                <ArrowRightIcon/>
                             </span>
                         )}
                     </div>
@@ -226,7 +226,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ display: "block", borderRadius: token.borderRadiusLG }}
+                            style={{display: "block", borderRadius: token.borderRadiusLG}}
                         >
                             {card}
                         </a>
@@ -238,7 +238,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                             key={item.key}
                             to={getRealRouteUrl("/system/version")}
                             aria-label={`${item.name} ${item.value} ${text.version.viewBuildInfo}`}
-                            style={{ display: "block", borderRadius: token.borderRadiusLG }}
+                            style={{display: "block", borderRadius: token.borderRadiusLG}}
                         >
                             {card}
                         </Link>
@@ -253,8 +253,8 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
     const loadLabels = [text.loadAverage.oneMinute, text.loadAverage.fiveMinutes, text.loadAverage.fifteenMinutes];
 
     return (
-        <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG }}>
-            {metrics.some(({ item }) => item) && (
+        <Flex vertical gap={token.marginLG} style={{paddingBottom: token.paddingLG}}>
+            {metrics.some(({item}) => item) && (
                 <SettingsSection title={text.overview}>
                     <div
                         style={{
@@ -264,7 +264,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                         }}
                     >
                         {metrics.map(
-                            ({ item, value, percent, icon }) =>
+                            ({item, value, percent, icon}) =>
                                 item && (
                                     <dl
                                         key={item.key}
@@ -287,7 +287,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                         >
                                             <span
                                                 aria-hidden="true"
-                                                style={{ display: "inline-flex", color: token.colorPrimary }}
+                                                style={{display: "inline-flex", color: token.colorPrimary}}
                                             >
                                                 {icon}
                                             </span>
@@ -329,8 +329,8 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                                                 percent >= 85
                                                                     ? token.colorError
                                                                     : percent >= 65
-                                                                    ? token.colorWarning
-                                                                    : token.colorPrimary,
+                                                                        ? token.colorWarning
+                                                                        : token.colorPrimary,
                                                         }}
                                                     />
                                                 </div>
@@ -370,7 +370,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                     }}
                                 >
                                     {loadValues.map((value, index) => (
-                                        <dl key={loadLabels[index]} style={{ margin: 0 }}>
+                                        <dl key={loadLabels[index]} style={{margin: 0}}>
                                             <dt
                                                 style={{
                                                     color: token.colorTextSecondary,
@@ -394,7 +394,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                     ))}
                                 </div>
                             ) : (
-                                <Typography.Paragraph style={{ marginTop: token.marginXS }}>
+                                <Typography.Paragraph style={{marginTop: token.marginXS}}>
                                     {load.value}
                                 </Typography.Paragraph>
                             )}

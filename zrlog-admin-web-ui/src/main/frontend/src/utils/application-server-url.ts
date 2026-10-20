@@ -1,4 +1,4 @@
-import { getBackendServerUrl } from "./constants";
+import {getBackendServerUrl} from "./constants";
 
 const httpUrl = (value: string, base?: string): URL | undefined => {
     try {
@@ -34,8 +34,8 @@ export const resolveApplicationServerUrl = (
         suppliedPath === contextPath.slice(0, -1)
             ? ""
             : contextPath && suppliedPath.startsWith(contextPath)
-            ? suppliedPath.slice(contextPath.length)
-            : suppliedPath;
+                ? suppliedPath.slice(contextPath.length)
+                : suppliedPath;
     try {
         if (decodeURIComponent(path).split(/[\\/]/).includes("..")) return "";
     } catch {

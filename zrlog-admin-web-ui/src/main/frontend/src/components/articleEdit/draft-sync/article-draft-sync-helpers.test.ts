@@ -1,17 +1,14 @@
-import { describe, expect, it } from "@jest/globals";
-import { ArticleEntry } from "../index.types";
-import {
-    isRetryableArticleSyncError,
-    mergeArticleSynchronizationMetadata,
-} from "./article-draft-sync-helpers";
+import {describe, expect, it} from "@jest/globals";
+import {ArticleEntry} from "../index.types";
+import {isRetryableArticleSyncError, mergeArticleSynchronizationMetadata,} from "./article-draft-sync-helpers";
 
 describe("article draft sync helpers", () => {
     it("retries only network and temporary HTTP failures", () => {
         expect(isRetryableArticleSyncError(new Error("network error"))).toBe(true);
-        expect(isRetryableArticleSyncError({ response: { status: 429 } })).toBe(true);
-        expect(isRetryableArticleSyncError({ status: 503 })).toBe(true);
-        expect(isRetryableArticleSyncError({ status: 403 })).toBe(false);
-        expect(isRetryableArticleSyncError({ error: 9001, message: "session expired" })).toBe(false);
+        expect(isRetryableArticleSyncError({response: {status: 429}})).toBe(true);
+        expect(isRetryableArticleSyncError({status: 503})).toBe(true);
+        expect(isRetryableArticleSyncError({status: 403})).toBe(false);
+        expect(isRetryableArticleSyncError({error: 9001, message: "session expired"})).toBe(false);
     });
 
     it("merges server metadata without replacing newer local content", () => {

@@ -36,7 +36,9 @@ public abstract class AbstractAdminBusinessException extends AbstractBusinessExc
         return message;
     }
 
-    /** Localized display text, without diagnostic details supplied by the caller. */
+    /**
+     * Localized display text, without diagnostic details supplied by the caller.
+     */
     public String getUserMessage() {
         return I18nUtil.getAdminBackendStringFromRes(errorCode.getMessageKey());
     }

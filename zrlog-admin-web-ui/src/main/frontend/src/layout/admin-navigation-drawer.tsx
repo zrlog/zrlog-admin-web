@@ -1,7 +1,7 @@
 import CloseIcon from "@zrlog/ui/icons/close";
-import { Button, Drawer } from "antd";
-import { FunctionComponent, ReactNode } from "react";
-import { useTheme } from "antd-style";
+import {Button, Drawer} from "antd";
+import {FunctionComponent, ReactNode} from "react";
+import {useTheme} from "antd-style";
 
 type AdminNavigationDrawerProps = {
     open: boolean;
@@ -14,13 +14,13 @@ type AdminNavigationDrawerProps = {
 };
 
 const AdminNavigationDrawer: FunctionComponent<AdminNavigationDrawerProps> = ({
-    open,
-    width,
-    closeLabel,
-    brand,
-    onClose,
-    children,
-}) => {
+                                                                                  open,
+                                                                                  width,
+                                                                                  closeLabel,
+                                                                                  brand,
+                                                                                  onClose,
+                                                                                  children,
+                                                                              }) => {
     const theme = useTheme();
     const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
 
@@ -40,7 +40,7 @@ const AdminNavigationDrawer: FunctionComponent<AdminNavigationDrawerProps> = ({
                         className="sidebar-drawer-close"
                         aria-label={closeLabel}
                         onClick={onClose}
-                        icon={<CloseIcon style={{ fontSize: 18 }} />}
+                        icon={<CloseIcon style={{fontSize: 18}}/>}
                     />
                 </div>
             }

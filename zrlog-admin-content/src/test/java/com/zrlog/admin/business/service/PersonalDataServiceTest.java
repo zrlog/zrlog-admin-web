@@ -1,16 +1,11 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.Comment;
 import com.zrlog.model.User;
-
 import org.junit.Test;
 
 import java.sql.Timestamp;
@@ -19,11 +14,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class PersonalDataServiceTest {
+
+    private static PersonalDataPreviewRequest request(String query) {
+        PersonalDataPreviewRequest request = new PersonalDataPreviewRequest();
+        request.setQuery(query);
+        return request;
+    }
+
+    private static void insertComment(InMemoryZrLogDatabase db, int id, String comment, String mail, String home,
+                                      String ip, String name, String time, int logId) throws Exception {
+        db.execute("insert into comment(commentId,commTime,hide,have_read,userComment,userMail,userHome,userIp,userName,"
+                        + "logId) values(?,?,?,?,?,?,?,?,?,?)",
+                id, Timestamp.valueOf(time), false, false, comment, mail, home, ip, name, logId);
+    }
 
     @Test
     public void shouldConvertCommentRowsToExportEntries() throws Exception {
-        PersonalDataService service = new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+        PersonalDataService service = new PersonalDataService(() -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        }, () -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        });
         Map<String, Object> row = new HashMap<>();
         row.put("id", 9L);
         row.put("userComment", "hello");
@@ -60,7 +74,11 @@ public class PersonalDataServiceTest {
 
     @Test
     public void shouldConvertHelperValuesSafely() throws Exception {
-        PersonalDataService service = new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+        PersonalDataService service = new PersonalDataService(() -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        }, () -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        });
 
         assertEquals(7L, service.toLong(7));
         assertEquals(0L, service.toLong("7"));
@@ -113,18 +131,5 @@ public class PersonalDataServiceTest {
             assertEquals(2L, export.getComments().get(0).getLogId());
             assertEquals("2024-02-01 10:00:00", export.getComments().get(1).getCommTime());
         }
-    }
-
-    private static PersonalDataPreviewRequest request(String query) {
-        PersonalDataPreviewRequest request = new PersonalDataPreviewRequest();
-        request.setQuery(query);
-        return request;
-    }
-
-    private static void insertComment(InMemoryZrLogDatabase db, int id, String comment, String mail, String home,
-                                      String ip, String name, String time, int logId) throws Exception {
-        db.execute("insert into comment(commentId,commTime,hide,have_read,userComment,userMail,userHome,userIp,userName,"
-                        + "logId) values(?,?,?,?,?,?,?,?,?,?)",
-                id, Timestamp.valueOf(time), false, false, comment, mail, home, ip, name, logId);
     }
 }

@@ -1,8 +1,8 @@
-import { FunctionComponent, PropsWithChildren, useEffect, useState } from "react";
+import {FunctionComponent, PropsWithChildren, useEffect, useState} from "react";
 import UnknownErrorPage from "../components/unknown-error-page";
-import { getRes } from "../utils/constants";
+import {getRes} from "../utils/constants";
 
-const ErrorBoundary: FunctionComponent<PropsWithChildren> = ({ children }) => {
+const ErrorBoundary: FunctionComponent<PropsWithChildren> = ({children}) => {
     const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
@@ -18,7 +18,7 @@ const ErrorBoundary: FunctionComponent<PropsWithChildren> = ({ children }) => {
     }, []);
 
     if (hasError) {
-        return <UnknownErrorPage data={{ message: getRes().error.pageError }} code={"500"} />;
+        return <UnknownErrorPage data={{message: getRes().error.pageError}} code={"500"}/>;
     }
 
     return <>{children}</>;

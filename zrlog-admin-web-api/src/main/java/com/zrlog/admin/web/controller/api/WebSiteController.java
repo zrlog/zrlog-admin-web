@@ -1,37 +1,26 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
-import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
-import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
-import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
-import com.zrlog.admin.business.rest.base.ContentProtectorWebSiteInfo;
-import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
-import com.zrlog.admin.business.rest.base.OtherWebSiteInfo;
+import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.FeatureLabService;
-import com.zrlog.admin.business.service.UpgradeSettingsService;
-import com.zrlog.admin.business.service.WebSiteService;
-import com.zrlog.admin.business.service.WebSiteSettingsService;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -178,7 +167,9 @@ public class WebSiteController extends BaseController {
                 message, pages.metadata(actor, request.getUri()));
     }
 
-    protected UpgradeSettingsService upgradeSettingsService() { return upgradeSettings; }
+    protected UpgradeSettingsService upgradeSettingsService() {
+        return upgradeSettings;
+    }
 
     private boolean isPost() {
         return request.getMethod() == HttpMethod.POST;

@@ -6,13 +6,13 @@ import ExternalLinkIcon from "@zrlog/ui/icons/external-link";
 import InfoIcon from "@zrlog/ui/icons/info";
 import LoadingIcon from "@zrlog/ui/icons/loading";
 import MessageIcon from "@zrlog/ui/icons/message";
-import { Button, Drawer, Popover, Space, Typography } from "antd";
+import {Button, Drawer, Popover, Space, Typography} from "antd";
 
-import { CSSProperties, FunctionComponent } from "react";
-import { getLabelValueSeparator, getRes } from "../../utils/constants";
-import { ArticleEditState, PublishCheckTarget, PublishStatusPopoverState } from "./index.types";
+import {CSSProperties, FunctionComponent} from "react";
+import {getLabelValueSeparator, getRes} from "../../utils/constants";
+import {ArticleEditState, PublishCheckTarget, PublishStatusPopoverState} from "./index.types";
 import PublishCheckResult from "./article-ai-assistant/tool/content/publish-check-result";
-import { useTheme } from "antd-style";
+import {useTheme} from "antd-style";
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import useArticleEditorScreens from "./use-article-editor-screens";
 
@@ -29,14 +29,14 @@ type PublishStatusBarProps = {
 type DisplayStatus = "running" | "success" | "error" | "not-required";
 
 const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
-    saving,
-    publishStatus,
-    onOpenChange,
-    onClose,
-    onOpenAssistant,
-    onLocatePublishCheckTarget,
-    getContainer,
-}) => {
+                                                                        saving,
+                                                                        publishStatus,
+                                                                        onOpenChange,
+                                                                        onClose,
+                                                                        onOpenAssistant,
+                                                                        onLocatePublishCheckTarget,
+                                                                        getContainer,
+                                                                    }) => {
     const screens = useArticleEditorScreens();
     const theme = useTheme();
     const isMobile = screens.xs === true;
@@ -68,7 +68,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
     };
 
     const renderStatusRow = (status: DisplayStatus, text: string) => (
-        <div style={{ display: "flex", alignItems: "flex-start", gap: theme.marginXS, width: "100%" }}>
+        <div style={{display: "flex", alignItems: "flex-start", gap: theme.marginXS, width: "100%"}}>
             {buildStatusTag(status)}
             <Typography.Text style={statusTextStyle}>{text}</Typography.Text>
         </div>
@@ -80,7 +80,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             publishStatus.staticStatus === "failed" ||
             publishStatus.checkStatus === "error"
         ) {
-            return <AlertIcon />;
+            return <AlertIcon/>;
         }
         if (
             publishStatus.publishState === "running" ||
@@ -88,12 +88,12 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             publishStatus.checkStatus === "running" ||
             saving.releaseSaving
         ) {
-            return <LoadingIcon />;
+            return <LoadingIcon/>;
         }
         if (publishStatus.publishState === "success" || publishStatus.checkStatus === "success") {
-            return <SuccessIcon />;
+            return <SuccessIcon/>;
         }
-        return <InfoIcon />;
+        return <InfoIcon/>;
     };
 
     const getTriggerText = () => {
@@ -151,20 +151,20 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
     };
 
     const title = (
-        <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+        <Space direction="vertical" size={0} style={{minWidth: 0}}>
             <Typography.Text strong>{getRes().articleEdit.publishStatus.title}</Typography.Text>
             {publishStatus.updatedAt && (
-                <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
+                <Typography.Text type="secondary" style={{fontSize: theme.fontSizeSM}}>
                     {getRes().backgroundTask.updatedAt}
                     {getLabelValueSeparator()}
-                    <TimeAgo timestamp={publishStatus.updatedAt} />
+                    <TimeAgo timestamp={publishStatus.updatedAt}/>
                 </Typography.Text>
             )}
         </Space>
     );
 
     const content = (
-        <Space direction="vertical" size={10} style={{ width: "100%", minWidth: 0, overflowWrap: "anywhere" }}>
+        <Space direction="vertical" size={10} style={{width: "100%", minWidth: 0, overflowWrap: "anywhere"}}>
             {!isMobile && (
                 <div
                     style={{
@@ -175,23 +175,23 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                     }}
                 >
                     {title}
-                    <Button size="small" type="text" icon={<CloseIcon />} onClick={onClose} />
+                    <Button size="small" type="text" icon={<CloseIcon/>} onClick={onClose}/>
                 </div>
             )}
-            <Space direction="vertical" size={6} style={{ width: "100%" }}>
+            <Space direction="vertical" size={6} style={{width: "100%"}}>
                 {publishStatus.publishState !== "idle" &&
                     renderStatusRow(
                         publishStatus.publishState === "failed"
                             ? "error"
                             : publishStatus.publishState === "running"
-                            ? "running"
-                            : "success",
+                                ? "running"
+                                : "success",
                         publishStatus.publishState === "failed"
                             ? publishStatus.publishError || getRes().articleEdit.saveFailed
                             : publishStatus.publishText ||
-                                  (publishStatus.publishState === "running"
-                                      ? getRes().staticSite.publishStart
-                                      : getRes().staticSite.publishComplete)
+                            (publishStatus.publishState === "running"
+                                ? getRes().staticSite.publishStart
+                                : getRes().staticSite.publishComplete)
                     )}
                 {renderStaticStatus()}
                 {publishStatus.checkStatus !== "idle" &&
@@ -199,25 +199,25 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                         publishStatus.checkStatus === "success"
                             ? "success"
                             : publishStatus.checkStatus === "error"
-                            ? "error"
-                            : "running",
+                                ? "error"
+                                : "running",
                         publishStatus.checkStatus === "success"
                             ? getRes().articleEdit.publishCheck.finished
                             : publishStatus.checkStatus === "error"
-                            ? publishStatus.checkError || getRes().articleEdit.publishCheck.failed
-                            : getRes().articleEdit.publishCheck.running
+                                ? publishStatus.checkError || getRes().articleEdit.publishCheck.failed
+                                : getRes().articleEdit.publishCheck.running
                     )}
             </Space>
             {publishStatus.publicUrl && (
-                <Space direction="vertical" size={2} style={{ width: "100%", minWidth: 0 }}>
+                <Space direction="vertical" size={2} style={{width: "100%", minWidth: 0}}>
                     <Typography.Text type="secondary">{getRes().articleEdit.publishStatus.publicUrl}</Typography.Text>
                     <Typography.Link
                         href={publishStatus.publicUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ overflowWrap: "anywhere" }}
+                        style={{overflowWrap: "anywhere"}}
                     >
-                        <ExternalLinkIcon style={{ marginInlineEnd: theme.marginXXS }} />
+                        <ExternalLinkIcon style={{marginInlineEnd: theme.marginXXS}}/>
                         {publishStatus.publicUrl}
                     </Typography.Link>
                 </Space>
@@ -225,19 +225,19 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             {publishStatus.checkPayload && (
                 <PublishCheckResult
                     toolPayload={publishStatus.checkPayload}
-                    style={isMobile ? undefined : { maxHeight: 320, overflowY: "auto" }}
+                    style={isMobile ? undefined : {maxHeight: 320, overflowY: "auto"}}
                     onLocateTarget={onLocatePublishCheckTarget}
                 />
             )}
             {publishStatus.checkStatus === "success" && (
-                <Space direction="vertical" size={4} style={{ width: "100%", minWidth: 0 }}>
+                <Space direction="vertical" size={4} style={{width: "100%", minWidth: 0}}>
                     <Typography.Text type="secondary">{getRes().articleEdit.publishCheck.reportHint}</Typography.Text>
                     {onOpenAssistant && (
                         <Button
                             size="small"
                             type="link"
-                            icon={<MessageIcon />}
-                            style={{ paddingInline: 0, whiteSpace: "normal", height: "auto", textAlign: "start" }}
+                            icon={<MessageIcon/>}
+                            style={{paddingInline: 0, whiteSpace: "normal", height: "auto", textAlign: "start"}}
                             onClick={() => {
                                 onOpenAssistant();
                                 onOpenChange(false);
@@ -260,7 +260,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             aria-label={`${getRes().articleEdit.publishStatus.title}${getLabelValueSeparator()}${getTriggerText()}`}
             aria-expanded={publishStatus.open}
             title={getTriggerText()}
-            style={{ color: triggerColor, flexShrink: 0, paddingInline: theme.paddingXXS }}
+            style={{color: triggerColor, flexShrink: 0, paddingInline: theme.paddingXXS}}
             onClick={isMobile ? () => onOpenChange(!publishStatus.open) : undefined}
         >
             {isMobile ? null : getTriggerText()}
@@ -279,7 +279,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                     onClose={onClose}
                     getContainer={getContainer}
                     styles={{
-                        wrapper: { maxHeight: "80dvh" },
+                        wrapper: {maxHeight: "80dvh"},
                         section: {
                             borderStartStartRadius: theme.borderRadiusLG,
                             borderStartEndRadius: theme.borderRadiusLG,

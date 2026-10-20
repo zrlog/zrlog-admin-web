@@ -1,11 +1,10 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.common.TokenService;
-
 import jakarta.inject.Inject;
 
 import java.lang.reflect.Method;
@@ -38,7 +37,8 @@ public class AdminRefreshCacheInterceptor extends AdminMethodInterceptor {
         } else if (!requestIdentity
                 .account(AdminInterceptorSupport.getAdminToken(tokenService.get(), request))
                 .isAdministrator()) {
-            response.renderCode(403); return false;
+            response.renderCode(403);
+            return false;
         }
         Method method = getMethod(request);
         doMethodInterceptor(request, response, method);

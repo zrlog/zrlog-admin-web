@@ -1,8 +1,7 @@
 import Typography from "@zrlog/ui/antd/Typography";
-import { } from "antd";
-import { FunctionComponent } from "react";
-import { getRes } from "../../../../../utils/constants";
-import { AssistantToolPayload } from "../../article-ai-assistant.types";
+import {FunctionComponent} from "react";
+import {getRes} from "../../../../../utils/constants";
+import {AssistantToolPayload} from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
 import ArticleAiAssistantToolResultCard from "../article-ai-assistant-tool-result-card";
 import {
@@ -11,22 +10,22 @@ import {
     ToolReportList,
     ToolReportSummary,
 } from "../article-ai-assistant-tool-report";
-import { SpecificToolContentProps } from "../article-ai-assistant-tool-content.types";
+import {SpecificToolContentProps} from "../article-ai-assistant-tool-content.types";
 
 type ProofreadToolPayload = Extract<AssistantToolPayload, { tool: "proofread" }>;
 
 const ProofreadToolContent: FunctionComponent<SpecificToolContentProps<ProofreadToolPayload>> = ({
-    aiProvider,
-    offline,
-    loadingKey,
-    toolPayload,
-    onRefine,
-}) => {
+                                                                                                     aiProvider,
+                                                                                                     offline,
+                                                                                                     loadingKey,
+                                                                                                     toolPayload,
+                                                                                                     onRefine,
+                                                                                                 }) => {
     const proofreadResult = toolPayload.payload;
     const items = proofreadResult.items || [];
     return (
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
-            <ToolReportSummary summary={proofreadResult.summary} />
+            <ToolReportSummary summary={proofreadResult.summary}/>
             {items.length === 0 ? (
                 <Typography.Paragraph type="secondary">
                     {getRes().articleEdit.assistant.noProofreadIssues}

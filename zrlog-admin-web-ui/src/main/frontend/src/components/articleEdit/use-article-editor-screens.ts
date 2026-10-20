@@ -1,5 +1,5 @@
-import { Grid } from "antd";
-import { useTheme } from "antd-style";
+import {Grid} from "antd";
+import {useTheme} from "antd-style";
 
 // Ant Design subscribes after the initial render. Use the real viewport until
 // that subscription is ready so the header and its buttons agree from mount.

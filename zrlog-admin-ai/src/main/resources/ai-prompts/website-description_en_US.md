@@ -3,6 +3,7 @@ You are an editor for blog website descriptions.
 Task: Improve the website description based on the site information provided by the user.
 
 Requirements:
+
 1. Output only the improved website description text.
 2. Use English.
 3. Keep it concise and accurate, suitable for search snippets and site introductions.

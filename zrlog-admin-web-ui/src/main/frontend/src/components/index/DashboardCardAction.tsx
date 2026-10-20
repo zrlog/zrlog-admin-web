@@ -1,20 +1,20 @@
 import ChevronRightIcon from "@zrlog/ui/icons/chevron-right";
-import { Button } from "antd";
-import { useTheme } from "antd-style";
-import { CSSProperties, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import {Button} from "antd";
+import {useTheme} from "antd-style";
+import {CSSProperties, ReactNode} from "react";
+import {Link} from "react-router-dom";
 
 type DashboardCardActionProps =
     | {
-          children: ReactNode;
-          to: string;
-          onClick?: never;
-      }
+    children: ReactNode;
+    to: string;
+    onClick?: never;
+}
     | {
-          children: ReactNode;
-          to?: never;
-          onClick: () => void;
-      };
+    children: ReactNode;
+    to?: never;
+    onClick: () => void;
+};
 
 const DashboardCardAction = (props: DashboardCardActionProps) => {
     const theme = useTheme();
@@ -27,7 +27,7 @@ const DashboardCardAction = (props: DashboardCardActionProps) => {
     const content = (
         <>
             <span>{props.children}</span>
-            <ChevronRightIcon />
+            <ChevronRightIcon/>
         </>
     );
 

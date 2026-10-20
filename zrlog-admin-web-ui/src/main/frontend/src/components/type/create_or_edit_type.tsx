@@ -1,17 +1,17 @@
 import Input from "@zrlog/ui/antd/Input";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { FunctionComponent, PropsWithChildren, useEffect, useState } from "react";
-import { Col, Form, Modal } from "antd";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {FunctionComponent, PropsWithChildren, useEffect, useState} from "react";
+import {Col, Form, Modal} from "antd";
 import Row from "antd/es/grid/row";
 import TextArea from "antd/es/input/TextArea";
-import { Link } from "react-router-dom";
-import { getRes } from "../../utils/constants";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {Link} from "react-router-dom";
+import {getRes} from "../../utils/constants";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 
 const layout = {
-    labelCol: { span: 4 },
-    wrapperCol: { span: 20 },
+    labelCol: {span: 4},
+    wrapperCol: {span: 20},
 };
 
 type TypeEntry = {
@@ -27,12 +27,12 @@ export type EditTypeProps = PropsWithChildren & {
     offline: boolean;
 };
 
-const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSuccessCall, offline, children }) => {
+const CreateOrEditType: FunctionComponent<EditTypeProps> = ({record, editSuccessCall, offline, children}) => {
     const [showModel, setShowModel] = useState<boolean>(false);
     const [updateForm, setUpdateForm] = useState<TypeEntry>(record);
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
     const [loading, setLoading] = useState<boolean>(false);
-    const { formLayout, narrow } = useResponsiveFormLayout(layout);
+    const {formLayout, narrow} = useResponsiveFormLayout(layout);
 
     const isUpdate = () => {
         return record.id && record.id > 0;
@@ -96,18 +96,18 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                 width={narrow ? "calc(100vw - 32px)" : undefined}
             >
                 <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...formLayout}>
-                    <Form.Item name="id" style={{ display: "none" }}>
-                        <Input hidden={true} />
+                    <Form.Item name="id" style={{display: "none"}}>
+                        <Input hidden={true}/>
                     </Form.Item>
                     <Row>
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().articleType.title}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="typeName"
-                                rules={[{ required: true, message: "" }]}
+                                rules={[{required: true, message: ""}]}
                             >
-                                <Input placeholder={getRes().articleType.namePlaceholder} />
+                                <Input placeholder={getRes().articleType.namePlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -115,12 +115,12 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().alias}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="alias"
-                                rules={[{ required: true, message: "" }]}
+                                rules={[{required: true, message: ""}]}
                                 extra={getRes().articleType.aliasHelp}
                             >
-                                <Input placeholder={getRes().articleType.aliasPlaceholder} />
+                                <Input placeholder={getRes().articleType.aliasPlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -128,12 +128,12 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().introduction}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="remark"
-                                rules={[{ message: "" }]}
+                                rules={[{message: ""}]}
                                 extra={getRes().articleType.remarkHelp}
                             >
-                                <TextArea placeholder={getRes().articleType.remarkPlaceholder} />
+                                <TextArea placeholder={getRes().articleType.remarkPlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>

@@ -1,23 +1,24 @@
 import Typography from "@zrlog/ui/antd/Typography";
-import { Alert, Button, Drawer, Empty, Form, List, Space } from "antd";
+import {Alert, Button, Drawer, Empty, Form, List, Space} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { formatDateTime } from "../utils/date-time";
-import { isModuleEnabled } from "../utils/module-capabilities";
-import { useEffect, useState } from "react";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {formatDateTime} from "../utils/date-time";
+import {isModuleEnabled} from "../utils/module-capabilities";
+import {useEffect, useState} from "react";
 import SettingsSection from "./common/SettingsSection";
-import { useLocation } from "react-router-dom";
-import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
+import {useLocation} from "react-router-dom";
+import PersonalAccessTokens, {PersonalAccessToken} from "./personal-access-tokens";
 
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getRes } from "../utils/constants";
-import { resolveApplicationServerUrl } from "../utils/application-server-url";
-import { getPageDataCacheKey } from "../utils/cache";
-import type { AdminCommonProps } from "../type";
-import { getSsDate } from "../base/SsData";
-import { getPageApiUri, UserApplicationPage } from "../utils/account-page-routes";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getRes} from "../utils/constants";
+import {resolveApplicationServerUrl} from "../utils/application-server-url";
+import {getPageDataCacheKey} from "../utils/cache";
+import type {AdminCommonProps} from "../type";
+import {getSsDate} from "../base/SsData";
+import {getPageApiUri, UserApplicationPage} from "../utils/account-page-routes";
+
 type Client = { clientId: string; name: string; redirectUris: string[] };
 type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
 export type UserApplicationsData = {
@@ -37,10 +38,10 @@ type UserApplicationsProps = Pick<AdminCommonProps<UserApplicationsData>, "data"
 };
 
 function OAuthConnections({
-    data,
-    updateCache,
-    activePage = "tokens",
-}: Pick<UserApplicationsProps, "data" | "updateCache" | "activePage">) {
+                              data,
+                              updateCache,
+                              activePage = "tokens",
+                          }: Pick<UserApplicationsProps, "data" | "updateCache" | "activePage">) {
     const [page, setPage] = useState(data);
     const location = useLocation();
     useEffect(() => setPage(data), [data]);
@@ -56,13 +57,13 @@ function OAuthConnections({
         "account:inherit": res.personalTokens.inherit,
     };
     const oauthEndpoints = (
-        <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+        <Space orientation="vertical" style={{maxWidth: "100%"}}>
             <Typography.Text>{res.issuer}</Typography.Text>
-            <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+            <Typography.Text copyable style={{overflowWrap: "anywhere"}}>
                 {resolveApplicationServerUrl(page.issuer, "")}
             </Typography.Text>
             <Typography.Text>{res.resource}</Typography.Text>
-            <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+            <Typography.Text copyable style={{overflowWrap: "anywhere"}}>
                 {resolveApplicationServerUrl(page.resource, "api/oauth")}
             </Typography.Text>
         </Space>
@@ -92,7 +93,7 @@ function OAuthConnections({
         }
     };
     return (
-        <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+        <Space orientation="vertical" size="large" style={{width: "100%"}}>
             {contextHolder}
             {
                 [
@@ -100,17 +101,17 @@ function OAuthConnections({
                         key: "tokens",
                         label: res.personalTokens.title,
                         children: (
-                            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                            <Space orientation="vertical" size="large" style={{width: "100%"}}>
                                 <div>
-                                    <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+                                    <Space orientation="vertical" style={{maxWidth: "100%"}}>
                                         <Typography.Text>{res.personalTokens.siteUrl}</Typography.Text>
-                                        <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                        <Typography.Text copyable style={{overflowWrap: "anywhere"}}>
                                             {resolveApplicationServerUrl(page.issuer, "")}
                                         </Typography.Text>
                                         {isModuleEnabled("mcp") && (
                                             <>
                                                 <Typography.Text>{res.mcpUrl}</Typography.Text>
-                                                <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                                <Typography.Text copyable style={{overflowWrap: "anywhere"}}>
                                                     {resolveApplicationServerUrl(page.mcpResource, "mcp")}
                                                 </Typography.Text>
                                                 <Typography.Paragraph type="secondary">
@@ -119,7 +120,7 @@ function OAuthConnections({
                                             </>
                                         )}
                                         <Typography.Text>{res.personalTokens.notificationUrl}</Typography.Text>
-                                        <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                        <Typography.Text copyable style={{overflowWrap: "anywhere"}}>
                                             {resolveApplicationServerUrl(
                                                 page.notificationEndpoint,
                                                 "api/webhook/message-center/notice"
@@ -143,11 +144,11 @@ function OAuthConnections({
                         key: "grants",
                         label: res.grants,
                         children: (
-                            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                            <Space orientation="vertical" size="large" style={{width: "100%"}}>
                                 {oauthEndpoints}
                                 <SettingsSection divided>
                                     <List
-                                        locale={{ emptyText: <Empty description={res.empty} /> }}
+                                        locale={{emptyText: <Empty description={res.empty}/>}}
                                         dataSource={page.grants}
                                         renderItem={(grant) => (
                                             <List.Item
@@ -155,16 +156,16 @@ function OAuthConnections({
                                                     grant.revoked
                                                         ? []
                                                         : [
-                                                              <Popconfirm
-                                                                  key="revoke"
-                                                                  title={res.confirmRevoke}
-                                                                  onConfirm={() =>
-                                                                      mutate("revokeGrant", { id: grant.id })
-                                                                  }
-                                                              >
-                                                                  <Button loading={busy}>{res.revoke}</Button>
-                                                              </Popconfirm>,
-                                                          ]
+                                                            <Popconfirm
+                                                                key="revoke"
+                                                                title={res.confirmRevoke}
+                                                                onConfirm={() =>
+                                                                    mutate("revokeGrant", {id: grant.id})
+                                                                }
+                                                            >
+                                                                <Button loading={busy}>{res.revoke}</Button>
+                                                            </Popconfirm>,
+                                                        ]
                                                 }
                                             >
                                                 <List.Item.Meta
@@ -207,75 +208,75 @@ function OAuthConnections({
                     },
                     ...(page.administrator
                         ? [
-                              {
-                                  key: "clients",
-                                  label: res.applications,
-                                  children: (
-                                      <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-                                          {oauthEndpoints}
-                                          <SettingsSection
-                                              divided
-                                              extra={
-                                                  <Button
-                                                      type="primary"
-                                                      onClick={() => {
-                                                          form.resetFields();
-                                                          setOpen(true);
-                                                      }}
-                                                  >
-                                                      {res.register}
-                                                  </Button>
-                                              }
-                                          >
-                                              <List
-                                                  dataSource={page.clients}
-                                                  renderItem={(client) => (
-                                                      <List.Item
-                                                          actions={[
-                                                              <Popconfirm
-                                                                  key="disable"
-                                                                  title={res.confirmDisable}
-                                                                  onConfirm={() =>
-                                                                      mutate("disableClient", { id: client.clientId })
-                                                                  }
-                                                              >
-                                                                  <Button loading={busy}>{res.disable}</Button>
-                                                              </Popconfirm>,
-                                                          ]}
-                                                      >
-                                                          <List.Item.Meta
-                                                              title={client.name}
-                                                              description={
-                                                                  <Space
-                                                                      orientation="vertical"
-                                                                      style={{ maxWidth: "100%" }}
-                                                                  >
-                                                                      <Typography.Text
-                                                                          copyable
-                                                                          style={{ overflowWrap: "anywhere" }}
-                                                                      >
-                                                                          {client.clientId}
-                                                                      </Typography.Text>
-                                                                      {client.redirectUris.map((uri) => (
-                                                                          <Typography.Text
-                                                                              key={uri}
-                                                                              type="secondary"
-                                                                              style={{ overflowWrap: "anywhere" }}
-                                                                          >
-                                                                              {uri}
-                                                                          </Typography.Text>
-                                                                      ))}
-                                                                  </Space>
-                                                              }
-                                                          />
-                                                      </List.Item>
-                                                  )}
-                                              />
-                                          </SettingsSection>
-                                      </Space>
-                                  ),
-                              },
-                          ]
+                            {
+                                key: "clients",
+                                label: res.applications,
+                                children: (
+                                    <Space orientation="vertical" size="large" style={{width: "100%"}}>
+                                        {oauthEndpoints}
+                                        <SettingsSection
+                                            divided
+                                            extra={
+                                                <Button
+                                                    type="primary"
+                                                    onClick={() => {
+                                                        form.resetFields();
+                                                        setOpen(true);
+                                                    }}
+                                                >
+                                                    {res.register}
+                                                </Button>
+                                            }
+                                        >
+                                            <List
+                                                dataSource={page.clients}
+                                                renderItem={(client) => (
+                                                    <List.Item
+                                                        actions={[
+                                                            <Popconfirm
+                                                                key="disable"
+                                                                title={res.confirmDisable}
+                                                                onConfirm={() =>
+                                                                    mutate("disableClient", {id: client.clientId})
+                                                                }
+                                                            >
+                                                                <Button loading={busy}>{res.disable}</Button>
+                                                            </Popconfirm>,
+                                                        ]}
+                                                    >
+                                                        <List.Item.Meta
+                                                            title={client.name}
+                                                            description={
+                                                                <Space
+                                                                    orientation="vertical"
+                                                                    style={{maxWidth: "100%"}}
+                                                                >
+                                                                    <Typography.Text
+                                                                        copyable
+                                                                        style={{overflowWrap: "anywhere"}}
+                                                                    >
+                                                                        {client.clientId}
+                                                                    </Typography.Text>
+                                                                    {client.redirectUris.map((uri) => (
+                                                                        <Typography.Text
+                                                                            key={uri}
+                                                                            type="secondary"
+                                                                            style={{overflowWrap: "anywhere"}}
+                                                                        >
+                                                                            {uri}
+                                                                        </Typography.Text>
+                                                                    ))}
+                                                                </Space>
+                                                            }
+                                                        />
+                                                    </List.Item>
+                                                )}
+                                            />
+                                        </SettingsSection>
+                                    </Space>
+                                ),
+                            },
+                        ]
                         : []),
                 ].find((item) => item.key === activePage)?.children
             }
@@ -296,18 +297,18 @@ function OAuthConnections({
                             setOpen(false);
                     }}
                 >
-                    <Form.Item name="name" label={res.name} rules={[{ required: true, max: 128 }]}>
-                        <Input />
+                    <Form.Item name="name" label={res.name} rules={[{required: true, max: 128}]}>
+                        <Input/>
                     </Form.Item>
                     <Form.Item
                         name="redirectUris"
                         label={res.redirectUris}
-                        rules={[{ required: true }]}
+                        rules={[{required: true}]}
                         extra={res.redirectHelp}
                     >
-                        <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
+                        <Input.TextArea autoSize={{minRows: 3, maxRows: 8}}/>
                     </Form.Item>
-                    <Alert type="info" title={res.registerHelp} style={{ marginBottom: 16 }} />
+                    <Alert type="info" title={res.registerHelp} style={{marginBottom: 16}}/>
                     <Button type="primary" htmlType="submit" loading={busy}>
                         {res.register}
                     </Button>
@@ -317,7 +318,7 @@ function OAuthConnections({
     );
 }
 
-export function UserApplications({ offline, data, updateCache, activePage }: UserApplicationsProps) {
-    if (offline) return <Alert type="info" title={getRes().oauth.offline} />;
-    return <OAuthConnections data={data} updateCache={updateCache} activePage={activePage} />;
+export function UserApplications({offline, data, updateCache, activePage}: UserApplicationsProps) {
+    if (offline) return <Alert type="info" title={getRes().oauth.offline}/>;
+    return <OAuthConnections data={data} updateCache={updateCache} activePage={activePage}/>;
 }

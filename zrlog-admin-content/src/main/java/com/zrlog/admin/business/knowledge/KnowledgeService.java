@@ -1,18 +1,17 @@
 package com.zrlog.admin.business.knowledge;
 
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.model.Log;
-
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
-
 import jakarta.inject.Named;
-
 import org.jsoup.Jsoup;
 
 import java.sql.SQLException;
@@ -20,7 +19,9 @@ import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-/** The one read boundary used by the internal assistant and remote MCP transport. */
+/**
+ * The one read boundary used by the internal assistant and remote MCP transport.
+ */
 public final class KnowledgeService implements ToolProvider {
     private final jakarta.inject.Provider<Log> logProvider;
 
@@ -49,29 +50,29 @@ public final class KnowledgeService implements ToolProvider {
             jakarta.inject.Provider<Log> logProvider) {
         this.logProvider = logProvider;
 
-        this.actor = actor; this.scopes = Set.copyOf(scopes); this.siteUrl = siteUrl;
+        this.actor = actor;
+        this.scopes = Set.copyOf(scopes);
+        this.siteUrl = siteUrl;
         this.staticHtml = Objects.requireNonNull(staticHtml);
         this.messages = new KnowledgeMessages(language);
     }
 
-    @AssistedFactory
-    public interface Factory {
-        KnowledgeService create(Supplier<AccountAccess> actor, Set<String> scopes, String language);
-    }
-
-    @Override public List<Tool> definitions(String language) { return tools(language); }
     public static List<Tool> tools() {
         return tools("en_US");
     }
+
     public static List<Tool> tools(String language) {
         KnowledgeMessages messages = new KnowledgeMessages(language);
         return List.of(tool(messages, "search_articles", "admin.knowledge.tools.searchArticles",
-                "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10}},\"additionalProperties\":false}"),
+                        "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10}},\"additionalProperties\":false}"),
                 tool(messages, "read_article", "admin.knowledge.tools.readArticle",
-                "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\",\"minimum\":1},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000},\"length\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":12000}},\"required\":[\"id\"],\"additionalProperties\":false}"));
+                        "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\",\"minimum\":1},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000},\"length\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":12000}},\"required\":[\"id\"],\"additionalProperties\":false}"));
     }
+
     private static Tool tool(KnowledgeMessages messages, String name, String key, String schema) {
-        Tool t = new Tool(); t.name = name; t.description = messages.get(key + ".description");
+        Tool t = new Tool();
+        t.name = name;
+        t.description = messages.get(key + ".description");
         // annotations.title is supported by all three advertised MCP versions.
         t.annotations.title = messages.get(key + ".title");
         t.inputSchema = JsonParser.parseString(schema).getAsJsonObject();
@@ -79,13 +80,20 @@ public final class KnowledgeService implements ToolProvider {
                 property.getValue().getAsJsonObject().addProperty("description", messages.get(key + ".parameters." + property.getKey())));
         return t;
     }
+
+    @Override
+    public List<Tool> definitions(String language) {
+        return tools(language);
+    }
+
     public Object call(String name, JsonObject arguments) throws SQLException {
         JsonObject args = arguments == null ? new JsonObject() : arguments;
         if ("search_articles".equals(name)) {
             keys(args, Set.of("query", "offset", "limit"));
             String query = "";
             if (args.has("query")) {
-                if (!args.get("query").isJsonPrimitive() || !args.getAsJsonPrimitive("query").isString()) throw invalid();
+                if (!args.get("query").isJsonPrimitive() || !args.getAsJsonPrimitive("query").isString())
+                    throw invalid();
                 query = args.get("query").getAsString().trim();
             }
             if (query.length() > 200) throw invalid();
@@ -97,7 +105,11 @@ public final class KnowledgeService implements ToolProvider {
         }
         throw new IllegalArgumentException(messages.get("admin.knowledge.error.unknownTool"));
     }
-    private void keys(JsonObject args, Set<String> allowed) { if (!allowed.containsAll(args.keySet())) throw invalid(); }
+
+    private void keys(JsonObject args, Set<String> allowed) {
+        if (!allowed.containsAll(args.keySet())) throw invalid();
+    }
+
     private int integer(JsonObject args, String key, int fallback, int min, int max) {
         try {
             int value = fallback;
@@ -108,22 +120,43 @@ public final class KnowledgeService implements ToolProvider {
             }
             if (value < min || value > max) throw invalid();
             return value;
-        } catch (ArithmeticException | NumberFormatException e) { throw invalid(); }
+        } catch (ArithmeticException | NumberFormatException e) {
+            throw invalid();
+        }
     }
-    private IllegalArgumentException invalid() { return new IllegalArgumentException(messages.get("admin.knowledge.validation.arguments")); }
+
+    private IllegalArgumentException invalid() {
+        return new IllegalArgumentException(messages.get("admin.knowledge.validation.arguments"));
+    }
+
     private AccountAccess account() {
         AccountAccess account = actor.get();
-        if (!account.isEnabled() || !account.scopes().contains("articles:read") || !scopes.contains("articles:read")) throw new PermissionErrorException();
+        if (!account.isEnabled() || !account.scopes().contains("articles:read") || !scopes.contains("articles:read"))
+            throw new PermissionErrorException();
         return account;
     }
+
     private String filter(AccountAccess account, List<Object> params) {
         StringBuilder sql = new StringBuilder(" where 1=1");
-        if (!account.managesAllArticles() || !scopes.contains("articles:all")) { sql.append(" and userId=?"); params.add(account.getUserId()); }
-        if (!scopes.contains("articles:read_drafts")) { sql.append(" and rubbish=?"); params.add(false); }
-        if (!scopes.contains("articles:read_private")) { sql.append(" and privacy=?"); params.add(false); }
-        else if (!account.isAdministrator()) { sql.append(" and (privacy=? or userId=?)"); params.add(false); params.add(account.getUserId()); }
+        if (!account.managesAllArticles() || !scopes.contains("articles:all")) {
+            sql.append(" and userId=?");
+            params.add(account.getUserId());
+        }
+        if (!scopes.contains("articles:read_drafts")) {
+            sql.append(" and rubbish=?");
+            params.add(false);
+        }
+        if (!scopes.contains("articles:read_private")) {
+            sql.append(" and privacy=?");
+            params.add(false);
+        } else if (!account.isAdministrator()) {
+            sql.append(" and (privacy=? or userId=?)");
+            params.add(false);
+            params.add(account.getUserId());
+        }
         return sql.toString();
     }
+
     private SearchResult search(String query, int offset, int limit) throws SQLException {
         AccountAccess account = account();
         List<Object> params = new ArrayList<>();
@@ -136,7 +169,8 @@ public final class KnowledgeService implements ToolProvider {
                 for (int i = 0; i < 5; i++) params.add(pattern);
             }
         }
-        params.add(limit + 1); params.add(offset);
+        params.add(limit + 1);
+        params.add(offset);
         List<Map<String, Object>> rows =
                 this.logProvider
                         .get()
@@ -147,16 +181,21 @@ public final class KnowledgeService implements ToolProvider {
                                 params.toArray());
         SearchResult result = new SearchResult();
         if (rows.size() > limit && offset + limit <= 1000) result.nextOffset = offset + limit;
-        for (Map<String,Object> row : rows.subList(0, Math.min(rows.size(), limit))) {
-            SearchHit hit = new SearchHit(); fillSource(hit, row);
+        for (Map<String, Object> row : rows.subList(0, Math.min(rows.size(), limit))) {
+            SearchHit hit = new SearchHit();
+            fillSource(hit, row);
             String excerpt = Jsoup.parse(Objects.toString(row.get("digest"), "")).text();
-            hit.excerpt = excerpt.substring(0, Math.min(400, excerpt.length())); result.articles.add(hit);
+            hit.excerpt = excerpt.substring(0, Math.min(400, excerpt.length()));
+            result.articles.add(hit);
         }
         return result;
     }
+
     private ArticleResult read(int id, int offset, int length) throws SQLException {
         AccountAccess account = account();
-        List<Object> params = new ArrayList<>(); String where = filter(account, params); params.add(id);
+        List<Object> params = new ArrayList<>();
+        String where = filter(account, params);
+        params.add(id);
         Map<String, Object> row =
                 this.logProvider
                         .get()
@@ -165,25 +204,39 @@ public final class KnowledgeService implements ToolProvider {
                                         + where
                                         + " and logId=?",
                                 params.toArray());
-        if (row == null || !ArticleAccess.canRead(account, scopes, ((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("rubbish")), AccountAccess.truth(row.get("privacy")))) throw new IllegalArgumentException(messages.get("admin.knowledge.error.articleUnavailable"));
+        if (row == null || !ArticleAccess.canRead(account, scopes, ((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("rubbish")), AccountAccess.truth(row.get("privacy"))))
+            throw new IllegalArgumentException(messages.get("admin.knowledge.error.articleUnavailable"));
         String content = Objects.toString(row.get("markdown"), "");
-        ArticleResult result = new ArticleResult(); result.source = new Source(); fillSource(result.source, row);
+        ArticleResult result = new ArticleResult();
+        result.source = new Source();
+        fillSource(result.source, row);
         result.format = content.isEmpty() ? "text" : "markdown";
         if (content.isEmpty()) content = Jsoup.parse(Objects.toString(row.get("content"), "")).text();
         if (offset > content.length()) throw invalid();
-        if (offset > 0 && offset < content.length() && Character.isLowSurrogate(content.charAt(offset)) && Character.isHighSurrogate(content.charAt(offset - 1))) throw invalid();
+        if (offset > 0 && offset < content.length() && Character.isLowSurrogate(content.charAt(offset)) && Character.isHighSurrogate(content.charAt(offset - 1)))
+            throw invalid();
         int end = Math.min(content.length(), offset + length);
-        if (end < content.length() && Character.isHighSurrogate(content.charAt(end - 1)) && Character.isLowSurrogate(content.charAt(end))) end++;
-        result.offset = offset; result.content = content.substring(offset, end);
+        if (end < content.length() && Character.isHighSurrogate(content.charAt(end - 1)) && Character.isLowSurrogate(content.charAt(end)))
+            end++;
+        result.offset = offset;
+        result.content = content.substring(offset, end);
         if (end < content.length() && end <= 1000000) result.nextOffset = end;
         return result;
     }
-    private void fillSource(Source source, Map<String,Object> row) {
-        source.id = ((Number) row.get("logId")).longValue(); source.title = Objects.toString(row.get("title"), "");
-        source.draft = AccountAccess.truth(row.get("rubbish")); source.privateArticle = AccountAccess.truth(row.get("privacy"));
+
+    private void fillSource(Source source, Map<String, Object> row) {
+        source.id = ((Number) row.get("logId")).longValue();
+        source.title = Objects.toString(row.get("title"), "");
+        source.draft = AccountAccess.truth(row.get("rubbish"));
+        source.privateArticle = AccountAccess.truth(row.get("privacy"));
         source.updatedAt = Objects.toString(row.get("last_update_date"), "");
         String alias = Objects.toString(row.get("alias"), "");
         String key = alias.isBlank() ? Long.toString(source.id) : java.net.URLEncoder.encode(alias, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
         source.url = siteUrl.get() + (source.draft || source.privateArticle ? "/admin/article-edit?previewMode=true&id=" + source.id : "/" + key + (staticHtml.getAsBoolean() ? ".html" : ""));
+    }
+
+    @AssistedFactory
+    public interface Factory {
+        KnowledgeService create(Supplier<AccountAccess> actor, Set<String> scopes, String language);
     }
 }

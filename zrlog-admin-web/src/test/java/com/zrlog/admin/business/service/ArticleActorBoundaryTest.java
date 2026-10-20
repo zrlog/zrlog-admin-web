@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
@@ -16,7 +14,6 @@ import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -25,14 +22,47 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class ArticleActorBoundaryTest {
-    @Parameterized.Parameters(name = "sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
-
     private final boolean sqlite;
 
-    public ArticleActorBoundaryTest(boolean sqlite) { this.sqlite = sqlite; }
+    public ArticleActorBoundaryTest(boolean sqlite) {
+        this.sqlite = sqlite;
+    }
+
+    @Parameterized.Parameters(name = "sqlite={0}")
+    public static Boolean[] databases() {
+        return new Boolean[]{false, true};
+    }
+
+    private static AdminTokenVO token(int userId) {
+        var token = new AdminTokenVO();
+        token.setUserId(userId);
+        return token;
+    }
+
+    private static CreateArticleRequest article(String title) {
+        var request = new CreateArticleRequest();
+        request.setTitle(title);
+        request.setContent("<p>Original body</p>");
+        request.setTypeId(1L);
+        request.setRubbish(true);
+        return request;
+    }
+
+    private static HttpRequest request() {
+        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
+                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("getUri")) return "/admin/article-edit";
+                    if (method.getName().equals("getContextPath")) return "";
+                    if (method.getReturnType().equals(boolean.class)) return false;
+                    if (method.getReturnType().equals(int.class)) return 0;
+                    if (method.getReturnType().equals(long.class)) return 0L;
+                    return null;
+                });
+    }
 
     @Test
     public void explicitAuthorOwnsArticleHistoryAndAssistantDataWithoutARequestIdentity() throws Exception {
@@ -108,32 +138,5 @@ public class ArticleActorBoundaryTest {
 
     private InMemoryZrLogDatabase open() throws Exception {
         return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
-    }
-
-    private static AdminTokenVO token(int userId) {
-        var token = new AdminTokenVO();
-        token.setUserId(userId);
-        return token;
-    }
-
-    private static CreateArticleRequest article(String title) {
-        var request = new CreateArticleRequest();
-        request.setTitle(title);
-        request.setContent("<p>Original body</p>");
-        request.setTypeId(1L);
-        request.setRubbish(true);
-        return request;
-    }
-
-    private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
-                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("getUri")) return "/admin/article-edit";
-                    if (method.getName().equals("getContextPath")) return "";
-                    if (method.getReturnType().equals(boolean.class)) return false;
-                    if (method.getReturnType().equals(int.class)) return 0;
-                    if (method.getReturnType().equals(long.class)) return 0L;
-                    return null;
-                });
     }
 }

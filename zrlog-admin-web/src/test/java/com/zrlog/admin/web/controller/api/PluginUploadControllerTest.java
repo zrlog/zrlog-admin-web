@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -20,7 +18,6 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -30,10 +27,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.*;
+
 public class PluginUploadControllerTest {
 
-    private ZrLogConfig applicationConfig;
     private static final String PATH = "/api/admin/plugins/upload";
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void bearerUploadRequiresPluginPermissionAndForwardsOriginalRequest() throws Exception {
@@ -77,25 +76,25 @@ public class PluginUploadControllerTest {
         create.permissionMode = "custom";
         create.permissions = List.of(permission);
         return new PersonalAccessTokenService(
-                        new OAuthService(
-                                        ApplicationServicesFixture.backend(applicationConfig)
-                                                ::configured,
-                                        ApplicationServicesFixture.available(
-                                                applicationConfig, McpWebSetup.class),
-                                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
-                                        AccountServicesFixture.component(testDataSource).security(),
-                                        tokenResource ->
-                                                new PersonalAccessTokenService(
-                                                        tokenResource,
-                                                        AccountServicesFixture.component(testDataSource)
-                                                                .identities(), AccountServicesFixture.component(testDataSource)
-                                                                .permissions(),
-                                                        AccountServicesFixture.component(testDataSource)
-                                                                .security()),
-                                        AccountServicesFixture.component(testDataSource).backend())
-                                .mcpResource(),
-                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                        AccountServicesFixture.component(testDataSource).security())
+                new OAuthService(
+                        ApplicationServicesFixture.backend(applicationConfig)
+                                ::configured,
+                        ApplicationServicesFixture.available(
+                                applicationConfig, McpWebSetup.class),
+                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).security(),
+                        tokenResource ->
+                                new PersonalAccessTokenService(
+                                        tokenResource,
+                                        AccountServicesFixture.component(testDataSource)
+                                                .identities(), AccountServicesFixture.component(testDataSource)
+                                        .permissions(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .security()),
+                        AccountServicesFixture.component(testDataSource).backend())
+                        .mcpResource(),
+                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
+                AccountServicesFixture.component(testDataSource).security())
                 .create(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), create)
                 .token;
     }
@@ -105,46 +104,60 @@ public class PluginUploadControllerTest {
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
                 new Class[]{HttpRequest.class}, (proxy, method, args) -> {
                     switch (method.getName()) {
-                        case "getUri": return PATH;
-                        case "getMethod": return HttpMethod.POST;
-                        case "getContextPath": return "/sub";
-                        case "getHeader": return "Authorization".equals(args[0]) ? "Bearer " + token
-                                : "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap": case "getParamMap": case "decodeParamMap": return Map.of();
-                        case "getInputStream": return new ByteArrayInputStream(body);
-                        case "getQueryStr": return "fileName=travel.jar&overwrite=true";
-                        case "getRemoteHost": return "127.0.0.1";
-                        case "getServerConfig": return config.getServerConfig();
-                        case "getRequestConfig": return config.getRequestConfig();
-                        default: return null;
+                        case "getUri":
+                            return PATH;
+                        case "getMethod":
+                            return HttpMethod.POST;
+                        case "getContextPath":
+                            return "/sub";
+                        case "getHeader":
+                            return "Authorization".equals(args[0]) ? "Bearer " + token
+                                    : "Host".equals(args[0]) ? "localhost:18080" : null;
+                        case "getHeaderMap":
+                        case "getParamMap":
+                        case "decodeParamMap":
+                            return Map.of();
+                        case "getInputStream":
+                            return new ByteArrayInputStream(body);
+                        case "getQueryStr":
+                            return "fileName=travel.jar&overwrite=true";
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getServerConfig":
+                            return config.getServerConfig();
+                        case "getRequestConfig":
+                            return config.getRequestConfig();
+                        default:
+                            return null;
                     }
                 });
         AtomicInteger status = new AtomicInteger(200);
         HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(),
                 new Class[]{HttpResponse.class}, (proxy, method, args) -> {
                     if (method.getName().equals("renderCode")) status.set((Integer) args[0]);
-                    if (method.getName().equals("write") && args.length > 1 && args[1] instanceof Integer) status.set((Integer) args[1]);
+                    if (method.getName().equals("write") && args.length > 1 && args[1] instanceof Integer)
+                        status.set((Integer) args[1]);
                     return null;
                 });
         new BearerTokenInterceptor(
-                        () -> ApplicationServicesFixture.dispatcher(null, applicationConfig),
-                        new OAuthService(
-                                ApplicationServicesFixture.backend(applicationConfig)::configured,
-                                ApplicationServicesFixture.available(
-                                        applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
-                                AccountServicesFixture.component(testDataSource).security(),
-                                tokenResource ->
-                                        new PersonalAccessTokenService(
-                                                tokenResource,
-                                                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                                                AccountServicesFixture.component(testDataSource).security()),
-                                AccountServicesFixture.component(testDataSource).backend()),
-                        AccountServicesFixture.component(testDataSource).routeAuthorizer(), AccountServicesFixture.component(testDataSource).requestIdentity(),
-                        AccountServicesFixture.component(testDataSource).preferences(),
-                        new WebhookService(
-                                ApplicationServicesFixture.messages(testDataSource),
-                                ApplicationServicesFixture.websiteCache(testDataSource)))
+                () -> ApplicationServicesFixture.dispatcher(null, applicationConfig),
+                new OAuthService(
+                        ApplicationServicesFixture.backend(applicationConfig)::configured,
+                        ApplicationServicesFixture.available(
+                                applicationConfig, McpWebSetup.class),
+                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).security(),
+                        tokenResource ->
+                                new PersonalAccessTokenService(
+                                        tokenResource,
+                                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).security()),
+                        AccountServicesFixture.component(testDataSource).backend()),
+                AccountServicesFixture.component(testDataSource).routeAuthorizer(), AccountServicesFixture.component(testDataSource).requestIdentity(),
+                AccountServicesFixture.component(testDataSource).preferences(),
+                new WebhookService(
+                        ApplicationServicesFixture.messages(testDataSource),
+                        ApplicationServicesFixture.websiteCache(testDataSource)))
                 .doInterceptor(request, response);
         return status.get();
     }

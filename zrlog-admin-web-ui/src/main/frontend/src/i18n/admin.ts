@@ -320,7 +320,7 @@ const zhCN = {
         "grantUnavailable": "应用请求的部分权限超出了当前账号的权限，无法授权",
         "createdAt": "授权时间"
     }
-,
+    ,
     "goBack": "返回",
     "key": "名称",
     "value": "值",
@@ -2408,7 +2408,7 @@ const enUS: AdminI18nResource = {
         "grantUnavailable": "Some requested permissions exceed the current account's permissions and cannot be granted",
         "createdAt": "Authorized at"
     }
-,
+    ,
     "goBack": "Back",
     "key": "Name",
     "value": "Value",

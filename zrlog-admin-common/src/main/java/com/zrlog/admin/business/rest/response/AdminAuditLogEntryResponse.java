@@ -2,9 +2,6 @@ package com.zrlog.admin.business.rest.response;
 
 public class AdminAuditLogEntryResponse {
     private Integer actorUserId;
-    public Integer getActorUserId() { return actorUserId; }
-    public void setActorUserId(Integer value) { actorUserId = value; }
-
     private Long timestamp;
     private String ip;
     private String action;
@@ -16,10 +13,29 @@ public class AdminAuditLogEntryResponse {
     private String agentName;
     private String agentVersion;
 
-    public String getAgentName() { return agentName; }
-    public void setAgentName(String agentName) { this.agentName = agentName; }
-    public String getAgentVersion() { return agentVersion; }
-    public void setAgentVersion(String agentVersion) { this.agentVersion = agentVersion; }
+    public Integer getActorUserId() {
+        return actorUserId;
+    }
+
+    public void setActorUserId(Integer value) {
+        actorUserId = value;
+    }
+
+    public String getAgentName() {
+        return agentName;
+    }
+
+    public void setAgentName(String agentName) {
+        this.agentName = agentName;
+    }
+
+    public String getAgentVersion() {
+        return agentVersion;
+    }
+
+    public void setAgentVersion(String agentVersion) {
+        this.agentVersion = agentVersion;
+    }
 
     public Long getTimestamp() {
         return timestamp;

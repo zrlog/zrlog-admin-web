@@ -1,20 +1,18 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.admin.business.ai.exception.AIImageDownloadException;
-import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
-import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
-import com.zrlog.admin.business.ai.exception.AIPromptResourceException;
-import com.zrlog.admin.business.ai.exception.AIRequestException;
-import com.zrlog.admin.business.ai.exception.AIResponseException;
-import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
-import com.zrlog.admin.business.ai.exception.UnsupportedAIToolException;
+import com.zrlog.admin.business.ai.exception.*;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class AdminBusinessExceptionContractTest {
+
+    private static void assertAdminError(AbstractAdminBusinessException exception, AdminErrorCode errorCode) {
+        assertEquals(errorCode.getLegacyCode(), exception.getError());
+        assertEquals(errorCode.getCode(), exception.getErrorCode());
+        assertNotNull(exception.getMessage());
+        assertTrue(errorCode.getMessageKey().startsWith("admin."));
+    }
 
     @Test
     public void accountMessagesAreLoadedAsChineseByThePropertiesLoader() throws Exception {
@@ -71,12 +69,5 @@ public class AdminBusinessExceptionContractTest {
         assertEquals("length", exception.getFinishReason());
         assertEquals(Integer.valueOf(2), exception.getContinuationRounds());
         assertEquals(null, new AIIncompleteResponseException("content_filter").getContinuationRounds());
-    }
-
-    private static void assertAdminError(AbstractAdminBusinessException exception, AdminErrorCode errorCode) {
-        assertEquals(errorCode.getLegacyCode(), exception.getError());
-        assertEquals(errorCode.getCode(), exception.getErrorCode());
-        assertNotNull(exception.getMessage());
-        assertTrue(errorCode.getMessageKey().startsWith("admin."));
     }
 }

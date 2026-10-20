@@ -6,7 +6,6 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.request.AnalyzeCommentRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.AnalyzeCommentResponse;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -15,7 +14,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 
-/** Internal, advisory-only comment assistance; provider access stays in admin-ai. */
+/**
+ * Internal, advisory-only comment assistance; provider access stays in admin-ai.
+ */
 public class AICommentService extends AIService {
     private final AIConfigService aIConfigService;
 
@@ -45,7 +46,8 @@ public class AICommentService extends AIService {
         return parse(result);
     }
 
-    @Override protected HttpRequest buildRequest(AIWebSiteInfo info, String body) {
+    @Override
+    protected HttpRequest buildRequest(AIWebSiteInfo info, String body) {
         HttpRequest original = super.buildRequest(info, body);
         HttpRequest.Builder builder = HttpRequest.newBuilder(original.uri()).timeout(Duration.ofSeconds(25))
                 .method(original.method(), original.bodyPublisher().orElse(HttpRequest.BodyPublishers.noBody()));

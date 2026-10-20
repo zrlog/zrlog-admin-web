@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.annotation.ResponseBody;
@@ -13,6 +12,7 @@ import com.zrlog.admin.business.service.TagManagementService;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
@@ -21,7 +21,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -30,8 +29,11 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 public class AdminTagController extends BaseController {
+    private static final Set<String> SUPPORTED_OPERATIONS = Set.of("rename", "merge", "delete");
     private final AdminRequestIdentity requestIdentity;
-
+    private final AdminPageDataFactory pages;
+    private final Supplier<PublicWebSiteInfo> site;
+    private final TagManagementService tagManagementService;
 
     @Inject
     public AdminTagController(
@@ -45,14 +47,6 @@ public class AdminTagController extends BaseController {
         this.pages = pages;
         this.site = site;
     }
-
-    private final AdminPageDataFactory pages;
-    private final Supplier<PublicWebSiteInfo> site;
-
-
-    private static final Set<String> SUPPORTED_OPERATIONS = Set.of("rename", "merge", "delete");
-
-    private final TagManagementService tagManagementService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "tag.list")

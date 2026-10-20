@@ -1,34 +1,34 @@
 import Input from "@zrlog/ui/antd/Input";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import IdeaIcon from "@zrlog/ui/icons/idea";
-import { isModuleEnabled } from "../../utils/module-capabilities";
+import {isModuleEnabled} from "../../utils/module-capabilities";
 import Form from "antd/es/form";
 
 import TextArea from "antd/es/input/TextArea";
 import Button from "antd/es/button";
-import { getRes } from "../../utils/constants";
-import { useEffect, useState } from "react";
-import { Basic } from "./index";
+import {getRes} from "../../utils/constants";
+import {useEffect, useState} from "react";
+import {Basic} from "./index";
 import FaviconUpload from "./FaviconUpload";
-import { useAxiosBaseInstance } from "../../base/AppBase";
+import {useAxiosBaseInstance} from "../../base/AppBase";
 
 
-import { getAppState } from "../../base/ConfigProviderApp";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 const BasicForm = ({
-    data,
-    offlineData,
-    offline,
-    onSubmit,
-    loading,
-}: {
+                       data,
+                       offlineData,
+                       offline,
+                       onSubmit,
+                       loading,
+                   }: {
     data: Basic;
     offlineData: boolean;
     offline: boolean;
@@ -39,8 +39,8 @@ const BasicForm = ({
     const [optimizingDescription, setOptimizingDescription] = useState(false);
     const [form] = Form.useForm();
     const axiosInstance = useAxiosBaseInstance();
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
-    const { formLayout } = useResponsiveFormLayout(layout);
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
+    const {formLayout} = useResponsiveFormLayout(layout);
 
     useEffect(() => {
         setState(data);
@@ -54,7 +54,7 @@ const BasicForm = ({
                 ...state,
                 ...form.getFieldsValue(),
             };
-            const { data } = await axiosInstance.post("/api/admin/website/description/optimize", values);
+            const {data} = await axiosInstance.post("/api/admin/website/description/optimize", values);
             if (data.error) {
                 await messageApi.error(data.message);
                 return;
@@ -84,28 +84,28 @@ const BasicForm = ({
                 {...formLayout}
                 disabled={offline || offlineData}
                 initialValues={data}
-                onValuesChange={(_k, v) => setState((prevState) => ({ ...prevState, ...v }))}
-                onFinish={(nv) => onSubmit({ ...state, ...nv })}
+                onValuesChange={(_k, v) => setState((prevState) => ({...prevState, ...v}))}
+                onFinish={(nv) => onSubmit({...state, ...nv})}
             >
-                <Form.Item name="title" label={getRes().title} rules={[{ required: true }]}>
-                    <Input placeholder="" showCount={true} maxLength={128} />
+                <Form.Item name="title" label={getRes().title} rules={[{required: true}]}>
+                    <Input placeholder="" showCount={true} maxLength={128}/>
                 </Form.Item>
                 <Form.Item name="second_title" label={getRes().subTitle}>
-                    <Input placeholder="" showCount={true} maxLength={128} />
+                    <Input placeholder="" showCount={true} maxLength={128}/>
                 </Form.Item>
                 <Form.Item name="keywords" label={getRes().keywords} tooltip={getRes().website.keywordsTip}>
-                    <TextArea showCount={true} rows={2} maxLength={160} />
+                    <TextArea showCount={true} rows={2} maxLength={160}/>
                 </Form.Item>
                 <Form.Item label={getRes().website.description} tooltip={getRes().website.descriptionTip}>
                     <Form.Item name="description" noStyle={true}>
-                        <TextArea showCount={true} rows={5} maxLength={160} />
+                        <TextArea showCount={true} rows={5} maxLength={160}/>
                     </Form.Item>
                     {isModuleEnabled("ai") && (
                         <Button
                             type="link"
                             size="small"
-                            icon={<IdeaIcon />}
-                            style={{ padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary }}
+                            icon={<IdeaIcon/>}
+                            style={{padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary}}
                             disabled={offline || offlineData}
                             loading={optimizingDescription}
                             onClick={optimizeDescription}
@@ -115,7 +115,7 @@ const BasicForm = ({
                     )}
                 </Form.Item>
                 <Form.Item name="author" label={getRes().author}>
-                    <Input placeholder="" showCount={true} maxLength={128} />
+                    <Input placeholder="" showCount={true} maxLength={128}/>
                 </Form.Item>
                 <Form.Item
                     name="favicon_ico_base64"
@@ -125,12 +125,12 @@ const BasicForm = ({
                     <FaviconUpload
                         url={state.favicon_ico_base64}
                         onChange={(e) => {
-                            setState({ ...state, favicon_ico_base64: e ? e : "" });
+                            setState({...state, favicon_ico_base64: e ? e : ""});
                         }}
                     />
                 </Form.Item>
 
-                <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+                <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
             </Form>
         </>
     );

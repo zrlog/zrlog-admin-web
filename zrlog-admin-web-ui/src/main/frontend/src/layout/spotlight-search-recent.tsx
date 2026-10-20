@@ -4,9 +4,9 @@ import ImageFileIcon from "@zrlog/ui/icons/image-file";
 import FolderIcon from "@zrlog/ui/icons/folder";
 import SearchIcon from "@zrlog/ui/icons/search";
 import AppearanceIcon from "@zrlog/ui/icons/appearance";
-import { getSsDate } from "../base/SsData";
+import {getSsDate} from "../base/SsData";
 
-import type { SpotlightItem, SpotlightRecentItem, SpotlightRenderImageIcon } from "./spotlight-search-types";
+import type {SpotlightItem, SpotlightRecentItem, SpotlightRenderImageIcon} from "./spotlight-search-types";
 
 const recentStorageKey = () => "zrlog_spotlight_recent_" + (getSsDate().key || "anonymous");
 
@@ -59,15 +59,15 @@ const recentIcon = (
     }
     switch (item.type) {
         case "article":
-            return <EditIcon />;
+            return <EditIcon/>;
         case "file":
-            return item.iconVariant === "directory" ? <FolderIcon /> : <ImageFileIcon />;
+            return item.iconVariant === "directory" ? <FolderIcon/> : <ImageFileIcon/>;
         case "template":
-            return <AppearanceIcon />;
+            return <AppearanceIcon/>;
         case "plugin":
-            return renderImageIcon(item.iconSrc, item.title, <ApiIcon />);
+            return renderImageIcon(item.iconSrc, item.title, <ApiIcon/>);
         default:
-            return <SearchIcon />;
+            return <SearchIcon/>;
     }
 };
 

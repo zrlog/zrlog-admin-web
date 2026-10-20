@@ -1,13 +1,13 @@
 import IdeaIcon from "@zrlog/ui/icons/idea";
 import CheckIcon from "@zrlog/ui/icons/check";
 import EditIcon from "@zrlog/ui/icons/edit";
-import { getRes } from "../../utils/constants";
+import {getRes} from "../../utils/constants";
 
 import Card from "antd/es/card";
-import { FunctionComponent, memo, RefObject, useEffect, useRef, useState } from "react";
-import { Button, InputRef, Space } from "antd";
-import { ArticleChangeableValue } from "./index.types";
-import { getAppState } from "../../base/ConfigProviderApp";
+import {FunctionComponent, memo, RefObject, useEffect, useRef, useState} from "react";
+import {Button, InputRef, Space} from "antd";
+import {ArticleChangeableValue} from "./index.types";
+import {getAppState} from "../../base/ConfigProviderApp";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import BaseTextArea from "@zrlog/editor/dist/editor/common/BaseTextArea";
 
@@ -20,7 +20,7 @@ type DigestEditorCardProps = {
 };
 
 const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
-    ({ digestRef, initDigest, handleValuesChange, generatingDigest, onGenerateDigest }) => {
+    ({digestRef, initDigest, handleValuesChange, generatingDigest, onGenerateDigest}) => {
         const [editDigest, setEditDigest] = useState<boolean>(initDigest.trim().length === 0);
 
         const [digest, setDigest] = useState<string>(initDigest);
@@ -37,7 +37,7 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                 hasMounted.current = true;
                 return;
             }
-            handleValuesChange({ digest: digest });
+            handleValuesChange({digest: digest});
         }, [digest]);
 
         useEffect(() => {
@@ -59,15 +59,15 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                         }}
                         minRows={2}
                         maxRows={12}
-                        style={{ padding: 0, borderRadius: 0 }}
-                        formStyle={{ marginBottom: 0 }}
+                        style={{padding: 0, borderRadius: 0}}
+                        formStyle={{marginBottom: 0}}
                     />
                 );
             }
             return (
                 <HtmlPreviewPanel
                     dark={getAppState().dark}
-                    style={{ maxHeight: 264, overflowY: "auto", overflowX: "hidden" }}
+                    style={{maxHeight: 264, overflowY: "auto", overflowX: "hidden"}}
                     onContentChange={(text: string) => {
                         setDigest(text);
                     }}
@@ -82,11 +82,11 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                 <Button
                     type="text"
                     size="small"
-                    icon={<IdeaIcon />}
+                    icon={<IdeaIcon/>}
                     loading={generatingDigest}
                     title={getRes().articleEdit.digest.generate}
                     onClick={onGenerateDigest}
-                    style={{ color: getAppState().colorPrimary }}
+                    style={{color: getAppState().colorPrimary}}
                 />
             ) : null;
             if (digest.length === 0) {
@@ -100,7 +100,7 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                             onClick={() => {
                                 setEditDigest(false);
                             }}
-                            style={{ color: getAppState().colorPrimary, cursor: "pointer" }}
+                            style={{color: getAppState().colorPrimary, cursor: "pointer"}}
                         />
                     </Space>
                 );
@@ -112,14 +112,14 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                         onClick={() => {
                             setEditDigest(true);
                         }}
-                        style={{ color: getAppState().colorPrimary, cursor: "pointer" }}
+                        style={{color: getAppState().colorPrimary, cursor: "pointer"}}
                     />
                 </Space>
             );
         };
 
         return (
-            <Card title={getRes().articleEdit.digest.label} style={{ marginBottom: 36 }} extra={[getActionBtn()]}>
+            <Card title={getRes().articleEdit.digest.label} style={{marginBottom: 36}} extra={[getActionBtn()]}>
                 {getBody()}
             </Card>
         );

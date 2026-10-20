@@ -30,33 +30,6 @@ public class AdminStaticResourceInterceptorTest {
 
     private com.zrlog.common.ZrLogConfig applicationConfig;
 
-    @Test
-    public void shouldRenderAdminMainJsWithJavascriptContentType() throws Exception {
-        ResponseRecorder response = new ResponseRecorder();
-
-        new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
-                request("/admin/static/js/main.missing.js", new ServerConfig(), requestConfig(new Router())),
-                response.response());
-
-        assertEquals("application/javascript;charset=UTF-8", response.headers.get("Content-Type"));
-        assertArrayEquals(new byte[0], response.written);
-        assertEquals(Integer.valueOf(200), response.status);
-    }
-
-    @Test
-    public void shouldFallbackToMethodInterceptorWhenNoCachedStaticFileExists() throws Exception {
-        ResponseRecorder response = new ResponseRecorder();
-        ServerConfig serverConfig = new ServerConfig();
-        Router router = serverConfig.getRouter();
-        router.addMapper("/admin/static/fallback", StaticFallbackController.class, "index");
-
-        withConfig(new TestZrLogConfig(), () ->
-                new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
-                        request("/admin/static/fallback", serverConfig, requestConfig(router)), response.response()));
-
-        assertEquals("fallback", ((ApiStandardResponse<?>) response.rendered).getData());
-    }
-
     private static RequestConfig requestConfig(Router router) {
         RequestConfig requestConfig = new RequestConfig();
         requestConfig.setRouter(router);
@@ -88,6 +61,33 @@ public class AdminStaticResourceInterceptorTest {
                             return null;
                     }
                 });
+    }
+
+    @Test
+    public void shouldRenderAdminMainJsWithJavascriptContentType() throws Exception {
+        ResponseRecorder response = new ResponseRecorder();
+
+        new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
+                request("/admin/static/js/main.missing.js", new ServerConfig(), requestConfig(new Router())),
+                response.response());
+
+        assertEquals("application/javascript;charset=UTF-8", response.headers.get("Content-Type"));
+        assertArrayEquals(new byte[0], response.written);
+        assertEquals(Integer.valueOf(200), response.status);
+    }
+
+    @Test
+    public void shouldFallbackToMethodInterceptorWhenNoCachedStaticFileExists() throws Exception {
+        ResponseRecorder response = new ResponseRecorder();
+        ServerConfig serverConfig = new ServerConfig();
+        Router router = serverConfig.getRouter();
+        router.addMapper("/admin/static/fallback", StaticFallbackController.class, "index");
+
+        withConfig(new TestZrLogConfig(), () ->
+                new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
+                        request("/admin/static/fallback", serverConfig, requestConfig(router)), response.response()));
+
+        assertEquals("fallback", ((ApiStandardResponse<?>) response.rendered).getData());
     }
 
     private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {

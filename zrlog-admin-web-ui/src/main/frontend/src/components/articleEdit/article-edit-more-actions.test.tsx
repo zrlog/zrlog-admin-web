@@ -1,6 +1,6 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import ArticleEditMoreActions from "./article-edit-more-actions";
 
 let mockDropdownProps: any;
@@ -16,14 +16,14 @@ jest.mock("antd", () => {
     const mockFn = require("@jest/globals").jest.fn;
     return {
         App: {
-            useApp: () => ({ message: { error: mockFn(), warning: mockFn() } }),
+            useApp: () => ({message: {error: mockFn(), warning: mockFn()}}),
         },
-        Button: ({ children, icon, ...props }: any) => React.createElement("button", props, icon, children),
+        Button: ({children, icon, ...props}: any) => React.createElement("button", props, icon, children),
         Dropdown: (props: any) => {
             mockDropdownProps = props;
-            return React.createElement("div", { "data-open": String(props.open) }, props.children);
+            return React.createElement("div", {"data-open": String(props.open)}, props.children);
         },
-        Grid: { useBreakpoint: () => ({ md: true, lg: true }) },
+        Grid: {useBreakpoint: () => ({md: true, lg: true})},
         Modal: () => null,
     };
 });
@@ -45,7 +45,7 @@ jest.mock("@ant-design/icons", () => {
 });
 
 jest.mock("antd-style", () => ({
-    useTheme: () => ({ colorTextTertiary: "#555" }),
+    useTheme: () => ({colorTextTertiary: "#555"}),
 }));
 
 jest.mock("screenfull", () => ({
@@ -60,12 +60,12 @@ jest.mock("screenfull", () => ({
 jest.mock("./article-ai-assistant/article-ai-assistant-button", () => ({
     getArticleAiAssistantDrawerOpen: () => false,
 }));
-jest.mock("../../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
+jest.mock("../../base/ConfigProviderApp", () => ({getAppState: () => ({compactMode: false})}));
 jest.mock("../../utils/cache", () => ({
     addToCache: require("@jest/globals").jest.fn(),
     getCacheByKey: () => false,
 }));
-jest.mock("./shortcut-utils", () => ({ getShortcutTitle: (title: string) => title, isTouchLikeDevice: () => false }));
+jest.mock("./shortcut-utils", () => ({getShortcutTitle: (title: string) => title, isTouchLikeDevice: () => false}));
 jest.mock("../file-manager/picker", () => () => null);
 jest.mock("./article-social-preview-drawer", () => () => null);
 jest.mock("./article-version-drawer", () => () => null);
@@ -74,7 +74,8 @@ jest.mock("../article/ArticlePdfAction", () => ({
     exportArticlePdf: require("@jest/globals").jest.fn(),
 }));
 jest.mock("./markdown-import", () => ({
-    MarkdownImportError: class MarkdownImportError extends Error {},
+    MarkdownImportError: class MarkdownImportError extends Error {
+    },
     readMarkdownImportFile: require("@jest/globals").jest.fn(),
 }));
 jest.mock("../../utils/constants", () => ({
@@ -82,9 +83,9 @@ jest.mock("../../utils/constants", () => ({
     getExitFullscreen: () => "Exit fullscreen",
     getRes: () => ({
         preview: "Preview",
-        article: { exportPdf: "Export PDF", exportPdfPopupBlocked: "Popup blocked" },
+        article: {exportPdf: "Export PDF", exportPdfPopupBlocked: "Popup blocked"},
         articleEdit: {
-            actions: { chooseFromAssets: "Choose from assets", more: "More actions" },
+            actions: {chooseFromAssets: "Choose from assets", more: "More actions"},
             markdownImport: {
                 menu: "Import Markdown",
                 errors: {
@@ -100,8 +101,8 @@ jest.mock("../../utils/constants", () => ({
                     unknown: "Unknown error",
                 },
             },
-            socialPreview: { title: "Social preview" },
-            version: { label: "Versions" },
+            socialPreview: {title: "Social preview"},
+            version: {label: "Versions"},
         },
     }),
 }));
@@ -140,7 +141,7 @@ describe("ArticleEditMoreActions", () => {
                     typeOptions={[]}
                     currentVersion={1}
                     axiosInstance={{}}
-                    containerRef={{ current: container }}
+                    containerRef={{current: container}}
                     getFullScreenElement={() => container}
                     stateCacheKey="article/new"
                     versionDrawerOpen={false}

@@ -6,25 +6,21 @@ import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
-import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
-import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
-import com.zrlog.admin.business.rest.response.PublishCheckResponse;
-import com.zrlog.admin.business.rest.response.PublishCheckToolPayload;
-import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.business.plugin.StaticSitePlugin;
-import com.zrlog.util.I18nUtil;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.admin.business.service.AccountIdentityService;
-import com.zrlog.admin.business.service.AccountPermissionService;
-
+import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -33,12 +29,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class AIPublishCheckService {
+    private static final Logger LOGGER = LoggerUtil.getLogger(AIPublishCheckService.class);
     private final AIConversationService conversations;
     private final AccountIdentityService identities;
     private final AccountPermissionService permissions;
-
     private final AIWritingSkillService.Factory writing;
-
     private final WebSiteService webSiteService;
     private final MessageCenterOperationService messageCenterOperationService;
 
@@ -57,8 +52,6 @@ public class AIPublishCheckService {
         this.webSiteService = webSiteService;
         this.messageCenterOperationService = messageCenterOperationService;
     }
-
-    private static final Logger LOGGER = LoggerUtil.getLogger(AIPublishCheckService.class);
 
     public PublishCheckTask startPublishCheck(AccountAccess actor, ArticleGlobalResponse detail,
                                               CreateArticleRequest body) {
@@ -111,7 +104,7 @@ public class AIPublishCheckService {
     }
 
     PublishCheckResponse buildPublishCheckPayload(AccountAccess actor, Long articleId, GenerateArticleFieldRequest context,
-                                                          PublishCheckPersistenceGuard guard, AIConversationService conversationStore) {
+                                                  PublishCheckPersistenceGuard guard, AIConversationService conversationStore) {
         try {
             authorize(actor, articleId);
             List<AIResponseEntry.AIContentEntry> messages =

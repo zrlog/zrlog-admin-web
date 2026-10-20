@@ -1,11 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
@@ -16,7 +10,6 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.test.support.TestLogCapture;
-
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -25,7 +18,41 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
+import static org.junit.Assert.*;
+
 public class FileManagerReferenceServiceTest {
+
+    private static FileReferenceVO reference(int logId, boolean thumbnail, boolean content) {
+        FileReferenceVO reference = new FileReferenceVO(logId, "Article " + logId, "alias-" + logId);
+        reference.setThumbnail(thumbnail);
+        reference.setContent(content);
+        return reference;
+    }
+
+    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title, String alias, String thumbnail,
+                                      String content, String markdown) throws Exception {
+        db.execute("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
+                        + " keywords, thumbnail, recommended, releaseTime, last_update_date, title, typeId, userId,"
+                        + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(),"
+                        + " now(), ?, ?, ?, ?, ?, ?, ?)",
+                id, alias, true, 0, 0, content, "plain " + title, markdown, "Digest " + title,
+                "zrlog,asset", thumbnail, false, title, 1, 1, false, false, false, "markdown");
+    }
+
+    private static AdminTokenVO token() {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(1);
+        token.setSessionId("session-7");
+        token.setProtocol("http");
+        return token;
+    }
+
+    private static void setRequestReferenceIndex(FileManagerReferenceService service,
+                                                 FileReferenceIndexCacheVO index) throws Exception {
+        Field field = FileManagerReferenceService.class.getDeclaredField("requestReferenceIndex");
+        field.setAccessible(true);
+        field.set(service, index);
+    }
 
     @Test
     public void shouldReturnFalseWhenReferenceIndexCacheWriteFails() {
@@ -334,39 +361,5 @@ public class FileManagerReferenceServiceTest {
             assertTrue(String.valueOf(versionRow.get("patch_json")).contains("/attached/images"));
             assertNull(cacheRow.get("value"));
         }
-    }
-
-
-
-    private static FileReferenceVO reference(int logId, boolean thumbnail, boolean content) {
-        FileReferenceVO reference = new FileReferenceVO(logId, "Article " + logId, "alias-" + logId);
-        reference.setThumbnail(thumbnail);
-        reference.setContent(content);
-        return reference;
-    }
-
-    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title, String alias, String thumbnail,
-                                      String content, String markdown) throws Exception {
-        db.execute("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
-                        + " keywords, thumbnail, recommended, releaseTime, last_update_date, title, typeId, userId,"
-                        + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(),"
-                        + " now(), ?, ?, ?, ?, ?, ?, ?)",
-                id, alias, true, 0, 0, content, "plain " + title, markdown, "Digest " + title,
-                "zrlog,asset", thumbnail, false, title, 1, 1, false, false, false, "markdown");
-    }
-
-    private static AdminTokenVO token() {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(1);
-        token.setSessionId("session-7");
-        token.setProtocol("http");
-        return token;
-    }
-
-    private static void setRequestReferenceIndex(FileManagerReferenceService service,
-                                                 FileReferenceIndexCacheVO index) throws Exception {
-        Field field = FileManagerReferenceService.class.getDeclaredField("requestReferenceIndex");
-        field.setAccessible(true);
-        field.set(service, index);
     }
 }

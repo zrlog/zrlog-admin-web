@@ -1,4 +1,4 @@
-import { ArticleEntry } from "./index.types";
+import {ArticleEntry} from "./index.types";
 
 type MarkdownRenderer = (markdown: string, options?: { linkPreview?: boolean }) => Promise<string>;
 
@@ -11,6 +11,6 @@ export const renderMissingMarkdownContent = async (
     }
     return {
         ...article,
-        content: await renderMarkdown(article.markdown, { linkPreview: false }),
+        content: await renderMarkdown(article.markdown, {linkPreview: false}),
     };
 };

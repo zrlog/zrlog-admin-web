@@ -1,15 +1,15 @@
 import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import MenuIcon from "@zrlog/ui/icons/menu";
 import AddIcon from "@zrlog/ui/icons/add";
 import HelpIcon from "@zrlog/ui/icons/help";
 import SettingsIcon from "@zrlog/ui/icons/settings";
-import { Button, Collapse, Drawer, Grid, Modal, Select, Space, theme, Tooltip, Typography } from "antd";
-import { AxiosInstance } from "axios";
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import {Button, Collapse, Drawer, Grid, Modal, Select, Space, theme, Tooltip, Typography} from "antd";
+import {AxiosInstance} from "axios";
+import {FunctionComponent, useEffect, useMemo, useRef, useState} from "react";
 import {
     AdminDashboardCardConfig,
     AdminDashboardConfig,
@@ -18,7 +18,7 @@ import {
     ApiResponse,
     IndexData,
 } from "../../type";
-import { getRes } from "../../utils/constants";
+import {getRes} from "../../utils/constants";
 
 type DashboardConfigDrawerProps = {
     axiosInstance: AxiosInstance;
@@ -62,7 +62,7 @@ const defaultPanel = (sort: number): AdminDashboardPluginPanelConfig => ({
     sort,
 });
 
-const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
+const moveItem = <T, >(items: T[], fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
         return items;
     }
@@ -71,7 +71,7 @@ const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
     next.splice(toIndex, 0, removed);
     return next;
 };
-const insertItem = <T,>(items: T[], item: T, index: number) => {
+const insertItem = <T, >(items: T[], item: T, index: number) => {
     const next = [...items];
     next.splice(index, 0, item);
     return next;
@@ -80,7 +80,7 @@ const insertItem = <T,>(items: T[], item: T, index: number) => {
 const splitItems = (items: AdminDashboardLayoutItem[] = []) => {
     const cards = items
         .filter((item): item is Extract<AdminDashboardLayoutItem, { kind: "card" }> => item.kind === "card")
-        .map((item) => ({ id: item.id, enabled: item.enabled, sort: item.sort, title: item.title, data: item.data }));
+        .map((item) => ({id: item.id, enabled: item.enabled, sort: item.sort, title: item.title, data: item.data}));
     const panels = items
         .filter((item): item is Extract<AdminDashboardLayoutItem, { kind: "plugin" }> => item.kind === "plugin")
         .map((item) => ({
@@ -98,7 +98,7 @@ const splitItems = (items: AdminDashboardLayoutItem[] = []) => {
             order: item.order,
             data: item.data,
         }));
-    return { cards, panels };
+    return {cards, panels};
 };
 
 const buildItems = (
@@ -106,22 +106,22 @@ const buildItems = (
     panels: AdminDashboardPluginPanelConfig[]
 ): AdminDashboardLayoutItem[] => {
     const items: AdminDashboardLayoutItem[] = [
-        ...cards.map((card) => ({ kind: "card" as const, ...card })),
-        ...panels.map((panel) => ({ kind: "plugin" as const, ...panel })),
+        ...cards.map((card) => ({kind: "card" as const, ...card})),
+        ...panels.map((panel) => ({kind: "plugin" as const, ...panel})),
     ];
     return items.sort((a, b) => sortValue(a, 0) - sortValue(b, 0));
 };
 
 const normalizeConfig = (value: AdminDashboardConfig): AdminDashboardConfig => {
-    const { cards: savedCards, panels: savedPanels } = splitItems(value.cards);
-    const welcomeCard = savedCards.find((card) => card.id === "welcome") || { id: "welcome", enabled: true, sort: 0 };
+    const {cards: savedCards, panels: savedPanels} = splitItems(value.cards);
+    const welcomeCard = savedCards.find((card) => card.id === "welcome") || {id: "welcome", enabled: true, sort: 0};
     const cards = sortBySort(savedCards.filter((card) => card.id !== "pluginPanels" && card.id !== "welcome"));
     const panels = sortBySort(savedPanels);
     const enabledPanels = panels.filter(panelEnabled);
     const disabledPanels = panels.filter((panel) => !panelEnabled(panel));
     const layoutItems: LayoutItem[] = [
-        ...cards.map((card) => ({ type: "card" as const, card })),
-        ...enabledPanels.map((panel) => ({ type: "plugin" as const, panel })),
+        ...cards.map((card) => ({type: "card" as const, card})),
+        ...enabledPanels.map((panel) => ({type: "plugin" as const, panel})),
     ].sort(
         (a, b) =>
             sortValue(a.type === "card" ? a.card : a.panel, 0) - sortValue(b.type === "card" ? b.card : b.panel, 0)
@@ -129,14 +129,14 @@ const normalizeConfig = (value: AdminDashboardConfig): AdminDashboardConfig => {
 
     const normalizedCards = cards.map((card) => {
         const index = layoutItems.findIndex((item) => item.type === "card" && item.card.id === card.id);
-        return { ...card, sort: (index + 1) * 10 };
+        return {...card, sort: (index + 1) * 10};
     });
     const normalizedEnabledPanels = enabledPanels.map((panel) => {
         const index = layoutItems.findIndex((item) => item.type === "plugin" && item.panel === panel);
-        return { ...toPanelConfig(panel), sort: (index + 1) * 10 };
+        return {...toPanelConfig(panel), sort: (index + 1) * 10};
     });
     const normalizedDisabledPanels = disabledPanels.map((panel, index) => {
-        return { ...toPanelConfig(panel), sort: (index + 1) * 10 };
+        return {...toPanelConfig(panel), sort: (index + 1) * 10};
     });
 
     return {
@@ -146,18 +146,18 @@ const normalizeConfig = (value: AdminDashboardConfig): AdminDashboardConfig => {
                 ? value.autoRefreshIntervalSeconds
                 : 60,
         cards: buildItems(
-            [{ ...welcomeCard, enabled: true, sort: 0 }, ...normalizedCards],
+            [{...welcomeCard, enabled: true, sort: 0}, ...normalizedCards],
             [...normalizedEnabledPanels, ...normalizedDisabledPanels]
         ),
     };
 };
 
 const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
-    axiosInstance,
-    config,
-    subtle,
-    onSaved,
-}) => {
+                                                                                  axiosInstance,
+                                                                                  config,
+                                                                                  subtle,
+                                                                                  onSaved,
+                                                                              }) => {
     const [open, setOpen] = useState(false);
     const [panelSettingsOpen, setPanelSettingsOpen] = useState(false);
     const [selectedPanel, setSelectedPanel] = useState<AdminDashboardPluginPanelConfig>();
@@ -167,14 +167,14 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     const skipAutoSaveRef = useRef(false);
     const dirtyRef = useRef(false);
     const autoSaveTimerRef = useRef<number>();
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const screens = Grid.useBreakpoint();
     const compactLayout = screens.sm !== true;
     const configGridColumns = screens.lg ? "repeat(2, minmax(0, 1fr))" : "minmax(0, 1fr)";
     const settingsGridColumns = compactLayout ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))";
     const drawerWidth = compactLayout ? "100vw" : 760;
     const panelSettingsWidth = compactLayout ? "calc(100vw - 32px)" : 640;
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 1 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 1});
     const res = getRes().index.dashboardConfig;
 
     useEffect(() => {
@@ -188,12 +188,12 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
         }
     }, [open]);
 
-    const { cards: draftCards, panels: draftPanels } = useMemo(
+    const {cards: draftCards, panels: draftPanels} = useMemo(
         () => splitItems(draftConfig.cards),
         [draftConfig.cards]
     );
     const welcomeCard = useMemo(
-        () => draftCards.find((card) => card.id === "welcome") || { id: "welcome", enabled: true, sort: 0 },
+        () => draftCards.find((card) => card.id === "welcome") || {id: "welcome", enabled: true, sort: 0},
         [draftCards]
     );
     const sortedCards = useMemo(
@@ -208,8 +208,8 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     const layoutItems = useMemo<LayoutItem[]>(
         () =>
             [
-                ...enabledCards.map((card) => ({ type: "card" as const, card })),
-                ...enabledPanels.map((panel) => ({ type: "plugin" as const, panel })),
+                ...enabledCards.map((card) => ({type: "card" as const, card})),
+                ...enabledPanels.map((panel) => ({type: "plugin" as const, panel})),
             ].sort(
                 (a, b) =>
                     sortValue(a.type === "card" ? a.card : a.panel, 0) -
@@ -220,8 +220,8 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     const disabledItems = useMemo<LayoutItem[]>(
         () =>
             [
-                ...disabledCards.map((card) => ({ type: "card" as const, card })),
-                ...disabledPanels.map((panel) => ({ type: "plugin" as const, panel })),
+                ...disabledCards.map((card) => ({type: "card" as const, card})),
+                ...disabledPanels.map((panel) => ({type: "plugin" as const, panel})),
             ].sort(
                 (a, b) =>
                     sortValue(a.type === "card" ? a.card : a.panel, 0) -
@@ -231,13 +231,13 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     );
 
     const persistConfig = async (configToSave: AdminDashboardConfig) => {
-        const { panels } = splitItems(configToSave.cards);
+        const {panels} = splitItems(configToSave.cards);
         if (panels.some((panel) => panelEnabled(panel) && !panel.pluginName?.trim())) {
             return;
         }
         const values = normalizeConfig(configToSave);
         await axiosInstance.post<ApiResponse<AdminDashboardConfig>>("/api/admin/index/config", values);
-        const { data } = await axiosInstance.get<ApiResponse<IndexData>>("/api/admin/index");
+        const {data} = await axiosInstance.get<ApiResponse<IndexData>>("/api/admin/index");
         onSaved(data.data);
         await messageApi.success(res.saveSuccess);
     };
@@ -311,21 +311,21 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
         setDraftConfig((prev) => ({
             ...prev,
             cards: (() => {
-                const { cards, panels } = splitItems(prev.cards);
+                const {cards, panels} = splitItems(prev.cards);
                 const enabledIndexes = new Map(nextEnabledItems.map((item, index) => [layoutItemKey(item), index]));
                 const disabledIndexes = new Map(nextDisabledItems.map((item, index) => [layoutItemKey(item), index]));
                 const nextCards: AdminDashboardCardConfig[] = [
-                    { ...(cards.find((card) => card.id === "welcome") || { id: "welcome" }), enabled: true, sort: 0 },
+                    {...(cards.find((card) => card.id === "welcome") || {id: "welcome"}), enabled: true, sort: 0},
                     ...cards
                         .filter((card) => card.id !== "pluginPanels" && card.id !== "welcome")
                         .map((card) => {
                             const enabledIndex = enabledIndexes.get(`card:${card.id}`);
                             const disabledIndex = disabledIndexes.get(`card:${card.id}`);
                             if (enabledIndex !== undefined) {
-                                return { ...card, enabled: true, sort: (enabledIndex + 1) * 10 };
+                                return {...card, enabled: true, sort: (enabledIndex + 1) * 10};
                             }
                             if (disabledIndex !== undefined) {
-                                return { ...card, enabled: false, sort: (disabledIndex + 1) * 10 };
+                                return {...card, enabled: false, sort: (disabledIndex + 1) * 10};
                             }
                             return card;
                         }),
@@ -334,10 +334,10 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                     const enabledIndex = enabledIndexes.get(`plugin:${panel.id}`);
                     const disabledIndex = disabledIndexes.get(`plugin:${panel.id}`);
                     if (enabledIndex !== undefined) {
-                        return { ...panel, enabled: true, sort: (enabledIndex + 1) * 10 };
+                        return {...panel, enabled: true, sort: (enabledIndex + 1) * 10};
                     }
                     if (disabledIndex !== undefined) {
-                        return { ...panel, enabled: false, sort: (disabledIndex + 1) * 10 };
+                        return {...panel, enabled: false, sort: (disabledIndex + 1) * 10};
                     }
                     return panel;
                 });
@@ -393,7 +393,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     };
 
     const updateSelectedPanel = (patch: Partial<AdminDashboardPluginPanelConfig>) => {
-        setSelectedPanel((current) => (current ? { ...current, ...patch } : current));
+        setSelectedPanel((current) => (current ? {...current, ...patch} : current));
     };
 
     const removePanel = (panel: AdminDashboardPluginPanelConfig) => {
@@ -424,7 +424,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     };
 
     const openPanelSettings = (panel: AdminDashboardPluginPanelConfig) => {
-        setSelectedPanel({ ...panel });
+        setSelectedPanel({...panel});
         setEditingPanelId(panel.id);
         setAddingPanel(false);
         setPanelSettingsOpen(true);
@@ -506,7 +506,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                 }
                 draggable
                 onDragStart={(event) => {
-                    event.dataTransfer.setData("dashboardConfigItem", JSON.stringify({ source: "enabled", index }));
+                    event.dataTransfer.setData("dashboardConfigItem", JSON.stringify({source: "enabled", index}));
                 }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
@@ -528,13 +528,13 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                 </Space>
                 <Space>
                     <Tooltip title={isCard ? cardDescription(item.card.id) : panelDescription(item.panel)}>
-                        <Button type="text" icon={<HelpIcon />} />
+                        <Button type="text" icon={<HelpIcon/>}/>
                     </Tooltip>
                     {!isCard && (
                         <Tooltip title={res.pluginPanels}>
                             <Button
                                 type="text"
-                                icon={<SettingsIcon />}
+                                icon={<SettingsIcon/>}
                                 onClick={() => openPanelSettings(item.panel)}
                             />
                         </Tooltip>
@@ -557,7 +557,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
             <Typography.Text>{cardName(welcomeCard.id)}</Typography.Text>
             <Space>
                 <Tooltip title={cardDescription(welcomeCard.id)}>
-                    <Button type="text" icon={<HelpIcon />} />
+                    <Button type="text" icon={<HelpIcon/>}/>
                 </Tooltip>
             </Space>
         </div>
@@ -566,7 +566,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     const renderAddPanelItem = () => (
         <Button
             type="dashed"
-            icon={<AddIcon />}
+            icon={<AddIcon/>}
             onClick={addPanel}
             style={{
                 width: "100%",
@@ -594,7 +594,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                 }
                 draggable
                 onDragStart={(event) => {
-                    event.dataTransfer.setData("dashboardConfigItem", JSON.stringify({ source: "disabled", index }));
+                    event.dataTransfer.setData("dashboardConfigItem", JSON.stringify({source: "disabled", index}));
                 }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
@@ -616,10 +616,10 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                 </Space>
                 <Space>
                     <Tooltip title={isCard ? cardDescription(item.card.id) : panelDescription(item.panel)}>
-                        <Button type="text" icon={<HelpIcon />} />
+                        <Button type="text" icon={<HelpIcon/>}/>
                     </Tooltip>
                     {!isCard && (
-                        <Button type="text" icon={<SettingsIcon />} onClick={() => openPanelSettings(item.panel)} />
+                        <Button type="text" icon={<SettingsIcon/>} onClick={() => openPanelSettings(item.panel)}/>
                     )}
                 </Space>
             </div>
@@ -631,16 +631,16 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
             return null;
         }
         return (
-            <div style={{ display: "grid", gap: token.marginSM }}>
-                <Space wrap align="center" style={{ width: "100%" }}>
+            <div style={{display: "grid", gap: token.marginSM}}>
+                <Space wrap align="center" style={{width: "100%"}}>
                     <Select
                         value={selectedPanel.type || "surface"}
-                        style={{ width: compactLayout ? "100%" : 140 }}
+                        style={{width: compactLayout ? "100%" : 140}}
                         options={[
-                            { value: "surface", label: res.typeOption.surface },
-                            { value: "view", label: res.typeOption.view },
+                            {value: "surface", label: res.typeOption.surface},
+                            {value: "view", label: res.typeOption.view},
                         ]}
-                        onChange={(type) => updateSelectedPanel({ type })}
+                        onChange={(type) => updateSelectedPanel({type})}
                     />
                 </Space>
                 <div
@@ -655,7 +655,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                         placeholder={res.pluginName}
                         onChange={(event) => {
                             const pluginName = event.target.value.trim();
-                            updateSelectedPanel({ pluginName });
+                            updateSelectedPanel({pluginName});
                         }}
                     />
                     {selectedPanel.type === "view" ? (
@@ -663,14 +663,14 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                             <Input
                                 value={selectedPanel.viewUrl}
                                 placeholder={res.viewUrl}
-                                onChange={(event) => updateSelectedPanel({ viewUrl: event.target.value })}
+                                onChange={(event) => updateSelectedPanel({viewUrl: event.target.value})}
                             />
                             <InputNumber
                                 min={180}
                                 value={selectedPanel.height}
                                 placeholder={res.height}
-                                style={{ width: "100%" }}
-                                onChange={(height) => updateSelectedPanel({ height: height ?? undefined })}
+                                style={{width: "100%"}}
+                                onChange={(height) => updateSelectedPanel({height: height ?? undefined})}
                             />
                         </>
                     ) : (
@@ -678,8 +678,8 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                             min={1}
                             value={selectedPanel.maxItems}
                             placeholder={res.maxItems}
-                            style={{ width: "100%" }}
-                            onChange={(maxItems) => updateSelectedPanel({ maxItems: maxItems ?? undefined })}
+                            style={{width: "100%"}}
+                            onChange={(maxItems) => updateSelectedPanel({maxItems: maxItems ?? undefined})}
                         />
                     )}
                 </div>
@@ -702,12 +702,12 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                                     <Input
                                         value={selectedPanel.surfaceUrl}
                                         placeholder={res.surfaceUrl}
-                                        onChange={(event) => updateSelectedPanel({ surfaceUrl: event.target.value })}
+                                        onChange={(event) => updateSelectedPanel({surfaceUrl: event.target.value})}
                                     />
                                     <Input
                                         value={selectedPanel.actionUrl}
                                         placeholder={res.actionUrl}
-                                        onChange={(event) => updateSelectedPanel({ actionUrl: event.target.value })}
+                                        onChange={(event) => updateSelectedPanel({actionUrl: event.target.value})}
                                     />
                                 </div>
                             ),
@@ -723,9 +723,9 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
             {contextHolder}
             <Tooltip title={res.entry}>
                 <Button
-                    icon={<SettingsIcon />}
+                    icon={<SettingsIcon/>}
                     type={subtle ? "text" : "default"}
-                    style={subtle ? { color: "inherit" } : undefined}
+                    style={subtle ? {color: "inherit"} : undefined}
                     onClick={() => setOpen(true)}
                 />
             </Tooltip>
@@ -753,7 +753,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                     <Space>
                         <Switch
                             checked={draftConfig.autoRefreshEnabled === true}
-                            onChange={(autoRefreshEnabled) => updateRefreshConfig({ autoRefreshEnabled })}
+                            onChange={(autoRefreshEnabled) => updateRefreshConfig({autoRefreshEnabled})}
                         />
                         <Typography.Text>{res.autoRefreshState}</Typography.Text>
                     </Space>
@@ -764,7 +764,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                             value={draftConfig.autoRefreshIntervalSeconds || 60}
                             disabled={draftConfig.autoRefreshEnabled !== true}
                             onChange={(autoRefreshIntervalSeconds) =>
-                                updateRefreshConfig({ autoRefreshIntervalSeconds: autoRefreshIntervalSeconds ?? 60 })
+                                updateRefreshConfig({autoRefreshIntervalSeconds: autoRefreshIntervalSeconds ?? 60})
                             }
                         />
                         <Typography.Text type="secondary">{res.autoRefreshIntervalUnit}</Typography.Text>
@@ -789,7 +789,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                     {layoutItems.map(renderLayoutItem)}
                     {renderAddPanelItem()}
                 </div>
-                <Typography.Title level={5} style={{ marginTop: token.marginLG }}>
+                <Typography.Title level={5} style={{marginTop: token.marginLG}}>
                     {res.disabledPanels}
                 </Typography.Title>
                 <div
@@ -828,13 +828,13 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                         >
                             <Button
                                 danger
-                                icon={<DeleteIcon />}
-                                style={{ alignSelf: "flex-start", flexShrink: 0 }}
+                                icon={<DeleteIcon/>}
+                                style={{alignSelf: "flex-start", flexShrink: 0}}
                                 onClick={removeSelectedPanel}
                             />
                             <Space
                                 direction={compactLayout ? "vertical" : "horizontal"}
-                                style={{ width: compactLayout ? "100%" : undefined }}
+                                style={{width: compactLayout ? "100%" : undefined}}
                             >
                                 <Button block={compactLayout} onClick={closePanelSettings}>
                                     {getRes().pluginSurface.cancel}

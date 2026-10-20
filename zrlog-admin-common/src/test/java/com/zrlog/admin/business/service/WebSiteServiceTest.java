@@ -1,19 +1,20 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.data.util.WebSiteUtils;
-
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class WebSiteServiceTest {
 
     @Test
     public void shouldNormalizeArticleEditWebsiteInfo() throws Exception {
         WebSiteService service =
-                new WebSiteService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                new WebSiteService(ApplicationServicesFixture.websiteKv(null), () -> {
+                    throw new IllegalStateException("Database is unavailable in this test");
+                });
         ArticleEditWebSiteInfo invalid = new ArticleEditWebSiteInfo();
         invalid.setArticle_auto_digest_length(-2L);
         invalid.setArticle_edit_auto_save_interval(99L);

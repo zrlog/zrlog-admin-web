@@ -1,32 +1,26 @@
-import type { MockedFunction } from "jest-mock";
-import { act, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Simulate } from "react-dom/test-utils";
-import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
-import { ConfigProvider, Drawer } from "antd";
-import {
-    AiFilePicker,
-    AiFileCapabilities,
-    AiFileList,
-    encodeAiFiles,
-    rememberAiFilePreviews,
-} from "./article-ai-files";
-import type { AxiosInstance } from "axios";
-import { getRes } from "../../../utils/constants";
-import { hasAction } from "../../../utils/account-access";
-import { isModuleEnabled } from "../../../utils/module-capabilities";
+import type {MockedFunction} from "jest-mock";
+import {act, useState} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Simulate} from "react-dom/test-utils";
+import {afterEach, beforeEach, expect, it, jest} from "@jest/globals";
+import {ConfigProvider, Drawer} from "antd";
+import {AiFileCapabilities, AiFileList, AiFilePicker, encodeAiFiles, rememberAiFilePreviews,} from "./article-ai-files";
+import type {AxiosInstance} from "axios";
+import {getRes} from "../../../utils/constants";
+import {hasAction} from "../../../utils/account-access";
+import {isModuleEnabled} from "../../../utils/module-capabilities";
 
-jest.mock("../../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn() }));
-jest.mock("../../../utils/module-capabilities", () => ({ isModuleEnabled: require("@jest/globals").jest.fn() }));
+jest.mock("../../../utils/account-access", () => ({hasAction: require("@jest/globals").jest.fn()}));
+jest.mock("../../../utils/module-capabilities", () => ({isModuleEnabled: require("@jest/globals").jest.fn()}));
 jest.mock("./article-ai-asset-picker", () => ({
     __esModule: true,
-    default: ({ onSelect, onClose, maxBytes, extensions }: any) => (
+    default: ({onSelect, onClose, maxBytes, extensions}: any) => (
         <>
             <button
                 data-testid="asset-image"
                 data-max-bytes={maxBytes}
                 data-extensions={extensions.join(",")}
-                onClick={() => onSelect(new File(["pixels"], "library.png", { type: "image/png" }))}
+                onClick={() => onSelect(new File(["pixels"], "library.png", {type: "image/png"}))}
             >
                 Select image
             </button>
@@ -51,48 +45,49 @@ let selected: File[];
 const previewUrls: string[] = [];
 const res = () => getRes().articleEdit.files;
 
-function Composer({ disabled = false, limits = capabilities }: { disabled?: boolean; limits?: AiFileCapabilities }) {
+function Composer({disabled = false, limits = capabilities}: { disabled?: boolean; limits?: AiFileCapabilities }) {
     const [files, setFiles] = useState<File[]>([]);
     selected = files;
     return (
-        <ConfigProvider theme={{ token: { motion: false } }}>
+        <ConfigProvider theme={{token: {motion: false}}}>
             <AiFilePicker capabilities={limits} files={files} disabled={disabled} onChange={setFiles}>
-                <textarea aria-label="Message" />
+                <textarea aria-label="Message"/>
             </AiFilePicker>
         </ConfigProvider>
     );
 }
+
 const render = (disabled = false, limits = capabilities) =>
-    act(() => root.render(<Composer disabled={disabled} limits={limits} />));
+    act(() => root.render(<Composer disabled={disabled} limits={limits}/>));
 const textarea = () => container.querySelector("textarea")!;
 const choose = (...files: File[]) =>
-    act(() => Simulate.change(container.querySelector('input[type="file"]')!, { target: { files, value: "" } } as any));
+    act(() => Simulate.change(container.querySelector('input[type="file"]')!, {target: {files, value: ""}} as any));
 const paste = (files: File[], text = "") => {
     const preventDefault = jest.fn();
     const stopPropagation = jest.fn();
     act(() =>
         Simulate.paste(textarea(), {
-            clipboardData: { files, getData: () => text },
+            clipboardData: {files, getData: () => text},
             preventDefault,
             stopPropagation,
         } as any)
     );
-    return { preventDefault, stopPropagation };
+    return {preventDefault, stopPropagation};
 };
 const drop = (files: File[]) => {
     const preventDefault = jest.fn();
-    const dataTransfer = { files, types: ["Files"], dropEffect: "none" };
-    act(() => Simulate.dragEnter(textarea(), { dataTransfer } as any));
-    act(() => Simulate.dragOver(textarea(), { dataTransfer, preventDefault } as any));
-    act(() => Simulate.drop(textarea(), { dataTransfer, preventDefault } as any));
-    return { preventDefault, dataTransfer };
+    const dataTransfer = {files, types: ["Files"], dropEffect: "none"};
+    act(() => Simulate.dragEnter(textarea(), {dataTransfer} as any));
+    act(() => Simulate.dragOver(textarea(), {dataTransfer, preventDefault} as any));
+    act(() => Simulate.drop(textarea(), {dataTransfer, preventDefault} as any));
+    return {preventDefault, dataTransfer};
 };
 
 beforeEach(() => {
     (hasAction as MockedFunction<typeof hasAction>).mockReturnValue(true);
     (isModuleEnabled as MockedFunction<typeof isModuleEnabled>).mockReturnValue(true);
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-    window.matchMedia = jest.fn(() => ({ matches: false, addListener: jest.fn(), removeListener: jest.fn() })) as any;
+    window.matchMedia = jest.fn(() => ({matches: false, addListener: jest.fn(), removeListener: jest.fn()})) as any;
     global.ResizeObserver = class {
         observe = jest.fn();
         unobserve = jest.fn();
@@ -122,7 +117,7 @@ afterEach(() => {
 
 it("accepts pasted screenshots and dropped documents in the same composer without navigating away", () => {
     render();
-    const image = new File(["pixels"], "screenshot.png", { type: "image/png" });
+    const image = new File(["pixels"], "screenshot.png", {type: "image/png"});
     const pdf = new File(["%PDF-document"], "report.pdf");
     expect(paste([image]).preventDefault).toHaveBeenCalled();
     const dropped = drop([pdf]);
@@ -156,7 +151,7 @@ it("previews selected images and releases preview URLs after removal and unmount
     );
     expect(URL.revokeObjectURL).toHaveBeenCalledWith(previewUrls[0]);
     choose(new File(["image"], "next.png"));
-    act(() => root.render(<div />));
+    act(() => root.render(<div/>));
     expect(URL.revokeObjectURL).toHaveBeenCalledWith(previewUrls[1]);
 });
 
@@ -170,7 +165,7 @@ it("preserves selected attachments when a paste or drop fails validation", () =>
     drop([new File(["x".repeat(capabilities.maxFileBytes + 1)], "large.png")]);
     expect(container.textContent).toContain(res().sizeLimit);
     expect(selected).toEqual([file]);
-    paste(Array.from({ length: 4 }, (_, i) => new File(["x"], `${i}.jpg`)));
+    paste(Array.from({length: 4}, (_, i) => new File(["x"], `${i}.jpg`)));
     expect(container.textContent).toContain(res().countLimit);
     expect(selected).toEqual([file]);
 });
@@ -182,7 +177,7 @@ it("rejects attachments when disabled or unsupported while allowing text input",
     drop([image]);
     choose(image);
     expect(selected).toEqual([]);
-    render(false, { ...capabilities, extensions: [] });
+    render(false, {...capabilities, extensions: []});
     paste([image]);
     expect(container.textContent).toContain(res().modelUnsupported);
     expect(selected).toEqual([]);
@@ -190,7 +185,7 @@ it("rejects attachments when disabled or unsupported while allowing text input",
 });
 
 it("keeps server-provided limits and formats inside the attachment menu", async () => {
-    render(false, { ...capabilities, maxFiles: 2, maxFileBytes: 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024 });
+    render(false, {...capabilities, maxFiles: 2, maxFileBytes: 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024});
     expect(container.querySelector("details")).toBeNull();
     await openAttachmentMenu();
     const details = document.body.querySelector("details")!;
@@ -203,8 +198,8 @@ it("keeps server-provided limits and formats inside the attachment menu", async 
 
 it("encodes image bytes unchanged and reports file read failures", async () => {
     const bytes = new Uint8Array([137, 80, 78, 71, 0, 255]);
-    const file = new File([bytes], "photo.png", { type: "image/png" });
-    expect(await encodeAiFiles([file])).toEqual([{ name: "photo.png", data: Buffer.from(bytes).toString("base64") }]);
+    const file = new File([bytes], "photo.png", {type: "image/png"});
+    expect(await encodeAiFiles([file])).toEqual([{name: "photo.png", data: Buffer.from(bytes).toString("base64")}]);
     jest.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
         this.dispatchEvent(new ProgressEvent("error"));
     });
@@ -223,7 +218,7 @@ const openAssets = async () => {
 };
 
 it("adds a library image to existing attachments and passes the remaining allowance", async () => {
-    render(false, { ...capabilities, maxFileBytes: 10, maxTotalBytes: 10 });
+    render(false, {...capabilities, maxFileBytes: 10, maxTotalBytes: 10});
     const text = new File(["note"], "notes.txt");
     choose(text);
     await openAssets();
@@ -247,7 +242,7 @@ it("hides library access without permission or the assets module and disables it
     await act(async () => render());
     expect(assetsMenuItem()).toBeUndefined();
     (isModuleEnabled as MockedFunction<typeof isModuleEnabled>).mockReturnValue(true);
-    await act(async () => render(false, { ...capabilities, extensions: [".txt"] }));
+    await act(async () => render(false, {...capabilities, extensions: [".txt"]}));
     expect(assetsMenuItem()!.getAttribute("aria-disabled")).toBe("true");
     await act(async () => render(true));
     expect(attachmentButton().disabled).toBe(true);
@@ -267,9 +262,9 @@ it("closes only the attachment menu on Escape and keeps the assistant drawer ope
     const closeDrawer = jest.fn();
     await act(async () =>
         root.render(
-            <ConfigProvider theme={{ token: { motion: false } }}>
+            <ConfigProvider theme={{token: {motion: false}}}>
                 <Drawer open onClose={closeDrawer}>
-                    <Composer />
+                    <Composer/>
                 </Drawer>
             </ConfigProvider>
         )
@@ -278,7 +273,7 @@ it("closes only the attachment menu on Escape and keeps the assistant drawer ope
     const summary = document.body.querySelector("summary")!;
     await act(async () => {
         summary.focus();
-        summary.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", keyCode: 27, bubbles: true }));
+        summary.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", keyCode: 27, bubbles: true}));
     });
     expect(closeDrawer).not.toHaveBeenCalled();
     expect(attachmentButton().getAttribute("aria-expanded")).toBe("false");
@@ -288,31 +283,31 @@ it("closes only the attachment menu on Escape and keeps the assistant drawer ope
 it("restores a sent image through the authenticated article endpoint and releases its URL", async () => {
     const get = jest
         .fn<Promise<{ data: Blob }>, any[]>()
-        .mockResolvedValue({ data: new Blob(["image"], { type: "image/png" }) });
-    const api = { get } as unknown as AxiosInstance;
-    const files = [{ id: "saved-image", name: "sent.png", size: 5 }];
-    await act(async () => root.render(<AiFileList files={files} previewContext={{ api, articleId: 7 }} />));
+        .mockResolvedValue({data: new Blob(["image"], {type: "image/png"})});
+    const api = {get} as unknown as AxiosInstance;
+    const files = [{id: "saved-image", name: "sent.png", size: 5}];
+    await act(async () => root.render(<AiFileList files={files} previewContext={{api, articleId: 7}}/>));
     expect(get).toHaveBeenCalledWith(
         "/api/admin/article/ai/file",
         expect.objectContaining({
-            params: { id: 7, fileId: "saved-image" },
+            params: {id: 7, fileId: "saved-image"},
             responseType: "blob",
             showError: false,
         })
     );
     expect(container.querySelector(`button[aria-label="${res().preview} sent.png"]`)).not.toBeNull();
-    act(() => root.render(<div />));
+    act(() => root.render(<div/>));
     expect(get.mock.calls[0][1].signal.aborted).toBe(true);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith(previewUrls[0]);
 });
 
 it("retains local image previews after sending without putting bytes in message metadata", async () => {
-    const file = new File(["image"], "sent.png", { type: "image/png" });
-    const files = rememberAiFilePreviews([{ id: "saved-image", name: file.name, size: file.size }], [file]);
+    const file = new File(["image"], "sent.png", {type: "image/png"});
+    const files = rememberAiFilePreviews([{id: "saved-image", name: file.name, size: file.size}], [file]);
     const get = jest.fn();
     await act(async () =>
         root.render(
-            <AiFileList files={files} previewContext={{ api: { get } as unknown as AxiosInstance, articleId: 7 }} />
+            <AiFileList files={files} previewContext={{api: {get} as unknown as AxiosInstance, articleId: 7}}/>
         )
     );
     expect(container.querySelector(`button[aria-label="${res().preview} sent.png"]`)).not.toBeNull();
@@ -323,13 +318,13 @@ it("retains local image previews after sending without putting bytes in message 
 it("keeps attachment details and allows retry after an expired session or failed image response", async () => {
     const get = jest
         .fn<Promise<{ data: Blob }>, any[]>()
-        .mockResolvedValueOnce({ data: new Blob(['{"error":401}'], { type: "application/json" }) })
-        .mockResolvedValueOnce({ data: new Blob(["image"], { type: "image/png" }) });
+        .mockResolvedValueOnce({data: new Blob(['{"error":401}'], {type: "application/json"})})
+        .mockResolvedValueOnce({data: new Blob(["image"], {type: "image/png"})});
     await act(async () =>
         root.render(
             <AiFileList
-                files={[{ id: "saved-image", name: "sent.png", size: 5 }]}
-                previewContext={{ api: { get } as unknown as AxiosInstance, articleId: 0 }}
+                files={[{id: "saved-image", name: "sent.png", size: 5}]}
+                previewContext={{api: {get} as unknown as AxiosInstance, articleId: 0}}
             />
         )
     );
@@ -353,12 +348,12 @@ it("ignores a late image response after leaving the conversation", async () => {
     await act(async () =>
         root.render(
             <AiFileList
-                files={[{ id: "saved-image", name: "sent.png", size: 5 }]}
-                previewContext={{ api: { get } as unknown as AxiosInstance, articleId: 7 }}
+                files={[{id: "saved-image", name: "sent.png", size: 5}]}
+                previewContext={{api: {get} as unknown as AxiosInstance, articleId: 7}}
             />
         )
     );
-    act(() => root.render(<div />));
-    await act(async () => finish({ data: new Blob(["image"], { type: "image/png" }) }));
+    act(() => root.render(<div/>));
+    await act(async () => finish({data: new Blob(["image"], {type: "image/png"})}));
     expect(URL.createObjectURL).not.toHaveBeenCalled();
 });

@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import {createRequire} from "node:module";
+import {fileURLToPath} from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, "..");
 const frontendPackage = path.join(rootDir, "zrlog-admin-web-ui/src/main/frontend/package.json");
 const require = createRequire(frontendPackage);
-const { parseDocument } = require("yaml");
+const {parseDocument} = require("yaml");
 
 const openApiPath = path.join(rootDir, "docs/api/openapi.yaml");
 const source = fs.readFileSync(openApiPath, "utf8");
@@ -15,7 +15,7 @@ const canonicalPath = path.resolve(rootDir, "../zrlog-api/admin-web.yaml");
 if (fs.existsSync(canonicalPath) && fs.readFileSync(canonicalPath, "utf8") !== source) {
     throw new Error("Stale admin OpenAPI snapshot; synchronize from zrlog-api first");
 }
-const document = parseDocument(source, { prettyErrors: true, uniqueKeys: true });
+const document = parseDocument(source, {prettyErrors: true, uniqueKeys: true});
 
 if (document.errors.length > 0) {
     for (const error of document.errors) {

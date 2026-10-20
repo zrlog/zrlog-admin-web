@@ -8,7 +8,6 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.WebSiteUtils;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -16,7 +15,9 @@ import jakarta.inject.Singleton;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/** Assembles page metadata from the owning application at response time. */
+/**
+ * Assembles page metadata from the owning application at response time.
+ */
 @Singleton
 public final class AdminPageDataFactory {
     private final Supplier<PublicWebSiteInfo> site;

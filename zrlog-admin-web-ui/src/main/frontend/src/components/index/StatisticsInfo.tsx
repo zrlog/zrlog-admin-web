@@ -4,18 +4,18 @@ import ContainerIcon from "@zrlog/ui/icons/container";
 import FileTextIcon from "@zrlog/ui/icons/file-text";
 import ChartIcon from "@zrlog/ui/icons/chart";
 import DiskIcon from "@zrlog/ui/icons/disk";
-import { Typography } from "antd";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import {Typography} from "antd";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
 
-import { Link } from "react-router-dom";
-import { StatisticsInfoState } from "../../type";
-import { ReactElement } from "react";
-import { useTheme } from "antd-style";
+import {Link} from "react-router-dom";
+import {StatisticsInfoState} from "../../type";
+import {ReactElement} from "react";
+import {useTheme} from "antd-style";
 import Card from "antd/es/card";
 
-const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
+const StatisticsInfo = ({data}: { data: StatisticsInfoState }) => {
     const theme = useTheme();
     const cardBackground = theme.colorFillQuaternary;
     const cardHoverBackground = theme.colorFillTertiary;
@@ -68,11 +68,11 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
     ].filter((item) => item.value > 0 || totalArticles === 0);
 
     const summaryCard = ({
-        icon,
-        title,
-        value,
-        subtitle,
-    }: {
+                             icon,
+                             title,
+                             value,
+                             subtitle,
+                         }: {
         icon: ReactElement;
         title: string;
         value: string | number;
@@ -84,15 +84,15 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                 padding: 16,
             }}
         >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ color: accentColor }}>{icon}</span>
+            <div style={{display: "flex", alignItems: "center", gap: 8, marginBottom: 10}}>
+                <span style={{color: accentColor}}>{icon}</span>
                 <Typography.Text type="secondary">{title}</Typography.Text>
             </div>
-            <Typography.Text style={{ display: "block", fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>
+            <Typography.Text style={{display: "block", fontSize: 24, fontWeight: 700, lineHeight: 1.2}}>
                 {value}
             </Typography.Text>
             {subtitle && (
-                <Typography.Text type="secondary" style={{ display: "block", marginTop: 6, fontSize: 12 }}>
+                <Typography.Text type="secondary" style={{display: "block", marginTop: 6, fontSize: 12}}>
                     {subtitle}
                 </Typography.Text>
             )}
@@ -112,9 +112,9 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                     whiteSpace: "nowrap",
                 }}
             >
-                <span style={{ color: accentColor, fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                <span style={{color: accentColor, fontSize: 22, lineHeight: 1}}>{icon}</span>
                 <Typography.Text
-                    style={{ color: theme.colorTextHeading, fontSize: 24, fontWeight: 600, lineHeight: 1.5 }}
+                    style={{color: theme.colorTextHeading, fontSize: 24, fontWeight: 600, lineHeight: 1.5}}
                     ellipsis={true}
                 >
                     {text}
@@ -124,10 +124,10 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
     };
 
     const StatCard = ({
-        title,
-        valueRender,
-        link,
-    }: {
+                          title,
+                          valueRender,
+                          link,
+                      }: {
         title: string;
         valueRender: () => JSX.Element;
         link?: string;
@@ -158,7 +158,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
             >
                 <Typography.Text
                     type="secondary"
-                    style={{ fontSize: 14, fontWeight: 500, marginBottom: 16, display: "block" }}
+                    style={{fontSize: 14, fontWeight: 500, marginBottom: 16, display: "block"}}
                 >
                     {title}
                 </Typography.Text>
@@ -168,7 +168,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
 
         if (link) {
             return (
-                <Link to={getRealRouteUrl(link)} style={{ display: "block", height: "100%" }}>
+                <Link to={getRealRouteUrl(link)} style={{display: "block", height: "100%"}}>
                     {content}
                 </Link>
             );
@@ -180,10 +180,10 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
         <Card
             bordered={false}
             className="dashboard-card"
-            styles={{ body: { padding: theme.paddingLG } }}
+            styles={{body: {padding: theme.paddingLG}}}
             title={
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <ChartIcon />
+                <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                    <ChartIcon/>
                     <span>{getRes().index.statistics}</span>
                 </div>
             }
@@ -192,31 +192,31 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.todayComment}
-                        valueRender={() => value(<CommentIcon />, data.toDayCommCount)}
+                        valueRender={() => value(<CommentIcon/>, data.toDayCommCount)}
                     />
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.totalComment}
                         link="/comment"
-                        valueRender={() => value(<CommentIcon />, data.commCount)}
+                        valueRender={() => value(<CommentIcon/>, data.commCount)}
                     />
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.totalArticle}
                         link="/article"
-                        valueRender={() => value(<ContainerIcon />, data.articleCount)}
+                        valueRender={() => value(<ContainerIcon/>, data.articleCount)}
                     />
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.totalArticleView}
-                        valueRender={() => value(<ContainerIcon />, data.clickCount)}
+                        valueRender={() => value(<ContainerIcon/>, data.clickCount)}
                     />
                 </Col>
             </Row>
-            <div style={{ height: theme.marginLG }} />
+            <div style={{height: theme.marginLG}}/>
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12}>
                     <div
@@ -225,13 +225,13 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                             padding: 16,
                         }}
                     >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                            <span style={{ color: accentColor }}>
-                                <FileTextIcon />
+                        <div style={{display: "flex", alignItems: "center", gap: 8, marginBottom: 10}}>
+                            <span style={{color: accentColor}}>
+                                <FileTextIcon/>
                             </span>
                             <Typography.Text type="secondary">{getRes().index.status}</Typography.Text>
                         </div>
-                        <Typography.Text style={{ display: "block", fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>
+                        <Typography.Text style={{display: "block", fontSize: 24, fontWeight: 700, lineHeight: 1.2}}>
                             {`${data.publishedCount}/${totalArticles}`}
                         </Typography.Text>
                         <div
@@ -256,9 +256,9 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                                 />
                             ))}
                         </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 12 }}>
+                        <div style={{display: "flex", flexWrap: "wrap", gap: 12, marginTop: 12}}>
                             {statusItems.map((item) => (
-                                <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <div key={item.key} style={{display: "flex", alignItems: "center", gap: 6}}>
                                     <span
                                         style={{
                                             width: 8,
@@ -268,7 +268,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                                             display: "inline-block",
                                         }}
                                     />
-                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    <Typography.Text type="secondary" style={{fontSize: 12}}>
                                         {`${item.label} ${item.value}`}
                                     </Typography.Text>
                                 </div>
@@ -278,14 +278,14 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                 </Col>
                 <Col xs={24} md={6}>
                     {summaryCard({
-                        icon: <DiskIcon />,
+                        icon: <DiskIcon/>,
                         title: getRes().index.storage.disk,
                         value: formatBytes(data.usedDiskSpace),
                     })}
                 </Col>
                 <Col xs={24} md={6}>
                     {summaryCard({
-                        icon: <ServerIcon />,
+                        icon: <ServerIcon/>,
                         title: getRes().index.storage.cache,
                         value: formatBytes(data.usedCacheSpace),
                     })}

@@ -9,12 +9,14 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -22,6 +24,7 @@ public final class MemberService {
     private final AccountPermissionService permissionService;
 
     private final UserService userService;
+    private final SecurityStore store;
 
     @Inject
     public MemberService(
@@ -34,7 +37,31 @@ public final class MemberService {
         this.userService = userService;
     }
 
-    private final SecurityStore store;
+    private static void checkMutation() {
+        if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
+    }
+
+    private static void validateRole(AccountAccess actor, String role) {
+        if (role == null || !AccountAccess.ROLES.contains(role) || "owner".equals(role))
+            throw new ArgsException("role");
+        if ("admin".equals(role)
+                && !AccountAction.ADMIN_APPOINT.allowed(actor))
+            throw new PermissionErrorException();
+    }
+
+    private static void validatePassword(String password) {
+        if (password == null || password.length() < 12 || password.length() > 256) throw new ArgsException("password");
+    }
+
+    private static Member member(Map<String, Object> row) {
+        Member member = new Member();
+        member.userId = ((Number) row.get("userId")).intValue();
+        member.userName = Objects.toString(row.get("userName"), "");
+        member.email = Objects.toString(row.get("email"), "");
+        member.role = Objects.toString(row.get("role"), "");
+        member.enabled = AccountAccess.truth(row.get("enabled"));
+        return member;
+    }
 
     public Page list(AccountAccess actor) throws SQLException {
         permissionService.require(actor, AccountAction.MEMBER_MANAGE);
@@ -44,10 +71,12 @@ public final class MemberService {
                 .stream().map(MemberService::member).collect(Collectors.toList());
         return page;
     }
+
     public Member create(AccountAccess actor, Create body) throws SQLException {
         permissionService.require(actor, AccountAction.MEMBER_MANAGE);
         checkMutation();
-        if (body == null || body.userName == null || !body.userName.matches("[A-Za-z0-9_.-]{2,16}")) throw new ArgsException("userName");
+        if (body == null || body.userName == null || !body.userName.matches("[A-Za-z0-9_.-]{2,16}"))
+            throw new ArgsException("userName");
         validateRole(actor, body.role);
         if (body.email != null && body.email.length() > 64) throw new ArgsException("email");
         validatePassword(body.password);
@@ -55,14 +84,16 @@ public final class MemberService {
         String hash = PasswordHashUtils.hash(SecurityUtils.md5(body.password));
         return store.withSession(c -> {
             lockMembership(c, actor);
-            if (store.one(c, "select userId from user where lower(userName)=?", name) != null) throw new ArgsException("userName");
+            if (store.one(c, "select userId from user where lower(userName)=?", name) != null)
+                throw new ArgsException("userName");
             // Persist an unset avatar as "" for older NOT NULL schemas; UserService supplies the default image on read.
             if (c.isWebApi()) {
                 if (store.update(c, "insert into user (userName,email,header,password,secretKey,role,enabled,authVersion) select ?,?,?,?,?,?,?,? "
                                 + "where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?) "
                                 + "and not exists (select 1 from user where lower(userName)=?)",
                         name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0,
-                        actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), name) != 1) throw new PermissionErrorException();
+                        actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), name) != 1)
+                    throw new PermissionErrorException();
             } else {
                 store.update(c, "insert into user (userName,email,header,password,secretKey,role,enabled,authVersion) values (?,?,?,?,?,?,?,?)",
                         name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0);
@@ -70,6 +101,7 @@ public final class MemberService {
             return member(store.one(c, "select userId,userName,email,role,enabled from user where userName=?", name));
         });
     }
+
     public Member update(AccountAccess actor, Update body) throws SQLException {
         permissionService.require(actor, AccountAction.MEMBER_MANAGE);
         checkMutation();
@@ -95,20 +127,20 @@ public final class MemberService {
                                         ? (String) row.get("password")
                                         : PasswordHashUtils.hash(SecurityUtils.md5(body.password));
                         if (store.update(
-                                        c,
-                                        "update user set role=?,enabled=?,password=?,authVersion=authVersion+1 "
-                                                + "where userId=? and role=? and authVersion=? "
-                                                + "and exists (select 1 from user actor where actor.userId=? and actor.role=? and actor.enabled=? and actor.authVersion=?)",
-                                        body.role,
-                                        body.enabled,
-                                        password,
-                                        body.userId,
-                                        row.get("role"),
-                                        row.get("authVersion"),
-                                        actor.getUserId(),
-                                        actor.getRole(),
-                                        true,
-                                        actor.getAuthVersion())
+                                c,
+                                "update user set role=?,enabled=?,password=?,authVersion=authVersion+1 "
+                                        + "where userId=? and role=? and authVersion=? "
+                                        + "and exists (select 1 from user actor where actor.userId=? and actor.role=? and actor.enabled=? and actor.authVersion=?)",
+                                body.role,
+                                body.enabled,
+                                password,
+                                body.userId,
+                                row.get("role"),
+                                row.get("authVersion"),
+                                actor.getUserId(),
+                                actor.getRole(),
+                                true,
+                                actor.getAuthVersion())
                                 != 1) throw new PermissionErrorException();
                         // authVersion invalidates both OAuth grants and personal tokens in the same
                         // statement.
@@ -143,10 +175,12 @@ public final class MemberService {
                                     body.userId));
                 });
     }
+
     public void transfer(AccountAccess actor, Transfer body) throws SQLException {
         permissionService.require(actor, AccountAction.OWNERSHIP_TRANSFER);
         checkMutation();
-        if (body == null || body.userId == null || body.password == null || !actor.isOwner() || body.userId == actor.getUserId()) throw new PermissionErrorException();
+        if (body == null || body.userId == null || body.password == null || !actor.isOwner() || body.userId == actor.getUserId())
+            throw new PermissionErrorException();
         userService.verifyCurrentCredentials(
                 actor.getUserId(), SecurityUtils.md5(body.password), body.mfaCode);
         store.withSession(c -> {
@@ -162,37 +196,21 @@ public final class MemberService {
                 return null;
             }
             lockMembership(c, actor);
-            Map<String,Object> target = store.one(c, "select * from user where userId=?", body.userId);
+            Map<String, Object> target = store.one(c, "select * from user where userId=?", body.userId);
             if (!AccountAccess.from(target).isEnabled()) throw new PermissionErrorException();
-            if (store.update(c, "update user set role=?,authVersion=authVersion+1 where userId=? and role=?", "admin", actor.getUserId(), "owner") != 1) throw new PermissionErrorException();
+            if (store.update(c, "update user set role=?,authVersion=authVersion+1 where userId=? and role=?", "admin", actor.getUserId(), "owner") != 1)
+                throw new PermissionErrorException();
             store.update(c, "update user set role=?,authVersion=authVersion+1 where userId=?", "owner", body.userId);
             store.update(c, "update oauth_grant set revoked=? where userId=? or userId=?", true, actor.getUserId(), body.userId);
             return null;
         });
     }
+
     private void lockMembership(SecurityStore.Session c, AccountAccess actor) throws SQLException {
         // A single owner row gives all member mutations a consistent lock order.
         store.lock(c, "update user set authVersion=authVersion where role=?", "owner");
         AccountAccess current = AccountAccess.from(store.one(c, "select * from user where userId=?", actor.getUserId()));
-        if (!current.isAdministrator() || current.getAuthVersion() != actor.getAuthVersion()) throw new PermissionErrorException();
-    }
-
-    private static void checkMutation() { if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException(); }
-
-    private static void validateRole(AccountAccess actor, String role) {
-        if (role == null || !AccountAccess.ROLES.contains(role) || "owner".equals(role)) throw new ArgsException("role");
-        if ("admin".equals(role)
-                && !AccountAction.ADMIN_APPOINT.allowed(actor))
+        if (!current.isAdministrator() || current.getAuthVersion() != actor.getAuthVersion())
             throw new PermissionErrorException();
-    }
-    private static void validatePassword(String password) { if (password == null || password.length() < 12 || password.length() > 256) throw new ArgsException("password"); }
-    private static Member member(Map<String,Object> row) {
-        Member member = new Member();
-        member.userId = ((Number) row.get("userId")).intValue();
-        member.userName = Objects.toString(row.get("userName"), "");
-        member.email = Objects.toString(row.get("email"), "");
-        member.role = Objects.toString(row.get("role"), "");
-        member.enabled = AccountAccess.truth(row.get("enabled"));
-        return member;
     }
 }

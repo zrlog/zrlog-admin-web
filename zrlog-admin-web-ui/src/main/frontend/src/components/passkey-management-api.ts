@@ -1,6 +1,6 @@
-import type { MessageInstance } from "antd/es/message/interface";
-import type { ApiResponse, PasskeyRegistrationVerifyRequest, PasskeySummary } from "../type";
-import { postRefreshCacheSse } from "../utils/sse-utils";
+import type {MessageInstance} from "antd/es/message/interface";
+import type {ApiResponse, PasskeyRegistrationVerifyRequest, PasskeySummary} from "../type";
+import {postRefreshCacheSse} from "../utils/sse-utils";
 
 export const PASSKEY_API_BASE = "/api/admin/account-security/passkey";
 export const PASSKEY_REGISTRATION_MESSAGE_KEY = "passkeyRegistration";

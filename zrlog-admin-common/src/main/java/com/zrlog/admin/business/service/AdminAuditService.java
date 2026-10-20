@@ -12,7 +12,6 @@ import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.UserAgentUtils;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -26,17 +25,15 @@ import java.util.logging.Logger;
 
 @Singleton
 public class AdminAuditService {
-    private final WebsiteKvService websiteKvService;
-
-    @Inject
-    public AdminAuditService(WebsiteKvService websiteKvService) {
-        this.websiteKvService = websiteKvService;
-    }
-
     private static final String AUDIT_LOG_KEY = "admin_audit_log";
     private static final int MAX_LOG_SIZE = 100;
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminAuditService.class);
+    private final WebsiteKvService websiteKvService;
+    @Inject
+    public AdminAuditService(WebsiteKvService websiteKvService) {
+        this.websiteKvService = websiteKvService;
+    }
 
     public void record(AdminAuditContext context, AdminAuditAction action) {
         record(context, action, "");
@@ -179,7 +176,8 @@ public class AdminAuditService {
 
     private AdminAuditLogEntryResponse toAuditLogEntry(JsonObject log) {
         AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
-        if (log.has("actorUserId") && !log.get("actorUserId").isJsonNull()) entry.setActorUserId(toLong(log.get("actorUserId")).intValue());
+        if (log.has("actorUserId") && !log.get("actorUserId").isJsonNull())
+            entry.setActorUserId(toLong(log.get("actorUserId")).intValue());
         entry.setTimestamp(toLong(log.get("timestamp")));
         entry.setIp(toStringValue(log.get("ip")));
         entry.setAction(toStringValue(log.get("action")));

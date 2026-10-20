@@ -2,13 +2,17 @@ package com.zrlog.admin.util;
 
 import com.hibegin.http.server.util.NativeImageUtils;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.response.AdminManifestResponse;
+import com.zrlog.admin.business.rest.response.AdminStaticSiteSyncResponse;
+import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.admin.business.rest.response.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public final class AdminUiNativeImageUtils {
-    private AdminUiNativeImageUtils() { }
+    private AdminUiNativeImageUtils() {
+    }
 
     public static List<String> getResources(AdminResource resources) {
         List<String> uris = new ArrayList<>(resources.getAdminStaticResourceUris());

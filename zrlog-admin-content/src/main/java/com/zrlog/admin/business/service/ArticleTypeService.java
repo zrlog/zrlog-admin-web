@@ -9,7 +9,6 @@ import com.zrlog.admin.business.rest.request.UpdateTypeRequest;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.model.Log;
 import com.zrlog.model.Type;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;

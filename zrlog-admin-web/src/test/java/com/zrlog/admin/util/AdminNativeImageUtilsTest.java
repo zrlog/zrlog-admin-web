@@ -1,11 +1,5 @@
 package com.zrlog.admin.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -16,7 +10,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.model.AIModelCatalog;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static org.junit.Assert.*;
 
 public class AdminNativeImageUtilsTest {
 
@@ -115,7 +110,7 @@ public class AdminNativeImageUtilsTest {
                         (HttpRequest)
                                 java.lang.reflect.Proxy.newProxyInstance(
                                         getClass().getClassLoader(),
-                                        new Class<?>[] {HttpRequest.class},
+                                        new Class<?>[]{HttpRequest.class},
                                         (proxy, called, args) -> {
                                             if (called.getName().equals("getServerConfig"))
                                                 return db.config().getServerConfig();

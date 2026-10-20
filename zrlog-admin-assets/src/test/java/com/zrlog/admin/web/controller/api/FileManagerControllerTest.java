@@ -1,26 +1,12 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest;
-import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
-import com.zrlog.admin.business.rest.response.FileEntryVO;
-import com.zrlog.admin.business.rest.response.FileManagerResponse;
-import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
-import com.zrlog.admin.business.rest.response.UploadFileResponse;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.DbFileService;
-import com.zrlog.admin.business.service.FileManagerReferenceService;
-import com.zrlog.admin.business.service.FileManagerService;
-import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -31,7 +17,6 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -44,9 +29,56 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class FileManagerControllerTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static void setControllerField(FileManagerController controller, String name, Object value)
+            throws Exception {
+        Field field = Controller.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(controller, value);
+    }
+
+    private static HttpRequest request(Map<String, String> params) {
+        return request(params, null, Map.of());
+    }
+
+    private static HttpRequest request(Map<String, String> params, String body, Map<String, File> files) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                FileManagerControllerTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getParaToStr".equals(method.getName())) {
+                        String key = args[0].toString();
+                        if (args.length == 2) {
+                            return params.getOrDefault(key, args[1].toString());
+                        }
+                        return params.get(key);
+                    }
+                    if ("getParaToBool".equals(method.getName())) {
+                        return Boolean.parseBoolean(params.getOrDefault(args[0].toString(), args[1].toString()));
+                    }
+                    if ("getUri".equals(method.getName())) {
+                        return "/api/admin/file-manager";
+                    }
+                    if ("getInputStream".equals(method.getName())) {
+                        if (body == null) {
+                            return null;
+                        }
+                        return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                    }
+                    if ("getFile".equals(method.getName())) {
+                        return files.get(args[0].toString());
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -251,13 +283,13 @@ public class FileManagerControllerTest {
     }
 
     private FileManagerController controller(Map<String, String> params, FakeFileManagerService service,
-                                                    ResponseRecorder responseRecorder, DataSourceWrapper testDataSource) throws Exception {
+                                             ResponseRecorder responseRecorder, DataSourceWrapper testDataSource) throws Exception {
         return controller(params, null, Map.of(), service, responseRecorder, testDataSource);
     }
 
     private FileManagerController controller(Map<String, String> params, String body, Map<String, File> files,
-                                                    FakeFileManagerService service,
-                                                    ResponseRecorder responseRecorder, DataSourceWrapper testDataSource) throws Exception {
+                                             FakeFileManagerService service,
+                                             ResponseRecorder responseRecorder, DataSourceWrapper testDataSource) throws Exception {
         FileManagerController controller =
                 new FileManagerController(
                         service,
@@ -280,7 +312,7 @@ public class FileManagerControllerTest {
                                         () -> null,
                                         AccountServicesFixture.component(testDataSource)
                                                 .identities(), AccountServicesFixture.component(testDataSource)
-                                                .permissions(),
+                                        .permissions(),
                                         new DbFileService(
                                                 ApplicationServicesFixture.websiteKv(
                                                         testDataSource),
@@ -306,52 +338,22 @@ public class FileManagerControllerTest {
         return controller;
     }
 
-    private static void setControllerField(FileManagerController controller, String name, Object value)
-            throws Exception {
-        Field field = Controller.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(controller, value);
-    }
-
-    private static HttpRequest request(Map<String, String> params) {
-        return request(params, null, Map.of());
-    }
-
-    private static HttpRequest request(Map<String, String> params, String body, Map<String, File> files) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                FileManagerControllerTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getParaToStr".equals(method.getName())) {
-                        String key = args[0].toString();
-                        if (args.length == 2) {
-                            return params.getOrDefault(key, args[1].toString());
-                        }
-                        return params.get(key);
-                    }
-                    if ("getParaToBool".equals(method.getName())) {
-                        return Boolean.parseBoolean(params.getOrDefault(args[0].toString(), args[1].toString()));
-                    }
-                    if ("getUri".equals(method.getName())) {
-                        return "/api/admin/file-manager";
-                    }
-                    if ("getInputStream".equals(method.getName())) {
-                        if (body == null) {
-                            return null;
-                        }
-                        return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                    }
-                    if ("getFile".equals(method.getName())) {
-                        return files.get(args[0].toString());
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
-    }
-
     private static class FakeFileManagerService extends FileManagerService {
+        private String searchKey;
+        private String deletedPath;
+        private String mkdirPath;
+        private String renamedPath;
+        private String newName;
+        private boolean syncArticleReferences;
+        private String readContentPath;
+        private String readPath;
+        private String content = "";
+        private byte[] bytes = new byte[0];
+        private boolean actionResult;
+        private String reuploadPath;
+        private UploadFileResponse uploadResponse = new UploadFileResponse("/attached/upload.png");
+        private ReplaceArticleResourceUrlRequest replaceRequest;
+        private ReplaceArticleResourceUrlResponse replaceResponse = new ReplaceArticleResourceUrlResponse();
         FakeFileManagerService(DataSourceWrapper testDataSource) {
             super(
                     new UploadService(
@@ -372,22 +374,6 @@ public class FileManagerControllerTest {
                     ApplicationServicesFixture.audit(testDataSource),
                     ApplicationServicesFixture.operations(testDataSource));
         }
-
-        private String searchKey;
-        private String deletedPath;
-        private String mkdirPath;
-        private String renamedPath;
-        private String newName;
-        private boolean syncArticleReferences;
-        private String readContentPath;
-        private String readPath;
-        private String content = "";
-        private byte[] bytes = new byte[0];
-        private boolean actionResult;
-        private String reuploadPath;
-        private UploadFileResponse uploadResponse = new UploadFileResponse("/attached/upload.png");
-        private ReplaceArticleResourceUrlRequest replaceRequest;
-        private ReplaceArticleResourceUrlResponse replaceResponse = new ReplaceArticleResourceUrlResponse();
 
         @Override
         public List<FileEntryVO> search(String key) {
@@ -444,8 +430,8 @@ public class FileManagerControllerTest {
     }
 
     private static class ResponseRecorder {
-        private String redirect;
         private final Map<String, String> headers = new HashMap<>();
+        private String redirect;
         private byte[] writtenBytes;
 
         private HttpResponse response() {

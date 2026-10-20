@@ -1,8 +1,8 @@
 import type {sharedEditorIcons} from "./AdminEditorIconProvider";
-import Editor from "@zrlog/editor/core";
 import type {ZrLogEditorProps} from "@zrlog/editor/core";
-import {EditorIconProvider} from "@zrlog/editor/icons";
+import Editor from "@zrlog/editor/core";
 import type {EditorIconComponent, EditorIconMap} from "@zrlog/editor/icons";
+import {EditorIconProvider} from "@zrlog/editor/icons";
 import {useUiIconSet} from "@zrlog/ui/icons";
 import Materialbold from "@zrlog/ui/material-icons/bold";
 import Legacybold from "@zrlog/editor/default-icons/bold";

@@ -1,11 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.server.api.HttpRequest;
@@ -20,7 +14,6 @@ import com.zrlog.common.cache.dto.LinkDTO;
 import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.common.exception.ArgsException;
-
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -29,9 +22,75 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class ContentCrudControllerDatabaseTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static void setControllerFields(Controller controller, Map<String, String> params, String body,
+                                            String uri) throws Exception {
+        Field requestField = Controller.class.getDeclaredField("request");
+        requestField.setAccessible(true);
+        requestField.set(controller, request(params, body, uri));
+        Field responseField = Controller.class.getDeclaredField("response");
+        responseField.setAccessible(true);
+        responseField.set(controller, response());
+    }
+
+    private static HttpRequest request(Map<String, String> params, String body, String uri) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                ContentCrudControllerDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getParaToStr":
+                            if (args.length == 2) {
+                                return params.getOrDefault(args[0].toString(), args[1].toString());
+                            }
+                            return params.get(args[0].toString());
+                        case "getParaToInt":
+                            String value = params.get(args[0].toString());
+                            if (value == null && args.length == 2) {
+                                return args[1];
+                            }
+                            return value == null ? null : Integer.parseInt(value);
+                        case "getInputStream":
+                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                        case "getUri":
+                            return uri;
+                        case "getHeader":
+                            if ("Host".equals(args[0])) {
+                                return "localhost:18080";
+                            }
+                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
+                        case "getHeaderMap":
+                            return Map.of("X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getContextPath":
+                            return "/";
+                        case "getScheme":
+                            return "http";
+                        case "decodeParamMap":
+                            return Map.of();
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
+    private static HttpResponse response() {
+        return (HttpResponse) Proxy.newProxyInstance(
+                ContentCrudControllerDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> null);
+    }
 
     @Test
     public void shouldManageTypesThroughRealDatabase() throws Exception {
@@ -147,69 +206,5 @@ public class ContentCrudControllerDatabaseTest {
                 applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).linkController();
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
-    }
-
-    private static void setControllerFields(Controller controller, Map<String, String> params, String body,
-                                            String uri) throws Exception {
-        Field requestField = Controller.class.getDeclaredField("request");
-        requestField.setAccessible(true);
-        requestField.set(controller, request(params, body, uri));
-        Field responseField = Controller.class.getDeclaredField("response");
-        responseField.setAccessible(true);
-        responseField.set(controller, response());
-    }
-
-    private static HttpRequest request(Map<String, String> params, String body, String uri) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                ContentCrudControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getParaToStr":
-                            if (args.length == 2) {
-                                return params.getOrDefault(args[0].toString(), args[1].toString());
-                            }
-                            return params.get(args[0].toString());
-                        case "getParaToInt":
-                            String value = params.get(args[0].toString());
-                            if (value == null && args.length == 2) {
-                                return args[1];
-                            }
-                            return value == null ? null : Integer.parseInt(value);
-                        case "getInputStream":
-                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                        case "getUri":
-                            return uri;
-                        case "getHeader":
-                            if ("Host".equals(args[0])) {
-                                return "localhost:18080";
-                            }
-                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getContextPath":
-                            return "/";
-                        case "getScheme":
-                            return "http";
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
-    }
-
-    private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                ContentCrudControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
     }
 }

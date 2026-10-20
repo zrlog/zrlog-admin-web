@@ -1,10 +1,13 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.util.NativeImageUtils;
-import java.util.*;
+
+import java.util.Arrays;
 
 public final class AccountNativeImageUtils {
-    private AccountNativeImageUtils() { }
+    private AccountNativeImageUtils() {
+    }
+
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
                 com.zrlog.admin.business.rest.base.UserPreferences.class,

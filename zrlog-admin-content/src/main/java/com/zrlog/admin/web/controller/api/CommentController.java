@@ -18,13 +18,15 @@ import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.dto.CommentDTO;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 
 public class CommentController extends BaseController {
 
+    private final AdminPageDataFactory pages;
+    private final AdminCommentService commentService;
+    private final AdminRequestIdentity requestIdentity;
     @Inject
     public CommentController(AdminPageDataFactory pages, AdminCommentService commentService,
                              AdminRequestIdentity requestIdentity) {
@@ -33,11 +35,6 @@ public class CommentController extends BaseController {
 
         this.pages = pages;
     }
-
-    private final AdminPageDataFactory pages;
-
-    private final AdminCommentService commentService;
-    private final AdminRequestIdentity requestIdentity;
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

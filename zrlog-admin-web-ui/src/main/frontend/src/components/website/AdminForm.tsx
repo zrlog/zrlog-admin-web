@@ -1,24 +1,24 @@
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
 import Form from "antd/es/form";
-import { useTheme } from "antd-style";
+import {useTheme} from "antd-style";
 
-import { getRes } from "../../utils/constants";
+import {getRes} from "../../utils/constants";
 import Select from "antd/es/select";
-import { useEffect, useState } from "react";
-import { Typography } from "antd";
-import { Admin } from "./index";
+import {useEffect, useState} from "react";
+import {Typography} from "antd";
+import {Admin} from "./index";
 import FaviconUpload from "./FaviconUpload";
 import zh_CN from "antd/es/locale/zh_CN";
 import en_US from "antd/es/locale/en_US";
 import AdminAppearanceFields from "../common/AdminAppearanceFields";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
-import { useAppearancePreview } from "../../utils/use-appearance-preview";
+import {useAppearancePreview} from "../../utils/use-appearance-preview";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 type PaginationLocaleWithItems = {
@@ -26,12 +26,12 @@ type PaginationLocaleWithItems = {
 };
 
 const BlogForm = ({
-    data,
-    offlineData,
-    offline,
-    onSubmit,
-    loading,
-}: {
+                      data,
+                      offlineData,
+                      offline,
+                      onSubmit,
+                      loading,
+                  }: {
     data: Admin;
     offlineData: boolean;
     offline: boolean;
@@ -40,9 +40,9 @@ const BlogForm = ({
 }) => {
     const [state, setState] = useState<Admin>(data);
     const [form] = Form.useForm();
-    const { formLayout } = useResponsiveFormLayout(layout);
+    const {formLayout} = useResponsiveFormLayout(layout);
     const theme = useTheme();
-    const { preview, restore } = useAppearancePreview();
+    const {preview, restore} = useAppearancePreview();
 
     const getItemsPerPage = () => {
         const paginationLocale = getRes().lang === "zh_CN" ? zh_CN.Pagination : en_US.Pagination;
@@ -50,7 +50,7 @@ const BlogForm = ({
     };
 
     const onValueChange = (value: any) => {
-        const next = { ...state, ...value };
+        const next = {...state, ...value};
         setState(next);
         if (
             ["language", "admin_theme", "admin_darkMode", "admin_compactMode", "admin_color_primary"].some((key) =>
@@ -91,10 +91,10 @@ const BlogForm = ({
             onValuesChange={(nv) => {
                 onValueChange(nv);
             }}
-            onFinish={(nv) => onSubmit({ ...state, ...nv })}
+            onFinish={(nv) => onSubmit({...state, ...nv})}
         >
             <div
-                style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "8px 0 16px 0" }}
+                style={{color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "8px 0 16px 0"}}
             >
                 {getRes().websiteAdmin.basicSettings}
             </div>
@@ -145,7 +145,7 @@ const BlogForm = ({
             >
                 <Input
                     allowClear
-                    style={{ maxWidth: 440 }}
+                    style={{maxWidth: 440}}
                     placeholder={getRes().websiteAdmin.backendServer.placeholder}
                 />
             </Form.Item>
@@ -154,17 +154,17 @@ const BlogForm = ({
                 label={getRes().websiteAdmin.staticResource.url}
                 tooltip={getRes().websiteAdmin.staticResource.urlHelp}
             >
-                <Input style={{ maxWidth: 300 }} placeholder={getRes().websiteAdmin.staticResource.urlTips} />
+                <Input style={{maxWidth: 300}} placeholder={getRes().websiteAdmin.staticResource.urlTips}/>
             </Form.Item>
             <Form.Item
                 name="session_timeout"
                 label={getRes().websiteAdmin.session.timeout}
                 tooltip={getRes().websiteAdmin.session.timeoutHelp}
-                rules={[{ required: true }]}
+                rules={[{required: true}]}
             >
                 <InputNumber
                     suffix={getRes().websiteAdmin.session.timeoutUnit}
-                    style={{ minWidth: 120 }}
+                    style={{minWidth: 120}}
                     max={99999}
                     type={"number"}
                     min={6}
@@ -182,7 +182,7 @@ const BlogForm = ({
             />
             <Typography.Paragraph type="secondary">{getRes().websiteAdmin.appearancePreviewHint}</Typography.Paragraph>
             <div
-                style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0" }}
+                style={{color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0"}}
             >
                 {getRes().websiteAdmin.moreSettings}
             </div>
@@ -192,7 +192,7 @@ const BlogForm = ({
                 tooltip={getRes().websiteAdmin.article.pageSizeTip}
             >
                 <Select
-                    style={{ maxWidth: 120 }}
+                    style={{maxWidth: 120}}
                     options={[
                         {
                             value: 10,
@@ -214,7 +214,7 @@ const BlogForm = ({
                 />
             </Form.Item>
             <div
-                style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0" }}
+                style={{color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0"}}
             >
                 {getRes().websiteAdmin.pwa.title}
             </div>
@@ -226,7 +226,7 @@ const BlogForm = ({
                 <FaviconUpload
                     url={state.favicon_png_pwa_192_base64}
                     onChange={(e) => {
-                        setState({ ...state, favicon_png_pwa_192_base64: e ? e : "" });
+                        setState({...state, favicon_png_pwa_192_base64: e ? e : ""});
                     }}
                 />
             </Form.Item>
@@ -238,12 +238,12 @@ const BlogForm = ({
                 <FaviconUpload
                     url={state.favicon_png_pwa_512_base64}
                     onChange={(e) => {
-                        setState({ ...state, favicon_png_pwa_512_base64: e ? e : "" });
+                        setState({...state, favicon_png_pwa_512_base64: e ? e : ""});
                     }}
                 />
             </Form.Item>
 
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
         </Form>
     );
 };

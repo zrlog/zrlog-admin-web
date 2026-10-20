@@ -1,12 +1,15 @@
 package com.zrlog.admin.business.ai.model;
 
+import com.zrlog.admin.business.knowledge.KnowledgeModels.Source;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.admin.business.knowledge.KnowledgeModels.Source;
+
 import java.util.*;
 
 public final class AIChatModels {
-    private AIChatModels() { }
+    private AIChatModels() {
+    }
+
     public static class ChatRequest implements Validator {
         public String input;
         public long articleId;
@@ -15,6 +18,7 @@ public final class AIChatModels {
         public List<AIFileModels.Input> files = new ArrayList<>();
         public List<Reference> references = new ArrayList<>();
         public List<ChatMessage> history = new ArrayList<>();
+
         public void doValid() {
             com.zrlog.admin.business.ai.service.AIFileService.validateInputs(files);
             if (references == null || references.size() > 8) throw new ArgsException();
@@ -34,22 +38,26 @@ public final class AIChatModels {
                 if (!referenceKeys.add(key)) throw new ArgsException();
             }
             com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.validateSnapshot(editorContext);
-            if (editorContext != null && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}"))) throw new ArgsException();
+            if (editorContext != null && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")))
+                throw new ArgsException();
             if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
                     || history == null || history.size() > 12) throw new ArgsException();
             int size = 0;
             for (ChatMessage m : history) {
-                if (m == null || !("user".equals(m.role) || "assistant".equals(m.role)) || m.content == null) throw new ArgsException();
+                if (m == null || !("user".equals(m.role) || "assistant".equals(m.role)) || m.content == null)
+                    throw new ArgsException();
                 size += m.content.length();
             }
             if (size > 32000) throw new ArgsException();
         }
     }
+
     public static class Reference {
         public String type;
         public Long articleId;
         public Integer fileIndex;
     }
+
     public static class ResolvedReference {
         public String type;
         public com.zrlog.admin.business.knowledge.KnowledgeModels.ArticleResult article;
@@ -57,20 +65,29 @@ public final class AIChatModels {
         public String fileName;
         public String attachmentId;
     }
-    public static class ChatMessage { public String role; public String content; public List<AIFileModels.Attachment> attachments; }
+
+    public static class ChatMessage {
+        public String role;
+        public String content;
+        public List<AIFileModels.Attachment> attachments;
+    }
+
     public static class ApprovalRequest implements Validator {
         public long articleId;
         public String runId;
         public String approvalId;
         public String decision;
+
+        private static boolean uuid(String value) {
+            return value != null && value.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
+        }
+
         public void doValid() {
             if (articleId < 0 || !uuid(runId) || !uuid(approvalId)
                     || !("approve".equals(decision) || "reject".equals(decision))) throw new ArgsException();
         }
-        private static boolean uuid(String value) {
-            return value != null && value.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
-        }
     }
+
     public static class Approval {
         public String id;
         public String tool;
@@ -81,17 +98,20 @@ public final class AIChatModels {
         public long expiresAt;
         public List<ApprovalChange> changes = new ArrayList<>();
     }
+
     public static class ApprovalChange {
         public String field;
         public String before;
         public String after;
         public boolean truncated;
     }
+
     public static class SkillContract {
         public int version = 1;
         public String contextRevision;
         public List<String> applicableFields = new ArrayList<>();
     }
+
     public static class Interaction {
         public String id = UUID.randomUUID().toString();
         public String question;
@@ -101,6 +121,7 @@ public final class AIChatModels {
         public String contextRevision;
         public long expiresAt;
     }
+
     public static class InputRequest implements Validator {
         public long articleId;
         public String runId;
@@ -108,6 +129,7 @@ public final class AIChatModels {
         public String decision;
         public String value;
         public String contextRevision;
+
         public void doValid() {
             if (articleId < 0 || !ApprovalRequest.uuid(runId) || !ApprovalRequest.uuid(interactionId)
                     || !Set.of("submit", "cancel").contains(Objects.toString(decision, ""))
@@ -115,7 +137,10 @@ public final class AIChatModels {
                     || contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")) throw new ArgsException();
         }
     }
-    /** Durable execution checkpoint. Never sent to the browser or stored in public settings. */
+
+    /**
+     * Durable execution checkpoint. Never sent to the browser or stored in public settings.
+     */
     public static class Run {
         public String id = UUID.randomUUID().toString();
         public int userId;
@@ -148,6 +173,7 @@ public final class AIChatModels {
         public Event answer;
         public String error;
     }
+
     public static class RunView {
         public String runId;
         public long articleId;
@@ -161,6 +187,7 @@ public final class AIChatModels {
         public Event answer;
         public List<Event> articleUpdates;
     }
+
     public static class CurrentArticleContext {
         public long articleId;
         public String title;
@@ -168,6 +195,7 @@ public final class AIChatModels {
         public Integer version;
         public Long typeId;
     }
+
     public static class Event {
         public String type;
         public String runId;
@@ -181,6 +209,9 @@ public final class AIChatModels {
         public Boolean created;
         public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> messages;
         public List<Source> sources;
-        public Event(String type) { this.type = type; }
+
+        public Event(String type) {
+            this.type = type;
+        }
     }
 }

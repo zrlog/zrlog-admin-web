@@ -1,8 +1,8 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import { UpgradeData } from "../type";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
+import {UpgradeData} from "../type";
 import UpgradeContent from "./upgrade-content";
 
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
@@ -20,7 +20,7 @@ jest.mock("antd/es/divider", () => ({
 }));
 
 jest.mock("../base/ConfigProviderApp", () => ({
-    getAppState: () => ({ dark: false }),
+    getAppState: () => ({dark: false}),
 }));
 
 const reactActEnvironment = globalThis as typeof globalThis & {
@@ -46,7 +46,7 @@ describe("UpgradeContent", () => {
 
     const render = (nextData: UpgradeData) => {
         act(() => {
-            root.render(<UpgradeContent data={nextData} />);
+            root.render(<UpgradeContent data={nextData}/>);
         });
     };
 
@@ -80,12 +80,12 @@ describe("UpgradeContent", () => {
         });
         expect(renderMarkdown).toHaveBeenCalledTimes(2);
 
-        render({ ...data, version: { ...data.version! } });
+        render({...data, version: {...data.version!}});
         expect(renderMarkdown).toHaveBeenCalledTimes(2);
 
         render({
             ...data,
-            version: { ...data.version!, changeLog: "# New changes" },
+            version: {...data.version!, changeLog: "# New changes"},
         });
         expect(renderMarkdown).toHaveBeenCalledTimes(3);
     });

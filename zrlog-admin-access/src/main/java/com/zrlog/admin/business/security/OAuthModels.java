@@ -2,16 +2,24 @@ package com.zrlog.admin.business.security;
 
 import java.util.List;
 
-/** OAuth wire names deliberately follow the OAuth specifications. */
+/**
+ * OAuth wire names deliberately follow the OAuth specifications.
+ */
 public final class OAuthModels {
-    private OAuthModels() { }
+    private OAuthModels() {
+    }
+
     public static class Client implements com.zrlog.common.Validator {
-        public void doValid() { if (name == null || redirectUris == null) throw new com.zrlog.common.exception.ArgsException(); }
         public String clientId;
         public String name;
         public List<String> redirectUris;
         public boolean enabled = true;
+
+        public void doValid() {
+            if (name == null || redirectUris == null) throw new com.zrlog.common.exception.ArgsException();
+        }
     }
+
     public static class AuthorizationRequest {
         public String client_id;
         public String redirect_uri;
@@ -22,12 +30,14 @@ public final class OAuthModels {
         public String code_challenge_method;
         public String resource;
     }
+
     public static class Pending {
         public AuthorizationRequest request;
         public int userId;
         public String sessionHash;
         public String csrfHash;
     }
+
     public static class Consent {
         public String requestId;
         public String csrf;
@@ -38,14 +48,26 @@ public final class OAuthModels {
         public List<String> availableScopes;
         public boolean accountPermissions;
     }
+
     public static class Decision implements com.zrlog.common.Validator {
-        public void doValid() { if (requestId == null || csrf == null) throw new com.zrlog.common.exception.ArgsException(); }
         public String requestId;
         public String csrf;
         public boolean approve;
         public List<String> scopes;
+
+        public void doValid() {
+            if (requestId == null || csrf == null) throw new com.zrlog.common.exception.ArgsException();
+        }
     }
-    public static class Redirect { public String redirectUri; public Redirect(String uri) { redirectUri = uri; } }
+
+    public static class Redirect {
+        public String redirectUri;
+
+        public Redirect(String uri) {
+            redirectUri = uri;
+        }
+    }
+
     public static class TokenRequest {
         public String grant_type;
         public String client_id;
@@ -56,6 +78,7 @@ public final class OAuthModels {
         public String scope;
         public String resource;
     }
+
     public static class TokenResponse {
         public String access_token;
         public String token_type = "Bearer";
@@ -63,10 +86,15 @@ public final class OAuthModels {
         public String refresh_token;
         public String scope;
     }
+
     public static class Error {
         public String error;
-        public Error(String error) { this.error = error; }
+
+        public Error(String error) {
+            this.error = error;
+        }
     }
+
     public static class Grant {
         public String id;
         public int userId;
@@ -77,6 +105,7 @@ public final class OAuthModels {
         public long createdAt;
         public boolean revoked;
     }
+
     public static class Page {
         public List<Client> clients;
         public List<Grant> grants;
@@ -89,7 +118,15 @@ public final class OAuthModels {
         public List<String> personalTokenPermissions;
         public String notificationEndpoint;
     }
-    public static class Revoke implements com.zrlog.common.Validator { public String id; public void doValid() { if (id == null || id.isEmpty()) throw new com.zrlog.common.exception.ArgsException(); } }
+
+    public static class Revoke implements com.zrlog.common.Validator {
+        public String id;
+
+        public void doValid() {
+            if (id == null || id.isEmpty()) throw new com.zrlog.common.exception.ArgsException();
+        }
+    }
+
     public static class Identity {
         public int userId;
         public int authVersion;
@@ -99,6 +136,7 @@ public final class OAuthModels {
         public List<String> permissions;
         public List<String> scopes;
     }
+
     public static class Metadata {
         public String issuer;
         public String authorization_endpoint;
@@ -112,6 +150,7 @@ public final class OAuthModels {
         public List<String> scopes_supported;
         public boolean authorization_response_iss_parameter_supported = true;
     }
+
     public static class ResourceMetadata {
         public String resource;
         public List<String> authorization_servers;

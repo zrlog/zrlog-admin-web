@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.zrlog.admin.business.service.AccountIdentityService;
-import com.zrlog.data.security.AccountAccess;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.ai.model.AIChatModels.ResolvedReference;
@@ -11,11 +9,12 @@ import com.zrlog.admin.business.knowledge.KnowledgeModels.ArticleResult;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.SearchResult;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.business.rest.base.UserPreferences;
+import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -23,7 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Explicit references use the same account and preference boundary as assistant knowledge tools. */
+/**
+ * Explicit references use the same account and preference boundary as assistant knowledge tools.
+ */
 public final class AIReferenceService {
     private final UserPreferenceService userPreferenceService;
 

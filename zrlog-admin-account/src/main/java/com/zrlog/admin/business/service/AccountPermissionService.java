@@ -4,14 +4,15 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.Log;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.Map;
 
-/** Business authorization for an explicitly supplied, authenticated account. */
+/**
+ * Business authorization for an explicitly supplied, authenticated account.
+ */
 @Singleton
 public final class AccountPermissionService {
     private final jakarta.inject.Provider<Log> articles;
@@ -19,6 +20,10 @@ public final class AccountPermissionService {
     @Inject
     public AccountPermissionService(jakarta.inject.Provider<Log> articles) {
         this.articles = articles;
+    }
+
+    public static boolean isPublic(Map<String, Object> row) {
+        return row != null && !AccountAccess.truth(row.get("privacy")) && !AccountAccess.truth(row.get("rubbish"));
     }
 
     public void administrator(AccountAccess account) {
@@ -30,17 +35,14 @@ public final class AccountPermissionService {
         if (account == null || !account.isEnabled()) throw new PermissionErrorException();
         Map<String, Object> row = articles.get().loadById(id);
         if (row == null || !(row.get("userId") instanceof Number)
-                || !account.canAccessArticle(((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("privacy")))) throw new PermissionErrorException();
+                || !account.canAccessArticle(((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("privacy"))))
+            throw new PermissionErrorException();
         if (publish && !account.canPublish()) throw new PermissionErrorException();
         return row;
     }
 
     public void readArticle(AccountAccess account, long id) throws SQLException {
         article(account, id, false);
-    }
-
-    public static boolean isPublic(Map<String, Object> row) {
-        return row != null && !AccountAccess.truth(row.get("privacy")) && !AccountAccess.truth(row.get("rubbish"));
     }
 
     public void require(AccountAccess account, AccountAction action) {

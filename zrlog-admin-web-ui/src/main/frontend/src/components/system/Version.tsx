@@ -1,11 +1,11 @@
-import { FunctionComponent, useEffect, useState } from "react";
-import { Descriptions, Flex, theme } from "antd";
-import { Link } from "react-router-dom";
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
+import {FunctionComponent, useEffect, useState} from "react";
+import {Descriptions, Flex, theme} from "antd";
+import {Link} from "react-router-dom";
+import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
-import { actionForPath, hasAction } from "../../utils/account-access";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
+import {actionForPath, hasAction} from "../../utils/account-access";
 import SettingsSection from "../common/SettingsSection";
 import AdminSettingsLayout from "../common/AdminSettingsLayout";
 
@@ -35,8 +35,8 @@ const useMarkdownHtml = (markdown: string) => {
     return html;
 };
 
-const Version: FunctionComponent<VersionProps> = ({ data }) => {
-    const { token } = theme.useToken();
+const Version: FunctionComponent<VersionProps> = ({data}) => {
+    const {token} = theme.useToken();
     const text = getRes().system.version;
     const changeLogStr = useMarkdownHtml(data.changelog);
     const buildStr = useMarkdownHtml(data.buildSystemInfo);
@@ -53,24 +53,24 @@ const Version: FunctionComponent<VersionProps> = ({ data }) => {
                 </Link>
             }
         >
-            <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG, minWidth: 0 }}>
+            <Flex vertical gap={token.marginLG} style={{paddingBottom: token.paddingLG, minWidth: 0}}>
                 <Descriptions
                     size="small"
-                    column={{ xs: 1, sm: 2 }}
-                    styles={{ label: { whiteSpace: "normal" }, content: { overflowWrap: "anywhere" } }}
+                    column={{xs: 1, sm: 2}}
+                    styles={{label: {whiteSpace: "normal"}, content: {overflowWrap: "anywhere"}}}
                     items={[
-                        { key: "version", label: text.currentVersion, children: data.version },
-                        { key: "buildId", label: text.buildId, children: data.buildId },
+                        {key: "version", label: text.currentVersion, children: data.version},
+                        {key: "buildId", label: text.buildId, children: data.buildId},
                     ]}
                 />
                 <SettingsSection title={text.buildInfo}>
-                    <div style={{ overflowX: "auto" }}>
-                        <HtmlPreviewPanel htmlContent={buildStr} dark={getAppState().dark} />
+                    <div style={{overflowX: "auto"}}>
+                        <HtmlPreviewPanel htmlContent={buildStr} dark={getAppState().dark}/>
                     </div>
                 </SettingsSection>
                 <SettingsSection title={text.changelog} divided>
-                    <div style={{ overflowX: "auto" }}>
-                        <HtmlPreviewPanel htmlContent={changeLogStr} dark={getAppState().dark} />
+                    <div style={{overflowX: "auto"}}>
+                        <HtmlPreviewPanel htmlContent={changeLogStr} dark={getAppState().dark}/>
                     </div>
                 </SettingsSection>
             </Flex>

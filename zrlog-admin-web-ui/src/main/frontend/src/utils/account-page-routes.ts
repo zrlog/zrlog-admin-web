@@ -1,4 +1,4 @@
-import type { AdminI18nResource } from "../i18n/admin";
+import type {AdminI18nResource} from "../i18n/admin";
 
 export const USER_ROUTES = {
     profile: "/user",
@@ -18,7 +18,7 @@ export type UserApplicationPage = "tokens" | "grants" | "clients";
 export const USER_PREFERENCE_PAGES: UserPreferencePage[] = ["appearance", "writing", "assistant", "session"];
 export const USER_APPLICATION_PAGES: UserApplicationPage[] = ["tokens", "grants", "clients"];
 
-export const WEBSITE_ROUTES = { members: "/website/members" } as const;
+export const WEBSITE_ROUTES = {members: "/website/members"} as const;
 
 type AccountPage = {
     api: string;
@@ -28,7 +28,7 @@ type AccountPage = {
 };
 
 const pages: Record<string, AccountPage> = {
-    [USER_ROUTES.profile]: { api: "/api/admin/user", action: "account.self", title: (res) => res.user.title },
+    [USER_ROUTES.profile]: {api: "/api/admin/user", action: "account.self", title: (res) => res.user.title},
     ...Object.fromEntries(
         USER_PREFERENCE_PAGES.map((page) => [
             USER_ROUTES[page],

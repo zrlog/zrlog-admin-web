@@ -1,8 +1,8 @@
 import PieChartIcon from "@zrlog/ui/icons/pie-chart";
-import { Card, Empty, Tooltip, Typography } from "antd";
-import { formatLabelValue, getRes } from "../../utils/constants";
+import {Card, Empty, Tooltip, Typography} from "antd";
+import {formatLabelValue, getRes} from "../../utils/constants";
 
-import { useTheme } from "antd-style";
+import {useTheme} from "antd-style";
 
 type DataInsightsProps = {
     data?: {
@@ -11,7 +11,7 @@ type DataInsightsProps = {
     };
 };
 
-const DataInsights = ({ data }: DataInsightsProps) => {
+const DataInsights = ({data}: DataInsightsProps) => {
     const theme = useTheme();
     const chartColors = [
         theme.colorPrimary,
@@ -32,17 +32,17 @@ const DataInsights = ({ data }: DataInsightsProps) => {
     return (
         <Card
             title={
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <PieChartIcon />
+                <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                    <PieChartIcon/>
                     <span>{getRes().index.insight.label}</span>
                 </div>
             }
             bordered={false}
             className="dashboard-card"
-            styles={{ body: { padding: 20 } }}
+            styles={{body: {padding: 20}}}
         >
-            <div style={{ marginBottom: 32 }}>
-                <Typography.Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 13 }}>
+            <div style={{marginBottom: 32}}>
+                <Typography.Text type="secondary" style={{display: "block", marginBottom: 12, fontSize: 13}}>
                     {getRes().index.insight.categoryDistribution}
                 </Typography.Text>
                 {activeTypes.length > 0 ? (
@@ -76,11 +76,11 @@ const DataInsights = ({ data }: DataInsightsProps) => {
                         })}
                     </div>
                 ) : (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={getRes().index.insight.empty.category} />
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={getRes().index.insight.empty.category}/>
                 )}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 12 }}>
+                <div style={{display: "flex", flexWrap: "wrap", gap: 12, marginTop: 12}}>
                     {activeTypes.slice(0, 6).map((type, index) => (
-                        <div key={type.alias} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <div key={type.alias} style={{display: "flex", alignItems: "center", gap: 4}}>
                             <div
                                 style={{
                                     width: 8,
@@ -89,17 +89,17 @@ const DataInsights = ({ data }: DataInsightsProps) => {
                                     backgroundColor: chartColors[index % chartColors.length],
                                 }}
                             />
-                            <Typography.Text style={{ fontSize: 12 }}>{type.typeName}</Typography.Text>
+                            <Typography.Text style={{fontSize: 12}}>{type.typeName}</Typography.Text>
                         </div>
                     ))}
                 </div>
             </div>
 
             <div>
-                <Typography.Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 13 }}>
+                <Typography.Text type="secondary" style={{display: "block", marginBottom: 12, fontSize: 13}}>
                     {getRes().index.insight.hotTags}
                 </Typography.Text>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", alignItems: "baseline" }}>
+                <div style={{display: "flex", flexWrap: "wrap", gap: "6px 12px", alignItems: "baseline"}}>
                     {activeTags.length > 0 ? (
                         activeTags.slice(0, 15).map((tag) => {
                             const maxCount = activeTags[0].count;
@@ -124,7 +124,7 @@ const DataInsights = ({ data }: DataInsightsProps) => {
                             );
                         })
                     ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={getRes().index.insight.empty.tag} />
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={getRes().index.insight.empty.tag}/>
                     )}
                 </div>
             </div>

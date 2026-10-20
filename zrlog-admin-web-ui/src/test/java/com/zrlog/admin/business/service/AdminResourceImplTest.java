@@ -1,10 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
@@ -15,7 +10,6 @@ import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.WebSite;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import org.junit.Test;
 
 import java.io.InputStream;
@@ -25,7 +19,68 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 public class AdminResourceImplTest {
+
+    private static String read(InputStream inputStream) throws Exception {
+        try (InputStream input = inputStream) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static HttpRequest request(String userAgent) {
+        return request(userAgent, null, "request.example.com");
+    }
+
+    private static HttpRequest request(String userAgent, String origin, String host) {
+        Map<String, Object> attrs = new HashMap<>();
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminResourceImplTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getContextPath":
+                            return "/blog";
+                        case "getUri":
+                            return "/admin/index";
+                        case "getQueryStr":
+                            return "";
+                        case "getHeader":
+                            if ("User-Agent".equals(args[0])) {
+                                return userAgent;
+                            }
+                            if ("Host".equals(args[0])) {
+                                return host;
+                            }
+                            if ("Origin".equals(args[0])) {
+                                return origin;
+                            }
+                            return null;
+                        case "getHeaderMap":
+                            Map<String, String> headers = new HashMap<>();
+                            headers.put("User-Agent", userAgent);
+                            headers.put("Host", host);
+                            if (origin != null) {
+                                headers.put("Origin", origin);
+                            }
+                            return headers;
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getScheme":
+                            return "https";
+                        case "getAttr":
+                            return attrs;
+                        case "toString":
+                            return "AdminResourceRequest";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
 
     @Test
     public void shouldExposeAdminResourceUrisAndBuildServiceWorkerUrls() throws Exception {
@@ -102,18 +157,18 @@ public class AdminResourceImplTest {
             db.putWebsite("feature_webhook_enabled", true); // Obsolete menu-only flag must not enable receiving.
             assertFalse(
                     new FeatureLabService(
-                                    () -> true,
-                                    new WebhookService(
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    () -> new WebSite(db.dataSource()))
+                            () -> true,
+                            new WebhookService(
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    ApplicationServicesFixture.websiteCache(db.dataSource())),
+                            () -> new WebSite(db.dataSource()))
                             .featureLab()
                             .getFeature_webhook_enabled());
             var webhook = new WebhookConfigRequest();
             webhook.setEnabled(true);
             new WebhookService(
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            ApplicationServicesFixture.websiteCache(db.dataSource()))
+                    ApplicationServicesFixture.messages(db.dataSource()),
+                    ApplicationServicesFixture.websiteCache(db.dataSource()))
                     .updateConfig(webhook);
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
@@ -167,10 +222,10 @@ public class AdminResourceImplTest {
             assertEquals(true, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
                     .getPasskeyLoginEnabled());
             assertEquals(true, resources.adminResourceInfo(
-                    request("Browser", "https://localhost:18080", "faas.example.com"))
+                            request("Browser", "https://localhost:18080", "faas.example.com"))
                     .getPasskeyLoginEnabled());
             assertEquals(true, resources.adminResourceInfo(
-                    request("Browser", "https://evil.example.com", "faas.example.com"))
+                            request("Browser", "https://evil.example.com", "faas.example.com"))
                     .getPasskeyLoginEnabled());
             assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
                     0, "internal", "Test passkey", "aaguid", true, false,
@@ -187,64 +242,5 @@ public class AdminResourceImplTest {
             assertEquals(false, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
                     .getPasskeyLoginEnabled());
         }
-    }
-
-    private static String read(InputStream inputStream) throws Exception {
-        try (InputStream input = inputStream) {
-            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
-    private static HttpRequest request(String userAgent) {
-        return request(userAgent, null, "request.example.com");
-    }
-
-    private static HttpRequest request(String userAgent, String origin, String host) {
-        Map<String, Object> attrs = new HashMap<>();
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminResourceImplTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getContextPath":
-                            return "/blog";
-                        case "getUri":
-                            return "/admin/index";
-                        case "getQueryStr":
-                            return "";
-                        case "getHeader":
-                            if ("User-Agent".equals(args[0])) {
-                                return userAgent;
-                            }
-                            if ("Host".equals(args[0])) {
-                                return host;
-                            }
-                            if ("Origin".equals(args[0])) {
-                                return origin;
-                            }
-                            return null;
-                        case "getHeaderMap":
-                            Map<String, String> headers = new HashMap<>();
-                            headers.put("User-Agent", userAgent);
-                            headers.put("Host", host);
-                            if (origin != null) {
-                                headers.put("Origin", origin);
-                            }
-                            return headers;
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getScheme":
-                            return "https";
-                        case "getAttr":
-                            return attrs;
-                        case "toString":
-                            return "AdminResourceRequest";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
     }
 }

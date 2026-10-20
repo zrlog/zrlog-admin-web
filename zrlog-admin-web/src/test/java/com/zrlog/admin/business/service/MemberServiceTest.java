@@ -1,14 +1,11 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.User;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -18,15 +15,17 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class MemberServiceTest {
+    @Parameterized.Parameter
+    public String backend;
+
     @Parameterized.Parameters(name = "{0}")
     public static List<String> backends() {
         return List.of("h2", "sqlite", "webapi");
     }
-
-    @Parameterized.Parameter
-    public String backend;
 
     @Test
     public void createsMemberWithDefaultAvatarWhenExistingSchemaRequiresHeader() throws Exception {
@@ -41,9 +40,9 @@ public class MemberServiceTest {
             create.role = "author";
             MemberModels.Member member =
                     new MemberService(
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    AccountServicesFixture.component(db.dataSource()).users(),
-                                    AccountServicesFixture.component(db.dataSource()).permissions())
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            AccountServicesFixture.component(db.dataSource()).users(),
+                            AccountServicesFixture.component(db.dataSource()).permissions())
                             .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create);
 
             assertTrue(member.userId > 1);

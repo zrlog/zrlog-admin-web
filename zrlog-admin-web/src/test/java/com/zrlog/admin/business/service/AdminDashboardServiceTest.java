@@ -1,12 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -27,9 +20,9 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
+import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
@@ -42,11 +35,106 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.SSLSession;
+import static org.junit.Assert.*;
 
 public class AdminDashboardServiceTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static AdminDashboardCardConfigResponse cardConfig(String id, Boolean enabled, Integer sort) {
+        AdminDashboardCardConfigResponse card = new AdminDashboardCardConfigResponse();
+        card.setId(id);
+        card.setEnabled(enabled);
+        card.setSort(sort);
+        return card;
+    }
+
+    private static AdminDashboardCardConfigResponse findCard(List<AdminDashboardCardConfigResponse> cards, String id) {
+        for (AdminDashboardCardConfigResponse card : cards) {
+            if (id.equals(card.getId())) {
+                return card;
+            }
+        }
+        return null;
+    }
+
+    private static AdminDashboardCardResponse panel(String id, String type, Integer sort) {
+        AdminDashboardCardResponse panel = new AdminDashboardCardResponse();
+        panel.setKind("plugin");
+        panel.setId(id);
+        panel.setType(type);
+        panel.setPluginName(id);
+        panel.setSort(sort);
+        panel.setEnabled(true);
+        return panel;
+    }
+
+    private static AdminDashboardCardResponse findDashboardItem(List<AdminDashboardCardResponse> cards, String id) {
+        for (AdminDashboardCardResponse card : cards) {
+            if (id.equals(card.getId())) {
+                return card;
+            }
+        }
+        return null;
+    }
+
+    private static AdminTokenVO token() {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(1);
+        token.setProtocol("http");
+        token.setSessionId("dashboard-session");
+        return token;
+    }
+
+    private static CloseResponseHandle closeResponse(String json) {
+        CloseResponseHandle handle = new CloseResponseHandle();
+        handle.setT(response(json));
+        return handle;
+    }
+
+    private static HttpResponse<InputStream> response(String body) {
+        return new HttpResponse<>() {
+            @Override
+            public int statusCode() {
+                return 200;
+            }
+
+            @Override
+            public java.net.http.HttpRequest request() {
+                return java.net.http.HttpRequest.newBuilder(URI.create("https://example.com")).build();
+            }
+
+            @Override
+            public Optional<HttpResponse<InputStream>> previousResponse() {
+                return Optional.empty();
+            }
+
+            @Override
+            public HttpHeaders headers() {
+                return HttpHeaders.of(Map.of("content-type", List.of("application/json")), (name, value) -> true);
+            }
+
+            @Override
+            public InputStream body() {
+                return new ByteArrayInputStream(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+
+            @Override
+            public Optional<SSLSession> sslSession() {
+                return Optional.empty();
+            }
+
+            @Override
+            public URI uri() {
+                return URI.create("https://example.com");
+            }
+
+            @Override
+            public HttpClient.Version version() {
+                return HttpClient.Version.HTTP_1_1;
+            }
+        };
+    }
 
     @Test
     public void shouldFillSurfacePathsFromSafePluginName() {
@@ -548,18 +636,18 @@ public class AdminDashboardServiceTest {
                                     () -> new Log(db.dataSource()),
                                     () -> new Comment(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
+                                    ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
+                                    new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new Log(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new Log(db.dataSource())),
                             () -> db.config().getPlugin(PluginCorePlugin.class),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                        AccountServicesFixture.component(db.dataSource()).identities());
+                            AccountServicesFixture.component(db.dataSource()).identities());
             AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
             request.setAutoRefreshEnabled(true);
             request.setAutoRefreshIntervalSeconds(20);
@@ -601,30 +689,30 @@ public class AdminDashboardServiceTest {
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
             AdminDashboardConfigResponse config =
                     new AdminDashboardService(
-                                    new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                                    new AdminStatisticsService(
-                                            db.unitCacheService(),
-                                            RuntimeInfoFixture.from(db.config()),
-                                            ApplicationServicesFixture.audit(db.dataSource()),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new Comment(db.dataSource())),
-                                    new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
-                                                    db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                                    ApplicationServicesFixture.site(db.config()),
-                                                    ApplicationServicesFixture.buildId(
-                                                            db.resources()),
-                                                    ApplicationServicesFixture.messages(
-                                                            db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource())
-                                                    .permissions(),
-                                AccountServicesFixture.component(db.dataSource())
-                                                    .preferences(),
-                                () -> new Log(db.dataSource())),
-                                    () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                        AccountServicesFixture.component(db.dataSource()).identities())
+                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
+                            new AdminStatisticsService(
+                                    db.unitCacheService(),
+                                    RuntimeInfoFixture.from(db.config()),
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new Comment(db.dataSource())),
+                            new ArticleQueryService(db.unitCacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(
+                                                    db.resources()),
+                                            ApplicationServicesFixture.messages(
+                                                    db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .permissions(),
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .preferences(),
+                                    () -> new Log(db.dataSource())),
+                            () -> db.config().getPlugin(PluginCorePlugin.class),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AccountServicesFixture.component(db.dataSource()).identities())
                             .getConfig(null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
@@ -638,30 +726,30 @@ public class AdminDashboardServiceTest {
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
             AdminDashboardConfigResponse fallback =
                     new AdminDashboardService(
-                                    new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                                    new AdminStatisticsService(
-                                            db.unitCacheService(),
-                                            RuntimeInfoFixture.from(db.config()),
-                                            ApplicationServicesFixture.audit(db.dataSource()),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new Comment(db.dataSource())),
-                                    new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
-                                                    db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                                    ApplicationServicesFixture.site(db.config()),
-                                                    ApplicationServicesFixture.buildId(
-                                                            db.resources()),
-                                                    ApplicationServicesFixture.messages(
-                                                            db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource())
-                                                    .permissions(),
-                                AccountServicesFixture.component(db.dataSource())
-                                                    .preferences(),
-                                () -> new Log(db.dataSource())),
-                                    () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                        AccountServicesFixture.component(db.dataSource()).identities())
+                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
+                            new AdminStatisticsService(
+                                    db.unitCacheService(),
+                                    RuntimeInfoFixture.from(db.config()),
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new Comment(db.dataSource())),
+                            new ArticleQueryService(db.unitCacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(
+                                                    db.resources()),
+                                            ApplicationServicesFixture.messages(
+                                                    db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .permissions(),
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .preferences(),
+                                    () -> new Log(db.dataSource())),
+                            () -> db.config().getPlugin(PluginCorePlugin.class),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AccountServicesFixture.component(db.dataSource()).identities())
                             .getConfig(null, token());
 
             assertEquals(7, fallback.getCards().size());
@@ -683,18 +771,18 @@ public class AdminDashboardServiceTest {
                                     () -> new Log(db.dataSource()),
                                     () -> new Comment(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
+                                    ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
+                                    new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new Log(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new Log(db.dataSource())),
                             () -> db.config().getPlugin(PluginCorePlugin.class),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                        AccountServicesFixture.component(db.dataSource()).identities());
+                            AccountServicesFixture.component(db.dataSource()).identities());
 
             assertNull(service.getFirstUseChecklist());
 
@@ -728,34 +816,34 @@ public class AdminDashboardServiceTest {
                 long start = System.nanoTime();
                 AdminDashboardConfigResponse config =
                         new AdminDashboardService(
-                                        new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                                        new AdminStatisticsService(
-                                                db.unitCacheService(),
-                                                RuntimeInfoFixture.from(db.config()),
-                                                ApplicationServicesFixture.audit(db.dataSource()),
-                                                () -> new Log(db.dataSource()),
-                                                () -> new Comment(db.dataSource())),
-                                        new ArticleQueryService(db.unitCacheService(),
-                                ApplicationServicesFixture.capability(
-                                                        db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                                        ApplicationServicesFixture.site(
-                                                                db.config()),
-                                                        ApplicationServicesFixture.buildId(
-                                                                db.resources()),
-                                                        ApplicationServicesFixture.messages(
-                                                                db.dataSource())),
-                                AccountServicesFixture.component(db.dataSource())
-                                                        .permissions(),
-                                AccountServicesFixture.component(db.dataSource())
-                                                        .preferences(),
-                                () -> new Log(db.dataSource())),
-                                        50,
-                                        () -> db.config().getPlugin(PluginCorePlugin.class),
+                                new WebsiteKvService(() -> new WebSite(db.dataSource())),
+                                new AdminStatisticsService(
+                                        db.unitCacheService(),
+                                        RuntimeInfoFixture.from(db.config()),
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        () -> new Log(db.dataSource()),
+                                        () -> new Comment(db.dataSource())),
+                                new ArticleQueryService(db.unitCacheService(),
+                                        ApplicationServicesFixture.capability(
+                                                db.config(), ArticleAssistant.class),
+                                        new AdminPageDataFactory(
+                                                ApplicationServicesFixture.site(
+                                                        db.config()),
+                                                ApplicationServicesFixture.buildId(
+                                                        db.resources()),
+                                                ApplicationServicesFixture.messages(
+                                                        db.dataSource())),
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .permissions(),
                                         AccountServicesFixture.component(db.dataSource())
                                                 .preferences(),
-                        AccountServicesFixture.component(db.dataSource())
-                                                .identities())
+                                        () -> new Log(db.dataSource())),
+                                50,
+                                () -> db.config().getPlugin(PluginCorePlugin.class),
+                                AccountServicesFixture.component(db.dataSource())
+                                        .preferences(),
+                                AccountServicesFixture.component(db.dataSource())
+                                        .identities())
                                 .getConfig(null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
@@ -768,101 +856,6 @@ public class AdminDashboardServiceTest {
                 db.config().getAllPlugins().remove(plugin);
             }
         }
-    }
-
-    private static AdminDashboardCardConfigResponse cardConfig(String id, Boolean enabled, Integer sort) {
-        AdminDashboardCardConfigResponse card = new AdminDashboardCardConfigResponse();
-        card.setId(id);
-        card.setEnabled(enabled);
-        card.setSort(sort);
-        return card;
-    }
-
-    private static AdminDashboardCardConfigResponse findCard(List<AdminDashboardCardConfigResponse> cards, String id) {
-        for (AdminDashboardCardConfigResponse card : cards) {
-            if (id.equals(card.getId())) {
-                return card;
-            }
-        }
-        return null;
-    }
-
-    private static AdminDashboardCardResponse panel(String id, String type, Integer sort) {
-        AdminDashboardCardResponse panel = new AdminDashboardCardResponse();
-        panel.setKind("plugin");
-        panel.setId(id);
-        panel.setType(type);
-        panel.setPluginName(id);
-        panel.setSort(sort);
-        panel.setEnabled(true);
-        return panel;
-    }
-
-    private static AdminDashboardCardResponse findDashboardItem(List<AdminDashboardCardResponse> cards, String id) {
-        for (AdminDashboardCardResponse card : cards) {
-            if (id.equals(card.getId())) {
-                return card;
-            }
-        }
-        return null;
-    }
-
-    private static AdminTokenVO token() {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(1);
-        token.setProtocol("http");
-        token.setSessionId("dashboard-session");
-        return token;
-    }
-
-    private static CloseResponseHandle closeResponse(String json) {
-        CloseResponseHandle handle = new CloseResponseHandle();
-        handle.setT(response(json));
-        return handle;
-    }
-
-    private static HttpResponse<InputStream> response(String body) {
-        return new HttpResponse<>() {
-            @Override
-            public int statusCode() {
-                return 200;
-            }
-
-            @Override
-            public java.net.http.HttpRequest request() {
-                return java.net.http.HttpRequest.newBuilder(URI.create("https://example.com")).build();
-            }
-
-            @Override
-            public Optional<HttpResponse<InputStream>> previousResponse() {
-                return Optional.empty();
-            }
-
-            @Override
-            public HttpHeaders headers() {
-                return HttpHeaders.of(Map.of("content-type", List.of("application/json")), (name, value) -> true);
-            }
-
-            @Override
-            public InputStream body() {
-                return new ByteArrayInputStream(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            }
-
-            @Override
-            public Optional<SSLSession> sslSession() {
-                return Optional.empty();
-            }
-
-            @Override
-            public URI uri() {
-                return URI.create("https://example.com");
-            }
-
-            @Override
-            public HttpClient.Version version() {
-                return HttpClient.Version.HTTP_1_1;
-            }
-        };
     }
 
     private static class FakePluginCorePlugin implements PluginCorePlugin {

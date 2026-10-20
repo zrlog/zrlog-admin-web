@@ -1,16 +1,19 @@
 # 后台 API 约定
 
-本约定适用于 `openapi.yaml` 中记录的受支持后台接口。未记录的 `/api/admin` 路由属于后台 UI 内部实现，不应仅根据 Controller 或前端调用推断为稳定公共接口。
+本约定适用于 `openapi.yaml` 中记录的受支持后台接口。未记录的 `/api/admin` 路由属于后台 UI 内部实现，不应仅根据 Controller
+或前端调用推断为稳定公共接口。
 
 ## 路径与 Context Path
 
-OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`，不包含部署时的 context path。调用方应在基础地址中统一添加 context path；本地开发后端默认基础地址为 `http://localhost:17080/sub`。
+OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`，不包含部署时的 context path。调用方应在基础地址中统一添加
+context path；本地开发后端默认基础地址为 `http://localhost:17080/sub`。
 
 后台页面使用 `/admin`，JSON API 使用 `/api/admin`。公开 API、Webhook 和插件接口应使用各自的安全边界，不默认继承后台 API 约定。
 
 ## HTTP 方法与参数
 
-HTTP 方法、参数来源和副作用以 `openapi.yaml` 中各操作的定义为准。查询条件使用 query 参数，结构化写入使用 JSON request body，文件上传使用 `multipart/form-data`。
+HTTP 方法、参数来源和副作用以 `openapi.yaml` 中各操作的定义为准。查询条件使用 query 参数，结构化写入使用 JSON request
+body，文件上传使用 `multipart/form-data`。
 
 ## 鉴权
 
@@ -46,7 +49,8 @@ Bearer 通过同一个 Action 定义和接口声明授权；指定权限取与�
 - `data` 的结构由具体接口定义；失败时可能不存在。
 - 业务失败可能通过成功的 HTTP 响应返回，调用方必须同时检查 `error`。
 
-后台路由初始化数据使用 `AdminPageDataResponse<T>`。它会附带 `pageBuildId`、`documentTitle`、`systemNotification` 和 `messageCenter` 等页面元数据，这些字段属于后台 UI 内部实现。
+后台路由初始化数据使用 `AdminPageDataResponse<T>`。它会附带 `pageBuildId`、`documentTitle`、`systemNotification` 和
+`messageCenter` 等页面元数据，这些字段属于后台 UI 内部实现。
 
 ## 错误与兼容
 

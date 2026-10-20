@@ -1,6 +1,6 @@
-import { CSSProperties, FunctionComponent, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { navigateToPluginAdminRoute, resolvePluginAdminRoute } from "./plugin-admin-route";
+import {CSSProperties, FunctionComponent, useEffect, useMemo, useRef} from "react";
+import {useNavigate} from "react-router-dom";
+import {navigateToPluginAdminRoute, resolvePluginAdminRoute} from "./plugin-admin-route";
 
 type PluginFrameBridgeMessage = {
     source?: string;
@@ -61,7 +61,7 @@ const PluginFrame: FunctionComponent<{
     minHeight?: number | string;
     style?: CSSProperties;
     enableAdminRouteBridge?: boolean;
-}> = ({ title, src, height, minHeight, style, enableAdminRouteBridge = true }) => {
+}> = ({title, src, height, minHeight, style, enableAdminRouteBridge = true}) => {
     const navigate = useNavigate();
     const frameRef = useRef<HTMLIFrameElement>(null);
     const frameSrc = useMemo(() => safeFrameSrc(src), [src]);
@@ -92,7 +92,7 @@ const PluginFrame: FunctionComponent<{
         <iframe
             ref={frameRef}
             title={title}
-            style={{ border: 0, width: "100%", height, minHeight, display: "block", ...style }}
+            style={{border: 0, width: "100%", height, minHeight, display: "block", ...style}}
             src={frameSrc}
         />
     );

@@ -1,16 +1,16 @@
 import useArticleFieldAi from "../use-article-field-ai";
-import { articleContextRevision } from "./article-ai-skill-contract";
-import { act, Children, isValidElement, ReactElement, ReactNode, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { AIProviderType } from "../../../type";
-import { ArticleChangeableValue, ArticleEditState } from "../index.types";
-import { createDraftAiSaveGate, DraftAiSaveGate } from "../draft-ai-save-gate";
-import { AssistantTool, ToolAwareAIContent } from "./article-ai-assistant.types";
-import { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
+import {articleContextRevision} from "./article-ai-skill-contract";
+import {act, Children, isValidElement, ReactElement, ReactNode, useState} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {AIProviderType} from "../../../type";
+import {ArticleChangeableValue, ArticleEditState} from "../index.types";
+import {createDraftAiSaveGate, DraftAiSaveGate} from "../draft-ai-save-gate";
+import {AssistantTool, ToolAwareAIContent} from "./article-ai-assistant.types";
+import {useArticleAiAssistantConfig} from "./article-ai-assistant-button";
 import * as AiFiles from "./article-ai-files";
-import type { AiMentionInput } from "./article-ai-mentions";
+import type {AiMentionInput} from "./article-ai-mentions";
 
 const mockMessageError = jest.fn(async (content?: unknown): Promise<void> => {
     void content;
@@ -23,8 +23,8 @@ const mockMessageWarning = jest.fn(async (content?: unknown): Promise<void> => {
 });
 
 // Business tests keep feedback mocked at the shared UI boundary.
-jest.mock("@zrlog/ui/antd/Input", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/ui/antd/Image", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/ui/antd/Input", () => ({__esModule: true, default: () => null}));
+jest.mock("@zrlog/ui/antd/Image", () => ({__esModule: true, default: () => null}));
 
 jest.mock("@zrlog/ui/feedback", () => ({
     useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
@@ -47,14 +47,14 @@ jest.mock("antd", () => {
         Button: NullComponent,
         Collapse: NullComponent,
         Drawer: NullComponent,
-        Grid: { useBreakpoint: () => ({ md: true, lg: true }) },
+        Grid: {useBreakpoint: () => ({md: true, lg: true})},
         Space: NullComponent,
         Tag: NullComponent,
-        Typography: { Paragraph: NullComponent, Text: NullComponent },
+        Typography: {Paragraph: NullComponent, Text: NullComponent},
     };
 });
 
-jest.mock("@ant-design/icons", () => ({ EyeOutlined: () => null }));
+jest.mock("@ant-design/icons", () => ({EyeOutlined: () => null}));
 jest.mock("antd-style", () => ({
     useTheme: () => ({
         borderRadius: 6,
@@ -70,14 +70,14 @@ jest.mock("@zrlog/editor/core/ai/AIButton", () => ({
     default: () => null,
     getAIButtonDrawerOpen: () => false,
 }));
-jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
+jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({__esModule: true, default: () => null}));
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({__esModule: true, default: () => null}));
+jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({resolveDrawerWidth: (width: unknown) => width}));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
 }));
-jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
-jest.mock("../../../common/ImageCropper", () => ({ __esModule: true, default: () => null }));
+jest.mock("../../../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false})}));
+jest.mock("../../../common/ImageCropper", () => ({__esModule: true, default: () => null}));
 jest.mock("../../../utils/cache", () => ({
     addToCache: require("@jest/globals").jest.fn(),
     getCacheByKey: require("@jest/globals").jest.fn(),
@@ -109,14 +109,14 @@ jest.mock("../../../utils/constants", () => ({
             requestError: "Request error",
             unknown: "Unknown error",
         },
-        websiteAi: { label: "AI" },
+        websiteAi: {label: "AI"},
     }),
     tryAppendBackendServerUrl: (url: string) => url,
 }));
-jest.mock("../../../utils/helpers", () => ({ getEditorUser: () => ({}) }));
-jest.mock("../../../utils/crop-image-url", () => ({ resolveBackendCropImageUrl: (url: string) => url }));
-jest.mock("../../article/article-preview-snapshot", () => ({ __esModule: true, default: () => null }));
-jest.mock("../cover-aspect-ratio", () => ({ parseCoverAspectRatio: () => 16 / 9 }));
+jest.mock("../../../utils/helpers", () => ({getEditorUser: () => ({})}));
+jest.mock("../../../utils/crop-image-url", () => ({resolveBackendCropImageUrl: (url: string) => url}));
+jest.mock("../../article/article-preview-snapshot", () => ({__esModule: true, default: () => null}));
+jest.mock("../cover-aspect-ratio", () => ({parseCoverAspectRatio: () => 16 / 9}));
 jest.mock("../markdown-reference-utils", () => ({
     collectMarkdownReferenceSummary: () => ({
         imageReferenceCount: 0,
@@ -131,10 +131,10 @@ jest.mock("../shortcut-utils", () => ({
     getShortcutTitle: (label: string) => label,
     isTouchLikeDevice: () => false,
 }));
-jest.mock("./article-ai-assistant-skill-content", () => ({ __esModule: true, default: () => null }));
-jest.mock("./article-ai-assistant-drawer", () => ({ __esModule: true, default: () => null }));
-jest.mock("./tool/article-ai-assistant-tool-content", () => ({ __esModule: true, default: () => null }));
-jest.mock("./tool/article-ai-assistant-tools", () => ({ getAssistantToolLabel: (tool: string) => tool }));
+jest.mock("./article-ai-assistant-skill-content", () => ({__esModule: true, default: () => null}));
+jest.mock("./article-ai-assistant-drawer", () => ({__esModule: true, default: () => null}));
+jest.mock("./tool/article-ai-assistant-tool-content", () => ({__esModule: true, default: () => null}));
+jest.mock("./tool/article-ai-assistant-tools", () => ({getAssistantToolLabel: (tool: string) => tool}));
 
 type AssistantConfig = ReturnType<typeof useArticleAiAssistantConfig>;
 type FooterActions = {
@@ -178,18 +178,18 @@ type AxiosPostConfig = {
 
 type AxiosPost = (url?: string, body?: unknown, config?: AxiosPostConfig) => Promise<any>;
 
-const deferred = <T,>(): Deferred<T> => {
+const deferred = <T, >(): Deferred<T> => {
     let resolve!: (value: T) => void;
     let reject!: (reason: unknown) => void;
     const promise = new Promise<T>((resolvePromise, rejectPromise) => {
         resolve = resolvePromise;
         reject = rejectPromise;
     });
-    return { promise, resolve, reject };
+    return {promise, resolve, reject};
 };
 
 const createState = (logId?: number, aiMessages: AIContent[] = []): ArticleEditState => ({
-    typeOptions: [{ value: 1, label: "General" }],
+    typeOptions: [{value: 1, label: "General"}],
     tags: [],
     aiProvider: AIProviderType.OPEN_AI,
     aiModel: "test-model",
@@ -245,18 +245,18 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         const container = document.createElement("div");
         document.body.appendChild(container);
         const root = createRoot(container);
-        mountedRoots.push({ root, container });
+        mountedRoots.push({root, container});
 
         const Harness = () => {
             const [, redraw] = useState(0);
             const fieldAi = useArticleFieldAi({
                 getCurrentArticle: () => data.article,
                 onValuesChange: (values) => {
-                    const article = { ...data.article, ...values };
+                    const article = {...data.article, ...values};
                     if (JSON.stringify(article) === JSON.stringify(data.article)) return;
-                    data = { ...data, article };
+                    data = {...data, article};
                     redraw((revision) => revision + 1);
-                    return { article };
+                    return {article};
                 },
                 onApplied,
             });
@@ -264,11 +264,11 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
                 data,
                 draftAiSaveGate: gate,
                 offline: false,
-                axiosInstance: { get: jest.fn(), post } as never,
+                axiosInstance: {get: jest.fn(), post} as never,
                 onAiMessagesChange: (messages: AIContent[], articleId?: number) => {
                     onAiMessagesChange(messages, articleId);
                     if (followMessages && articleId === (data.article.logId || 0)) {
-                        data = { ...data, aiMessages: messages };
+                        data = {...data, aiMessages: messages};
                         redraw((revision) => revision + 1);
                     }
                 },
@@ -282,7 +282,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         };
 
         const render = () => {
-            act(() => root.render(<Harness />));
+            act(() => root.render(<Harness/>));
         };
         render();
 
@@ -312,7 +312,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             getArticle: () => data.article,
             onApplied,
             edit: (values: ArticleChangeableValue) => {
-                data = { ...data, article: { ...data.article, ...values } };
+                data = {...data, article: {...data.article, ...values}};
                 render();
             },
             getCropper: () => {
@@ -341,12 +341,12 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         tool: field === "keywords" ? "tags" : field === "thumbnail" ? "cover" : field,
         payload:
             field === "title"
-                ? { titles: ["AI title"] }
+                ? {titles: ["AI title"]}
                 : field === "digest"
-                ? { digest: "AI digest" }
-                : field === "keywords"
-                ? { tags: ["AI", "writing"] }
-                : { url: "data:image/png;base64,cover" },
+                    ? {digest: "AI digest"}
+                    : field === "keywords"
+                        ? {tags: ["AI", "writing"]}
+                        : {url: "data:image/png;base64,cover"},
     });
 
     it("keeps sibling results applicable across both assistant views and rapid clicks", () => {
@@ -362,14 +362,14 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         const titleActions = hook.getToolContent(title);
         const digestActions = hook.getToolContent(digest, 1, true);
         act(() => {
-            titleActions.onApplyValues({ title: "AI title" });
-            digestActions.onApplyValues({ digest: "AI digest" });
+            titleActions.onApplyValues({title: "AI title"});
+            digestActions.onApplyValues({digest: "AI digest"});
         });
         expect(hook.getToolContent(tags).applyDisabled).toBe(false);
-        act(() => hook.getToolContent(tags).onApplyValues({ keywords: "AI,writing" }));
-        expect(hook.getArticle()).toMatchObject({ title: "AI title", digest: "AI digest", keywords: "AI,writing" });
+        act(() => hook.getToolContent(tags).onApplyValues({keywords: "AI,writing"}));
+        expect(hook.getArticle()).toMatchObject({title: "AI title", digest: "AI digest", keywords: "AI,writing"});
         expect(hook.onApplied).toHaveBeenCalledTimes(3);
-        act(() => hook.getToolContent(tags).onApplyValues({ keywords: "AI,writing" }));
+        act(() => hook.getToolContent(tags).onApplyValues({keywords: "AI,writing"}));
         expect(hook.onApplied).toHaveBeenCalledTimes(3);
         expect(title.skillContract!.contextRevision).toBe(articleContextRevision(createState(7).article));
     });
@@ -384,13 +384,13 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         const title = skillMessage("title");
         const digest = skillMessage("digest");
         const staleClick = hook.getToolContent(digest).onApplyValues;
-        act(() => hook.getToolContent(title).onApplyValues({ markdown: "Forbidden body" }));
+        act(() => hook.getToolContent(title).onApplyValues({markdown: "Forbidden body"}));
         expect(hook.getArticle().markdown).toBe("Draft body");
-        act(() => hook.getToolContent(title).onApplyValues({ title: "AI title" }));
+        act(() => hook.getToolContent(title).onApplyValues({title: "AI title"}));
         expect(hook.getToolContent(skillMessage("digest", "other-run")).applyDisabled).toBe(true);
-        hook.edit({ markdown: "Manual body" });
+        hook.edit({markdown: "Manual body"});
         expect(hook.getToolContent(digest).applyDisabled).toBe(true);
-        act(() => staleClick({ digest: "AI digest" }));
+        act(() => staleClick({digest: "AI digest"}));
         expect(hook.getArticle().digest).toBeUndefined();
         expect(hook.onApplied).toHaveBeenCalledTimes(1);
     });
@@ -407,24 +407,24 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             false,
             prepareCover
         );
-        act(() => hook.getToolContent(skillMessage("title")).onApplyValues({ title: "AI title" }));
+        act(() => hook.getToolContent(skillMessage("title")).onApplyValues({title: "AI title"}));
         const cover = skillMessage("thumbnail");
         let prepared!: Promise<string | undefined>;
         act(() => {
-            prepared = hook.getToolContent(cover).onApplyGeneratedCover({ dataUrl: "cover" });
+            prepared = hook.getToolContent(cover).onApplyGeneratedCover({dataUrl: "cover"});
         });
         await act(async () => {
             upload.resolve("/attached/cover.png");
             expect(await prepared).toBe("/attached/cover.png");
         });
-        act(() => hook.getToolContent(cover).onApplyValues({ thumbnail: "/attached/cover.png" }));
+        act(() => hook.getToolContent(cover).onApplyValues({thumbnail: "/attached/cover.png"}));
         expect(hook.getToolContent(skillMessage("digest")).applyDisabled).toBe(false);
         const nextUpload = deferred<string>();
         prepareCover.mockImplementationOnce(async () => nextUpload.promise);
         act(() => {
-            prepared = hook.getToolContent(cover).onApplyGeneratedCover({ dataUrl: "cover" });
+            prepared = hook.getToolContent(cover).onApplyGeneratedCover({dataUrl: "cover"});
         });
-        hook.edit({ title: "Manual title" });
+        hook.edit({title: "Manual title"});
         await act(async () => {
             nextUpload.resolve("/attached/stale.png");
             expect(await prepared).toBeUndefined();
@@ -436,14 +436,14 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         prepareCover.mockImplementationOnce(async () => switchedUpload.promise);
         const oldActions = hook.getToolContent(cover);
         act(() => {
-            prepared = oldActions.onApplyGeneratedCover({ dataUrl: "cover" });
+            prepared = oldActions.onApplyGeneratedCover({dataUrl: "cover"});
         });
         hook.rerender(8);
         await act(async () => {
             switchedUpload.resolve("/attached/other.png");
             expect(await prepared).toBeUndefined();
         });
-        act(() => oldActions.onApplyValues({ thumbnail: "/attached/other.png" }));
+        act(() => oldActions.onApplyValues({thumbnail: "/attached/other.png"}));
         expect(hook.getArticle().thumbnail).toBeUndefined();
     });
 
@@ -464,7 +464,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
     });
 
     afterEach(() => {
-        mountedRoots.splice(0).forEach(({ root, container }) => {
+        mountedRoots.splice(0).forEach(({root, container}) => {
             act(() => root.unmount());
             container.remove();
         });
@@ -474,13 +474,13 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
 
     it("queues chat and skills while awaiting confirmation and keeps input and clear available", async () => {
         const gate = createDraftAiSaveGate();
-        const post = jest.fn(async () => ({ data: "" }));
+        const post = jest.fn(async () => ({data: ""}));
         const pending = {
             role: "assistant" as const,
             thinking: false,
             content: "",
             messageType: "knowledge",
-            run: { runId: "run", articleId: 7, input: "Update", status: "awaiting_approval" },
+            run: {runId: "run", articleId: 7, input: "Update", status: "awaiting_approval"},
         };
         const mounted = mountHook(gate, post, undefined, 7, [pending]);
         expect(mounted.getFooter().disabled).toBe(false);
@@ -492,7 +492,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         });
         expect(post).not.toHaveBeenCalled();
         expect(mounted.getFooter().queuedMessages.map((entry) => entry.input)).toEqual(["Another question", "Rewrite"]);
-        const executing = { ...pending, run: { ...pending.run, status: "executing" } };
+        const executing = {...pending, run: {...pending.run, status: "executing"}};
         mounted.rerender(7, [executing]);
         expect(mounted.getConfig().conversationActions.disabled).toBe(true);
     });
@@ -503,11 +503,11 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             thinking: false,
             content: "",
             messageType: "knowledge",
-            run: { runId: "run", articleId: 0, input: "Write", status: "awaiting_approval" },
+            run: {runId: "run", articleId: 0, input: "Write", status: "awaiting_approval"},
         };
         const mounted = mountHook(
             gate,
-            jest.fn(async () => ({ data: "" })),
+            jest.fn(async () => ({data: ""})),
             undefined,
             undefined,
             [pending]
@@ -524,8 +524,8 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
     it("restores saved ordinary chat through the same article state as writing skills", async () => {
         const gate = createDraftAiSaveGate();
         const saved = [
-            { role: "user" as const, content: "Find a related article", messageType: "knowledge", messageId: "q1" },
-            { role: "assistant" as const, content: "Source based answer", messageType: "knowledge", messageId: "a1" },
+            {role: "user" as const, content: "Find a related article", messageType: "knowledge", messageId: "q1"},
+            {role: "assistant" as const, content: "Source based answer", messageType: "knowledge", messageId: "a1"},
         ];
         const post = jest.fn(
             async (): Promise<any> => ({
@@ -546,19 +546,19 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             expect.objectContaining({
                 input: "Find a related article",
                 articleId: 0,
-                editorContext: expect.objectContaining({ markdown: "Draft body" }),
+                editorContext: expect.objectContaining({markdown: "Draft body"}),
                 contextRevision: expect.any(String),
             }),
             expect.anything()
         );
         expect(mounted.onAiMessagesChange).toHaveBeenLastCalledWith(
-            saved.map((entry) => ({ ...entry, thinking: false })),
+            saved.map((entry) => ({...entry, thinking: false})),
             0
         );
         act(() =>
             mounted.rerender(
                 7,
-                saved.map((entry) => ({ ...entry, thinking: false }))
+                saved.map((entry) => ({...entry, thinking: false}))
             )
         );
         expect(mounted.getConfig().messages.map((m) => m.content)).toEqual([
@@ -573,15 +573,15 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         data: `data: ${JSON.stringify({
             type: "answer",
             messages: [
-                { role: "user", content: question, messageType: "knowledge", messageId: `${question}:user` },
-                { role: "assistant", content: reply, messageType: "knowledge", messageId: `${question}:assistant` },
+                {role: "user", content: question, messageType: "knowledge", messageId: `${question}:user`},
+                {role: "assistant", content: reply, messageType: "knowledge", messageId: `${question}:assistant`},
             ],
         })}\n\ndata: {"type":"done"}\n\n`,
     });
 
     it("forwards selected files through chat even when a writing skill is selected", async () => {
         const files = [new File(["revenue,47925"], "report.csv")];
-        const encoded = [{ name: "report.csv", data: "cmV2ZW51ZSw0NzkyNQ==" }];
+        const encoded = [{name: "report.csv", data: "cmV2ZW51ZSw0NzkyNQ=="}];
         const encode = jest.spyOn(AiFiles, "encodeAiFiles").mockResolvedValue(encoded);
         const post = jest
             .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
@@ -594,7 +594,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         expect(encode).toHaveBeenCalledWith(files);
         expect(post).toHaveBeenCalledTimes(1);
         expect(post.mock.calls[0][0]).toBe("/api/admin/article/ai");
-        expect(post.mock.calls[0][1]).toMatchObject({ input: "Analyze", files: encoded, articleId: 7 });
+        expect(post.mock.calls[0][1]).toMatchObject({input: "Analyze", files: encoded, articleId: 7});
     });
 
     it("sends article references with a selected skill through chat without losing either", async () => {
@@ -602,7 +602,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
             .mockResolvedValue(answer("Compare", "Summary"));
         const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7);
-        const references = [{ type: "article" as const, articleId: 42 }];
+        const references = [{type: "article" as const, articleId: 42}];
         await act(async () => {
             mounted.getFooter().onSubmit("Compare", "digest", [], references);
             await flushRequest();
@@ -625,7 +625,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             act(() => mounted.getFooter().onSubmit("Read", undefined, [new File(["notes"], "notes.txt")]));
             act(() => (action === "stop" ? mounted.getFooter().onStop() : mounted.rerender(8)));
             await act(async () => {
-                reading.resolve([{ name: "notes.txt", data: "bm90ZXM=" }]);
+                reading.resolve([{name: "notes.txt", data: "bm90ZXM="}]);
                 await flushRequest();
             });
             expect(post).not.toHaveBeenCalled();
@@ -658,7 +658,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         expect(post.mock.calls[1][1]).toMatchObject({
             input: "Second",
             articleId: 7,
-            editorContext: { markdown: "Draft body" },
+            editorContext: {markdown: "Draft body"},
         });
         expect(mounted.getConfig().messages.map((m) => m.content)).toEqual(["First", "First answer", "Second", ""]);
         await act(async () => {
@@ -706,10 +706,10 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
     });
 
     it("preserves new input when the server returns an existing run instead of accepting it", async () => {
-        const run = { runId: "old-run", articleId: 7, input: "Earlier question", status: "running" };
+        const run = {runId: "old-run", articleId: 7, input: "Earlier question", status: "running"};
         const post = jest
             .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
-            .mockResolvedValueOnce({ data: `data: ${JSON.stringify({ type: "run-state", run })}\n\n` });
+            .mockResolvedValueOnce({data: `data: ${JSON.stringify({type: "run-state", run})}\n\n`});
         const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7, [], true);
         await act(async () => {
             mounted.getFooter().onSubmit("New question");
@@ -840,7 +840,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         mounted.rerender(42, [draftMessage]);
 
         await act(async () => {
-            request.resolve({ data: { error: 0, data: true } });
+            request.resolve({data: {error: 0, data: true}});
             await flushRequest();
         });
 
@@ -883,24 +883,24 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             thinking: false,
             messageId: "cover-message",
             tool: "cover",
-            payload: { url: "/temporary/original.png" },
+            payload: {url: "/temporary/original.png"},
         } as ToolAwareAIContent;
         const mounted = mountHook(gate, post, undefined, undefined, [coverMessage]);
 
         act(() => {
             mounted.getToolContent(coverMessage).onUpdateToolPayload(0, {
                 tool: "cover",
-                payload: { url: "/temporary/updated.png" },
+                payload: {url: "/temporary/updated.png"},
             });
         });
 
         expect(post).toHaveBeenCalledWith("/api/admin/article/ai/message?id=0", {
             messageId: "cover-message",
             tool: "cover",
-            payload: { url: "/temporary/updated.png" },
+            payload: {url: "/temporary/updated.png"},
         });
         expect(mounted.onAiMessagesChange).toHaveBeenCalledWith(
-            [expect.objectContaining({ messageId: "cover-message", payload: { url: "/temporary/updated.png" } })],
+            [expect.objectContaining({messageId: "cover-message", payload: {url: "/temporary/updated.png"}})],
             0
         );
         expect(gate.tryBeginCreate(0)).toBeUndefined();
@@ -927,7 +927,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             thinking: false,
             messageId: "cover-message",
             tool: "cover",
-            payload: { url: "/temporary/original.png" },
+            payload: {url: "/temporary/original.png"},
         } as ToolAwareAIContent;
         const mounted = mountHook(gate, post, undefined, undefined, [coverMessage]);
 
@@ -935,7 +935,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             mounted.getFooter().onClearAiMessages();
             mounted.getToolContent(coverMessage).onUpdateToolPayload(0, {
                 tool: "cover",
-                payload: { url: "/temporary/updated.png" },
+                payload: {url: "/temporary/updated.png"},
             });
         });
 
@@ -957,7 +957,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             thinking: false,
             messageId: "cover-message",
             tool: "cover",
-            payload: { url: "/temporary/original.png" },
+            payload: {url: "/temporary/original.png"},
         } as ToolAwareAIContent;
         const mounted = mountHook(gate, post, undefined, undefined, [coverMessage]);
 
@@ -987,11 +987,11 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             thinking: false,
             messageId: "cover-message",
             tool: "cover",
-            payload: { url: "/temporary/original.png" },
+            payload: {url: "/temporary/original.png"},
         } as ToolAwareAIContent;
         const mounted = mountHook(gate, post, undefined, undefined, [coverMessage]);
         globalThis.fetch = jest.fn(async () => ({
-            blob: async () => new Blob(["cover"], { type: "image/png" }),
+            blob: async () => new Blob(["cover"], {type: "image/png"}),
         })) as never;
 
         try {
@@ -1007,7 +1007,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             mounted.rerender(42, [coverMessage]);
 
             await act(async () => {
-                uploadRequest.resolve({ data: { error: 0, data: { url: "/temporary/cropped.png" } } });
+                uploadRequest.resolve({data: {error: 0, data: {url: "/temporary/cropped.png"}}});
                 await flushRequest();
             });
 
@@ -1016,14 +1016,14 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
                 {
                     messageId: "cover-message",
                     tool: "cover",
-                    payload: { url: "/temporary/cropped.png" },
+                    payload: {url: "/temporary/cropped.png"},
                 },
             ]);
             expect(gate.getPendingAiCount()).toBe(1);
             expect(gate.tryBeginCreate(0)).toBeUndefined();
 
             await act(async () => {
-                payloadRequest.resolve({ data: { error: 0, data: true } });
+                payloadRequest.resolve({data: {error: 0, data: true}});
                 await cropPromise!;
                 await flushRequest();
             });

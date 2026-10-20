@@ -22,11 +22,7 @@ import com.zrlog.model.User;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
-import com.zrlog.web.WebSetup;
-import com.zrlog.web.WebSetupContext;
-import com.zrlog.web.WebSetupLoader;
-import com.zrlog.web.WebSetupProvider;
-import com.zrlog.web.WebSiteInfoProvider;
+import com.zrlog.web.*;
 
 import java.io.InputStream;
 import java.sql.SQLException;
@@ -35,7 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 
-/** Admin identity, resources and seed data on top of the shared database fixture. */
+/**
+ * Admin identity, resources and seed data on top of the shared database fixture.
+ */
 public class InMemoryZrLogDatabase implements AutoCloseable {
 
     private final ZrLogTestDatabase database;
@@ -54,7 +52,11 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             token.setSessionId("session-1");
             setToken(token);
         } catch (Exception | Error failure) {
-            try { close(); } catch (Exception cleanup) { failure.addSuppressed(cleanup); }
+            try {
+                close();
+            } catch (Exception cleanup) {
+                failure.addSuppressed(cleanup);
+            }
             throw failure;
         }
     }
@@ -71,39 +73,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         return new InMemoryZrLogDatabase(ZrLogTestDatabase.openWebApi());
     }
 
-    public void loadAdminWebModules() {
-        config.webModules(null);
-    }
-
-    /** Register controlled host boundaries after modules, before database-ready callbacks freeze bindings. */
-    public void loadAdminWebModules(java.util.function.Consumer<ServerConfig> configure) {
-        config.webModules(java.util.Objects.requireNonNull(configure));
-    }
-
-    public void beforeWebApiUpdate(ZrLogTestDatabase.SqlHook hook) { database.beforeWebApiUpdate(hook); }
-    public void afterWebApiQuery(ZrLogTestDatabase.SqlHook hook) { database.afterWebApiQuery(hook); }
-    public DataSourceWrapper dataSource() { return database.dataSource(); }
-    public CacheService cacheService() {
-        return component(DataComponent.class).cache();
-    }
-    /** Explicit fake for isolated unit tests; never substitute it into a loaded application. */
-    public TestCacheService unitCacheService() {
-        if (config.modulesLoaded) throw new IllegalStateException("Use the production cache after loading modules");
-        return cacheService;
-    }
-    /** Resolve a production graph after all of the application's WebSetup registrations. */
-    public <T> T component(Class<T> type) {
-        loadAdminWebModules();
-        return config.getServerConfig().getBindings().build().get(type);
-    }
-    public ZrLogConfig config() { return config; }
-    public AdminResource resources() { return resources; }
-    public boolean execute(String sql, Object... params) throws SQLException { return database.execute(sql, params); }
-    public Object scalar(String sql, Object... params) throws SQLException { return database.scalar(sql, params); }
-    public Map<String, Object> queryOne(String sql, Object... params) throws SQLException { return database.queryOne(sql, params); }
-    public List<Map<String, Object>> queryList(String sql, Object... params) throws SQLException { return database.queryList(sql, params); }
-    public void putWebsite(String name, Object value) throws SQLException { database.putWebsite(name, value); }
-
     private static void setToken(AdminTokenVO token) throws Exception {
         AdminTokenThreadLocal.remove();
         if (token != null) {
@@ -113,9 +82,82 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         }
     }
 
-    @Override public void close() throws Exception {
-        try { database.close(); }
-        finally {
+    public void loadAdminWebModules() {
+        config.webModules(null);
+    }
+
+    /**
+     * Register controlled host boundaries after modules, before database-ready callbacks freeze bindings.
+     */
+    public void loadAdminWebModules(java.util.function.Consumer<ServerConfig> configure) {
+        config.webModules(java.util.Objects.requireNonNull(configure));
+    }
+
+    public void beforeWebApiUpdate(ZrLogTestDatabase.SqlHook hook) {
+        database.beforeWebApiUpdate(hook);
+    }
+
+    public void afterWebApiQuery(ZrLogTestDatabase.SqlHook hook) {
+        database.afterWebApiQuery(hook);
+    }
+
+    public DataSourceWrapper dataSource() {
+        return database.dataSource();
+    }
+
+    public CacheService cacheService() {
+        return component(DataComponent.class).cache();
+    }
+
+    /**
+     * Explicit fake for isolated unit tests; never substitute it into a loaded application.
+     */
+    public TestCacheService unitCacheService() {
+        if (config.modulesLoaded) throw new IllegalStateException("Use the production cache after loading modules");
+        return cacheService;
+    }
+
+    /**
+     * Resolve a production graph after all of the application's WebSetup registrations.
+     */
+    public <T> T component(Class<T> type) {
+        loadAdminWebModules();
+        return config.getServerConfig().getBindings().build().get(type);
+    }
+
+    public ZrLogConfig config() {
+        return config;
+    }
+
+    public AdminResource resources() {
+        return resources;
+    }
+
+    public boolean execute(String sql, Object... params) throws SQLException {
+        return database.execute(sql, params);
+    }
+
+    public Object scalar(String sql, Object... params) throws SQLException {
+        return database.scalar(sql, params);
+    }
+
+    public Map<String, Object> queryOne(String sql, Object... params) throws SQLException {
+        return database.queryOne(sql, params);
+    }
+
+    public List<Map<String, Object>> queryList(String sql, Object... params) throws SQLException {
+        return database.queryList(sql, params);
+    }
+
+    public void putWebsite(String name, Object value) throws SQLException {
+        database.putWebsite(name, value);
+    }
+
+    @Override
+    public void close() throws Exception {
+        try {
+            database.close();
+        } finally {
             setToken(previousToken);
         }
     }
@@ -213,14 +255,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private final DataSourceWrapper testDataSource;
         private final CacheService cacheService;
         private boolean modulesLoaded;
-
-        @Override
-        public <T> T getWebSetup(Class<T> capability) {
-            if (!modulesLoaded && capability == WebSiteInfoProvider.class) {
-                return capability.cast((WebSiteInfoProvider) cacheService::getPublicWebSiteInfo);
-            }
-            return super.getWebSetup(capability);
-        }
+        private TokenService testTokens;
 
         private TestZrLogConfig(DataSourceWrapper dataSource, CacheService cacheService) {
             super(18080, null, "");
@@ -236,9 +271,18 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
                             });
         }
 
+        @Override
+        public <T> T getWebSetup(Class<T> capability) {
+            if (!modulesLoaded && capability == WebSiteInfoProvider.class) {
+                return capability.cast((WebSiteInfoProvider) cacheService::getPublicWebSiteInfo);
+            }
+            return super.getWebSetup(capability);
+        }
+
         private synchronized void webModules(java.util.function.Consumer<ServerConfig> configure) {
             if (modulesLoaded) {
-                if (configure != null) throw new IllegalStateException("Configure test boundaries before loading modules");
+                if (configure != null)
+                    throw new IllegalStateException("Configure test boundaries before loading modules");
                 return;
             }
             this.webSetups.clear();
@@ -252,7 +296,10 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
                                             || provider.name().startsWith("admin-")));
             if (configure != null) {
                 this.webSetups.add(new WebSetup() {
-                    @Override public void setup() { configure.accept(serverConfig); }
+                    @Override
+                    public void setup() {
+                        configure.accept(serverConfig);
+                    }
                 });
             }
             modulesLoaded = true;
@@ -272,8 +319,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private boolean staticHtmlEnabled() {
             return Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status());
         }
-
-        private TokenService testTokens;
 
         @Override
         protected TokenService initTokenService() {

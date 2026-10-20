@@ -20,7 +20,9 @@
     "methods": [
       {
         "name": "create",
-        "parameterTypes": ["java.lang.String"]
+        "parameterTypes": [
+          "java.lang.String"
+        ]
       }
     ]
   },
@@ -29,7 +31,9 @@
     "methods": [
       {
         "name": "deserialize",
-        "parameterTypes": ["java.lang.String"]
+        "parameterTypes": [
+          "java.lang.String"
+        ]
       }
     ]
   },
@@ -45,8 +49,12 @@
   {
     "name": "com.webauthn4j.data.attestation.AttestationObject",
     "fields": [
-      {"name": "authenticatorData"},
-      {"name": "attestationStatement"}
+      {
+        "name": "authenticatorData"
+      },
+      {
+        "name": "attestationStatement"
+      }
     ],
     "methods": [
       {
@@ -89,7 +97,9 @@
     "methods": [
       {
         "name": "deserialize",
-        "parameterTypes": ["long"]
+        "parameterTypes": [
+          "long"
+        ]
       },
       {
         "name": "getValue",
@@ -102,7 +112,9 @@
     "methods": [
       {
         "name": "deserialize",
-        "parameterTypes": ["int"]
+        "parameterTypes": [
+          "int"
+        ]
       },
       {
         "name": "getValue",
@@ -115,7 +127,9 @@
     "methods": [
       {
         "name": "deserialize",
-        "parameterTypes": ["int"]
+        "parameterTypes": [
+          "int"
+        ]
       },
       {
         "name": "getValue",
@@ -128,7 +142,9 @@
     "methods": [
       {
         "name": "deserialize",
-        "parameterTypes": ["int"]
+        "parameterTypes": [
+          "int"
+        ]
       },
       {
         "name": "getValue",

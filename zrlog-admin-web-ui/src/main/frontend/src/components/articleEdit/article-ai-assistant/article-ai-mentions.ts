@@ -1,4 +1,4 @@
-import { getRes } from "../../../utils/constants";
+import {getRes} from "../../../utils/constants";
 
 export type AiMentionArticle = { id: number; title: string; url: string };
 export type AiMention = { type: "article"; article: AiMentionArticle } | { type: "file"; file: File };
@@ -10,7 +10,7 @@ export const findAiMention = (input: string, caret: number) => {
     if (caret < 0 || caret > input.length) return undefined;
     const match = /(?:^|[\s([（【])@([^\s@]*)$/.exec(input.slice(0, caret));
     if (!match || match[1].length > 200) return undefined;
-    return { start: caret - match[1].length - 1, end: caret, query: match[1] };
+    return {start: caret - match[1].length - 1, end: caret, query: match[1]};
 };
 
 export const aiMentionLabel = (mention: AiMention) =>
@@ -23,9 +23,9 @@ export const sameAiMention = (left: AiMention, right: AiMention) =>
 
 export const encodeAiMentions = (mentions: AiMention[], files: File[]): AiMentionInput[] =>
     mentions.flatMap((mention): AiMentionInput[] => {
-        if (mention.type === "article") return [{ type: "article", articleId: mention.article.id }];
+        if (mention.type === "article") return [{type: "article", articleId: mention.article.id}];
         const fileIndex = files.indexOf(mention.file);
-        return fileIndex < 0 ? [] : [{ type: "file", fileIndex }];
+        return fileIndex < 0 ? [] : [{type: "file", fileIndex}];
     });
 
 // Keep readable references (including article URLs) in the existing conversation history.

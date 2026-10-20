@@ -2,12 +2,12 @@ import AlertIcon from "@zrlog/ui/icons/alert";
 import * as H from "history";
 import React from "react";
 
-import { HookAPI } from "antd/es/modal/useModal";
-import { EditorUser } from "@zrlog/editor/dist/type";
-import { getCacheByKey } from "./cache";
-import { BasicUserInfo } from "../type";
-import { cacheIgnoreReloadTime, getRes, tryAppendBackendServerUrl } from "./constants";
-import { isPWA } from "./env-utils";
+import {HookAPI} from "antd/es/modal/useModal";
+import {EditorUser} from "@zrlog/editor/dist/type";
+import {getCacheByKey} from "./cache";
+import {BasicUserInfo} from "../type";
+import {cacheIgnoreReloadTime, getRes, tryAppendBackendServerUrl} from "./constants";
+import {isPWA} from "./env-utils";
 
 declare global {
     interface Window {
@@ -115,7 +115,7 @@ export const tryBlock = (e: React.MouseEvent, modal: HookAPI) => {
     if (window.onbeforeunload !== null) {
         modal.warning({
             title: getRes().common.tips,
-            icon: <AlertIcon />,
+            icon: <AlertIcon/>,
             content: getExitTips(),
         });
         e.preventDefault();

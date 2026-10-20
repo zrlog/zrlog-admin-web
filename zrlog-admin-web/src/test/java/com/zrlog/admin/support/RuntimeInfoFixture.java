@@ -4,7 +4,8 @@ import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.common.ZrLogConfig;
 
 public final class RuntimeInfoFixture {
-    private RuntimeInfoFixture() { }
+    private RuntimeInfoFixture() {
+    }
 
     public static SystemInfoUtils from(ZrLogConfig config) {
         return new SystemInfoUtils(() -> config != null && config.isInstalled(),

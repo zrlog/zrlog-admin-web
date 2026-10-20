@@ -1,5 +1,5 @@
-import { useTheme } from "antd-style";
-import type { CSSProperties, FunctionComponent } from "react";
+import {useTheme} from "antd-style";
+import type {CSSProperties, FunctionComponent} from "react";
 
 type HighlightTextProps = {
     text?: string;
@@ -12,12 +12,12 @@ type HighlightTextProps = {
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const HighlightText: FunctionComponent<HighlightTextProps> = ({
-    text,
-    keyword,
-    caseSensitive = false,
-    className,
-    style,
-}) => {
+                                                                  text,
+                                                                  keyword,
+                                                                  caseSensitive = false,
+                                                                  className,
+                                                                  style,
+                                                              }) => {
     const theme = useTheme();
     const plainText = text || "";
     const normalizedKeyword = (keyword || "").trim();

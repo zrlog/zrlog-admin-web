@@ -14,7 +14,10 @@ import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
+import com.zrlog.admin.business.rest.response.AdminSsePayloads;
+import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
+import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.util.AdminSseEmitter;
@@ -27,8 +30,8 @@ import com.zrlog.admin.web.di.ai.DaggerAIComponent;
 import com.zrlog.admin.web.interceptor.PluginTokenValidator;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.data.di.DataComponent;
-import com.zrlog.util.I18nUtil;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.util.I18nUtil;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -49,7 +52,9 @@ public class AIWebSetup implements ArticleAssistant {
         this.router = config.getRouter();
         this.bindings = config.getBindings();
     }
-    @Override public void setup() {
+
+    @Override
+    public void setup() {
         bindings.singleton(
                         AIComponent.class,
                         r ->
@@ -82,21 +87,26 @@ public class AIWebSetup implements ArticleAssistant {
         return bindings.build().get(AIComponent.class);
     }
 
-    @Override public void articleCreated(long articleId, int userId) {
+    @Override
+    public void articleCreated(long articleId, int userId) {
         try {
             components().conversations().captureAccount(userId).migrateDraftAIMessageToArticle(articleId, -(long) userId);
         } catch (Exception e) {
-            LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e); }
+            LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e);
+        }
     }
 
-    @Override public void articleDeleted(long articleId) {
+    @Override
+    public void articleDeleted(long articleId) {
         try {
             components().conversations().removeAIMessage(articleId);
         } catch (Exception e) {
-            LOGGER.log(Level.FINE, "Remove article AI messages failed, articleId=" + articleId, e); }
+            LOGGER.log(Level.FINE, "Remove article AI messages failed, articleId=" + articleId, e);
+        }
     }
 
-    @Override public ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId, int userId) {
+    @Override
+    public ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId, int userId) {
         AIWebSiteInfoWithAIMessages ai =
                 components().conversations().captureAccount(userId).getAiMessageInfoByArticleId(articleId);
         AIArticleGlobalResponse response = new AIArticleGlobalResponse(article);
@@ -109,17 +119,22 @@ public class AIWebSetup implements ArticleAssistant {
         return response;
     }
 
-    @Override public PublishProgress beginPublishCheck(AccountAccess actor, ArticleGlobalResponse article, CreateArticleRequest request,
-                                                       AdminSseEmitter emitter) throws Exception {
+    @Override
+    public PublishProgress beginPublishCheck(AccountAccess actor, ArticleGlobalResponse article, CreateArticleRequest request,
+                                             AdminSseEmitter emitter) throws Exception {
         PublishCheckTask task = components().publishing().startPublishCheck(actor, article, request);
         if (task == null) return PublishProgress.NONE;
         emitter.send("publish-check-start", AdminSsePayloads.tool("publishCheck"));
         return new PublishProgress() {
             private final AtomicBoolean sent = new AtomicBoolean();
-            @Override public void progress(AdminSseEmitter progress) throws Exception {
+
+            @Override
+            public void progress(AdminSseEmitter progress) throws Exception {
                 sendPublishCheckIfReady(task, sent, progress, false);
             }
-            @Override public void complete(AdminSseEmitter progress) throws Exception {
+
+            @Override
+            public void complete(AdminSseEmitter progress) throws Exception {
                 sendPublishCheckIfReady(task, sent, progress, true);
             }
         };

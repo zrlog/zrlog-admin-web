@@ -10,12 +10,6 @@ import com.zrlog.admin.business.service.ArticlePublishingService;
 import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.ContentToolService;
 import com.zrlog.admin.web.controller.api.*;
-import com.zrlog.admin.web.controller.api.AdminTagController;
-import com.zrlog.admin.web.controller.api.BlogNavController;
-import com.zrlog.admin.web.controller.api.CommentController;
-import com.zrlog.admin.web.controller.api.LinkController;
-import com.zrlog.admin.web.controller.api.PersonalDataController;
-import com.zrlog.admin.web.controller.api.TypeController;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.web.WebSetup;
 
@@ -28,7 +22,8 @@ public class ContentWebSetup implements WebSetup {
         this.bindings = config.getBindings();
     }
 
-    @Override public void setup() {
+    @Override
+    public void setup() {
         bindings.singleton(AdminArticleService.class, r -> r.get(ContentComponent.class).articles())
                 .singleton(ArticleQueryService.class, r -> r.get(ContentComponent.class).queries())
                 .singleton(

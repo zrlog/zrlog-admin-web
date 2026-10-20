@@ -1,4 +1,4 @@
-import { Alert } from "antd";
+import {Alert} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import AddIcon from "@zrlog/ui/icons/add";
 import Form from "antd/es/form";
@@ -9,19 +9,19 @@ import Space from "antd/es/space";
 import Typography from "antd/es/typography";
 
 
-import { getRes } from "../../utils/constants";
-import { useEffect, useState } from "react";
+import {getRes} from "../../utils/constants";
+import {useEffect, useState} from "react";
 
-import { Other } from "./index";
-import { getAppState } from "../../base/ConfigProviderApp";
+import {Other} from "./index";
+import {getAppState} from "../../base/ConfigProviderApp";
 import PreviewConfig from "../template/preview-config";
-import { useTheme } from "antd-style";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {useTheme} from "antd-style";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 type RobotsGroup = {
@@ -93,12 +93,12 @@ const isRootDisallowPath = (value: string) => {
 };
 
 const OtherForm = ({
-    data,
-    offline,
-    offlineData,
-    onSubmit,
-    loading,
-}: {
+                       data,
+                       offline,
+                       offlineData,
+                       onSubmit,
+                       loading,
+                   }: {
     data: Other;
     offline: boolean;
     offlineData: boolean;
@@ -108,7 +108,7 @@ const OtherForm = ({
     const [state, setState] = useState<Other>(data);
     const [form] = Form.useForm();
     const theme = useTheme();
-    const { formLayout } = useResponsiveFormLayout(layout);
+    const {formLayout} = useResponsiveFormLayout(layout);
 
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
     const aiCrawlerPolicySnippet = getRes().websiteOther.aiCrawlerTrainingPolicySnippet;
@@ -130,63 +130,63 @@ const OtherForm = ({
     const hasExplicitChatGptUserPolicy = robotsGroups.some((group) => group.agents.includes("chatgpt-user"));
     const robotsPreviewItems = hasRobotsContent
         ? [
-              {
-                  key: "defaultAgent",
-                  color: hasDefaultAgent ? "success" : "warning",
-                  label: hasDefaultAgent
-                      ? getRes().websiteOther.robotsPreview.defaultAgentPresent
-                      : getRes().websiteOther.robotsPreview.defaultAgentMissing,
-              },
-              {
-                  key: "adminPath",
-                  color: defaultAgentDisallowsAdmin ? "success" : "warning",
-                  label: defaultAgentDisallowsAdmin
-                      ? getRes().websiteOther.robotsPreview.adminPathProtected
-                      : getRes().websiteOther.robotsPreview.adminPathMissing,
-              },
-              {
-                  key: "siteWideBlock",
-                  color: defaultAgentDisallowsRoot ? "error" : "success",
-                  label: defaultAgentDisallowsRoot
-                      ? getRes().websiteOther.robotsPreview.siteWideBlockDetected
-                      : getRes().websiteOther.robotsPreview.siteWideBlockClear,
-              },
-              {
-                  key: "sitemap",
-                  color: hasSitemapDirective ? "success" : "default",
-                  label: hasSitemapDirective
-                      ? getRes().websiteOther.robotsPreview.sitemapPresent
-                      : getRes().websiteOther.robotsPreview.sitemapMissing,
-              },
-              {
-                  key: "gptbot",
-                  color: aiCrawlerPolicyAlreadyAdded ? "processing" : "default",
-                  label: aiCrawlerPolicyAlreadyAdded
-                      ? getRes().websiteOther.robotsPreview.gptBotPolicyPresent
-                      : getRes().websiteOther.robotsPreview.gptBotPolicyMissing,
-              },
-              {
-                  key: "openAiSearch",
-                  color: hasExplicitOpenAiSearchPolicy ? "warning" : "default",
-                  label: hasExplicitOpenAiSearchPolicy
-                      ? getRes().websiteOther.robotsPreview.openAiSearchExplicit
-                      : getRes().websiteOther.robotsPreview.openAiSearchNeutral,
-              },
-              {
-                  key: "chatGptUser",
-                  color: hasExplicitChatGptUserPolicy ? "warning" : "default",
-                  label: hasExplicitChatGptUserPolicy
-                      ? getRes().websiteOther.robotsPreview.chatGptUserExplicit
-                      : getRes().websiteOther.robotsPreview.chatGptUserNeutral,
-              },
-          ]
+            {
+                key: "defaultAgent",
+                color: hasDefaultAgent ? "success" : "warning",
+                label: hasDefaultAgent
+                    ? getRes().websiteOther.robotsPreview.defaultAgentPresent
+                    : getRes().websiteOther.robotsPreview.defaultAgentMissing,
+            },
+            {
+                key: "adminPath",
+                color: defaultAgentDisallowsAdmin ? "success" : "warning",
+                label: defaultAgentDisallowsAdmin
+                    ? getRes().websiteOther.robotsPreview.adminPathProtected
+                    : getRes().websiteOther.robotsPreview.adminPathMissing,
+            },
+            {
+                key: "siteWideBlock",
+                color: defaultAgentDisallowsRoot ? "error" : "success",
+                label: defaultAgentDisallowsRoot
+                    ? getRes().websiteOther.robotsPreview.siteWideBlockDetected
+                    : getRes().websiteOther.robotsPreview.siteWideBlockClear,
+            },
+            {
+                key: "sitemap",
+                color: hasSitemapDirective ? "success" : "default",
+                label: hasSitemapDirective
+                    ? getRes().websiteOther.robotsPreview.sitemapPresent
+                    : getRes().websiteOther.robotsPreview.sitemapMissing,
+            },
+            {
+                key: "gptbot",
+                color: aiCrawlerPolicyAlreadyAdded ? "processing" : "default",
+                label: aiCrawlerPolicyAlreadyAdded
+                    ? getRes().websiteOther.robotsPreview.gptBotPolicyPresent
+                    : getRes().websiteOther.robotsPreview.gptBotPolicyMissing,
+            },
+            {
+                key: "openAiSearch",
+                color: hasExplicitOpenAiSearchPolicy ? "warning" : "default",
+                label: hasExplicitOpenAiSearchPolicy
+                    ? getRes().websiteOther.robotsPreview.openAiSearchExplicit
+                    : getRes().websiteOther.robotsPreview.openAiSearchNeutral,
+            },
+            {
+                key: "chatGptUser",
+                color: hasExplicitChatGptUserPolicy ? "warning" : "default",
+                label: hasExplicitChatGptUserPolicy
+                    ? getRes().websiteOther.robotsPreview.chatGptUserExplicit
+                    : getRes().websiteOther.robotsPreview.chatGptUserNeutral,
+            },
+        ]
         : [
-              {
-                  key: "empty",
-                  color: "warning",
-                  label: getRes().websiteOther.robotsPreview.empty,
-              },
-          ];
+            {
+                key: "empty",
+                color: "warning",
+                label: getRes().websiteOther.robotsPreview.empty,
+            },
+        ];
 
     const appendAiCrawlerPolicySnippet = () => {
         const currentValue = form.getFieldValue("robotRuleContent") || state.robotRuleContent || "";
@@ -194,8 +194,8 @@ const OtherForm = ({
             return;
         }
         const nextValue = [currentValue.trimEnd(), aiCrawlerPolicySnippet].filter(Boolean).join("\n\n");
-        form.setFieldsValue({ robotRuleContent: nextValue });
-        setState((prevState) => ({ ...prevState, robotRuleContent: nextValue }));
+        form.setFieldsValue({robotRuleContent: nextValue});
+        setState((prevState) => ({...prevState, robotRuleContent: nextValue}));
     };
 
     useEffect(() => {
@@ -209,12 +209,12 @@ const OtherForm = ({
             {...formLayout}
             disabled={offline || offlineData}
             initialValues={data}
-            onValuesChange={(_k, v) => setState((prevState) => ({ ...prevState, ...v }))}
-            onFinish={(nv) => onSubmit({ ...state, ...nv })}
+            onValuesChange={(_k, v) => setState((prevState) => ({...prevState, ...v}))}
+            onFinish={(nv) => onSubmit({...state, ...nv})}
         >
             {getAppState().lang == "zh_CN" && (
                 <Form.Item name="icp" label={getRes().websiteOther.icp} tooltip={getRes().websiteOther.icpTip}>
-                    <TextArea />
+                    <TextArea/>
                 </Form.Item>
             )}
             <Form.Item
@@ -222,18 +222,18 @@ const OtherForm = ({
                 label={getRes().websiteOther.statistics}
                 tooltip={getRes().websiteOther.statisticsTip}
             >
-                <TextArea rows={7} />
+                <TextArea rows={7}/>
             </Form.Item>
-            <PreviewConfig contentType={"html"} value={state.webCm} style={{ border: border }} />
+            <PreviewConfig contentType={"html"} value={state.webCm} style={{border: border}}/>
             <Form.Item
                 name="robotRuleContent"
                 label={getRes().websiteOther.robots}
                 tooltip={getRes().websiteOther.robotsTip}
             >
-                <TextArea rows={7} placeholder={getRes().websiteOther.robotsPlaceholder} />
+                <TextArea rows={7} placeholder={getRes().websiteOther.robotsPlaceholder}/>
             </Form.Item>
             <Form.Item label={getRes().websiteOther.robotsPreview.title}>
-                <Space direction="vertical" size={theme.marginXS} style={{ width: "100%" }}>
+                <Space direction="vertical" size={theme.marginXS} style={{width: "100%"}}>
                     <Typography.Text type="secondary">{getRes().websiteOther.robotsPreview.desc}</Typography.Text>
                     <Space wrap size={[theme.marginXS, theme.marginXS]}>
                         {robotsPreviewItems.map((item) => (
@@ -245,7 +245,7 @@ const OtherForm = ({
                 </Space>
             </Form.Item>
             <Form.Item label={getRes().websiteOther.aiCrawlerPolicy}>
-                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                <Space direction="vertical" size={8} style={{width: "100%"}}>
                     <Alert
                         type="info"
                         showIcon
@@ -270,7 +270,7 @@ const OtherForm = ({
                     </Typography.Text>
                     <Button
                         size="small"
-                        icon={<AddIcon />}
+                        icon={<AddIcon/>}
                         disabled={offline || offlineData || aiCrawlerPolicyAlreadyAdded}
                         onClick={appendAiCrawlerPolicySnippet}
                     >
@@ -281,7 +281,7 @@ const OtherForm = ({
                 </Space>
             </Form.Item>
 
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
         </Form>
     );
 };

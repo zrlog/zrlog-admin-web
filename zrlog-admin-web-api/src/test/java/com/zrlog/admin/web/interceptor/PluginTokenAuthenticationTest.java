@@ -1,13 +1,10 @@
 package com.zrlog.admin.web.interceptor;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.exception.ArgsException;
-
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -17,9 +14,17 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.Assert.*;
+
 public class PluginTokenAuthenticationTest {
 
-    @Test public void bothEndpointsRejectMissingAndWrongTokensAndAcceptHostTokenWithoutLogin() throws Exception {
+    private static PluginCorePlugin plugin(String token) {
+        return (PluginCorePlugin) Proxy.newProxyInstance(PluginTokenAuthenticationTest.class.getClassLoader(),
+                new Class[]{PluginCorePlugin.class}, (proxy, method, args) -> method.getName().equals("getToken") ? token : null);
+    }
+
+    @Test
+    public void bothEndpointsRejectMissingAndWrongTokensAndAcceptHostTokenWithoutLogin() throws Exception {
         PluginTokenValidator tokens = new PluginTokenValidator(() -> plugin("host-token"));
         AtomicInteger invoked = new AtomicInteger();
         AdminRefreshCacheInterceptor refresh =
@@ -40,8 +45,15 @@ public class PluginTokenAuthenticationTest {
                     }
                 };
         AdminMethodInterceptor ai = new AdminInternalAiInterceptor(tokens, () -> null) {
-            @Override protected Method getMethod(HttpRequest request) { return null; }
-            @Override protected void doMethodInterceptor(HttpRequest request, HttpResponse response, Method method) { invoked.incrementAndGet(); }
+            @Override
+            protected Method getMethod(HttpRequest request) {
+                return null;
+            }
+
+            @Override
+            protected void doMethodInterceptor(HttpRequest request, HttpResponse response, Method method) {
+                invoked.incrementAndGet();
+            }
         };
         for (AdminMethodInterceptor interceptor : List.of(refresh, ai)) {
             int before = invoked.get();
@@ -54,7 +66,8 @@ public class PluginTokenAuthenticationTest {
         }
     }
 
-    @Test public void followsPluginCreationReplacementAndRemovalWithoutRecreatingValidator() {
+    @Test
+    public void followsPluginCreationReplacementAndRemovalWithoutRecreatingValidator() {
         AtomicReference<PluginCorePlugin> current = new AtomicReference<>();
         PluginTokenValidator tokens = new PluginTokenValidator(current::get);
         HttpRequest firstToken = request(Map.of("X-Plugin-Token", "first-token"));
@@ -70,14 +83,16 @@ public class PluginTokenAuthenticationTest {
         assertThrows(ArgsException.class, () -> tokens.validate(secondToken));
     }
 
-    @Test public void refusesMissingHostTokensAndDoesNotAcceptAnotherApplicationsToken() {
+    @Test
+    public void refusesMissingHostTokensAndDoesNotAcceptAnotherApplicationsToken() {
         HttpRequest request = request(Map.of("X-Plugin-Token", "host-token"));
         for (PluginCorePlugin plugin : List.of(plugin(null), plugin(""), plugin("other-host-token"))) {
             assertThrows(ArgsException.class, () -> new PluginTokenValidator(() -> plugin).validate(request));
         }
     }
 
-    @Test public void internalInterceptorDoesNotBypassOtherAdminRoutes() {
+    @Test
+    public void internalInterceptorDoesNotBypassOtherAdminRoutes() {
         AdminInternalAiInterceptor interceptor = new AdminInternalAiInterceptor(new PluginTokenValidator(() -> null), () -> null);
         assertTrue(interceptor.isHandleAble(request(Map.of("uri", AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH))));
         assertFalse(interceptor.isHandleAble(request(Map.of("uri", "/api/admin/website/ai"))));
@@ -87,13 +102,9 @@ public class PluginTokenAuthenticationTest {
     private HttpRequest request(Map<String, String> headers) {
         return (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
             if (method.getName().equals("getHeader")) return headers.get(args[0]);
-            if (method.getName().equals("getUri")) return headers.getOrDefault("uri", AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH);
+            if (method.getName().equals("getUri"))
+                return headers.getOrDefault("uri", AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH);
             return null;
         });
-    }
-
-    private static PluginCorePlugin plugin(String token) {
-        return (PluginCorePlugin) Proxy.newProxyInstance(PluginTokenAuthenticationTest.class.getClassLoader(),
-                new Class[]{PluginCorePlugin.class}, (proxy, method, args) -> method.getName().equals("getToken") ? token : null);
     }
 }

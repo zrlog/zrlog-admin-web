@@ -1,11 +1,11 @@
-import { FunctionComponent, lazy, useEffect, useState } from "react";
-import { jumpToLoginPage, useAxiosBaseInstance } from "../base/AppBase";
-import { BasicUserInfo } from "../type";
-import { Spin } from "antd";
-import { useNavigate } from "react-router-dom";
-import { getSsDate } from "../base/SsData";
-import { hasUserAppearance } from "../utils/user-appearance";
-import { refreshUserInfo, subscribeUserInfo } from "../utils/user-info";
+import {FunctionComponent, lazy, useEffect, useState} from "react";
+import {jumpToLoginPage, useAxiosBaseInstance} from "../base/AppBase";
+import {BasicUserInfo} from "../type";
+import {Spin} from "antd";
+import {useNavigate} from "react-router-dom";
+import {getSsDate} from "../base/SsData";
+import {hasUserAppearance} from "../utils/user-appearance";
+import {refreshUserInfo, subscribeUserInfo} from "../utils/user-info";
 
 type AdminDashBroadPageProps = {
     offline: boolean;
@@ -13,7 +13,7 @@ type AdminDashBroadPageProps = {
 
 const AsyncAdminDashboardRouter = lazy(() => import("components/admin-dashboard-router"));
 
-const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offline }) => {
+const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({offline}) => {
     const axiosBaseInstance = useAxiosBaseInstance();
 
     const navigate = useNavigate();
@@ -45,10 +45,10 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
     }, [offline, session, axiosBaseInstance, navigate]);
 
     if (userInfo === undefined || userInfo === null) {
-        return <Spin fullscreen={true} delay={1000} />;
+        return <Spin fullscreen={true} delay={1000}/>;
     }
 
-    return <AsyncAdminDashboardRouter offline={offline} userInfo={userInfo} />;
+    return <AsyncAdminDashboardRouter offline={offline} userInfo={userInfo}/>;
 };
 
 export default AdminDashboardPage;

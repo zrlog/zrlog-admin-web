@@ -1,9 +1,9 @@
 import ServerInfo from "./ServerInfo";
-import { SystemData } from "../../type";
-import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { getCsrData, getTimeInfoBySearchStr } from "../../api";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { useLocation } from "react-router";
+import {SystemData} from "../../type";
+import {FunctionComponent, useEffect, useRef, useState} from "react";
+import {getCsrData, getTimeInfoBySearchStr} from "../../api";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {useLocation} from "react-router";
 import AdminSettingsLayout from "../common/AdminSettingsLayout";
 
 type SystemProps = {
@@ -13,7 +13,7 @@ type SystemProps = {
 
 const SYSTEM_REFRESH_INTERVAL = 5000;
 
-const System: FunctionComponent<SystemProps> = ({ data, offline }) => {
+const System: FunctionComponent<SystemProps> = ({data, offline}) => {
     const [state, setState] = useState<SystemData>(data);
 
     const axiosInstance = useAxiosBaseInstance();
@@ -38,7 +38,7 @@ const System: FunctionComponent<SystemProps> = ({ data, offline }) => {
                 return;
             }
             getCsrData("/system", getTimeInfoBySearchStr(location.search), axiosInstance)
-                .then(({ data }) => {
+                .then(({data}) => {
                     if (active) {
                         setState(data);
                     }
@@ -62,7 +62,7 @@ const System: FunctionComponent<SystemProps> = ({ data, offline }) => {
 
     return (
         <AdminSettingsLayout activeKey="system">
-            <ServerInfo data={state} />
+            <ServerInfo data={state}/>
         </AdminSettingsLayout>
     );
 };

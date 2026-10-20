@@ -1,9 +1,9 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Simulate } from "react-dom/test-utils";
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Simulate} from "react-dom/test-utils";
+import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
 import UpgradeSettingForm from "./UpgradeSettingForm";
-import type { Upgrade } from "./index";
+import type {Upgrade} from "./index";
 
 jest.mock("antd/es/form", () => require("antd/lib/form"));
 jest.mock("antd/es/select", () => require("antd/lib/select"));
@@ -11,18 +11,18 @@ jest.mock("antd/es/button", () => require("antd/lib/button"));
 jest.mock("antd/es/grid/row", () => require("antd/lib/grid/row"));
 jest.mock("antd/es/grid/col", () => require("antd/lib/grid/col"));
 jest.mock("@zrlog/ui/antd/Switch", () => require("antd/lib/switch"));
-jest.mock("@zrlog/ui/feedback", () => ({ useUiApp: () => ({ modal: {} }), useUiMessage: () => [{}, null] }));
-jest.mock("react-router-dom", () => ({ useNavigate: () => () => undefined }));
+jest.mock("@zrlog/ui/feedback", () => ({useUiApp: () => ({modal: {}}), useUiMessage: () => [{}, null]}));
+jest.mock("react-router-dom", () => ({useNavigate: () => () => undefined}));
 jest.mock("../upgrade-content", () => () => null);
 jest.mock("../../utils/responsive-form", () => ({
-    useResponsiveFormLayout: () => ({ formLayout: {}, narrow: false, screens: { md: true } }),
+    useResponsiveFormLayout: () => ({formLayout: {}, narrow: false, screens: {md: true}}),
 }));
 const mockGet = jest.fn<Promise<any>, any[]>();
-const mockAxios = { get: mockGet };
+const mockAxios = {get: mockGet};
 let mockCanUpgrade = true;
-jest.mock("../../utils/account-access", () => ({ hasAction: () => mockCanUpgrade }));
-jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
-jest.mock("../../utils/constants", () => ({ getRes: () => require("../../i18n/admin").getAdminI18n("en_US") }));
+jest.mock("../../utils/account-access", () => ({hasAction: () => mockCanUpgrade}));
+jest.mock("../../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
+jest.mock("../../utils/constants", () => ({getRes: () => require("../../i18n/admin").getAdminI18n("en_US")}));
 
 let root: Root;
 let container: HTMLDivElement;
@@ -33,9 +33,9 @@ const data: Upgrade = {
     upgradePackageSource: "github",
     dockerMode: true,
     dockerSettings: {
-        settings: { repository: "docker.io/zrlog/zrlog", channel: "preview" },
+        settings: {repository: "docker.io/zrlog/zrlog", channel: "preview"},
         currentRepository: "docker.io/zrlog/zrlog",
-        images: [{ repository: "registry.example/zrlog", platforms: ["linux/amd64"] }],
+        images: [{repository: "registry.example/zrlog", platforms: ["linux/amd64"]}],
     },
 };
 beforeEach(() => {
@@ -44,16 +44,18 @@ beforeEach(() => {
         observe() {
             return undefined;
         }
+
         unobserve() {
             return undefined;
         }
+
         disconnect() {
             return undefined;
         }
     };
     (globalThis as any).MessageChannel = class {
-        port1 = { onmessage: () => undefined };
-        port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+        port1 = {onmessage: () => undefined};
+        port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
     };
     window.matchMedia = (() => ({
         matches: false,
@@ -88,7 +90,7 @@ afterEach(() => {
 });
 const render = async (value = data, offline = false) => {
     await act(async () =>
-        root.render(<UpgradeSettingForm data={value} offline={offline} offlineData={false} onSubmit={submit} />)
+        root.render(<UpgradeSettingForm data={value} offline={offline} offlineData={false} onSubmit={submit}/>)
     );
 };
 const save = async () => {
@@ -102,10 +104,10 @@ test("Docker hydration shows only the repository with one final submit and no mo
     expect(container.querySelectorAll('button[type="submit"]')).toHaveLength(1);
     expect(container.querySelectorAll("button")[container.querySelectorAll("button").length - 1].type).toBe("submit");
     await save();
-    expect(submit).toHaveBeenLastCalledWith({ autoUpgradeVersion: 86400, upgradePreview: true });
+    expect(submit).toHaveBeenLastCalledWith({autoUpgradeVersion: 86400, upgradePreview: true});
 });
 test("package deployments submit only the package source", async () => {
-    await render({ ...data, dockerMode: false, dockerSettings: undefined });
+    await render({...data, dockerMode: false, dockerSettings: undefined});
     expect(container.textContent).not.toContain("Docker image repository");
     expect(container.textContent).toContain("Package download source");
     await save();
@@ -135,15 +137,15 @@ test("the common submit includes edited repository and retains it after a failed
     expect(submit.mock.calls[1]).toEqual(submit.mock.calls[0]);
 });
 test("channel refresh does not overwrite unsaved form fields", async () => {
-    mockGet.mockResolvedValue({ data: { error: 0, data: { ...data, autoUpgradeVersion: -1, upgradePreview: true } } });
+    mockGet.mockResolvedValue({data: {error: 0, data: {...data, autoUpgradeVersion: -1, upgradePreview: true}}});
     await render();
     await act(async () => (container.querySelector("#upgradePreview") as HTMLElement).click());
     expect(mockGet).toHaveBeenCalledWith("/api/admin/system/upgrade", {
-        params: { channel: "release" },
+        params: {channel: "release"},
         showError: false,
     });
     await save();
-    expect(submit).toHaveBeenLastCalledWith({ autoUpgradeVersion: 86400, upgradePreview: false });
+    expect(submit).toHaveBeenLastCalledWith({autoUpgradeVersion: 86400, upgradePreview: false});
 });
 test("offline data keeps the mode visible and cannot submit", async () => {
     await render(data, true);
@@ -155,7 +157,7 @@ test("offline data keeps the mode visible and cannot submit", async () => {
 
 test("site configuration permission alone does not expose the system upgrade action", async () => {
     mockCanUpgrade = false;
-    await render({ ...data, dockerMode: false, dockerSettings: undefined });
+    await render({...data, dockerMode: false, dockerSettings: undefined});
     expect(container.textContent).not.toContain("Check for Updates");
     expect(container.querySelectorAll('button[type="submit"]')).toHaveLength(1);
     await save();

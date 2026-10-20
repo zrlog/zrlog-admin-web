@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
@@ -16,6 +14,8 @@ import com.zrlog.admin.util.AdminTemplateUtils;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.controller.BaseController;
@@ -24,7 +24,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -40,12 +39,11 @@ public class TemplateController extends BaseController {
     private final AdminPageDataFactory pages;
 
 
-
     private final TemplateService templateService;
 
     @Inject
     public TemplateController(TemplateService templateService, AdminPageDataFactory pages,
-            AdminRequestIdentity requestIdentity) {
+                              AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.pages = pages;
         this.templateService = templateService;

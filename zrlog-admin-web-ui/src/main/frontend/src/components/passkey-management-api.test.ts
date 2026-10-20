@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { MessageInstance } from "antd/es/message/interface";
-import type { PasskeyRegistrationVerifyRequest } from "../type";
+import {beforeEach, describe, expect, it, jest} from "@jest/globals";
+import type {MessageInstance} from "antd/es/message/interface";
+import type {PasskeyRegistrationVerifyRequest} from "../type";
 import {
     PASSKEY_API_BASE,
     PASSKEY_REGISTRATION_MESSAGE_KEY,
@@ -35,7 +35,7 @@ describe("Passkey management API", () => {
             name: "Work computer",
             response: {},
         } as PasskeyRegistrationVerifyRequest;
-        const apiResponse = { error: 0, data: { id: 1, name: request.name, createdAt: 1 } };
+        const apiResponse = {error: 0, data: {id: 1, name: request.name, createdAt: 1}};
         mockPostRefreshCacheSse.mockResolvedValue(apiResponse);
 
         await expect(postPasskeyRegistrationVerification(request, messageApi)).resolves.toBe(apiResponse);
@@ -48,8 +48,8 @@ describe("Passkey management API", () => {
     });
 
     it("uses the refresh-cache SSE transport when removing a Passkey", async () => {
-        const request = { id: 1, password: "password", mfaCode: "123456" };
-        const apiResponse = { error: 0, data: true };
+        const request = {id: 1, password: "password", mfaCode: "123456"};
+        const apiResponse = {error: 0, data: true};
         mockPostRefreshCacheSse.mockResolvedValue(apiResponse);
 
         await expect(postPasskeyRemoval(request, messageApi)).resolves.toBe(apiResponse);

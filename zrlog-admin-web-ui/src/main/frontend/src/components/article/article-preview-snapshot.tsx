@@ -1,8 +1,8 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
-import { Empty, Space, Typography } from "antd";
-import { useTheme } from "antd-style";
-import type { CSSProperties, FunctionComponent, ReactNode } from "react";
+import {Empty, Space, Typography} from "antd";
+import {useTheme} from "antd-style";
+import type {CSSProperties, FunctionComponent, ReactNode} from "react";
 import Tags from "../../common/Tags";
 
 type ArticlePreviewSnapshotProps = {
@@ -20,18 +20,18 @@ type ArticlePreviewSnapshotProps = {
 };
 
 const ArticlePreviewSnapshot: FunctionComponent<ArticlePreviewSnapshotProps> = ({
-    htmlContent,
-    dark,
-    tagText,
-    versionText,
-    digest,
-    digestLabel,
-    keywords,
-    keywordsLabel,
-    emptyDescription,
-    style,
-    previewStyle,
-}) => {
+                                                                                    htmlContent,
+                                                                                    dark,
+                                                                                    tagText,
+                                                                                    versionText,
+                                                                                    digest,
+                                                                                    digestLabel,
+                                                                                    keywords,
+                                                                                    keywordsLabel,
+                                                                                    emptyDescription,
+                                                                                    style,
+                                                                                    previewStyle,
+                                                                                }) => {
     const theme = useTheme();
     const content = htmlContent || "";
     const hasHeader = Boolean(tagText || versionText || digest);
@@ -41,7 +41,7 @@ const ArticlePreviewSnapshot: FunctionComponent<ArticlePreviewSnapshotProps> = (
         paddingTop: theme.padding,
         paddingBottom: theme.padding,
     };
-    const contentFrameStyle: CSSProperties = hasHeader || hasKeywords ? headerItemStyle : { height: "100%" };
+    const contentFrameStyle: CSSProperties = hasHeader || hasKeywords ? headerItemStyle : {height: "100%"};
     const headerItems: ReactNode[] = [];
 
     if (tagText || versionText) {
@@ -61,20 +61,20 @@ const ArticlePreviewSnapshot: FunctionComponent<ArticlePreviewSnapshotProps> = (
                         <Typography.Text type="secondary">{digestLabel}</Typography.Text>
                     </div>
                 )}
-                <HtmlPreviewPanel htmlContent={digest} dark={dark} style={{ width: "100%", overflowY: "visible" }} />
+                <HtmlPreviewPanel htmlContent={digest} dark={dark} style={{width: "100%", overflowY: "visible"}}/>
             </>
         );
     }
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", ...style }}>
+        <div style={{display: "flex", flexDirection: "column", height: "100%", ...style}}>
             {hasHeader && (
                 <div
                     style={{
                         borderBottom: borderSecondary,
                     }}
                 >
-                    <Space direction="vertical" size={0} style={{ width: "100%" }}>
+                    <Space direction="vertical" size={0} style={{width: "100%"}}>
                         {headerItems.map((item, index) => (
                             <div
                                 key={index}
@@ -89,7 +89,7 @@ const ArticlePreviewSnapshot: FunctionComponent<ArticlePreviewSnapshotProps> = (
                     </Space>
                 </div>
             )}
-            <div style={{ flex: 1, overflow: "auto" }}>
+            <div style={{flex: 1, overflow: "auto"}}>
                 <div style={contentFrameStyle}>
                     {content.trim() ? (
                         <HtmlPreviewPanel
@@ -102,7 +102,7 @@ const ArticlePreviewSnapshot: FunctionComponent<ArticlePreviewSnapshotProps> = (
                             }}
                         />
                     ) : (
-                        <Empty description={emptyDescription} />
+                        <Empty description={emptyDescription}/>
                     )}
                 </div>
                 {keywords && (
@@ -113,7 +113,7 @@ const ArticlePreviewSnapshot: FunctionComponent<ArticlePreviewSnapshotProps> = (
                         }}
                     >
                         {keywordsLabel && <Typography.Text type="secondary">{keywordsLabel}</Typography.Text>}
-                        <Tags closeable={false} keywords={keywords} />
+                        <Tags closeable={false} keywords={keywords}/>
                     </div>
                 )}
             </div>

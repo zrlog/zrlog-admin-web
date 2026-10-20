@@ -1,5 +1,5 @@
-import { getSsDate } from "../base/SsData";
-import type { AdminCapabilities } from "./constants";
+import {getSsDate} from "../base/SsData";
+import type {AdminCapabilities} from "./constants";
 
 // Older servers omit capabilities; keep their existing UI behavior.
 export const isModuleEnabled = (module: keyof AdminCapabilities): boolean =>

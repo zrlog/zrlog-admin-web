@@ -1,21 +1,31 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.hibegin.http.HttpMethod;
-import com.hibegin.http.server.api.*;
-import com.zrlog.admin.business.knowledge.*;
-import com.zrlog.admin.business.security.*;
+import com.hibegin.http.server.api.HandleAbleInterceptor;
+import com.hibegin.http.server.api.HttpRequest;
+import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.knowledge.KnowledgeMessages;
+import com.zrlog.admin.business.knowledge.McpContentService;
+import com.zrlog.admin.business.knowledge.McpService;
+import com.zrlog.admin.business.security.OAuthException;
+import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.UserPreferenceService;
-
 import jakarta.inject.Inject;
 
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 
-/** One Streamable HTTP endpoint, JSON responses only; no browser session cookies accepted. */
+/**
+ * One Streamable HTTP endpoint, JSON responses only; no browser session cookies accepted.
+ */
 public class McpInterceptor implements HandleAbleInterceptor {
     private final UserPreferenceService userPreferenceService;
 
@@ -36,8 +46,20 @@ public class McpInterceptor implements HandleAbleInterceptor {
         this.oauth = Objects.requireNonNull(oauth);
     }
 
-    @Override public boolean isHandleAble(HttpRequest request) { return "/mcp".equals(request.getUri()); }
-    @Override public boolean doInterceptor(HttpRequest request, HttpResponse response) {
+    private static void json(HttpResponse response, Object data, int status) {
+        response.setContentType("application/json;charset=UTF-8");
+        // JsonObject keeps the required null id on errors without emitting null optional DTO fields.
+        String body = data instanceof JsonElement ? data.toString() : new Gson().toJson(data);
+        response.write(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)), status);
+    }
+
+    @Override
+    public boolean isHandleAble(HttpRequest request) {
+        return "/mcp".equals(request.getUri());
+    }
+
+    @Override
+    public boolean doInterceptor(HttpRequest request, HttpResponse response) {
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("X-Content-Type-Options", "nosniff");
         response.addHeader("Access-Control-Expose-Headers", "WWW-Authenticate");
@@ -45,50 +67,72 @@ public class McpInterceptor implements HandleAbleInterceptor {
         try {
             String origin = request.getHeader("Origin");
             if (origin != null) {
-                try { oauth.requireSameOrigin(origin); }
-                catch (OAuthException e) { response.renderCode(403); return false; }
+                try {
+                    oauth.requireSameOrigin(origin);
+                } catch (OAuthException e) {
+                    response.renderCode(403);
+                    return false;
+                }
                 response.addHeader("Access-Control-Allow-Origin", origin);
                 response.addHeader("Vary", "Origin");
             }
             if (request.getMethod() == HttpMethod.OPTIONS) {
                 response.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
                 response.addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, MCP-Protocol-Version");
-                response.renderCode(204); return false;
+                response.renderCode(204);
+                return false;
             }
             String header = request.getHeader("Authorization");
-            if (header == null || !header.regionMatches(true, 0, "Bearer ", 0, 7)) throw new OAuthException("invalid_token", 401);
+            if (header == null || !header.regionMatches(true, 0, "Bearer ", 0, 7))
+                throw new OAuthException("invalid_token", 401);
             String token = header.substring(7);
             OAuthModels.Identity identity = oauth.authenticate(token, oauth.mcpResource(), Set.of());
-            if (request.getMethod() != HttpMethod.POST) { response.addHeader("Allow", "POST, OPTIONS"); response.renderCode(405); return false; }
+            if (request.getMethod() != HttpMethod.POST) {
+                response.addHeader("Allow", "POST, OPTIONS");
+                response.renderCode(405);
+                return false;
+            }
             String version = request.getHeader("MCP-Protocol-Version");
-            if (version != null && !McpService.VERSIONS.contains(version)) { response.renderCode(400); return false; }
+            if (version != null && !McpService.VERSIONS.contains(version)) {
+                response.renderCode(400);
+                return false;
+            }
             String contentType = Objects.toString(request.getHeader("Content-Type"), "").split(";", 2)[0].trim();
-            if (!"application/json".equalsIgnoreCase(contentType)) { response.renderCode(415); return false; }
+            if (!"application/json".equalsIgnoreCase(contentType)) {
+                response.renderCode(415);
+                return false;
+            }
             String accept = Objects.toString(request.getHeader("Accept"), "").toLowerCase(Locale.ROOT);
-            if (!accept.contains("application/json") || !accept.contains("text/event-stream")) { response.renderCode(406); return false; }
+            if (!accept.contains("application/json") || !accept.contains("text/event-stream")) {
+                response.renderCode(406);
+                return false;
+            }
             ByteBuffer buffer = request.getRequestBodyByteBuffer();
-            if (buffer == null || buffer.remaining() > 6 * 1024 * 1024) { response.renderCode(413); return false; }
+            if (buffer == null || buffer.remaining() > 6 * 1024 * 1024) {
+                response.renderCode(413);
+                return false;
+            }
             // Bearer requests have no admin session. Resolve the authenticated token owner's
             // preferences each time.
             language = this.userPreferenceService.effective(identity.userId).language;
             McpContentService content = knowledge.create(() -> {
-                try { return oauth.authenticate(token, oauth.mcpResource(), Set.of()); }
-                catch (java.sql.SQLException e) { throw new OAuthException("temporarily_unavailable", 503); }
+                try {
+                    return oauth.authenticate(token, oauth.mcpResource(), Set.of());
+                } catch (java.sql.SQLException e) {
+                    throw new OAuthException("temporarily_unavailable", 503);
+                }
             }, request, language);
             McpService.Reply reply = protocol.create(language).handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), content);
             if (reply.body == null) response.renderCode(reply.status);
             else json(response, reply.body, reply.status);
         } catch (OAuthException e) {
-            if (e.getStatus() == 401 || e.getStatus() == 403) response.addHeader("WWW-Authenticate", "Bearer error=\"" + e.getOAuthError() + "\", resource_metadata=\"" + oauth.mcpResourceMetadataUrl() + "\"");
+            if (e.getStatus() == 401 || e.getStatus() == 403)
+                response.addHeader("WWW-Authenticate", "Bearer error=\"" + e.getOAuthError() + "\", resource_metadata=\"" + oauth.mcpResourceMetadataUrl() + "\"");
             json(response, new OAuthModels.Error(e.getOAuthError()), e.getStatus());
-        } catch (Exception e) { json(response, McpService.error(JsonNull.INSTANCE, -32603,
-                new KnowledgeMessages(language).get("admin.mcp.error.internal"), 500).body, 500); }
+        } catch (Exception e) {
+            json(response, McpService.error(JsonNull.INSTANCE, -32603,
+                    new KnowledgeMessages(language).get("admin.mcp.error.internal"), 500).body, 500);
+        }
         return false;
-    }
-    private static void json(HttpResponse response, Object data, int status) {
-        response.setContentType("application/json;charset=UTF-8");
-        // JsonObject keeps the required null id on errors without emitting null optional DTO fields.
-        String body = data instanceof JsonElement ? data.toString() : new Gson().toJson(data);
-        response.write(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)), status);
     }
 }

@@ -10,23 +10,17 @@ import com.zrlog.data.dto.CommentDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.Comment;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.StringJoiner;
+import java.util.*;
 
 public class AdminCommentService {
     private final jakarta.inject.Provider<Comment> commentProvider;
 
     private final AccountIdentityService identities;
     private final AccountPermissionService permissionService;
+    private final MessageCenterStateService messageCenterStateService;
 
     @Inject
     public AdminCommentService(
@@ -40,8 +34,6 @@ public class AdminCommentService {
         this.permissionService = permissionService;
         this.identities = identities;
     }
-
-    private final MessageCenterStateService messageCenterStateService;
 
     public DeleteResponse delete(AccountAccess actor, String[] ids) throws SQLException {
         actor = authorize(actor);

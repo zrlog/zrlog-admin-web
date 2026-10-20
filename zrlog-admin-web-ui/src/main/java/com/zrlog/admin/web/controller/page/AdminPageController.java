@@ -5,13 +5,12 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
-import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import jakarta.inject.Inject;
 
 import java.io.InputStream;

@@ -1,5 +1,6 @@
-import { getSsDate } from "../base/SsData";
-import { getAccountPage } from "./account-page-routes";
+import {getSsDate} from "../base/SsData";
+import {getAccountPage} from "./account-page-routes";
+
 export type AccountRole = "owner" | "admin" | "editor" | "author" | "contributor";
 export const hasAction = (action: string) => getSsDate().user?.actions?.includes(action) === true;
 export const actionForPath = (raw: string): string => {

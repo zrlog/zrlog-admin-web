@@ -1,14 +1,14 @@
 import Editor from "@zrlog/editor/core";
-import { EditorMode } from "@zrlog/editor/dist/editor/editor.types";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRes } from "../../utils/constants";
-import { getAppState } from "../../base/ConfigProviderApp";
+import {EditorMode} from "@zrlog/editor/dist/editor/editor.types";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getRes} from "../../utils/constants";
+import {getAppState} from "../../base/ConfigProviderApp";
 
 const TemplateConfigYaml = ({
-    value,
-    onChange,
-    disabled,
-}: {
+                                value,
+                                onChange,
+                                disabled,
+                            }: {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
@@ -30,7 +30,7 @@ const TemplateConfigYaml = ({
                     dark: getAppState().dark,
                     lang: getRes().lang === "en_US" ? "en_US" : "zh_CN",
                     preview: false,
-                    uploadConfig: { buildUploadUrl: () => "", formName: "", axiosInstance },
+                    uploadConfig: {buildUploadUrl: () => "", formName: "", axiosInstance},
                 }}
             />
         </div>

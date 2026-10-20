@@ -1,21 +1,21 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.McpWebSetup;
-
 import org.junit.Test;
 
 import java.util.Arrays;
 
+import static org.junit.Assert.*;
+
 public class OAuthServerAddressTest {
 
-    @Test public void unconfiguredLocalSiteCanLoadApplicationPagesAndDiscovery() throws Exception {
+    @Test
+    public void unconfiguredLocalSiteCanLoadApplicationPagesAndDiscovery() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             var config = db.config().getServerConfig();
             for (String host : Arrays.asList(null, "", " ")) {
@@ -36,7 +36,7 @@ public class OAuthServerAddressTest {
                                                         tokenResource,
                                                         AccountServicesFixture.component(db.dataSource())
                                                                 .identities(), AccountServicesFixture.component(db.dataSource())
-                                                                .permissions(),
+                                                        .permissions(),
                                                         AccountServicesFixture.component(db.dataSource())
                                                                 .security()),
                                         AccountServicesFixture.component(db.dataSource()).backend());
@@ -59,7 +59,8 @@ public class OAuthServerAddressTest {
         }
     }
 
-    @Test public void splitDeploymentUsesBackendForDiscoveryAndDisplayedAddresses() throws Exception {
+    @Test
+    public void splitDeploymentUsesBackendForDiscoveryAndDisplayedAddresses() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             var accounts = AccountServicesFixture.component(db.dataSource());
             OAuthService service =
@@ -92,11 +93,15 @@ public class OAuthServerAddressTest {
             assertEquals(service.mcpResource(), page.mcpResource);
             assertEquals(service.issuer() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT, page.notificationEndpoint);
             var app = new OAuthModels.Client();
-            app.name = "MCP test"; app.redirectUris = java.util.List.of("https://chatgpt.com/connector/oauth/test");
+            app.name = "MCP test";
+            app.redirectUris = java.util.List.of("https://chatgpt.com/connector/oauth/test");
             app = service.register(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), app);
             var request = new OAuthModels.AuthorizationRequest();
-            request.client_id = app.clientId; request.redirect_uri = app.redirectUris.get(0); request.response_type = "code";
-            request.code_challenge_method = "S256"; request.code_challenge = OAuthService.hash(OAuthService.random());
+            request.client_id = app.clientId;
+            request.redirect_uri = app.redirectUris.get(0);
+            request.response_type = "code";
+            request.code_challenge_method = "S256";
+            request.code_challenge = OAuthService.hash(OAuthService.random());
             request.scope = "articles:read offline_access";
             for (String wrongResource : java.util.List.of(service.issuer(), "https://xiaochun.zrlog.com/mcp")) {
                 request.resource = wrongResource;
@@ -109,7 +114,8 @@ public class OAuthServerAddressTest {
         }
     }
 
-    @Test public void backendContextPathIsIncludedExactlyOnce() {
+    @Test
+    public void backendContextPathIsIncludedExactlyOnce() {
         assertEquals("https://admin.example/sub", OAuthService.configuredIssuer("https://admin.example/", "blog.example", "/sub"));
         assertEquals("https://admin.example/sub", OAuthService.configuredIssuer("https://admin.example/sub/", "blog.example", "/sub"));
         assertEquals("https://admin.example/proxy/sub", OAuthService.configuredIssuer("https://admin.example/proxy/sub", "blog.example", "/sub"));
@@ -118,7 +124,8 @@ public class OAuthServerAddressTest {
         assertEquals("https://blog.example/sub", OAuthService.configuredIssuer("/", "blog.example", "/sub"));
     }
 
-    @Test public void malformedBackendCannotSilentlyFallBackToBlogHost() {
+    @Test
+    public void malformedBackendCannotSilentlyFallBackToBlogHost() {
         for (String invalid : java.util.List.of("admin.example", "/sub", "//admin.example", "http://admin.example",
                 "https://user@admin.example", "https://admin.example?site=1", "https://admin.example#fragment")) {
             assertThrows(OAuthException.class, () -> OAuthService.configuredIssuer(invalid, "blog.example", "/sub"));

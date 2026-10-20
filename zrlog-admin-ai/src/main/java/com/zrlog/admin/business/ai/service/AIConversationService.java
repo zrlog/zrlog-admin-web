@@ -6,13 +6,12 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIChatModels;
 import com.zrlog.admin.business.ai.model.AIFileModels;
 import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.admin.business.rest.base.*;
+import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
 import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.model.WebSite;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -20,14 +19,16 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
-/** Account-scoped conversation storage, including legacy history migration. */
+/**
+ * Account-scoped conversation storage, including legacy history migration.
+ */
 public class AIConversationService {
+    private static final long DRAFT_ARTICLE_ID = 0L;
     private final SecurityStore store;
     private final WebsiteKvService websiteKvService;
     private final jakarta.inject.Provider<WebSite> websites;
     private final AIFileService files;
     private final AIApprovalStore approvals;
-
     private final Integer conversationUserId;
 
     @Inject
@@ -60,7 +61,13 @@ public class AIConversationService {
         this.conversationUserId = userId;
     }
 
-    /** Bind trusted ownership explicitly before reading, writing or dispatching work. */
+    static String buildCacheKey(Long articleId) {
+        return "ai_chat_message_" + articleId;
+    }
+
+    /**
+     * Bind trusted ownership explicitly before reading, writing or dispatching work.
+     */
     public AIConversationService captureAccount(int userId) {
         if (userId <= 0) throw new PermissionErrorException();
         return new AIConversationService(userId, store, websiteKvService, websites, files, approvals);
@@ -75,11 +82,6 @@ public class AIConversationService {
         Integer userId = conversationUserId();
         if (userId == null) throw new PermissionErrorException();
         return "ai_chat_message_u" + userId + "_" + articleId;
-    }
-
-    private static final long DRAFT_ARTICLE_ID = 0L;
-    static String buildCacheKey(Long articleId) {
-        return "ai_chat_message_" + articleId;
     }
 
     public boolean migrateDraftAIMessageToArticle(Long articleId) throws SQLException {
@@ -103,7 +105,8 @@ public class AIConversationService {
         if (!mutateMessages(articleId, messages -> {
             Set<String> existing = new HashSet<>();
             for (AIResponseEntry.AIContentEntry entry : messages) existing.add(entry.getMessageId());
-            for (AIResponseEntry.AIContentEntry entry : entries) if (existing.add(entry.getMessageId())) messages.add(entry);
+            for (AIResponseEntry.AIContentEntry entry : entries)
+                if (existing.add(entry.getMessageId())) messages.add(entry);
             return messages;
         })) return false;
         return mutateMessages(draftId, messages -> {
@@ -125,7 +128,9 @@ public class AIConversationService {
                             UUID.randomUUID().toString(),
                             "ai!_chat!_message!_u%!_" + articleId);
             return this.websiteKvService.remove(buildCacheKey(articleId));
-        } catch (SQLException e) { throw new IllegalStateException("Unable to remove article AI messages", e); }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Unable to remove article AI messages", e);
+        }
     }
 
     public boolean clearAIMessage(Long articleId) {
@@ -143,8 +148,13 @@ public class AIConversationService {
                 String status = AIApprovalStore.view(run).status;
                 if ("running".equals(status) || "executing".equals(status)) return false;
                 if (run.attachments != null) files.addAll(run.attachments);
-                run.attachments = List.of(); run.messages.clear();
-                run.answer = null; run.approval = null; run.interaction = null; run.skillMessages.clear(); checkpoints.save(run, "cancelled");
+                run.attachments = List.of();
+                run.messages.clear();
+                run.answer = null;
+                run.approval = null;
+                run.interaction = null;
+                run.skillMessages.clear();
+                checkpoints.save(run, "cancelled");
             }
             if (!mutateMessages(articleId, messages -> new ArrayList<>())) return false;
             // A draft checkpoint may still reference files moved into a saved article.
@@ -152,7 +162,9 @@ public class AIConversationService {
             files.removeIf(file -> retained.contains(file.id));
             this.files.remove(conversationUserId(), files);
             return true;
-        } catch (SQLException | java.io.IOException | AIApprovalStore.Changed e) { return false; }
+        } catch (SQLException | java.io.IOException | AIApprovalStore.Changed e) {
+            return false;
+        }
     }
 
     private Set<String> referencedFileIds() throws SQLException {
@@ -167,12 +179,14 @@ public class AIConversationService {
             if (value.isBlank()) continue;
             if (row.get("name").toString().startsWith("ai_chat_message_")) {
                 var entries = json.fromJson(value, AIResponseEntry.AIContentEntry[].class);
-                if (entries != null) for (var entry : entries) if (entry.getAttachments() != null)
-                    for (var file : entry.getAttachments()) ids.add(file.id);
+                if (entries != null) for (var entry : entries)
+                    if (entry.getAttachments() != null)
+                        for (var file : entry.getAttachments()) ids.add(file.id);
             } else {
                 var checkpoint = json.fromJson(value, AIChatModels.Run.class);
-                if (AIApprovalStore.active(checkpoint)) for (var message : checkpoint.messages) if (message.attachments != null)
-                    for (var file : message.attachments) ids.add(file.id);
+                if (AIApprovalStore.active(checkpoint)) for (var message : checkpoint.messages)
+                    if (message.attachments != null)
+                        for (var file : message.attachments) ids.add(file.id);
             }
         }
         return ids;
@@ -211,7 +225,9 @@ public class AIConversationService {
         }
     }
 
-    /** Compare-and-set the website row; retries merge against the latest committed conversation. */
+    /**
+     * Compare-and-set the website row; retries merge against the latest committed conversation.
+     */
     private boolean mutateMessages(Long articleId, UnaryOperator<List<AIResponseEntry.AIContentEntry>> change) throws SQLException {
         SecurityStore db = this.store;
         String key = conversationKey(articleId);
@@ -263,9 +279,12 @@ public class AIConversationService {
 
     public boolean updateAIMessagePayload(Long articleId, String messageId, String tool, Object payload) throws SQLException {
         return mutateMessages(articleId, messages -> {
-            for (AIResponseEntry.AIContentEntry entry : messages) if (Objects.equals(messageId, entry.getMessageId())) {
-                entry.setTool(tool); entry.setPayload(payload); return messages;
-            }
+            for (AIResponseEntry.AIContentEntry entry : messages)
+                if (Objects.equals(messageId, entry.getMessageId())) {
+                    entry.setTool(tool);
+                    entry.setPayload(payload);
+                    return messages;
+                }
             return null;
         });
     }

@@ -4,16 +4,16 @@ import HistoryIcon from "@zrlog/ui/icons/history";
 import LoadingIcon from "@zrlog/ui/icons/loading";
 import LoginIcon from "@zrlog/ui/icons/login";
 import SettingsIcon from "@zrlog/ui/icons/settings";
-import { Card, Drawer, Timeline, Typography } from "antd";
+import {Card, Drawer, Timeline, Typography} from "antd";
 
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
-import React, { useState } from "react";
-import { getRes } from "../../utils/constants";
-import { useTheme } from "antd-style";
-import { StatisticsInfoState } from "../../type";
+import React, {useState} from "react";
+import {getRes} from "../../utils/constants";
+import {useTheme} from "antd-style";
+import {StatisticsInfoState} from "../../type";
 import DashboardCardAction from "./DashboardCardAction";
 
-const { Text } = Typography;
+const {Text} = Typography;
 
 type AuditLog = NonNullable<StatisticsInfoState["auditLogs"]>[number];
 
@@ -24,7 +24,7 @@ interface AuditTrailProps {
     };
 }
 
-const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
+const AuditTrail: React.FC<AuditTrailProps> = ({data}) => {
     const [drawerVisible, setDrawerVisible] = useState(false);
     const theme = useTheme();
     const logs = data?.auditLogs || [];
@@ -34,36 +34,36 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
         switch (type) {
             case "LOGIN":
             case "login":
-                return <LoginIcon style={{ color: theme.colorInfo }} />;
+                return <LoginIcon style={{color: theme.colorInfo}}/>;
             case "ARTICLE":
             case "article":
-                return <EditIcon style={{ color: theme.colorSuccess }} />;
+                return <EditIcon style={{color: theme.colorSuccess}}/>;
             case "SETTING":
             case "setting":
-                return <SettingsIcon style={{ color: theme.colorPrimary }} />;
+                return <SettingsIcon style={{color: theme.colorPrimary}}/>;
             default:
-                return <HistoryIcon />;
+                return <HistoryIcon/>;
         }
     };
 
     const renderTimeline = (data: AuditLog[]) => (
-        <Timeline pending={loading} pendingDot={<LoadingIcon />} reverse={false}>
+        <Timeline pending={loading} pendingDot={<LoadingIcon/>} reverse={false}>
             {data.map((log, index) => (
                 <Timeline.Item key={index} dot={getIcon(log.type)}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <Text strong style={{ display: "block" }}>
+                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start"}}>
+                        <div style={{flex: 1, minWidth: 0}}>
+                            <Text strong style={{display: "block"}}>
                                 {log.action}
                             </Text>
                             {log.content && (
-                                <Text type="secondary" style={{ display: "block", fontSize: 12 }}>
+                                <Text type="secondary" style={{display: "block", fontSize: 12}}>
                                     {log.content}
                                 </Text>
                             )}
-                            <Text type="secondary" style={{ fontSize: 12 }}>
+                            <Text type="secondary" style={{fontSize: 12}}>
                                 {log.ip}
                                 {(log.os || log.browser || log.agentName) && (
-                                    <span style={{ marginLeft: 8, overflowWrap: "anywhere" }}>
+                                    <span style={{marginLeft: 8, overflowWrap: "anywhere"}}>
                                         {log.os && ` · ${log.os}`}
                                         {log.browser && ` · ${log.browser}`}
                                         {log.agentName &&
@@ -71,20 +71,20 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
                                     </span>
                                 )}
                                 {log.crawler && (
-                                    <Tag color="gold" style={{ marginInlineStart: 8 }}>
+                                    <Tag color="gold" style={{marginInlineStart: 8}}>
                                         {getRes().index.audit.crawler}
                                     </Tag>
                                 )}
                             </Text>
                         </div>
-                        <Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap", marginLeft: 12 }}>
-                            <TimeAgo timestamp={log.timestamp} />
+                        <Text type="secondary" style={{fontSize: 12, whiteSpace: "nowrap", marginLeft: 12}}>
+                            <TimeAgo timestamp={log.timestamp}/>
                         </Text>
                     </div>
                 </Timeline.Item>
             ))}
             {data.length === 0 && !loading && (
-                <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{textAlign: "center", padding: "40px 0"}}>
                     <Text type="secondary">{getRes().index.audit.empty}</Text>
                 </div>
             )}
@@ -95,8 +95,8 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
         <>
             <Card
                 title={
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <HistoryIcon />
+                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                        <HistoryIcon/>
                         <span>{getRes().index.audit.label}</span>
                     </div>
                 }
@@ -109,15 +109,15 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
                 }
                 bordered={false}
                 className="dashboard-card"
-                styles={{ body: { padding: 20 } }}
+                styles={{body: {padding: 20}}}
             >
                 {renderTimeline(logs.slice(0, 3))}
             </Card>
 
             <Drawer
                 title={
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <HistoryIcon />
+                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                        <HistoryIcon/>
                         <span>{getRes().index.audit.full}</span>
                     </div>
                 }

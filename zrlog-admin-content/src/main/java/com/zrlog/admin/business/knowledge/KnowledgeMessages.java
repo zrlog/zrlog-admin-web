@@ -1,10 +1,13 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.zrlog.util.I18nUtil;
+
 import java.util.Map;
 import java.util.Objects;
 
-/** Explicit request language; never changes the shared HTTP thread's locale. */
+/**
+ * Explicit request language; never changes the shared HTTP thread's locale.
+ */
 public final class KnowledgeMessages {
     private final Map<String, Object> messages;
 

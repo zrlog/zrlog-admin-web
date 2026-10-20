@@ -1,4 +1,4 @@
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import MoreIcon from "@zrlog/ui/icons/more";
 import EyeIcon from "@zrlog/ui/icons/eye";
 import MarkdownIcon from "@zrlog/ui/icons/markdown";
@@ -8,22 +8,22 @@ import FullscreenExitIcon from "@zrlog/ui/icons/fullscreen-exit";
 import FullscreenIcon from "@zrlog/ui/icons/fullscreen";
 import HistoryIcon from "@zrlog/ui/icons/history";
 import ShareIcon from "@zrlog/ui/icons/share";
-import { hasAction } from "../../utils/account-access";
-import { Button, Dropdown, Modal } from "antd";
+import {hasAction} from "../../utils/account-access";
+import {Button, Dropdown, Modal} from "antd";
 import useArticleEditorScreens from "./use-article-editor-screens";
 
-import { ChangeEvent, FunctionComponent, RefObject, useCallback, useEffect, useRef, useState } from "react";
+import {ChangeEvent, FunctionComponent, RefObject, useCallback, useEffect, useRef, useState} from "react";
 import screenfull from "screenfull";
-import { getEnterFullscreen, getExitFullscreen, getRes } from "../../utils/constants";
+import {getEnterFullscreen, getExitFullscreen, getRes} from "../../utils/constants";
 import ArticleVersionDrawer from "./article-version-drawer";
-import { getShortcutTitle, isTouchLikeDevice } from "./shortcut-utils";
-import { getArticleAiAssistantDrawerOpen } from "./article-ai-assistant/article-ai-assistant-button";
+import {getShortcutTitle, isTouchLikeDevice} from "./shortcut-utils";
+import {getArticleAiAssistantDrawerOpen} from "./article-ai-assistant/article-ai-assistant-button";
 import FileManagerPicker from "../file-manager/picker";
 import ArticleSocialPreviewDrawer from "./article-social-preview-drawer";
-import { ArticleEntry, SocialPreview } from "./index.types";
-import { exportArticlePdf } from "../article/ArticlePdfAction";
-import { addToCache, getCacheByKey } from "../../utils/cache";
-import MarkdownImportModal, { MarkdownImportApplyOptions } from "./markdown-import-modal";
+import {ArticleEntry, SocialPreview} from "./index.types";
+import {exportArticlePdf} from "../article/ArticlePdfAction";
+import {addToCache, getCacheByKey} from "../../utils/cache";
+import MarkdownImportModal, {MarkdownImportApplyOptions} from "./markdown-import-modal";
 import {
     ArticleTypeOption,
     MarkdownImportError,
@@ -58,30 +58,30 @@ type ArticleEditMoreActionsProps = {
 };
 
 const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = ({
-    fullScreen,
-    offline,
-    article,
-    contentConflict,
-    typeOptions,
-    logId,
-    socialPreview,
-    currentVersion,
-    axiosInstance,
-    containerRef,
-    getFullScreenElement,
-    stateCacheKey,
-    versionDrawerOpen,
-    onPreview,
-    onRollback,
-    onVersionOpenChange,
-    onInsertMarkdownFromAsset,
-    getCurrentMarkdown,
-    onImportMarkdown,
-    importMarkdownIntent,
-    onExitFullScreen,
-    onFullScreen,
-}) => {
-    const { message } = useUiApp();
+                                                                                    fullScreen,
+                                                                                    offline,
+                                                                                    article,
+                                                                                    contentConflict,
+                                                                                    typeOptions,
+                                                                                    logId,
+                                                                                    socialPreview,
+                                                                                    currentVersion,
+                                                                                    axiosInstance,
+                                                                                    containerRef,
+                                                                                    getFullScreenElement,
+                                                                                    stateCacheKey,
+                                                                                    versionDrawerOpen,
+                                                                                    onPreview,
+                                                                                    onRollback,
+                                                                                    onVersionOpenChange,
+                                                                                    onInsertMarkdownFromAsset,
+                                                                                    getCurrentMarkdown,
+                                                                                    onImportMarkdown,
+                                                                                    importMarkdownIntent,
+                                                                                    onExitFullScreen,
+                                                                                    onFullScreen,
+                                                                                }) => {
+    const {message} = useUiApp();
     const assetPickerOpenCacheKey = `${stateCacheKey}/assetPickerOpen`;
     const socialPreviewOpenCacheKey = `${stateCacheKey}/socialPreviewOpen`;
     const [assetPickerOpen, setAssetPickerOpenState] = useState(
@@ -231,54 +231,54 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     const items = [
         {
             key: "preview",
-            icon: <EyeIcon />,
+            icon: <EyeIcon/>,
             label: getRes().preview,
             disabled: offline || !onPreview,
             onClick: () => void onPreview?.(),
         },
         {
             key: "version",
-            icon: <HistoryIcon />,
+            icon: <HistoryIcon/>,
             label: getRes().articleEdit.version.label,
             disabled: !logId,
             onClick: () => onVersionOpenChange(true),
         },
         {
             key: "social-preview",
-            icon: <ShareIcon />,
+            icon: <ShareIcon/>,
             label: getRes().articleEdit.socialPreview.title,
             disabled: !logId || !socialPreview,
             onClick: () => setSocialPreviewOpen(true),
         },
         {
             key: "export-pdf",
-            icon: <PdfIcon />,
+            icon: <PdfIcon/>,
             label: getRes().article.exportPdf,
             onClick: () => exportArticlePdf(article, () => message.warning(getRes().article.exportPdfPopupBlocked)),
         },
         {
             key: "import-markdown",
-            icon: <MarkdownIcon />,
+            icon: <MarkdownIcon/>,
             label: getRes().articleEdit.markdownImport.menu,
             onClick: selectMarkdownFile,
         },
         {
             key: "asset",
             disabled: !hasAction("file.manage"),
-            icon: <FolderIcon />,
+            icon: <FolderIcon/>,
             label: getRes().articleEdit.actions.chooseFromAssets,
             onClick: () => setAssetPickerOpen(true),
         },
         {
             key: "fullscreen",
-            icon: fullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />,
+            icon: fullScreen ? <FullscreenExitIcon/> : <FullscreenIcon/>,
             label: fullScreen ? getExitFullscreen() : getEnterFullscreen(),
             title: getShortcutTitle(fullScreen ? getExitFullscreen() : getEnterFullscreen(), {
                 alt: true,
                 shift: true,
                 key: "F",
             }),
-            onClick: ({ domEvent }: any) => {
+            onClick: ({domEvent}: any) => {
                 domEvent.preventDefault();
                 domEvent.stopPropagation();
                 toggleFullScreen();
@@ -296,7 +296,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                 onChange={(event) => void readMarkdownFile(event)}
             />
             <Dropdown
-                menu={{ items, selectedKeys: importMarkdownIntent ? ["import-markdown"] : [] }}
+                menu={{items, selectedKeys: importMarkdownIntent ? ["import-markdown"] : []}}
                 trigger={["click"]}
                 getPopupContainer={() => containerRef.current as HTMLElement}
                 placement="bottomRight"
@@ -307,7 +307,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                     type="default"
                     aria-label={getRes().articleEdit.actions.more}
                     title={getRes().articleEdit.actions.more}
-                    icon={<MoreIcon />}
+                    icon={<MoreIcon/>}
                 />
             </Dropdown>
             <ArticleVersionDrawer
@@ -346,7 +346,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                 width={assetPickerWidth}
                 getContainer={() => containerRef.current as HTMLElement}
                 destroyOnClose
-                style={narrow ? { top: 0, maxWidth: "100vw", paddingBottom: 0 } : undefined}
+                style={narrow ? {top: 0, maxWidth: "100vw", paddingBottom: 0} : undefined}
                 styles={{
                     body: {
                         height: narrow ? "calc(100dvh - 112px)" : "70vh",
@@ -357,7 +357,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
             >
                 <FileManagerPicker
                     stateCacheKey={`${stateCacheKey}/assetPicker`}
-                    style={{ height: "100%" }}
+                    style={{height: "100%"}}
                     onSelectFile={(path) => {
                         onInsertMarkdownFromAsset(path);
                         setAssetPickerOpen(false);

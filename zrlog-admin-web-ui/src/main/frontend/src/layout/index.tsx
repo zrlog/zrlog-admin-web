@@ -1,37 +1,37 @@
-import { Alert, Col, FloatButton, Layout, Row, Typography } from "antd";
+import {Alert, Col, FloatButton, Layout, Row, Typography} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import HomeIcon from "@zrlog/ui/icons/home";
-import { getAccountPage } from "../utils/account-page-routes";
-import { hasAction } from "../utils/account-access";
+import {getAccountPage} from "../utils/account-page-routes";
+import {hasAction} from "../utils/account-access";
 
-import { getRes } from "../utils/constants";
-import { CSSProperties, FunctionComponent, PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
+import {getRes} from "../utils/constants";
+import {CSSProperties, FunctionComponent, PropsWithChildren, useCallback, useEffect, useRef, useState} from "react";
 import UserInfo from "./user-info";
 import SliderMenu from "./slider";
-import { ApiResponse, BasicUserInfo, MessageCenterNotice } from "../type";
+import {ApiResponse, BasicUserInfo, MessageCenterNotice} from "../type";
 import MyLoadingComponent from "../components/my-loading-component";
 import PWAHandler from "../base/PWAHandler";
 import StyledIndexLayout from "./styled-index-layout";
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
 import StaticSite from "../components/StaticSite";
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getAppState } from "../base/ConfigProviderApp";
-import { useTheme } from "antd-style";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getAppState} from "../base/ConfigProviderApp";
+import {useTheme} from "antd-style";
 import SpotlightSearch from "./spotlight-search";
-import { useLocation } from "react-router-dom";
+import {useLocation} from "react-router-dom";
 import MessageCenter from "../components/message-center";
 import NavigationTriggerButton from "./navigation-trigger-button";
 import AdminNavigationDrawer from "./admin-navigation-drawer";
-import { syncMessageCenterNotices } from "../utils/message-center-notice-sync";
-import { getAdminNavigationGroup, getAdminNavigationGroupLabel } from "./admin-navigation-model";
+import {syncMessageCenterNotices} from "../utils/message-center-notice-sync";
+import {getAdminNavigationGroup, getAdminNavigationGroupLabel} from "./admin-navigation-model";
 import {
     getMessageCenterStatus,
     MessageCenterStatus,
     subscribeMessageCenterStatus,
 } from "../utils/message-center-status";
 
-const { Header, Content, Sider } = Layout;
-const { Text } = Typography;
+const {Header, Content, Sider} = Layout;
+const {Text} = Typography;
 const MESSAGE_CENTER_REFRESH_INTERVAL = 30 * 1000;
 
 type AdminManageLayoutProps = PropsWithChildren & {
@@ -45,15 +45,15 @@ type AdminManageLayoutProps = PropsWithChildren & {
 };
 
 const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
-    offline,
-    children,
-    loading,
-    fullScreen,
-    basicUserInfo,
-    syncStaticSite,
-    systemNotification,
-    messageCenter,
-}) => {
+                                                                          offline,
+                                                                          children,
+                                                                          loading,
+                                                                          fullScreen,
+                                                                          basicUserInfo,
+                                                                          syncStaticSite,
+                                                                          systemNotification,
+                                                                          messageCenter,
+                                                                      }) => {
     const screens = useBreakpoint();
     const theme = useTheme();
     const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
@@ -97,8 +97,8 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                 setMessageCenterLoading(true);
             }
             axiosInstance
-                .get<ApiResponse<MessageCenterNotice[]>>("/api/admin/message-center", { showError: false } as any)
-                .then(({ data }) => {
+                .get<ApiResponse<MessageCenterNotice[]>>("/api/admin/message-center", {showError: false} as any)
+                .then(({data}) => {
                     if (requestSeq === messageCenterRequestSeqRef.current) {
                         syncMessageCenterNotices(data.data || []);
                         messageCenterSyncAtRef.current = Date.now();
@@ -158,106 +158,106 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         const pathname = location.pathname.split(".")[0];
 
         if (pathname === "" || pathname === "/" || pathname === "/index") {
-            return { title: getRes().index.title, subtitle: getRes().common.management };
+            return {title: getRes().index.title, subtitle: getRes().common.management};
         }
         const navigationGroup = getAdminNavigationGroup(pathname);
         const navigationSubtitle = navigationGroup ? getAdminNavigationGroupLabel(navigationGroup) : undefined;
         const accountPage = getAccountPage(pathname);
-        if (accountPage) return { title: accountPage.title(getRes()), subtitle: navigationSubtitle };
+        if (accountPage) return {title: accountPage.title(getRes()), subtitle: navigationSubtitle};
         if (pathname.startsWith("/article-edit")) {
-            return { title: getRes().articleEdit.title, subtitle: navigationSubtitle };
+            return {title: getRes().articleEdit.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/article-type")) {
-            return { title: getRes().articleType.title, subtitle: navigationSubtitle };
+            return {title: getRes().articleType.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/article")) {
-            return { title: getRes().article.title, subtitle: navigationSubtitle };
+            return {title: getRes().article.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/tag")) {
-            return { title: getRes().tagManage.title, subtitle: navigationSubtitle };
+            return {title: getRes().tagManage.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/nav")) {
-            return { title: getRes().nav.title, subtitle: navigationSubtitle };
+            return {title: getRes().nav.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/link")) {
-            return { title: getRes().link.title, subtitle: navigationSubtitle };
+            return {title: getRes().link.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/comment")) {
-            return { title: getRes().comment.title, subtitle: navigationSubtitle };
+            return {title: getRes().comment.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/plugin")) {
-            return { title: getRes().plugin.title, subtitle: navigationSubtitle };
+            return {title: getRes().plugin.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/template-center")) {
-            return { title: getRes().templateCenter.title, subtitle: navigationSubtitle };
+            return {title: getRes().templateCenter.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/template-config")) {
-            return { title: getRes().templateConfig.title, subtitle: navigationSubtitle };
+            return {title: getRes().templateConfig.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/template")) {
-            return { title: getRes().websiteTemplate.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteTemplate.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/system/proxy")) {
-            return { title: getRes().system.proxy.title, subtitle: navigationSubtitle };
+            return {title: getRes().system.proxy.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/system/version")) {
-            return { title: getRes().system.version.title, subtitle: navigationSubtitle };
+            return {title: getRes().system.version.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/system/upgrade")) {
-            return { title: getRes().websiteUpgrade.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteUpgrade.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/system")) {
-            return { title: getRes().system.title, subtitle: navigationSubtitle };
+            return {title: getRes().system.title, subtitle: navigationSubtitle};
         }
         if (pathname === "/dev" || pathname === "/dev.html") {
-            return { title: getRes().dev.title, subtitle: navigationSubtitle };
+            return {title: getRes().dev.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/template")) {
-            return { title: getRes().websiteTemplate.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteTemplate.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/version")) {
-            return { title: getRes().system.version.title, subtitle: navigationSubtitle };
+            return {title: getRes().system.version.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/upgrade")) {
-            return { title: getRes().upgrade.wizard, subtitle: navigationSubtitle };
+            return {title: getRes().upgrade.wizard, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/upgrade")) {
-            return { title: getRes().websiteUpgrade.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteUpgrade.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/ai")) {
-            return { title: getRes().websiteAi.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteAi.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/webhook")) {
-            return { title: getRes().websiteWebhook.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteWebhook.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/article-edit")) {
-            return { title: getRes().websiteArticleEdit.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteArticleEdit.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/content-protector")) {
-            return { title: getRes().websiteContentProtector.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteContentProtector.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/lab")) {
-            return { title: getRes().websiteLab.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteLab.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/privacy")) {
-            return { title: getRes().websitePrivacy.title, subtitle: navigationSubtitle };
+            return {title: getRes().websitePrivacy.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/other")) {
-            return { title: getRes().websiteOther.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteOther.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/blog")) {
-            return { title: getRes().websiteBlog.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteBlog.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website/admin")) {
-            return { title: getRes().websiteAdmin.title, subtitle: navigationSubtitle };
+            return {title: getRes().websiteAdmin.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/file-manager")) {
-            return { title: getRes().fileManager.title, subtitle: navigationSubtitle };
+            return {title: getRes().fileManager.title, subtitle: navigationSubtitle};
         }
         if (pathname.startsWith("/website")) {
-            return { title: getRes().website.title, subtitle: navigationSubtitle };
+            return {title: getRes().website.title, subtitle: navigationSubtitle};
         }
-        return { title: getRes().common.management, subtitle: getRes().websiteTitle };
+        return {title: getRes().common.management, subtitle: getRes().websiteTitle};
     };
 
     const headerMeta = getHeaderMeta();
@@ -274,7 +274,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                 rel="noopener noreferrer"
             >
                 <span className="sidebar-brand-mark">
-                    <HomeIcon />
+                    <HomeIcon/>
                 </span>
                 {showLabel && (
                     <span className="sidebar-brand-copy">
@@ -287,7 +287,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
 
     const getMainButton = () => {
         return (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", minWidth: 0 }}>
+            <div style={{display: "flex", alignItems: "center", justifyContent: "flex-start", minWidth: 0}}>
                 <NavigationTriggerButton
                     active={drawerOpen}
                     dark={getAppState().dark}
@@ -381,8 +381,8 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                     }}
                 >
                     {getMainButton()}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                        <SpotlightSearch compact />
+                    <div style={{display: "flex", alignItems: "center", gap: 12, minWidth: 0}}>
+                        <SpotlightSearch compact/>
                         {hasAction("dashboard.read") && (
                             <MessageCenter
                                 compact
@@ -409,7 +409,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                                 {getRes().offline.short}
                             </Tag>
                         )}
-                        <UserInfo offline={offline} data={basicUserInfo} />
+                        <UserInfo offline={offline} data={basicUserInfo}/>
                     </div>
                 </Header>
 
@@ -436,7 +436,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                         >
                             <div className="sidebar-shell">
                                 {getSidebarBrand(false)}
-                                <SliderMenu expanded={false} />
+                                <SliderMenu expanded={false}/>
                             </div>
                         </Sider>
                     )}
@@ -451,7 +451,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                             transition: "margin-left 0.2s cubic-bezier(0.2, 0, 0, 1)",
                         }}
                     >
-                        <Layout style={{ minHeight: getMainHeight(), overflow: fullScreen ? "hidden" : "auto" }}>
+                        <Layout style={{minHeight: getMainHeight(), overflow: fullScreen ? "hidden" : "auto"}}>
                             <Content
                                 style={
                                     {
@@ -463,7 +463,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                                     } as CSSProperties
                                 }
                             >
-                                {loading && <MyLoadingComponent mode="delayed" />}
+                                {loading && <MyLoadingComponent mode="delayed"/>}
                                 {children}
                             </Content>
                         </Layout>
@@ -477,15 +477,15 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                     brand={getSidebarBrand(true, "sidebar-brand-drawer")}
                     onClose={closeDrawer}
                 >
-                    <SliderMenu expanded={true} />
+                    <SliderMenu expanded={true}/>
                 </AdminNavigationDrawer>
 
                 {(syncStaticSite || !mobileMode) && (
                     <FloatButton.Group>
                         {syncStaticSite && (
-                            <StaticSite data={{ synced: false }} offlineData={false} offline={offline} />
+                            <StaticSite data={{synced: false}} offlineData={false} offline={offline}/>
                         )}
-                        {!mobileMode && <FloatButton.BackTop />}
+                        {!mobileMode && <FloatButton.BackTop/>}
                     </FloatButton.Group>
                 )}
             </StyledIndexLayout>

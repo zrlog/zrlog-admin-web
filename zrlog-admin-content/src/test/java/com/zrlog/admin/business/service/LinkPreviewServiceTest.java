@@ -1,17 +1,12 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-
 import org.junit.Test;
 
+import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -25,9 +20,81 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.net.ssl.SSLSession;
+import static org.junit.Assert.*;
 
 public class LinkPreviewServiceTest {
+
+    private static LinkPreviewService hostAllowedService(LinkPreviewService.HttpSender sender, DataSourceWrapper testDataSource) {
+        return new LinkPreviewService(sender, ApplicationServicesFixture.websiteCache(testDataSource)) {
+            @Override
+            boolean isSafeHost(String host) {
+                return true;
+            }
+        };
+    }
+
+    private static HttpResponse<java.io.InputStream> htmlResponse(URI uri, String html) {
+        return response(uri, 200, Map.of("content-type", List.of("text/html; charset=utf-8")), html);
+    }
+
+    private static HttpResponse<java.io.InputStream> response(URI uri, int statusCode,
+                                                              Map<String, List<String>> headers, String body) {
+        return new HttpResponse<>() {
+            @Override
+            public int statusCode() {
+                return statusCode;
+            }
+
+            @Override
+            public HttpRequest request() {
+                return HttpRequest.newBuilder(uri).build();
+            }
+
+            @Override
+            public Optional<HttpResponse<java.io.InputStream>> previousResponse() {
+                return Optional.empty();
+            }
+
+            @Override
+            public HttpHeaders headers() {
+                return HttpHeaders.of(headers, (name, value) -> true);
+            }
+
+            @Override
+            public java.io.InputStream body() {
+                return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+            }
+
+            @Override
+            public Optional<SSLSession> sslSession() {
+                return Optional.empty();
+            }
+
+            @Override
+            public URI uri() {
+                return uri;
+            }
+
+            @Override
+            public HttpClient.Version version() {
+                return HttpClient.Version.HTTP_1_1;
+            }
+        };
+    }
+
+    private static byte[] ipv4(int a, int b, int c, int d) {
+        return new byte[]{(byte) a, (byte) b, (byte) c, (byte) d};
+    }
+
+    private static byte[] ipv6(int a, int b, int c, int d, int e, int f, int g, int h) {
+        byte[] bytes = new byte[16];
+        int[] groups = {a, b, c, d, e, f, g, h};
+        for (int i = 0; i < groups.length; i++) {
+            bytes[i * 2] = (byte) ((groups[i] >> 8) & 0xff);
+            bytes[i * 2 + 1] = (byte) (groups[i] & 0xff);
+        }
+        return bytes;
+    }
 
     @Test
     public void shouldNormalizeOnlyHttpAndHttpsUrlsWithoutUserInfo() throws Exception {
@@ -343,77 +410,5 @@ public class LinkPreviewServiceTest {
         assertEquals(response, entry.getResponse());
         assertEquals(11L, entry.getExpiresAt());
         assertEquals(7L, entry.getAccessedAt());
-    }
-
-    private static LinkPreviewService hostAllowedService(LinkPreviewService.HttpSender sender, DataSourceWrapper testDataSource) {
-        return new LinkPreviewService(sender, ApplicationServicesFixture.websiteCache(testDataSource)) {
-            @Override
-            boolean isSafeHost(String host) {
-                return true;
-            }
-        };
-    }
-
-    private static HttpResponse<java.io.InputStream> htmlResponse(URI uri, String html) {
-        return response(uri, 200, Map.of("content-type", List.of("text/html; charset=utf-8")), html);
-    }
-
-    private static HttpResponse<java.io.InputStream> response(URI uri, int statusCode,
-                                                             Map<String, List<String>> headers, String body) {
-        return new HttpResponse<>() {
-            @Override
-            public int statusCode() {
-                return statusCode;
-            }
-
-            @Override
-            public HttpRequest request() {
-                return HttpRequest.newBuilder(uri).build();
-            }
-
-            @Override
-            public Optional<HttpResponse<java.io.InputStream>> previousResponse() {
-                return Optional.empty();
-            }
-
-            @Override
-            public HttpHeaders headers() {
-                return HttpHeaders.of(headers, (name, value) -> true);
-            }
-
-            @Override
-            public java.io.InputStream body() {
-                return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-            }
-
-            @Override
-            public Optional<SSLSession> sslSession() {
-                return Optional.empty();
-            }
-
-            @Override
-            public URI uri() {
-                return uri;
-            }
-
-            @Override
-            public HttpClient.Version version() {
-                return HttpClient.Version.HTTP_1_1;
-            }
-        };
-    }
-
-    private static byte[] ipv4(int a, int b, int c, int d) {
-        return new byte[]{(byte) a, (byte) b, (byte) c, (byte) d};
-    }
-
-    private static byte[] ipv6(int a, int b, int c, int d, int e, int f, int g, int h) {
-        byte[] bytes = new byte[16];
-        int[] groups = {a, b, c, d, e, f, g, h};
-        for (int i = 0; i < groups.length; i++) {
-            bytes[i * 2] = (byte) ((groups[i] >> 8) & 0xff);
-            bytes[i * 2 + 1] = (byte) (groups[i] & 0xff);
-        }
-        return bytes;
     }
 }

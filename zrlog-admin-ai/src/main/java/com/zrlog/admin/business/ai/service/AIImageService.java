@@ -4,28 +4,30 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
-import com.zrlog.admin.business.ai.exception.*;
+import com.zrlog.admin.business.ai.exception.AIImageDownloadException;
+import com.zrlog.admin.business.ai.exception.AIRequestException;
+import com.zrlog.admin.business.ai.exception.AIResponseException;
+import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
 import com.zrlog.admin.business.ai.model.AIModelCapability;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.ai.prompt.AIPromptVO;
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.request.ApplyArticleCoverRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
-import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.common.exception.ArgsException;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -89,7 +91,8 @@ public class AIImageService extends AIService {
         checkImageConfig(info);
         String coverAspectRatio = this.userPreferenceService.effective(actor).editor.coverAspectRatio;
         String prompt = buildArticleCoverPrompt(generateRequest, coverAspectRatio);
-        if (instruction != null && !instruction.isBlank()) prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
+        if (instruction != null && !instruction.isBlank())
+            prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
         ImageResult imageResult = requestImageByAspectRatio(info, prompt, coverAspectRatio);
 
         authorize(actor);
@@ -112,7 +115,7 @@ public class AIImageService extends AIService {
         String source = applyRequest.getDataUrl();
         if (source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP) && !actor.isAdministrator()
                 && (!source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/")
-                    || source.contains("..") || source.contains("%") || source.contains("\\")))
+                || source.contains("..") || source.contains("%") || source.contains("\\")))
             throw new PermissionErrorException();
         UploadFileResponse uploadFileResponse;
         if (applyRequest.getDataUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)

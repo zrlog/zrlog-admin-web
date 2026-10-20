@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import {createRequire} from "node:module";
+import {fileURLToPath} from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(root, "zrlog-admin-web-ui/src/main/frontend/package.json"));
@@ -21,13 +21,15 @@ for (const statement of source.statements) {
     }
 }
 if (locales.size !== 2) throw new Error("Both Chinese and English descriptions are required");
+
 function* javaFiles(directory) {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
         const file = path.join(directory, entry.name);
         if (entry.isDirectory()) yield* javaFiles(file);
         else if (entry.name.endsWith(".java")) yield file;
     }
 }
+
 const keys = new Set();
 let methods = 0;
 const controllers = fs.readdirSync(root).filter(name => name.startsWith("zrlog-admin-"))

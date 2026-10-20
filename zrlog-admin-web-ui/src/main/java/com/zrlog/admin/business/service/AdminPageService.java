@@ -9,22 +9,20 @@ import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.common.CacheService;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.PublicWebSiteInfo;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -144,7 +142,7 @@ public class AdminPageService {
     }
 
     public ServerSideDataResponse<Object> serverSide(AccountAccess actor, String sessionId, String uri,
-                                                      HttpRequest request, Object data, String documentTitle) throws SQLException {
+                                                     HttpRequest request, Object data, String documentTitle) throws SQLException {
         AdminResourceInfoResponse resourceInfo = resources.adminResourceInfo(request);
         if (actor == null || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             return new ServerSideDataResponse<>(null, resourceInfo, null, null,

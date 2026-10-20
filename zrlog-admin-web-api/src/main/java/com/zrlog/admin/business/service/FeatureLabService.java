@@ -1,12 +1,9 @@
 package com.zrlog.admin.business.service;
 
-import static com.zrlog.admin.business.service.WebSiteService.*;
-
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.model.WebSite;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -15,7 +12,11 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
-/** Assembles the feature settings page across modules. */
+import static com.zrlog.admin.business.service.WebSiteService.*;
+
+/**
+ * Assembles the feature settings page across modules.
+ */
 @Singleton
 public class FeatureLabService {
     private final WebhookService webhookService;
@@ -50,7 +51,7 @@ public class FeatureLabService {
         featureLab.setFeature_webhook_enabled(
                 accessAvailable.getAsBoolean()
                         && Boolean.TRUE.equals(
-                                this.webhookService.getConfigResponse().getEnabled()));
+                        this.webhookService.getConfigResponse().getEnabled()));
         featureLab.doValid();
         return featureLab;
     }

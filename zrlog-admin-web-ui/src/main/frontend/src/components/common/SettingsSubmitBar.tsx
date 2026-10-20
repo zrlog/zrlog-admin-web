@@ -1,7 +1,7 @@
-import { Button, Space, theme as antdTheme } from "antd";
-import { ReactNode } from "react";
-import { getRes } from "../../utils/constants";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {Button, Space, theme as antdTheme} from "antd";
+import {ReactNode} from "react";
+import {getRes} from "../../utils/constants";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 
 type SettingsSubmitBarProps = {
     disabled?: boolean;
@@ -11,9 +11,9 @@ type SettingsSubmitBarProps = {
     children?: ReactNode;
 };
 
-const SettingsSubmitBar = ({ disabled, loading, label, actions, children }: SettingsSubmitBarProps) => {
-    const { token: theme } = antdTheme.useToken();
-    const { narrow } = useResponsiveFormLayout();
+const SettingsSubmitBar = ({disabled, loading, label, actions, children}: SettingsSubmitBarProps) => {
+    const {token: theme} = antdTheme.useToken();
+    const {narrow} = useResponsiveFormLayout();
     const spacing = narrow ? theme.paddingSM : theme.padding;
     return (
         <div

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "@jest/globals";
-import { createDraftAiSaveGate } from "./draft-ai-save-gate";
+import {describe, expect, it} from "@jest/globals";
+import {createDraftAiSaveGate} from "./draft-ai-save-gate";
 
 describe("draft AI/save gate", () => {
     it("tracks overlapping draft AI requests and releases each request exactly once", () => {

@@ -4,14 +4,15 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.User;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 
-/** Revalidates explicit credentials against the application's current account state. */
+/**
+ * Revalidates explicit credentials against the application's current account state.
+ */
 @Singleton
 public final class AccountIdentityService {
     private final Provider<User> users;
@@ -34,7 +35,9 @@ public final class AccountIdentityService {
         }
     }
 
-    /** Recheck a short-lived actor without discarding its immutable delegation restrictions. */
+    /**
+     * Recheck a short-lived actor without discarding its immutable delegation restrictions.
+     */
     public AccountAccess revalidate(AccountAccess actor) {
         try {
             if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();

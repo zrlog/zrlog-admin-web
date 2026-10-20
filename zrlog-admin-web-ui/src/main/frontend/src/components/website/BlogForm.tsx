@@ -3,25 +3,25 @@ import Input from "@zrlog/ui/antd/Input";
 import Form from "antd/es/form";
 
 
-import { getRes } from "../../utils/constants";
-import { useEffect, useState } from "react";
-import { Blog } from "./index";
+import {getRes} from "../../utils/constants";
+import {useEffect, useState} from "react";
+import {Blog} from "./index";
 import TextArea from "antd/es/input/TextArea";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 const BlogForm = ({
-    data,
-    offlineData,
-    offline,
-    onSubmit,
-    loading,
-}: {
+                      data,
+                      offlineData,
+                      offline,
+                      onSubmit,
+                      loading,
+                  }: {
     data: Blog;
     offlineData: boolean;
     offline?: boolean;
@@ -30,7 +30,7 @@ const BlogForm = ({
 }) => {
     const [state, setState] = useState<Blog>(data);
     const [form] = Form.useForm();
-    const { formLayout } = useResponsiveFormLayout(layout);
+    const {formLayout} = useResponsiveFormLayout(layout);
 
     useEffect(() => {
         setState(data);
@@ -43,11 +43,11 @@ const BlogForm = ({
             {...formLayout}
             initialValues={data}
             disabled={offline || offlineData}
-            onValuesChange={(_k, v) => setState({ ...state, ...v })}
-            onFinish={(nv) => onSubmit({ ...state, ...nv })}
+            onValuesChange={(_k, v) => setState({...state, ...v})}
+            onFinish={(nv) => onSubmit({...state, ...nv})}
         >
             <Form.Item name="host" label={getRes().websiteBlog.host} tooltip={getRes().websiteBlog.hostTip}>
-                <Input style={{ maxWidth: 300 }} placeholder="" />
+                <Input style={{maxWidth: 300}} placeholder=""/>
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
@@ -55,7 +55,7 @@ const BlogForm = ({
                 label={getRes().websiteBlog.staticPages}
                 tooltip={getRes().websiteBlog.staticPagesTip}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
@@ -63,20 +63,20 @@ const BlogForm = ({
                 label={getRes().websiteBlog.commentDisabled}
                 tooltip={getRes().websiteBlog.commentDisabledTip}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
             <Form.Item valuePropName="checked" name="article_thumbnail_status" label={getRes().websiteBlog.cover}>
-                <Switch />
+                <Switch/>
             </Form.Item>
             <Form.Item
                 name="system_notification"
                 label={getRes().websiteBlog.systemNotify}
                 tooltip={getRes().websiteBlog.systemNotifyTip}
             >
-                <TextArea />
+                <TextArea/>
             </Form.Item>
 
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
         </Form>
     );
 };

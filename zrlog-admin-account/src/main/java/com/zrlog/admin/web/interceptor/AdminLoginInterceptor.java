@@ -12,16 +12,14 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdminLoginInterceptor implements HandleAbleInterceptor {
-    protected final Supplier<TokenService> tokenService;
-
-    public AdminLoginInterceptor(Supplier<TokenService> tokenService) {
-        this.tokenService = Objects.requireNonNull(tokenService);
-    }
-
     private static final String PASSKEY_AUTHENTICATION_OPTIONS =
             "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options";
     private static final String PASSKEY_AUTHENTICATION_VERIFY =
             "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/verify";
+    protected final Supplier<TokenService> tokenService;
+    public AdminLoginInterceptor(Supplier<TokenService> tokenService) {
+        this.tokenService = Objects.requireNonNull(tokenService);
+    }
 
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {

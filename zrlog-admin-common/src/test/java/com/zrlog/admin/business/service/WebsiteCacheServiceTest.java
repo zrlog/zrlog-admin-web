@@ -1,16 +1,10 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.reflect.TypeToken;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.business.service.WebsiteKvService;
-
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -19,7 +13,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class WebsiteCacheServiceTest {
+
+    private static WebsiteCacheService service(FakeWebsiteKvService kvService, DataSourceWrapper testDataSource) throws Exception {
+        WebsiteCacheService service =
+                new WebsiteCacheService(ApplicationServicesFixture.websiteKv(testDataSource));
+        Field field = WebsiteCacheService.class.getDeclaredField("kvService");
+        field.setAccessible(true);
+        field.set(service, kvService);
+        return service;
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -70,26 +75,18 @@ public class WebsiteCacheServiceTest {
         assertEquals(4L, entries.get(1).getSize());
     }
 
-    private static WebsiteCacheService service(FakeWebsiteKvService kvService, DataSourceWrapper testDataSource) throws Exception {
-        WebsiteCacheService service =
-                new WebsiteCacheService(ApplicationServicesFixture.websiteKv(testDataSource));
-        Field field = WebsiteCacheService.class.getDeclaredField("kvService");
-        field.setAccessible(true);
-        field.set(service, kvService);
-        return service;
-    }
-
     private static class FakeWebsiteKvService extends WebsiteKvService {
-        FakeWebsiteKvService() {
-            super(() -> { throw new AssertionError("Unexpected database access"); });
-        }
-
         private final Map<String, String> values = new HashMap<>();
         private List<Map<String, Object>> rows = List.of();
         private String lastGetKey;
         private String lastPutKey;
         private String lastRemoveKey;
         private String lastListPrefix;
+        FakeWebsiteKvService() {
+            super(() -> {
+                throw new AssertionError("Unexpected database access");
+            });
+        }
 
         @Override
         public String getString(String key) {

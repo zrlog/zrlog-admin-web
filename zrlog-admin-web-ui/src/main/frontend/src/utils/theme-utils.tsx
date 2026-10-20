@@ -1,5 +1,5 @@
-import { useUiTheme } from "@zrlog/ui";
-import type { AppState } from "../type";
+import {useUiTheme} from "@zrlog/ui";
+import type {AppState} from "../type";
 
 // Translate the admin state at the host boundary; theme definitions live in @zrlog/ui.
 export const useThemeConfig = (appState: AppState) =>

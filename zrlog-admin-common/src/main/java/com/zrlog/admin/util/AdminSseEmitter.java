@@ -39,7 +39,8 @@ public class AdminSseEmitter {
         com.zrlog.common.vo.AdminTokenVO actor = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
         AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
         java.util.concurrent.Callable<Void> streamWriter = com.zrlog.admin.business.security.DelegatedAccess.capture(() -> {
-            writer.write(emitter); return null;
+            writer.write(emitter);
+            return null;
         });
         Thread streamThread = new Thread(() -> {
             try {

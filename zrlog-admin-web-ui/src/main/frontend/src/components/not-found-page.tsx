@@ -1,7 +1,7 @@
 import Result from "@zrlog/ui/antd/Result";
 import Button from "antd/es/button";
-import { useNavigate } from "react-router-dom";
-import { getRes } from "../utils/constants";
+import {useNavigate} from "react-router-dom";
+import {getRes} from "../utils/constants";
 
 const NotFoundPage = () => {
     const navigate = useNavigate();

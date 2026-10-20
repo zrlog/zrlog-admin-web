@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
-import { ArticleChangeableValue, ArticleEntry } from "./index.types";
+import {useRef, useState} from "react";
+import {ArticleChangeableValue, ArticleEntry} from "./index.types";
 
-import { canApplySkillValues, createSkillApplicationSession } from "./article-ai-assistant/article-ai-skill-contract";
-import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
+import {canApplySkillValues, createSkillApplicationSession} from "./article-ai-assistant/article-ai-skill-contract";
+import {ToolAwareAIContent} from "./article-ai-assistant/article-ai-assistant.types";
 
 export type SkillContextRevision = (message: ToolAwareAIContent) => string;
 export type ApplyAiValues = (cv: ArticleChangeableValue, source?: ToolAwareAIContent) => void;
@@ -13,7 +13,7 @@ type ArticleFieldAiOptions = {
     onApplied?: () => void;
 };
 
-const useArticleFieldAi = ({ getCurrentArticle, onValuesChange, onApplied }: ArticleFieldAiOptions) => {
+const useArticleFieldAi = ({getCurrentArticle, onValuesChange, onApplied}: ArticleFieldAiOptions) => {
     const application = useRef(createSkillApplicationSession());
     const getSkillContextRevision: SkillContextRevision = (source) =>
         application.current.getRevision(source, getCurrentArticle());
@@ -22,10 +22,10 @@ const useArticleFieldAi = ({ getCurrentArticle, onValuesChange, onApplied }: Art
 
     const applyGeneratedValues: ApplyAiValues = (cv, source) => {
         if (source && !canApplySkillValues(source, getSkillContextRevision(source), cv)) return;
-        const values = "markdown" in cv && cv.markdown !== undefined ? { ...cv, content: "" } : cv;
+        const values = "markdown" in cv && cv.markdown !== undefined ? {...cv, content: ""} : cv;
         // Applying a suggestion starts a draft, including when editing a published article.
         // Persist that intent with the edit so automatic saves and reloads cannot publish it.
-        const change = onValuesChange({ ...values, rubbish: true });
+        const change = onValuesChange({...values, rubbish: true});
         if (!change) return;
         application.current.record(source, change.article);
         if ("title" in cv && cv.title !== undefined) {

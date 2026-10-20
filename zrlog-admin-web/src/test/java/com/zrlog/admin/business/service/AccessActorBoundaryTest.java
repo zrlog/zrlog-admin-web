@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.GrantAuthority;
@@ -14,7 +12,6 @@ import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -24,13 +21,73 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Exercises the application's generated access graph with explicit identities and sessions. */
+import static org.junit.Assert.*;
+
+/**
+ * Exercises the application's generated access graph with explicit identities and sessions.
+ */
 @RunWith(Parameterized.class)
 public class AccessActorBoundaryTest {
-    @Parameterized.Parameters(name = "database={0}")
-    public static String[] databases() { return new String[]{"h2", "sqlite", "webapi"}; }
+    private static final String VERIFIER = "v".repeat(43);
     private final String backend;
-    public AccessActorBoundaryTest(String backend) { this.backend = backend; }
+
+    public AccessActorBoundaryTest(String backend) {
+        this.backend = backend;
+    }
+
+    @Parameterized.Parameters(name = "database={0}")
+    public static String[] databases() {
+        return new String[]{"h2", "sqlite", "webapi"};
+    }
+
+    static AccountAccess actor(InMemoryZrLogDatabase db, int userId) {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(userId);
+        return db.component(AccountComponent.class).identities().account(token);
+    }
+
+    static Client client() {
+        Client client = new Client();
+        client.name = "Explicit access test";
+        client.redirectUris = List.of("http://127.0.0.1:3000/callback");
+        return client;
+    }
+
+    static AuthorizationRequest request(OAuthService oauth, Client client, String scopes) {
+        var request = new AuthorizationRequest();
+        request.client_id = client.clientId;
+        request.redirect_uri = client.redirectUris.get(0);
+        request.response_type = "code";
+        request.scope = scopes;
+        request.resource = oauth.adminResource();
+        request.code_challenge_method = "S256";
+        request.code_challenge = OAuthService.hash(VERIFIER);
+        return request;
+    }
+
+    static Decision decision(Consent consent) {
+        var decision = new Decision();
+        decision.requestId = consent.requestId;
+        decision.csrf = consent.csrf;
+        decision.scopes = List.of("article.read");
+        decision.approve = true;
+        return decision;
+    }
+
+    private static TokenResponse exchange(OAuthService oauth, AuthorizationRequest request, Redirect redirect) throws Exception {
+        var exchange = new TokenRequest();
+        exchange.grant_type = "authorization_code";
+        exchange.client_id = request.client_id;
+        exchange.redirect_uri = request.redirect_uri;
+        exchange.resource = request.resource;
+        exchange.code_verifier = VERIFIER;
+        exchange.code = parameters(redirect.redirectUri).get("code");
+        return oauth.token(exchange);
+    }
+
+    static Map<String, String> parameters(String uri) {
+        return OAuthInterceptor.parameters(URI.create(uri).getRawQuery());
+    }
 
     @Test
     public void explicitAccountOwnsClientsConsentsAndGrantsWithoutThreadIdentity() throws Exception {
@@ -187,56 +244,5 @@ public class AccessActorBoundaryTest {
             db.close();
             throw error;
         }
-    }
-
-    static AccountAccess actor(InMemoryZrLogDatabase db, int userId) {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(userId);
-        return db.component(AccountComponent.class).identities().account(token);
-    }
-
-    static Client client() {
-        Client client = new Client();
-        client.name = "Explicit access test";
-        client.redirectUris = List.of("http://127.0.0.1:3000/callback");
-        return client;
-    }
-
-    private static final String VERIFIER = "v".repeat(43);
-
-    static AuthorizationRequest request(OAuthService oauth, Client client, String scopes) {
-        var request = new AuthorizationRequest();
-        request.client_id = client.clientId;
-        request.redirect_uri = client.redirectUris.get(0);
-        request.response_type = "code";
-        request.scope = scopes;
-        request.resource = oauth.adminResource();
-        request.code_challenge_method = "S256";
-        request.code_challenge = OAuthService.hash(VERIFIER);
-        return request;
-    }
-
-    static Decision decision(Consent consent) {
-        var decision = new Decision();
-        decision.requestId = consent.requestId;
-        decision.csrf = consent.csrf;
-        decision.scopes = List.of("article.read");
-        decision.approve = true;
-        return decision;
-    }
-
-    private static TokenResponse exchange(OAuthService oauth, AuthorizationRequest request, Redirect redirect) throws Exception {
-        var exchange = new TokenRequest();
-        exchange.grant_type = "authorization_code";
-        exchange.client_id = request.client_id;
-        exchange.redirect_uri = request.redirect_uri;
-        exchange.resource = request.resource;
-        exchange.code_verifier = VERIFIER;
-        exchange.code = parameters(redirect.redirectUri).get("code");
-        return oauth.token(exchange);
-    }
-
-    static Map<String, String> parameters(String uri) {
-        return OAuthInterceptor.parameters(URI.create(uri).getRawQuery());
     }
 }

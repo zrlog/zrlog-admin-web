@@ -17,10 +17,8 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataBindingsModule;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.updater.spi.DockerControl;
-
 import dagger.BindsInstance;
 import dagger.Component;
-
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -30,10 +28,10 @@ import java.util.function.Supplier;
 @Singleton
 @Component(
         modules = {
-            DataBindingsModule.class,
-            ServiceBindingsModule.class,
-            AccountBindingsModule.class,
-            AdminModule.class
+                DataBindingsModule.class,
+                ServiceBindingsModule.class,
+                AccountBindingsModule.class,
+                AdminModule.class
         })
 public interface AdminComponent {
     AdminDevController adminDevController();

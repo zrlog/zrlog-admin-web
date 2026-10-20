@@ -1,14 +1,14 @@
-import { isFeaturePathEnabled } from "../utils/module-capabilities";
-import { actionForPath, hasAction } from "../utils/account-access";
-import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { getRealRouteUrl, getRes } from "../utils/constants";
-import { Menu, MenuProps, Modal } from "antd";
-import { parseQueryParamsToMap, tryBlock } from "../utils/helpers";
-import { getAppState } from "../base/ConfigProviderApp";
-import { AdminDashboardRouteIconKey, renderAdminDashboardRouteIcon } from "../components/admin-dashboard-routes";
-import { getSettingsEntryPath } from "../utils/settings-navigation";
-import { getAdminNavigationGroup } from "./admin-navigation-model";
+import {isFeaturePathEnabled} from "../utils/module-capabilities";
+import {actionForPath, hasAction} from "../utils/account-access";
+import {ReactNode} from "react";
+import {Link, useLocation} from "react-router-dom";
+import {getRealRouteUrl, getRes} from "../utils/constants";
+import {Menu, MenuProps, Modal} from "antd";
+import {parseQueryParamsToMap, tryBlock} from "../utils/helpers";
+import {getAppState} from "../base/ConfigProviderApp";
+import {AdminDashboardRouteIconKey, renderAdminDashboardRouteIcon} from "../components/admin-dashboard-routes";
+import {getSettingsEntryPath} from "../utils/settings-navigation";
+import {getAdminNavigationGroup} from "./admin-navigation-model";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -48,7 +48,7 @@ export function colorToRgba(color: string, alpha: number) {
     }
 }
 
-const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
+const SliderMenu = ({expanded = false}: SliderMenuProps) => {
     const location = useLocation();
     const [modal, contextHolder] = Modal.useModal();
 
@@ -301,7 +301,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             if (!item) return [];
             if ("children" in item && item.children) {
                 const children = filterItems(item.children);
-                return children.length ? [{ ...item, children } as MenuItem] : [];
+                return children.length ? [{...item, children} as MenuItem] : [];
             }
             if (item.type === "divider") return [item];
             if (item.key === "/website") return getSettingsEntryPath() ? [item] : [];

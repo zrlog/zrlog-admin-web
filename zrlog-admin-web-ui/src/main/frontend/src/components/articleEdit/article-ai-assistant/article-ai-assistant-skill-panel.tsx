@@ -1,6 +1,6 @@
-import { FunctionComponent } from "react";
-import { Button, Empty, List, Space, Typography } from "antd";
-import { AssistantTool, AssistantToolButton, AssistantToolGroup } from "./article-ai-assistant.types";
+import {FunctionComponent} from "react";
+import {Button, Empty, List, Space, Typography} from "antd";
+import {AssistantTool, AssistantToolButton, AssistantToolGroup} from "./article-ai-assistant.types";
 
 type SkillPanelProps = {
     emptyDescription: string;
@@ -12,15 +12,15 @@ type SkillPanelProps = {
 };
 
 const ArticleAiAssistantSkillPanel: FunctionComponent<SkillPanelProps> = ({
-    emptyDescription,
-    groups,
-    tools,
-    selectedTool,
-    theme,
-    onSelect,
-}) => {
+                                                                              emptyDescription,
+                                                                              groups,
+                                                                              tools,
+                                                                              selectedTool,
+                                                                              theme,
+                                                                              onSelect,
+                                                                          }) => {
     if (tools.length === 0) {
-        return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} />;
+        return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription}/>;
     }
     return (
         <div
@@ -36,7 +36,7 @@ const ArticleAiAssistantSkillPanel: FunctionComponent<SkillPanelProps> = ({
                     return null;
                 }
                 return (
-                    <div key={group.key} style={{ marginBottom: 6 }}>
+                    <div key={group.key} style={{marginBottom: 6}}>
                         <Typography.Text
                             type="secondary"
                             style={{
@@ -55,7 +55,7 @@ const ArticleAiAssistantSkillPanel: FunctionComponent<SkillPanelProps> = ({
                             renderItem={(tool) => {
                                 const active = selectedTool === tool.key;
                                 return (
-                                    <List.Item key={tool.key} style={{ padding: 0 }}>
+                                    <List.Item key={tool.key} style={{padding: 0}}>
                                         <Button
                                             type="text"
                                             block
@@ -87,7 +87,7 @@ const ArticleAiAssistantSkillPanel: FunctionComponent<SkillPanelProps> = ({
                                                     minWidth: 0,
                                                 }}
                                             >
-                                                <Typography.Text ellipsis style={{ fontSize: 13 }}>
+                                                <Typography.Text ellipsis style={{fontSize: 13}}>
                                                     {tool.label}
                                                 </Typography.Text>
                                                 <Typography.Text

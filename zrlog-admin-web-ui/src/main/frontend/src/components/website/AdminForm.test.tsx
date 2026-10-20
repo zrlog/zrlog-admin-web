@@ -1,9 +1,9 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Simulate } from "react-dom/test-utils";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Simulate} from "react-dom/test-utils";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import AdminForm from "./AdminForm";
-import { Admin } from "./index";
+import {Admin} from "./index";
 
 jest.mock("antd/es/form", () => require("antd/lib/form"));
 jest.mock("antd/es/input", () => require("antd/lib/input"));
@@ -13,11 +13,11 @@ jest.mock("antd/es/button", () => require("antd/lib/button"));
 jest.mock("antd/es/locale/zh_CN", () => require("antd/lib/locale/zh_CN"));
 jest.mock("antd/es/locale/en_US", () => require("antd/lib/locale/en_US"));
 
-jest.mock("antd-style", () => ({ useTheme: () => require("antd").theme.useToken().token }));
+jest.mock("antd-style", () => ({useTheme: () => require("antd").theme.useToken().token}));
 
 const mockChangeAppState = jest.fn();
 jest.mock("../../base/ConfigProviderApp", () => ({
-    getAppState: () => ({ theme: "geek", dark: true, compactMode: true, colorPrimary: "#39ff14", lang: "en_US" }),
+    getAppState: () => ({theme: "geek", dark: true, compactMode: true, colorPrimary: "#39ff14", lang: "en_US"}),
     changeAppState: (...args: any[]) => mockChangeAppState(...args),
 }));
 jest.mock("../../base/AppInit", () => ({
@@ -47,8 +47,8 @@ describe("site admin defaults", () => {
     beforeEach(() => {
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         (globalThis as any).MessageChannel = class {
-            port1 = { onmessage: () => undefined };
-            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+            port1 = {onmessage: () => undefined};
+            port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
         };
         window.matchMedia = (() => ({
             matches: false,
@@ -65,7 +65,7 @@ describe("site admin defaults", () => {
             pageBuildId: "test",
             systemNotification: "",
             user: null,
-            resourceInfo: { lang: "zh_CN" },
+            resourceInfo: {lang: "zh_CN"},
         };
         submit.mockClear();
         mockChangeAppState.mockClear();
@@ -82,7 +82,7 @@ describe("site admin defaults", () => {
     });
     const render = async (data = site) => {
         await act(async () => {
-            root.render(<AdminForm data={data} offline={false} offlineData={false} onSubmit={submit} />);
+            root.render(<AdminForm data={data} offline={false} offlineData={false} onSubmit={submit}/>);
         });
     };
     it("keeps site appearance when a different personal appearance is active", async () => {
@@ -107,13 +107,13 @@ describe("site admin defaults", () => {
         await render();
         const input = container.querySelector("#session_timeout") as HTMLInputElement;
         act(() => {
-            Simulate.change(input, { target: { value: "90" } } as any);
+            Simulate.change(input, {target: {value: "90"}} as any);
         });
         await act(async () => {
             Simulate.submit(container.querySelector("form")!);
         });
         expect(submit).toHaveBeenCalledWith(
-            expect.objectContaining({ session_timeout: 90, admin_theme: "antd", admin_color_primary: "#123456" })
+            expect.objectContaining({session_timeout: 90, admin_theme: "antd", admin_color_primary: "#123456"})
         );
         expect(mockChangeAppState).not.toHaveBeenCalled();
     });
@@ -137,7 +137,7 @@ describe("site admin defaults", () => {
                 admin_color_primary: "#123456",
             })
         );
-        act(() => root.render(<div />));
+        act(() => root.render(<div/>));
         expect(mockChangeAppState).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 theme: "geek",
@@ -149,17 +149,17 @@ describe("site admin defaults", () => {
         );
     });
     it("uses the site theme to decide whether dark mode can be configured", async () => {
-        await render({ ...site, admin_theme: "geek" });
+        await render({...site, admin_theme: "geek"});
         expect(container.querySelector("#admin_darkMode")).toBeNull();
         await render(site);
         expect(container.querySelector("#admin_darkMode")).not.toBeNull();
     });
     it("loads, validates and clears the private backend service address", async () => {
-        await render({ ...site, backend_server_url: "https://gateway.example/sub" });
+        await render({...site, backend_server_url: "https://gateway.example/sub"});
         const input = container.querySelector("#backend_server_url") as HTMLInputElement;
         expect(input.value).toBe("https://gateway.example/sub");
         await act(async () => {
-            Simulate.change(input, { target: { value: "javascript:alert(1)" } } as any);
+            Simulate.change(input, {target: {value: "javascript:alert(1)"}} as any);
             Simulate.submit(container.querySelector("form")!);
         });
         await act(async () => {
@@ -168,16 +168,16 @@ describe("site admin defaults", () => {
         expect(submit).not.toHaveBeenCalled();
         expect(container.querySelector(".ant-form-item-explain-error")).not.toBeNull();
         await act(async () => {
-            Simulate.change(input, { target: { value: " https://other.example/sub/ " } } as any);
+            Simulate.change(input, {target: {value: " https://other.example/sub/ "}} as any);
             Simulate.submit(container.querySelector("form")!);
         });
         expect(submit).toHaveBeenLastCalledWith(
-            expect.objectContaining({ backend_server_url: "https://other.example/sub/" })
+            expect.objectContaining({backend_server_url: "https://other.example/sub/"})
         );
         await act(async () => {
-            Simulate.change(input, { target: { value: "" } } as any);
+            Simulate.change(input, {target: {value: ""}} as any);
             Simulate.submit(container.querySelector("form")!);
         });
-        expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({ backend_server_url: "" }));
+        expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({backend_server_url: ""}));
     });
 });

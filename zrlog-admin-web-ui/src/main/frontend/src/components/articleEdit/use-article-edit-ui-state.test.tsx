@@ -1,8 +1,8 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
-import { getCacheByKey } from "../../utils/cache";
-import { PublishStatusPopoverState } from "./index.types";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it} from "@jest/globals";
+import {getCacheByKey} from "../../utils/cache";
+import {PublishStatusPopoverState} from "./index.types";
 import useArticleEditUiState from "./use-article-edit-ui-state";
 
 type HarnessProps = {
@@ -22,7 +22,7 @@ const publishedStatus: PublishStatusPopoverState = {
 };
 const completedCheckPayload: NonNullable<PublishStatusPopoverState["checkPayload"]> = {
     tool: "publishCheck",
-    payload: { score: 92 },
+    payload: {score: 92},
 };
 
 const reactActEnvironment = globalThis as typeof globalThis & {
@@ -34,7 +34,7 @@ describe("useArticleEditUiState scope migration", () => {
     let root: Root;
     let state: ReturnType<typeof useArticleEditUiState>;
 
-    const Harness = ({ logId, search }: HarnessProps) => {
+    const Harness = ({logId, search}: HarnessProps) => {
         state = useArticleEditUiState(logId, search);
         return null;
     };
@@ -61,7 +61,7 @@ describe("useArticleEditUiState scope migration", () => {
     });
 
     it("moves the publish result to a created article and keeps later stale-callback updates in the new scope", () => {
-        render({ search: "" });
+        render({search: ""});
         const updateFromStartedPublish = state.updatePublishStatus;
         act(() => {
             updateFromStartedPublish(publishedStatus);
@@ -73,16 +73,16 @@ describe("useArticleEditUiState scope migration", () => {
         expect(state.articleAssistantOpen).toBe(true);
         expect(state.settingsOpen).toBe(true);
         expect(state.publishStatus).toMatchObject(publishedStatus);
-        render({ logId: 42, search: "?id=42" });
+        render({logId: 42, search: "?id=42"});
 
         expect(state.articleAssistantOpen).toBe(true);
         expect(state.settingsOpen).toBe(true);
         expect(state.publishStatus).toMatchObject(publishedStatus);
-        expect(getCacheByKey("articleEdit/ui/article/42")).toMatchObject({ publishStatus: publishedStatus });
+        expect(getCacheByKey("articleEdit/ui/article/42")).toMatchObject({publishStatus: publishedStatus});
 
         act(() => root.unmount());
         root = createRoot(container);
-        render({ logId: 42, search: "?id=42" });
+        render({logId: 42, search: "?id=42"});
 
         act(() =>
             updateFromStartedPublish((previousState) => ({
@@ -114,7 +114,7 @@ describe("useArticleEditUiState scope migration", () => {
 
         act(() => root.unmount());
         root = createRoot(container);
-        render({ logId: 42, search: "?id=42" });
+        render({logId: 42, search: "?id=42"});
 
         expect(state.publishStatus).toMatchObject({
             publicUrl: publishedStatus.publicUrl,
@@ -125,13 +125,13 @@ describe("useArticleEditUiState scope migration", () => {
     });
 
     it("does not leak a migrated publish result into the next new draft", () => {
-        render({ search: "" });
+        render({search: ""});
         act(() => state.updatePublishStatus(publishedStatus));
         act(() => state.migrateToArticle(42));
 
         act(() => root.unmount());
         root = createRoot(container);
-        render({ search: "" });
+        render({search: ""});
 
         expect(state.publishStatus).toMatchObject({
             visible: false,
@@ -147,10 +147,10 @@ describe("useArticleEditUiState scope migration", () => {
     });
 
     it("keeps ordinary article scopes isolated", () => {
-        render({ logId: 7, search: "?id=7" });
+        render({logId: 7, search: "?id=7"});
         act(() => state.updatePublishStatus(publishedStatus));
 
-        render({ logId: 8, search: "?id=8" });
+        render({logId: 8, search: "?id=8"});
         expect(state.publishStatus).toMatchObject({
             visible: false,
             publishState: "idle",
@@ -164,7 +164,7 @@ describe("useArticleEditUiState scope migration", () => {
                 publicUrl: "//blog.example.com/article-8?v=1",
             })
         );
-        render({ logId: 7, search: "?id=7" });
+        render({logId: 7, search: "?id=7"});
 
         expect(state.publishStatus.publicUrl).toBe(publishedStatus.publicUrl);
         expect(

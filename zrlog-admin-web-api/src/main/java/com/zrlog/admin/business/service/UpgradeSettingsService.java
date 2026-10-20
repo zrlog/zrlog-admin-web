@@ -6,18 +6,19 @@ import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
-import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
-/** Aggregates the existing website settings and the private updater protocol. */
+/**
+ * Aggregates the existing website settings and the private updater protocol.
+ */
 @Singleton
 public class UpgradeSettingsService {
     private final WebSiteService webSiteService;
@@ -49,10 +50,14 @@ public class UpgradeSettingsService {
         UpgradeSettingsResponse response =
                 new UpgradeSettingsResponse(
                         this.webSiteService.upgradeWebSiteInfo(), isDockerMode());
-        if (!response.isDockerMode()) { return response; }
+        if (!response.isDockerMode()) {
+            return response;
+        }
         requireDockerPermission(actor);
         String channel = requestedChannel == null ? channel(response.getUpgradePreview()) : requestedChannel;
-        if (!"preview".equals(channel) && !"release".equals(channel)) { throw new ArgsException("channel"); }
+        if (!"preview".equals(channel) && !"release".equals(channel)) {
+            throw new ArgsException("channel");
+        }
         try {
             response.setDockerSettings(dockerClient().settings(channel));
         } catch (DockerControl.RequestException error) {
@@ -67,8 +72,12 @@ public class UpgradeSettingsService {
         actor = authorize(actor);
         input.doValid();
         boolean docker = isDockerMode();
-        if (docker) { requireDockerPermission(actor); }
-        if (!docker && input.getDockerRepository() != null) { throw new ArgsException("dockerRepository"); }
+        if (docker) {
+            requireDockerPermission(actor);
+        }
+        if (!docker && input.getDockerRepository() != null) {
+            throw new ArgsException("dockerRepository");
+        }
         // Persist only the website fields. Never pass response/runtime fields to the generic KV writer.
         UpgradeWebSiteInfo settings = new UpgradeWebSiteInfo();
         settings.setAutoUpgradeVersion(input.getAutoUpgradeVersion());
@@ -102,8 +111,13 @@ public class UpgradeSettingsService {
         }
     }
 
-    protected boolean isDockerMode() { return ZrLogUtil.isDockerMode(); }
-    protected DockerControl dockerClient() { return docker.get(); }
+    protected boolean isDockerMode() {
+        return ZrLogUtil.isDockerMode();
+    }
+
+    protected DockerControl dockerClient() {
+        return docker.get();
+    }
 
     private AccountAccess authorize(AccountAccess actor) {
         actor = identities.revalidate(actor);
@@ -115,5 +129,7 @@ public class UpgradeSettingsService {
         permissionService.require(actor, AccountAction.SYSTEM_MANAGE);
     }
 
-    private String channel(Boolean preview) { return Boolean.TRUE.equals(preview) ? "preview" : "release"; }
+    private String channel(Boolean preview) {
+        return Boolean.TRUE.equals(preview) ? "preview" : "release";
+    }
 }

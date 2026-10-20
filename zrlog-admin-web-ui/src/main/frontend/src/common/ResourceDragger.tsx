@@ -1,18 +1,18 @@
 import FolderIcon from "@zrlog/ui/icons/folder";
-import EditorBaseDragger, { DraggerUploadResponse } from "@zrlog/editor/dist/editor/common/BaseDragger";
-import type { UploadConfig } from "@zrlog/editor/dist/editor/editor.types";
-import type { AxiosInstance } from "axios";
+import EditorBaseDragger, {DraggerUploadResponse} from "@zrlog/editor/dist/editor/common/BaseDragger";
+import type {UploadConfig} from "@zrlog/editor/dist/editor/editor.types";
+import type {AxiosInstance} from "axios";
 import Button from "antd/es/button";
 import Card from "antd/es/card";
 import Modal from "antd/es/modal";
 import Dragger from "antd/es/upload/Dragger";
-import type { UploadProps } from "antd/es/upload/interface";
-import { ComponentProps, CSSProperties, FunctionComponent, ReactNode, useState } from "react";
-import { Grid } from "antd";
-import { getRes, tryAppendBackendServerUrl } from "../utils/constants";
+import type {UploadProps} from "antd/es/upload/interface";
+import {ComponentProps, CSSProperties, FunctionComponent, ReactNode, useState} from "react";
+import {Grid} from "antd";
+import {getRes, tryAppendBackendServerUrl} from "../utils/constants";
 import FileManagerPicker from "../components/file-manager/picker";
 
-export type { DraggerUploadResponse };
+export type {DraggerUploadResponse};
 
 type ResourceDraggerProps = Omit<ComponentProps<typeof EditorBaseDragger>, "type" | "uploadConfig"> & {
     axiosInstance?: AxiosInstance;
@@ -35,21 +35,21 @@ type ResourceDraggerProps = Omit<ComponentProps<typeof EditorBaseDragger>, "type
 };
 
 const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
-    axiosInstance,
-    bodyAspectRatio,
-    buildUploadUrl,
-    cardBodyStyle,
-    cardSize = "small",
-    cardStyle,
-    resourcePicker,
-    beforeUpload,
-    children,
-    disabled,
-    title,
-    type = "image",
-    getContainer,
-    ...props
-}) => {
+                                                                      axiosInstance,
+                                                                      bodyAspectRatio,
+                                                                      buildUploadUrl,
+                                                                      cardBodyStyle,
+                                                                      cardSize = "small",
+                                                                      cardStyle,
+                                                                      resourcePicker,
+                                                                      beforeUpload,
+                                                                      children,
+                                                                      disabled,
+                                                                      title,
+                                                                      type = "image",
+                                                                      getContainer,
+                                                                      ...props
+                                                                  }) => {
     const [pickerOpen, setPickerOpen] = useState(false);
     const pickerEnabled = Boolean(resourcePicker);
     const pickerDisabled = disabled || resourcePicker?.disabled;
@@ -59,11 +59,11 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
     const pickerWidth = narrow ? "100vw" : screens.lg ? 860 : 720;
     const uploadConfig: UploadConfig | undefined = axiosInstance
         ? {
-              axiosInstance,
-              buildUploadUrl: buildUploadUrl ?? ((type) => `/api/admin/upload?dir=${type}`),
-              formName: "imgFile",
-              tryAppendBackendServerUrl,
-          }
+            axiosInstance,
+            buildUploadUrl: buildUploadUrl ?? ((type) => `/api/admin/upload?dir=${type}`),
+            formName: "imgFile",
+            tryAppendBackendServerUrl,
+        }
         : undefined;
     const draggerSizeStyle: CSSProperties = {
         ...(props.style ?? {}),
@@ -81,7 +81,7 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
                         <Button
                             disabled={pickerDisabled}
                             htmlType="button"
-                            icon={<FolderIcon />}
+                            icon={<FolderIcon/>}
                             onClick={() => setPickerOpen(true)}
                             size="small"
                             type="text"
@@ -91,10 +91,10 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
                     ) : null
                 }
                 size={cardSize}
-                style={{ display: "inline-block", ...cardStyle }}
+                style={{display: "inline-block", ...cardStyle}}
                 styles={{
-                    body: { aspectRatio: bodyAspectRatio, minHeight: 128, minWidth: 128, padding: 8, ...cardBodyStyle },
-                    title: { minWidth: 24 },
+                    body: {aspectRatio: bodyAspectRatio, minHeight: 128, minWidth: 128, padding: 8, ...cardBodyStyle},
+                    title: {minWidth: 24},
                 }}
                 title={title}
             >
@@ -131,7 +131,7 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
                     width={pickerWidth}
                     destroyOnClose
                     getContainer={getContainer}
-                    style={narrow ? { top: 0, maxWidth: "100vw", paddingBottom: 0 } : undefined}
+                    style={narrow ? {top: 0, maxWidth: "100vw", paddingBottom: 0} : undefined}
                     styles={{
                         body: {
                             height: narrow ? "calc(100dvh - 112px)" : "70vh",
@@ -141,7 +141,7 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
                     }}
                 >
                     <FileManagerPicker
-                        style={{ height: "100%" }}
+                        style={{height: "100%"}}
                         onlyImage={resourcePicker.onlyImage}
                         onSelectFile={(path) => {
                             resourcePicker.onSelectFile(path);

@@ -21,10 +21,56 @@ import static org.junit.Assert.*;
 
 public class MemoryApplicationTest {
 
-    @org.junit.Rule public org.junit.rules.TemporaryFolder temporary = new org.junit.rules.TemporaryFolder();
+    private static final Gson GSON = new Gson();
+    private static final String MEMORY_INSTALL_CONFIG = "conf/memory-install.json";
+    private static final String CUSTOM_DB_NAME = "custom_memory_test";
+    @org.junit.Rule
+    public org.junit.rules.TemporaryFolder temporary = new org.junit.rules.TemporaryFolder();
     private String originalUserDir;
 
-    @org.junit.Before public void useIsolatedProject() throws Exception {
+    private static InstallConfigVO readInstallConfig(Path projectRoot) throws Exception {
+        return GSON.fromJson(Files.readString(projectRoot.resolve(MEMORY_INSTALL_CONFIG)), InstallConfigVO.class);
+    }
+
+    private static Properties loadDbProperties(Path runtimeRoot) throws Exception {
+        return com.zrlog.test.support.MemoryRuntime.readDatabaseProperties(runtimeRoot);
+    }
+
+    private static Path memoryRoot(Path projectRoot) {
+        return projectRoot.resolve(".zrlog-memory").toAbsolutePath().normalize();
+    }
+
+    private static Object scalar(DevZrLogConfig config, String sql, String value) throws Exception {
+        try (Connection connection = config.getDataSource().getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, value);
+            try (var resultSet = statement.executeQuery()) {
+                return resultSet.next() ? resultSet.getObject(1) : null;
+            }
+        }
+    }
+
+    private static void deleteTree(Path rootPath) throws Exception {
+        if (!Files.exists(rootPath)) {
+            return;
+        }
+        try (var stream = Files.walk(rootPath)) {
+            stream.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+        }
+    }
+
+    private static void restoreRuntime(String previousRootPath) {
+        PathUtil.setRootPath(previousRootPath);
+    }
+
+    @org.junit.Before
+    public void useIsolatedProject() throws Exception {
         originalUserDir = System.getProperty("user.dir");
         Path source = com.zrlog.test.support.MemoryRuntime.projectRoot();
         Path project = temporary.newFolder("project").toPath();
@@ -35,13 +81,10 @@ public class MemoryApplicationTest {
         System.setProperty("user.dir", project.toString());
     }
 
-    @org.junit.After public void restoreUserDir() {
+    @org.junit.After
+    public void restoreUserDir() {
         System.setProperty("user.dir", originalUserDir);
     }
-
-    private static final Gson GSON = new Gson();
-    private static final String MEMORY_INSTALL_CONFIG = "conf/memory-install.json";
-    private static final String CUSTOM_DB_NAME = "custom_memory_test";
 
     @Test
     public void shouldPrepareRuntimeFromMemoryInstallConfig() throws Exception {
@@ -128,46 +171,5 @@ public class MemoryApplicationTest {
         assertEquals(17080, MemoryApplication.resolvePort(null));
         assertEquals(17080, MemoryApplication.resolvePort(new String[]{"--debug"}));
         assertEquals(18080, MemoryApplication.resolvePort(new String[]{"--port=18080"}));
-    }
-
-    private static InstallConfigVO readInstallConfig(Path projectRoot) throws Exception {
-        return GSON.fromJson(Files.readString(projectRoot.resolve(MEMORY_INSTALL_CONFIG)), InstallConfigVO.class);
-    }
-
-    private static Properties loadDbProperties(Path runtimeRoot) throws Exception {
-        return com.zrlog.test.support.MemoryRuntime.readDatabaseProperties(runtimeRoot);
-    }
-
-    private static Path memoryRoot(Path projectRoot) {
-        return projectRoot.resolve(".zrlog-memory").toAbsolutePath().normalize();
-    }
-
-    private static Object scalar(DevZrLogConfig config, String sql, String value) throws Exception {
-        try (Connection connection = config.getDataSource().getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, value);
-            try (var resultSet = statement.executeQuery()) {
-                return resultSet.next() ? resultSet.getObject(1) : null;
-            }
-        }
-    }
-
-    private static void deleteTree(Path rootPath) throws Exception {
-        if (!Files.exists(rootPath)) {
-            return;
-        }
-        try (var stream = Files.walk(rootPath)) {
-            stream.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (Exception e) {
-                    throw new IllegalStateException(e);
-                }
-            });
-        }
-    }
-
-    private static void restoreRuntime(String previousRootPath) {
-        PathUtil.setRootPath(previousRootPath);
     }
 }

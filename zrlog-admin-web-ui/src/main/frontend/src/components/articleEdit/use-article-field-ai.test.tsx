@@ -1,10 +1,10 @@
-import { act, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ArticleChangeableValue, ArticleEntry } from "./index.types";
-import { renderMissingMarkdownContent } from "./article-save-content";
+import {act, useState} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {ArticleChangeableValue, ArticleEntry} from "./index.types";
+import {renderMissingMarkdownContent} from "./article-save-content";
 import useArticleFieldAi from "./use-article-field-ai";
-import { getArticleEditorChange } from "./article-editor-change";
+import {getArticleEditorChange} from "./article-editor-change";
 
 const reactActEnvironment = globalThis as typeof globalThis & {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -35,16 +35,16 @@ describe("AI field application and saved article content", () => {
         fieldAi = useArticleFieldAi({
             getCurrentArticle: () => article,
             onValuesChange: (patch) => {
-                article = { ...article, ...patch };
+                article = {...article, ...patch};
                 setValue(article);
-                return { article };
+                return {article};
             },
             onApplied,
         });
         onEditorChange = (change, liveMarkdown) => {
             const patch = getArticleEditorChange(change, value.markdown, liveMarkdown);
             if (patch) {
-                setValue((current) => ({ ...current, ...patch }));
+                setValue((current) => ({...current, ...patch}));
             }
         };
         return null;
@@ -56,7 +56,7 @@ describe("AI field application and saved article content", () => {
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
-        act(() => root.render(<Harness />));
+        act(() => root.render(<Harness/>));
     });
 
     afterEach(() => {
@@ -66,13 +66,13 @@ describe("AI field application and saved article content", () => {
     });
 
     it("renders the accepted AI body instead of sending the article's old HTML", async () => {
-        act(() => fieldAi.applyGeneratedValues({ markdown: "Accepted AI body" }));
+        act(() => fieldAi.applyGeneratedValues({markdown: "Accepted AI body"}));
         expect(article.markdown).toBe("Accepted AI body");
         expect(article.content).toBe("");
 
         const renderMarkdown = jest.fn(async () => "<p>Accepted AI body</p>");
         const payload = await renderMissingMarkdownContent(article, renderMarkdown);
-        expect(renderMarkdown).toHaveBeenCalledWith("Accepted AI body", { linkPreview: false });
+        expect(renderMarkdown).toHaveBeenCalledWith("Accepted AI body", {linkPreview: false});
         expect(payload.markdown).toBe("Accepted AI body");
         expect(payload.content).toBe("<p>Accepted AI body</p>");
         expect(payload.rubbish).toBe(true);
@@ -81,7 +81,7 @@ describe("AI field application and saved article content", () => {
     });
 
     it("clears both representations when an applied body is empty", async () => {
-        act(() => fieldAi.applyGeneratedValues({ markdown: "" }));
+        act(() => fieldAi.applyGeneratedValues({markdown: ""}));
         const renderMarkdown = jest.fn(async () => "<p>Unexpected old body</p>");
         const payload = await renderMissingMarkdownContent(article, renderMarkdown);
 
@@ -91,8 +91,8 @@ describe("AI field application and saved article content", () => {
     });
 
     it.each(["Accepted AI body", ""])("does not restore old HTML from an unchanged editor callback: %j", (markdown) => {
-        act(() => fieldAi.applyGeneratedValues({ markdown }));
-        act(() => onEditorChange({ value: markdown, previewContent: initialArticle.content as string }, markdown));
+        act(() => fieldAi.applyGeneratedValues({markdown}));
+        act(() => onEditorChange({value: markdown, previewContent: initialArticle.content as string}, markdown));
 
         expect(article.markdown).toBe(markdown);
         expect(article.content).toBe("");
@@ -105,9 +105,9 @@ describe("AI field application and saved article content", () => {
             finishEarlierRender = resolve;
         });
         const earlierChange = earlierRender.then((html) =>
-            earlierEditorCallback({ value: "Earlier typing", previewContent: html }, "Accepted AI body")
+            earlierEditorCallback({value: "Earlier typing", previewContent: html}, "Accepted AI body")
         );
-        act(() => fieldAi.applyGeneratedValues({ markdown: "Accepted AI body" }));
+        act(() => fieldAi.applyGeneratedValues({markdown: "Accepted AI body"}));
         await act(async () => {
             finishEarlierRender("<p>Earlier typing</p>");
             await earlierChange;
@@ -116,7 +116,7 @@ describe("AI field application and saved article content", () => {
         expect(article.content).toBe("");
 
         act(() =>
-            onEditorChange({ value: "Edited AI body", previewContent: "<p>Edited AI body</p>" }, "Edited AI body")
+            onEditorChange({value: "Edited AI body", previewContent: "<p>Edited AI body</p>"}, "Edited AI body")
         );
         const renderMarkdown = jest.fn(async () => "<p>Unexpected replacement</p>");
         const payload = await renderMissingMarkdownContent(article, renderMarkdown);
@@ -126,11 +126,11 @@ describe("AI field application and saved article content", () => {
     });
 
     it.each([
-        { title: "AI title" },
-        { digest: "AI summary" },
-        { alias: "ai-title" },
-        { keywords: "ai,writing" },
-        { thumbnail: "/attached/cover.png" },
+        {title: "AI title"},
+        {digest: "AI summary"},
+        {alias: "ai-title"},
+        {keywords: "ai,writing"},
+        {thumbnail: "/attached/cover.png"},
     ] as ArticleChangeableValue[])("preserves body HTML when applying only metadata: %j", async (patch) => {
         act(() => fieldAi.applyGeneratedValues(patch));
         const renderMarkdown = jest.fn(async () => "<p>Unexpected replacement</p>");

@@ -1,7 +1,7 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ApiResponse, PasskeyAuthenticationOptionsResponse } from "../../type";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import type {ApiResponse, PasskeyAuthenticationOptionsResponse} from "../../type";
 import Index from "./index";
 
 const mockAxiosPost = jest.fn<Promise<any>, any[]>();
@@ -23,31 +23,31 @@ jest.mock("@zrlog/ui/feedback", () => ({
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     const mockJest = require("@jest/globals").jest;
-    const Form = ({ children }: { children?: React.ReactNode }) => React.createElement("form", null, children);
-    Form.Item = ({ children, label }: { children?: React.ReactNode; label?: React.ReactNode }) =>
+    const Form = ({children}: { children?: React.ReactNode }) => React.createElement("form", null, children);
+    Form.Item = ({children, label}: { children?: React.ReactNode; label?: React.ReactNode }) =>
         React.createElement("label", null, label, children);
 
     const Input = (props: Record<string, unknown>) => React.createElement("input", props);
-    Input.Password = (props: Record<string, unknown>) => React.createElement("input", { ...props, type: "password" });
+    Input.Password = (props: Record<string, unknown>) => React.createElement("input", {...props, type: "password"});
     Input.OTP = (props: Record<string, unknown>) => React.createElement("input", props);
 
     return {
-        Button: ({ children, disabled, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
-            React.createElement("button", { disabled, onClick }, children),
-        Divider: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
+        Button: ({children, disabled, onClick}: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
+            React.createElement("button", {disabled, onClick}, children),
+        Divider: ({children}: { children?: React.ReactNode }) => React.createElement("div", null, children),
         Form,
         Input,
-        Layout: ({ children }: { children?: React.ReactNode }) => React.createElement("main", null, children),
+        Layout: ({children}: { children?: React.ReactNode }) => React.createElement("main", null, children),
         message: {
-            useMessage: () => [{ error: mockJest.fn() }, null],
+            useMessage: () => [{error: mockJest.fn()}, null],
         },
-        Space: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
+        Space: ({children}: { children?: React.ReactNode }) => React.createElement("div", null, children),
     };
 });
 
 jest.mock("antd/es/typography/Title", () => ({
     __esModule: true,
-    default: ({ children }: { children?: import("react").ReactNode }) =>
+    default: ({children}: { children?: import("react").ReactNode }) =>
         require("react").createElement("h1", null, children),
 }));
 
@@ -62,7 +62,7 @@ jest.mock("react-router-dom", () => ({
 
 jest.mock("../../base/PWAHandler", () => ({
     __esModule: true,
-    default: ({ children }: { children?: import("react").ReactNode }) => children,
+    default: ({children}: { children?: import("react").ReactNode }) => children,
 }));
 
 jest.mock("../../utils/cache", () => ({
@@ -72,10 +72,10 @@ jest.mock("../../utils/cache", () => ({
 
 jest.mock("../../utils/constants", () => ({
     getBackendServerUrl: () => "/",
-    getDefaultLoginInfo: () => ({ userName: "", password: "", backendServerUrl: "/" }),
+    getDefaultLoginInfo: () => ({userName: "", password: "", backendServerUrl: "/"}),
     getRealRouteUrl: (url: string) => url,
     getRes: () => ({
-        error: { unknown: "Unknown error" },
+        error: {unknown: "Unknown error"},
         login: {
             backendServerUrl: "Gateway URL",
             copyrightCurrentYear: "2026",
@@ -121,7 +121,7 @@ jest.mock("../../base/SsData", () => ({
 }));
 
 jest.mock("../../base/ConfigProviderApp", () => ({
-    getAppState: () => ({ colorPrimary: "#1677ff", dark: false, theme: "default" }),
+    getAppState: () => ({colorPrimary: "#1677ff", dark: false, theme: "default"}),
 }));
 
 jest.mock("antd-style", () => ({
@@ -137,7 +137,7 @@ jest.mock("antd-style", () => ({
 }));
 
 jest.mock("../../common/admin-error-code", () => ({
-    ADMIN_ERROR_CODE: { mfaCodeInvalid: 2, mfaCodeRequired: 1 },
+    ADMIN_ERROR_CODE: {mfaCodeInvalid: 2, mfaCodeRequired: 1},
 }));
 
 jest.mock("../../assets/login-publishing-workspace.webp", () => "login.webp");
@@ -156,15 +156,15 @@ const reactActEnvironment = globalThis as typeof globalThis & {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
 
-const deferred = <T,>() => {
+const deferred = <T, >() => {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((nextResolve) => {
         resolve = nextResolve;
     });
-    return { promise, resolve };
+    return {promise, resolve};
 };
 
-const apiResponse = <T,>(data: T): ApiResponse<T> => ({
+const apiResponse = <T, >(data: T): ApiResponse<T> => ({
     data,
     error: 0,
     message: "",
@@ -195,10 +195,10 @@ describe("Passkey login", () => {
     it("creates only one challenge when the Passkey button is clicked twice before rerender", async () => {
         const optionsResponse = deferred<{ data: ApiResponse<PasskeyAuthenticationOptionsResponse> }>();
         mockAxiosPost.mockReturnValueOnce(optionsResponse.promise);
-        mockAuthenticateWithPasskey.mockRejectedValueOnce({ code: "ERROR_CEREMONY_ABORTED" });
+        mockAuthenticateWithPasskey.mockRejectedValueOnce({code: "ERROR_CEREMONY_ABORTED"});
 
         await act(async () => {
-            root.render(<Index offline={false} />);
+            root.render(<Index offline={false}/>);
             await Promise.resolve();
         });
 
@@ -233,14 +233,14 @@ describe("Passkey login", () => {
             key: "writer-session",
             header: "",
             language: "en_US",
-            appearance: { theme: "desk", darkMode: false, compactMode: true },
+            appearance: {theme: "desk", darkMode: false, compactMode: true},
             cacheableApiUris: [],
         };
         mockAxiosPost
-            .mockResolvedValueOnce({ data: apiResponse({ requestId: "challenge", options: {} }) })
-            .mockResolvedValueOnce({ data: apiResponse(user) });
-        mockAuthenticateWithPasskey.mockResolvedValueOnce({ id: "credential" });
-        await act(async () => root.render(<Index offline={false} />));
+            .mockResolvedValueOnce({data: apiResponse({requestId: "challenge", options: {}})})
+            .mockResolvedValueOnce({data: apiResponse(user)});
+        mockAuthenticateWithPasskey.mockResolvedValueOnce({id: "credential"});
+        await act(async () => root.render(<Index offline={false}/>));
         await act(async () =>
             Array.from(container.querySelectorAll("button"))
                 .find((button) => button.textContent === "Sign in with Passkey")!
@@ -258,7 +258,7 @@ describe("Passkey login", () => {
         mockPasskeyLoginEnabled = false;
 
         await act(async () => {
-            root.render(<Index offline={false} />);
+            root.render(<Index offline={false}/>);
             await Promise.resolve();
         });
 

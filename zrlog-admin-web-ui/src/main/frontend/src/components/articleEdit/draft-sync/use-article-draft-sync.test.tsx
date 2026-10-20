@@ -1,9 +1,9 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ArticleChangeableValue, ArticleEntry } from "../index.types";
-import { ArticleDraftSyncState } from "./article-draft-sync-state-machine";
-import useArticleDraftSync, { ArticleDraftChange, ArticleDraftSyncTask } from "./use-article-draft-sync";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {ArticleChangeableValue, ArticleEntry} from "../index.types";
+import {ArticleDraftSyncState} from "./article-draft-sync-state-machine";
+import useArticleDraftSync, {ArticleDraftChange, ArticleDraftSyncTask} from "./use-article-draft-sync";
 
 const reactActEnvironment = globalThis as typeof globalThis & {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -78,52 +78,52 @@ describe("useArticleDraftSync", () => {
     };
 
     it("queues arrangement changes and retains them when a server refresh has a different layout", () => {
-        const article = { ...baseArticle, logId: 7, version: 3, arrange_plugin: "retro-runtime" };
-        const props = createProps({ article });
+        const article = {...baseArticle, logId: 7, version: 3, arrange_plugin: "retro-runtime"};
+        const props = createProps({article});
         render(props);
         let local!: ArticleDraftChange;
         act(() => {
-            local = current.applyPatch({ arrange_plugin: "" })!;
+            local = current.applyPatch({arrange_plugin: ""})!;
         });
         expect(local.article.arrange_plugin).toBe("");
         expect(props.onRequestSync).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                article: expect.objectContaining({ arrange_plugin: "", rubbish: true }),
+                article: expect.objectContaining({arrange_plugin: "", rubbish: true}),
             })
         );
         act(() => {
-            expect(current.receiveServerArticle({ ...article, version: 4 })?.article.arrange_plugin).toBe("");
+            expect(current.receiveServerArticle({...article, version: 4})?.article.arrange_plugin).toBe("");
         });
         expect(current.state.sync).toBe("conflict");
         expect(current.markSyncing(local)).toBe(false);
     });
 
     it("pauses queued local edits when a tool changes the server and resumes from the chosen version", () => {
-        const article = { ...baseArticle, logId: 7, version: 3 };
-        const props = createProps({ article });
+        const article = {...baseArticle, logId: 7, version: 3};
+        const props = createProps({article});
         render(props);
         let local!: ArticleDraftChange;
         act(() => {
-            local = current.applyPatch({ title: "Local title" })!;
+            local = current.applyPatch({title: "Local title"})!;
         });
-        const serverArticle = { ...article, title: "AI title", version: 4 };
+        const serverArticle = {...article, title: "AI title", version: 4};
         act(() => {
             expect(current.receiveServerArticle(serverArticle)?.article.title).toBe("Local title");
         });
-        render({ ...props, article: serverArticle });
+        render({...props, article: serverArticle});
         expect(current.state.sync).toBe("conflict");
         expect(current.markSyncing(local)).toBe(false);
         expect(props.onPersist).toHaveBeenLastCalledWith(
             local.article,
             123,
-            expect.objectContaining({ sync: "conflict" })
+            expect.objectContaining({sync: "conflict"})
         );
         act(() => current.discard());
         let next!: ArticleDraftChange;
         act(() => {
-            next = current.applyPatch({ digest: "Next edit" })!;
+            next = current.applyPatch({digest: "Next edit"})!;
         });
-        expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
+        expect(next.article).toEqual({...serverArticle, digest: "Next edit"});
         expect(current.state.sync).toBe("queued");
     });
 
@@ -131,9 +131,9 @@ describe("useArticleDraftSync", () => {
         const props = createProps();
         render(props);
         act(() => {
-            current.applyPatch({ title: "Local title" });
+            current.applyPatch({title: "Local title"});
         });
-        const serverArticle = { ...baseArticle, logId: 18, title: "AI title", version: 0 };
+        const serverArticle = {...baseArticle, logId: 18, title: "AI title", version: 0};
         act(() => {
             expect(current.receiveServerArticle(serverArticle)?.article).toMatchObject({
                 logId: 18,
@@ -141,19 +141,19 @@ describe("useArticleDraftSync", () => {
                 version: 0,
             });
         });
-        expect(props.onRemove).toHaveBeenCalledWith(expect.objectContaining({ title: "Local title" }));
+        expect(props.onRemove).toHaveBeenCalledWith(expect.objectContaining({title: "Local title"}));
         expect(props.onPersist).toHaveBeenLastCalledWith(
-            expect.objectContaining({ logId: 18, title: "Local title" }),
+            expect.objectContaining({logId: 18, title: "Local title"}),
             123,
-            expect.objectContaining({ sync: "conflict" })
+            expect.objectContaining({sync: "conflict"})
         );
-        render({ ...props, article: serverArticle });
+        render({...props, article: serverArticle});
         act(() => current.discard());
         let next!: ArticleDraftChange;
         act(() => {
-            next = current.applyPatch({ digest: "Next edit" })!;
+            next = current.applyPatch({digest: "Next edit"})!;
         });
-        expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
+        expect(next.article).toEqual({...serverArticle, digest: "Next edit"});
     });
 
     it.each([false, true])(
@@ -166,7 +166,7 @@ describe("useArticleDraftSync", () => {
                 markdown: "Body",
                 content: "<p>Body</p>",
             };
-            const props = createProps({ article });
+            const props = createProps({article});
             render(props);
             let local!: ArticleDraftChange;
             act(() => {
@@ -189,16 +189,16 @@ describe("useArticleDraftSync", () => {
             act(() => {
                 expect(current.receiveServerArticle(serverArticle)).toBeUndefined();
             });
-            expect(current.state).toMatchObject({ document: "clean", sync: "idle" });
+            expect(current.state).toMatchObject({document: "clean", sync: "idle"});
             expect(props.onRemove).toHaveBeenCalledWith(local.article);
             expect(props.onSynced).toHaveBeenCalledTimes(1);
             expect(current.markSyncing(local)).toBe(false);
-            render({ ...props, article: serverArticle });
+            render({...props, article: serverArticle});
             let next!: ArticleDraftChange;
             act(() => {
-                next = current.applyPatch({ digest: "Next edit" })!;
+                next = current.applyPatch({digest: "Next edit"})!;
             });
-            expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
+            expect(next.article).toEqual({...serverArticle, digest: "Next edit"});
             expect(current.state.sync).toBe("queued");
         }
     );
@@ -233,17 +233,17 @@ describe("useArticleDraftSync", () => {
         expect(props.onPersist).not.toHaveBeenCalled();
         expect(props.onRequestSync).not.toHaveBeenCalled();
 
-        expect(current.applyPatch({ title: baseArticle.title })).toBeUndefined();
+        expect(current.applyPatch({title: baseArticle.title})).toBeUndefined();
         expect(props.onPersist).not.toHaveBeenCalled();
     });
 
     it("keeps an offline edit dirty and queues it after reconnecting", () => {
-        const props = createProps({ offline: true });
+        const props = createProps({offline: true});
         render(props);
 
         let change: ArticleDraftChange | undefined;
         act(() => {
-            change = current.applyPatch({ title: "Offline title" });
+            change = current.applyPatch({title: "Offline title"});
         });
 
         expect(current.state).toMatchObject({
@@ -274,7 +274,7 @@ describe("useArticleDraftSync", () => {
     });
 
     it("queues a restored dirty draft on an online mount", () => {
-        const props = createProps({ initialDirty: true });
+        const props = createProps({initialDirty: true});
         render(props);
 
         expect(props.onPersist).not.toHaveBeenCalled();
@@ -291,8 +291,8 @@ describe("useArticleDraftSync", () => {
         let firstChange: ArticleDraftChange | undefined;
         let secondChange: ArticleDraftChange | undefined;
         act(() => {
-            firstChange = current.applyPatch({ title: "First title" });
-            secondChange = current.applyPatch({ title: "Second title" });
+            firstChange = current.applyPatch({title: "First title"});
+            secondChange = current.applyPatch({title: "Second title"});
         });
 
         expect(current.markSyncing(firstChange!)).toBe(false);
@@ -318,9 +318,9 @@ describe("useArticleDraftSync", () => {
         let firstChange: ArticleDraftChange | undefined;
         let secondChange: ArticleDraftChange | undefined;
         act(() => {
-            firstChange = current.applyPatch({ title: "First title" });
+            firstChange = current.applyPatch({title: "First title"});
             expect(current.markSyncing(firstChange!)).toBe(true);
-            secondChange = current.applyPatch({ title: "Second title" });
+            secondChange = current.applyPatch({title: "Second title"});
         });
 
         act(() => {
@@ -358,7 +358,7 @@ describe("useArticleDraftSync", () => {
 
         let thirdChange: ArticleDraftChange | undefined;
         act(() => {
-            thirdChange = current.applyPatch({ digest: "Latest digest" });
+            thirdChange = current.applyPatch({digest: "Latest digest"});
         });
 
         expect(thirdChange?.article).toMatchObject({
@@ -373,12 +373,12 @@ describe("useArticleDraftSync", () => {
 
     it("retries a transient synchronization failure", () => {
         jest.useFakeTimers();
-        const props = createProps({ retryDelay: () => 100 });
+        const props = createProps({retryDelay: () => 100});
         render(props);
 
         let change: ArticleDraftChange | undefined;
         act(() => {
-            change = current.applyPatch({ title: "Retry title" });
+            change = current.applyPatch({title: "Retry title"});
         });
         let started = false;
         act(() => {
@@ -413,7 +413,7 @@ describe("useArticleDraftSync", () => {
 
         let change: ArticleDraftChange | undefined;
         act(() => {
-            change = current.applyPatch({ title: "Conflicting title" });
+            change = current.applyPatch({title: "Conflicting title"});
         });
         let started = false;
         act(() => {
@@ -427,7 +427,7 @@ describe("useArticleDraftSync", () => {
             sync: "conflict",
             lastError: "version expired",
         });
-        expect(current.applyPatch({ title: "Ignored until resolution" })).toBeUndefined();
+        expect(current.applyPatch({title: "Ignored until resolution"})).toBeUndefined();
 
         let resolved: ArticleDraftChange | undefined;
         act(() => {
@@ -455,7 +455,7 @@ describe("useArticleDraftSync", () => {
 
         let change: ArticleDraftChange | undefined;
         act(() => {
-            change = current.applyPatch({ title: "Invalid title" });
+            change = current.applyPatch({title: "Invalid title"});
             expect(current.markSyncing(change!)).toBe(true);
             expect(current.markBlocked(change!, "invalid article")).toBe(true);
         });
@@ -467,7 +467,7 @@ describe("useArticleDraftSync", () => {
         });
 
         act(() => {
-            change = current.applyPatch({ title: "Corrected title" });
+            change = current.applyPatch({title: "Corrected title"});
         });
         expect(current.state).toMatchObject({
             document: "dirty",
@@ -480,13 +480,13 @@ describe("useArticleDraftSync", () => {
         });
     });
     it("pauses the newest input when an older manual save conflicts, without scheduling another write", () => {
-        const article = { ...baseArticle, logId: 7, version: 3 };
-        const props = createProps({ article });
+        const article = {...baseArticle, logId: 7, version: 3};
+        const props = createProps({article});
         render(props);
-        act(() => current.applyPatch({ title: "Newest input", markdown: "Keep this" }));
+        act(() => current.applyPatch({title: "Newest input", markdown: "Keep this"}));
         const requests = jest.mocked(props.onRequestSync).mock.calls.length;
         act(() => {
-            const local = current.pauseForConflict({ ...article, title: "Submitted earlier", rubbish: false });
+            const local = current.pauseForConflict({...article, title: "Submitted earlier", rubbish: false});
             expect(local.article).toMatchObject({
                 title: "Newest input",
                 markdown: "Keep this",
@@ -496,19 +496,19 @@ describe("useArticleDraftSync", () => {
         });
         expect(current.state.sync).toBe("conflict");
         expect(props.onRequestSync).toHaveBeenCalledTimes(requests);
-        const merged = { ...article, title: "Merged", version: 4 };
+        const merged = {...article, title: "Merged", version: 4};
         act(() => current.resolveConflict(merged, false));
-        expect(props.onPersist).toHaveBeenLastCalledWith(merged, 123, expect.objectContaining({ document: "dirty" }));
+        expect(props.onPersist).toHaveBeenLastCalledWith(merged, 123, expect.objectContaining({document: "dirty"}));
         expect(props.onRequestSync).toHaveBeenCalledTimes(requests);
     });
 
     it("persists a clean manual save candidate when it conflicts", () => {
-        const props = createProps({ article: { ...baseArticle, logId: 7, version: 3 } });
+        const props = createProps({article: {...baseArticle, logId: 7, version: 3}});
         render(props);
-        const candidate = { ...props.article, title: "Publish candidate", rubbish: false };
+        const candidate = {...props.article, title: "Publish candidate", rubbish: false};
         act(() => current.pauseForConflict(candidate));
         expect(current.state.sync).toBe("conflict");
-        expect(props.onPersist).toHaveBeenLastCalledWith(candidate, 123, expect.objectContaining({ sync: "conflict" }));
+        expect(props.onPersist).toHaveBeenLastCalledWith(candidate, 123, expect.objectContaining({sync: "conflict"}));
         expect(props.onRequestSync).not.toHaveBeenCalled();
     });
 });

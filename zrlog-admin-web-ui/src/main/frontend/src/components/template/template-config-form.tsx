@@ -1,19 +1,19 @@
 import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import CameraIcon from "@zrlog/ui/icons/camera";
-import { Fragment, lazy, Suspense, useEffect } from "react";
-import { Card, ColorPicker, Empty, Form, Spin } from "antd";
+import {Fragment, lazy, Suspense, useEffect} from "react";
+import {Card, ColorPicker, Empty, Form, Spin} from "antd";
 
-import { useTheme } from "antd-style";
-import { getPreset, getRes } from "../../utils/constants";
-import { colorPickerBgColors } from "../../utils/helpers";
-import { useAxiosBaseInstance } from "../../base/AppBase";
+import {useTheme} from "antd-style";
+import {getPreset, getRes} from "../../utils/constants";
+import {colorPickerBgColors} from "../../utils/helpers";
+import {useAxiosBaseInstance} from "../../base/AppBase";
 import ResourceDragger from "../../common/ResourceDragger";
 import BackendImage from "../../common/BackendImage";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import PreviewConfig from "./preview-config";
-import { ConfigParam, ConfigValues, hasConfigFields, TemplateConfigData } from "./template-config-model";
+import {ConfigParam, ConfigValues, hasConfigFields, TemplateConfigData} from "./template-config-model";
 
 const TemplateConfigYaml = lazy(() => import("./template-config-yaml"));
 
@@ -26,13 +26,13 @@ type TemplateConfigFormProps = {
     disabled?: boolean;
 };
 
-const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled }: TemplateConfigFormProps) => {
+const TemplateConfigForm = ({data, values, onChange, onSubmit, formId, disabled}: TemplateConfigFormProps) => {
     const [form] = Form.useForm();
-    const { message } = useUiApp();
+    const {message} = useUiApp();
     const theme = useTheme();
     const imagePreviewSize = 128 - theme.padding * 2;
     const axiosInstance = useAxiosBaseInstance();
-    const { formLayout } = useResponsiveFormLayout();
+    const {formLayout} = useResponsiveFormLayout();
     useEffect(() => form.setFieldsValue(values), [form, values]);
 
     const getInput = (key: string, param: ConfigParam) => {
@@ -42,14 +42,14 @@ const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled
                 <ResourceDragger
                     axiosInstance={axiosInstance}
                     disabled={disabled}
-                    style={{ width: 128, height: 128 }}
-                    onSuccess={(response) => onChange({ [key]: response.data.url })}
+                    style={{width: 128, height: 128}}
+                    onSuccess={(response) => onChange({[key]: response.data.url})}
                     onError={(response) => {
                         void message.error(response.message);
                     }}
                     type="image"
                     bodyAspectRatio={1}
-                    resourcePicker={{ onlyImage: true, onSelectFile: (path) => onChange({ [key]: path }) }}
+                    resourcePicker={{onlyImage: true, onSelectFile: (path) => onChange({[key]: path})}}
                 >
                     {src ? (
                         <BackendImage
@@ -57,7 +57,7 @@ const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled
                             height={imagePreviewSize}
                             width={imagePreviewSize}
                             src={src}
-                            style={{ objectFit: "contain" }}
+                            style={{objectFit: "contain"}}
                         />
                     ) : (
                         <div
@@ -70,14 +70,14 @@ const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled
                             }}
                         >
                             <CameraIcon
-                                style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading2 }}
+                                style={{color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading2}}
                             />
                         </div>
                     )}
                 </ResourceDragger>
             );
         }
-        if (param.htmlElementType === "switch") return <Switch />;
+        if (param.htmlElementType === "switch") return <Switch/>;
         if (param.htmlElementType === "textarea" || param.htmlElementType === "large-textarea") {
             return (
                 <Input.TextArea
@@ -86,17 +86,17 @@ const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled
                 />
             );
         }
-        if (param.type === "hidden") return <Input hidden />;
+        if (param.type === "hidden") return <Input hidden/>;
         if (param.htmlElementType === "colorPicker") {
             return (
                 <ColorPicker
                     showText
                     disabledAlpha
-                    presets={[{ defaultOpen: true, label: getPreset(), colors: colorPickerBgColors }]}
+                    presets={[{defaultOpen: true, label: getPreset(), colors: colorPickerBgColors}]}
                 />
             );
         }
-        return <Input type={param.type} placeholder={param.placeholder} />;
+        return <Input type={param.type} placeholder={param.placeholder}/>;
     };
 
     return (
@@ -109,19 +109,19 @@ const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled
             onValuesChange={onChange}
             {...formLayout}
         >
-            {!hasConfigFields(data) && <Empty description={getRes().templateConfig.empty} />}
+            {!hasConfigFields(data) && <Empty description={getRes().templateConfig.empty}/>}
             {Object.entries(data.config).map(([key, param]) =>
                 param.type === "yml" ? (
                     <Card
                         key={key}
                         title={param.label}
-                        styles={{ body: { padding: 0 } }}
-                        style={{ overflow: "hidden" }}
+                        styles={{body: {padding: 0}}}
+                        style={{overflow: "hidden"}}
                     >
-                        <Suspense fallback={<Spin style={{ display: "block", padding: theme.paddingLG }} />}>
+                        <Suspense fallback={<Spin style={{display: "block", padding: theme.paddingLG}}/>}>
                             <TemplateConfigYaml
                                 value={String(values[key] ?? "")}
-                                onChange={(value) => onChange({ [key]: value })}
+                                onChange={(value) => onChange({[key]: value})}
                                 disabled={disabled}
                             />
                         </Suspense>

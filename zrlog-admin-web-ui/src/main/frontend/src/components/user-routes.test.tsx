@@ -1,22 +1,22 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { Grid } from "antd";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {Grid} from "antd";
 import User from "./user";
 import UserSettingsLayout from "./common/UserSettingsLayout";
-import { getRes } from "../utils/constants";
-import { USER_ROUTES, USER_PREFERENCE_PAGES, USER_APPLICATION_PAGES } from "../utils/account-page-routes";
+import {getRes} from "../utils/constants";
+import {USER_APPLICATION_PAGES, USER_PREFERENCE_PAGES, USER_ROUTES} from "../utils/account-page-routes";
 
 jest.mock("antd/es/divider", () => require("antd").Divider);
 jest.mock("antd/es/form", () => require("antd").Form);
 jest.mock("antd/es/grid/row", () => require("antd").Row);
 jest.mock("antd/es/grid/col", () => require("antd").Col);
 const mockGet = jest.fn<Promise<any>, any[]>();
-const mockApi = { get: mockGet };
-jest.mock("../utils/user-info", () => ({ refreshUserInfo: require("@jest/globals").jest.fn() }));
-jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
-jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
+const mockApi = {get: mockGet};
+jest.mock("../utils/user-info", () => ({refreshUserInfo: require("@jest/globals").jest.fn()}));
+jest.mock("../base/AppBase", () => ({useAxiosBaseInstance: () => mockApi}));
+jest.mock("../base/ConfigProviderApp", () => ({getAppState: () => ({compactMode: false})}));
 jest.mock("../common/ResourceDragger", () => () => null);
 jest.mock("../common/ImageCropper", () => () => null);
 jest.mock("../common/BackendImage", () => () => null);
@@ -25,7 +25,7 @@ jest.mock("./oauth", () => ({
     UserApplications: () => (
         <div>
             Applications content
-            <input aria-label="Application name" />
+            <input aria-label="Application name"/>
         </div>
     ),
 }));
@@ -38,20 +38,22 @@ describe("personal page URLs", () => {
     beforeEach(() => {
         mockGet
             .mockReset()
-            .mockResolvedValue({ data: { error: 0, data: { currentRole: "author", roles: ["author"], actions: [] } } });
-        process.env = { ...previousEnv, NODE_ENV: "production" };
+            .mockResolvedValue({data: {error: 0, data: {currentRole: "author", roles: ["author"], actions: []}}});
+        process.env = {...previousEnv, NODE_ENV: "production"};
         (globalThis as any).MessageChannel = class {
-            port1 = { onmessage: () => undefined };
-            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+            port1 = {onmessage: () => undefined};
+            port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
         };
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         global.ResizeObserver = class {
             observe() {
                 return undefined;
             }
+
             unobserve() {
                 return undefined;
             }
+
             disconnect() {
                 return undefined;
             }
@@ -93,15 +95,16 @@ describe("personal page URLs", () => {
         [true, false],
         [true, true],
     ])("opens a deep link and follows back/forward navigation (static=%s, mobile=%s)", async (staticPage, mobile) => {
-        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: !mobile });
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: !mobile});
         window.__SS_DATA__ = {
             user: null,
             key: "routes",
             pageBuildId: "test",
             systemNotification: "",
-            resourceInfo: { lang: "zh_CN", staticPage },
+            resourceInfo: {lang: "zh_CN", staticPage},
         };
         const suffix = staticPage ? ".html" : "";
+
         function Pages() {
             navigate = useNavigate();
             const location = useLocation();
@@ -115,7 +118,7 @@ describe("personal page URLs", () => {
                         />
                         <Route
                             path={USER_ROUTES.profile + suffix}
-                            element={<User data={{ userName: "writer", email: "", header: "" }} offline={false} />}
+                            element={<User data={{userName: "writer", email: "", header: ""}} offline={false}/>}
                         />
                         {USER_PREFERENCE_PAGES.map((page) => (
                             <Route
@@ -123,7 +126,7 @@ describe("personal page URLs", () => {
                                 path={USER_ROUTES[page] + suffix}
                                 element={
                                     <User
-                                        data={{ overrides: {}, defaults: {}, effective: {} }}
+                                        data={{overrides: {}, defaults: {}, effective: {}}}
                                         offline={false}
                                         activeKey="preferences"
                                         activePage={page}
@@ -157,10 +160,11 @@ describe("personal page URLs", () => {
                 </>
             );
         }
+
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={[USER_ROUTES.tokens + suffix]}>
-                    <Pages />
+                    <Pages/>
                 </MemoryRouter>
             )
         );
@@ -172,7 +176,7 @@ describe("personal page URLs", () => {
                 await act(async () => {
                     container
                         .querySelector('[role="combobox"]')!
-                        .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+                        .dispatchEvent(new MouseEvent("mousedown", {bubbles: true}));
                 });
                 await act(async () =>
                     Array.from(container.querySelectorAll<HTMLElement>(".ant-select-item-option"))
@@ -193,7 +197,7 @@ describe("personal page URLs", () => {
             await act(async () => {
                 container
                     .querySelector('[role="combobox"]')!
-                    .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+                    .dispatchEvent(new MouseEvent("mousedown", {bubbles: true}));
             });
             expect(
                 Array.from(container.querySelectorAll(".ant-select-item-group")).map((item) => item.textContent)

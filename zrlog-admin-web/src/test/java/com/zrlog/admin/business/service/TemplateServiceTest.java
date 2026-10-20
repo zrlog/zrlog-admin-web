@@ -1,11 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
@@ -17,7 +11,6 @@ import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.StaticFileCacheUtils;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -31,6 +24,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import static org.junit.Assert.*;
 
 public class TemplateServiceTest {
 
@@ -108,7 +103,7 @@ public class TemplateServiceTest {
                                         () -> new WebSite(db.dataSource()));
                         for (String language : List.of("en_US", "zh_CN", "en_US")) {
                             try (AdminLanguageContext ignored =
-                                    AdminLanguageContext.open(language)) {
+                                         AdminLanguageContext.open(language)) {
                                 TemplateVO config = service.loadTemplateConfig(templatePath);
                                 assertEquals(
                                         language.equals("en_US") ? "Accent color" : "强调色",
@@ -147,11 +142,11 @@ public class TemplateServiceTest {
                         db.unitCacheService().getPublicWebSiteInfo().setTemplate(templatePath);
                         List<TemplateEntryResponse> entries =
                                 new TemplateService(
-                                                db.unitCacheService(),
-                                                () -> null,
-                                                () -> null,
-                                                ApplicationServicesFixture.audit(db.dataSource()),
-                                                () -> new WebSite(db.dataSource()))
+                                        db.unitCacheService(),
+                                        () -> null,
+                                        () -> null,
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        () -> new WebSite(db.dataSource()))
                                         .getAllTemplates(templatePath);
                         TemplateEntryResponse local =
                                 entries.stream()
@@ -238,11 +233,13 @@ public class TemplateServiceTest {
 
                     UploadTemplateResponse response =
                             new TemplateService(
-                                            new InMemoryZrLogDatabase.TestCacheService(),
-                                            () -> null,
-                                            () -> null,
-                                            ApplicationServicesFixture.audit(null),
-                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); })
+                                    new InMemoryZrLogDatabase.TestCacheService(),
+                                    () -> null,
+                                    () -> null,
+                                    ApplicationServicesFixture.audit(null),
+                                    () -> {
+                                        throw new IllegalStateException("Database is unavailable in this test");
+                                    })
                                     .upload("uploaded-theme", false, zipFile);
 
                     File installed =
@@ -286,7 +283,9 @@ public class TemplateServiceTest {
                                     () -> null,
                                     () -> null,
                                     ApplicationServicesFixture.audit(null),
-                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                                    () -> {
+                                        throw new IllegalStateException("Database is unavailable in this test");
+                                    });
 
                     UploadTemplateResponse rejected =
                             service.upload("replace-theme", false, zipFile);
@@ -319,11 +318,13 @@ public class TemplateServiceTest {
 
                     UploadTemplateResponse response =
                             new TemplateService(
-                                            new InMemoryZrLogDatabase.TestCacheService(),
-                                            () -> null,
-                                            () -> null,
-                                            ApplicationServicesFixture.audit(null),
-                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); })
+                                    new InMemoryZrLogDatabase.TestCacheService(),
+                                    () -> null,
+                                    () -> null,
+                                    ApplicationServicesFixture.audit(null),
+                                    () -> {
+                                        throw new IllegalStateException("Database is unavailable in this test");
+                                    })
                                     .upload("unsafe-theme", false, zipFile);
 
                     assertEquals(1, response.getError());
@@ -332,8 +333,8 @@ public class TemplateServiceTest {
                                     .exists());
                     assertFalse(
                             new File(
-                                            temporaryFolder.getRoot(),
-                                            "static/include/templates/unsafe-theme")
+                                    temporaryFolder.getRoot(),
+                                    "static/include/templates/unsafe-theme")
                                     .exists());
                 });
     }
@@ -346,18 +347,20 @@ public class TemplateServiceTest {
 
                     UploadTemplateResponse response =
                             new TemplateService(
-                                            new InMemoryZrLogDatabase.TestCacheService(),
-                                            () -> null,
-                                            () -> null,
-                                            ApplicationServicesFixture.audit(null),
-                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); })
+                                    new InMemoryZrLogDatabase.TestCacheService(),
+                                    () -> null,
+                                    () -> null,
+                                    ApplicationServicesFixture.audit(null),
+                                    () -> {
+                                        throw new IllegalStateException("Database is unavailable in this test");
+                                    })
                                     .upload("missing-metadata", false, zipFile);
 
                     assertEquals(1, response.getError());
                     assertFalse(
                             new File(
-                                            temporaryFolder.getRoot(),
-                                            "static/include/templates/missing-metadata")
+                                    temporaryFolder.getRoot(),
+                                    "static/include/templates/missing-metadata")
                                     .exists());
                 });
     }

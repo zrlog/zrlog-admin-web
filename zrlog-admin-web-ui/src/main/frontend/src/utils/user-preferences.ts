@@ -1,10 +1,10 @@
-import type { UserPreferencePage } from "./account-page-routes";
-import { AdminTheme, getRes, setRes } from "./constants";
-import { changeAppState } from "../base/ConfigProviderApp";
-import { getColorPrimaryByRes, isDarkModeByRes } from "../base/AppInit";
-import { getSsDate } from "../base/SsData";
-import { cacheUserInfo } from "./cache";
-import { userAppearanceResources } from "./user-appearance";
+import type {UserPreferencePage} from "./account-page-routes";
+import {AdminTheme, getRes, setRes} from "./constants";
+import {changeAppState} from "../base/ConfigProviderApp";
+import {getColorPrimaryByRes, isDarkModeByRes} from "../base/AppInit";
+import {getSsDate} from "../base/SsData";
+import {cacheUserInfo} from "./cache";
+import {userAppearanceResources} from "./user-appearance";
 
 export type UserPreferences = {
     language?: "zh_CN" | "en_US" | null;
@@ -41,7 +41,7 @@ export const getUserPreferenceRevision = () => appearanceRevision;
 export const applyUserPreferences = (preferences: UserPreferences) => {
     appearanceRevision++;
     const appearance = preferences.appearance;
-    setRes({ ...getRes(), ...userAppearanceResources(preferences) });
+    setRes({...getRes(), ...userAppearanceResources(preferences)});
     changeAppState({
         lang: preferences.language ?? "zh_CN",
         theme: appearance?.theme ?? "default",
@@ -56,7 +56,7 @@ export const applyUserPreferences = (preferences: UserPreferences) => {
 export const cacheUserAppearance = (preferences: UserPreferences) => {
     const ssData = getSsDate();
     if (!ssData.user || ssData.user.key !== ssData.key) return;
-    ssData.user = { ...ssData.user, language: preferences.language, appearance: preferences.appearance };
+    ssData.user = {...ssData.user, language: preferences.language, appearance: preferences.appearance};
     cacheUserInfo(ssData.user);
 };
 
@@ -82,18 +82,18 @@ export const resolveUserPreferences = (defaults: UserPreferences, overrides: Use
         status: overrides.articleList?.status ?? defaults.articleList?.status,
         columns: overrides.articleList?.columns ?? defaults.articleList?.columns,
     },
-    session: { timeoutMinutes: overrides.session?.timeoutMinutes ?? defaults.session?.timeoutMinutes },
-    assistant: { knowledgeScope: overrides.assistant?.knowledgeScope ?? defaults.assistant?.knowledgeScope },
+    session: {timeoutMinutes: overrides.session?.timeoutMinutes ?? defaults.session?.timeoutMinutes},
+    assistant: {knowledgeScope: overrides.assistant?.knowledgeScope ?? defaults.assistant?.knowledgeScope},
 });
 
 export const mergeUserPreferenceChanges = (current: UserPreferences, changes: UserPreferences): UserPreferences => ({
     ...current,
     ...changes,
-    ...(changes.appearance ? { appearance: { ...current.appearance, ...changes.appearance } } : {}),
-    ...(changes.assistant ? { assistant: { ...current.assistant, ...changes.assistant } } : {}),
-    ...(changes.articleList ? { articleList: { ...current.articleList, ...changes.articleList } } : {}),
-    ...(changes.session ? { session: { ...current.session, ...changes.session } } : {}),
-    ...(changes.editor ? { editor: { ...current.editor, ...changes.editor } } : {}),
+    ...(changes.appearance ? {appearance: {...current.appearance, ...changes.appearance}} : {}),
+    ...(changes.assistant ? {assistant: {...current.assistant, ...changes.assistant}} : {}),
+    ...(changes.articleList ? {articleList: {...current.articleList, ...changes.articleList}} : {}),
+    ...(changes.session ? {session: {...current.session, ...changes.session}} : {}),
+    ...(changes.editor ? {editor: {...current.editor, ...changes.editor}} : {}),
 });
 
 // A separate preferences page edits only its own fields, including when resetting defaults.
@@ -108,10 +108,10 @@ export const replaceUserPreferencePage = (
         assistant: ["assistant"],
         session: ["session"],
     };
-    const result = { ...current };
+    const result = {...current};
     fields[page].forEach((key) => {
         if (edited[key] === undefined) delete result[key];
-        else Object.assign(result, { [key]: edited[key] });
+        else Object.assign(result, {[key]: edited[key]});
     });
     return result;
 };

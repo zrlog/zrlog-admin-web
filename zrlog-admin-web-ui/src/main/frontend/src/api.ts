@@ -1,9 +1,9 @@
-import { AxiosInstance } from "axios";
-import { getSsDate, getWindowPageBuildId, setWindowPageBuildId } from "./base/SsData";
-import { cacheIgnoreReloadTime, getRes } from "./utils/constants";
-import { getPageApiUri, getAccountPage } from "./utils/account-page-routes";
-import { syncMessageCenterStatus } from "./utils/message-center-status";
-import type { ApiResponse, PublicVersionResponse } from "./type";
+import {AxiosInstance} from "axios";
+import {getSsDate, getWindowPageBuildId, setWindowPageBuildId} from "./base/SsData";
+import {cacheIgnoreReloadTime, getRes} from "./utils/constants";
+import {getAccountPage, getPageApiUri} from "./utils/account-page-routes";
+import {syncMessageCenterStatus} from "./utils/message-center-status";
+import type {ApiResponse, PublicVersionResponse} from "./type";
 
 export const API_VERSION_PATH = "/api/public/version";
 export const API_DO_UPGRADE_PATH = "/api/admin/upgrade/doUpgrade";
@@ -14,7 +14,7 @@ export const getCsrData = async (uri: string, t: number, axiosInstance: AxiosIns
     if (t > 0) {
         requestUri = requestUri + `${uri.includes("?") ? "&" : "?"}${cacheIgnoreReloadTime}=` + t;
     }
-    const { data } = await axiosInstance.get(requestUri);
+    const {data} = await axiosInstance.get(requestUri);
     const accountPage = getAccountPage(uri);
     if (accountPage && !data.error) {
         const res = getRes();
@@ -36,9 +36,9 @@ export const getVersion = async (
     buildId: string,
     axiosInstance: AxiosInstance
 ): Promise<ApiResponse<PublicVersionResponse>> => {
-    const { data } = await axiosInstance.get<ApiResponse<PublicVersionResponse>>(
+    const {data} = await axiosInstance.get<ApiResponse<PublicVersionResponse>>(
         API_VERSION_PATH + "?buildId=" + encodeURIComponent(buildId),
-        { timeout: 15000 }
+        {timeout: 15000}
     );
     return data;
 };

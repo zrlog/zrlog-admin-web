@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>com.hibegin</groupId>
         <artifactId>zrlog-base</artifactId>
@@ -12,7 +13,7 @@
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>build</frontendBuildOutputPath>
         <zrlog-install-web.version>4.0.1-SNAPSHOT</zrlog-install-web.version>
-        <gpg.passphrase />
+        <gpg.passphrase/>
         <dagger.version>2.60.1</dagger.version>
     </properties>
     <repositories>
@@ -152,14 +153,20 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <executions>
-                            <execution><id>attach-javadocs</id><phase>none</phase></execution>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <phase>none</phase>
+                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <executions>
-                            <execution><id>sign-artifacts</id><phase>none</phase></execution>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>none</phase>
+                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
@@ -170,7 +177,9 @@
                             <execution>
                                 <id>disable-central-snapshot-publishing</id>
                                 <phase>none</phase>
-                                <goals><goal>publish</goal></goals>
+                                <goals>
+                                    <goal>publish</goal>
+                                </goals>
                             </execution>
                         </executions>
                     </plugin>

@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { deepEqualWithSpecialJSON } from "../../../utils/helpers";
-import { ArticleChangeableValue, ArticleEntry } from "../index.types";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {deepEqualWithSpecialJSON} from "../../../utils/helpers";
+import {ArticleChangeableValue, ArticleEntry} from "../index.types";
 import {
     ArticleDraftSyncEvent,
     ArticleDraftSyncState,
     reduceArticleDraftSyncState,
     restoreArticleDraftSyncState,
 } from "./article-draft-sync-state-machine";
-import { mergeArticleSynchronizationMetadata } from "./article-draft-sync-helpers";
-import { buildArticleMerge } from "../version-sync/article-merge";
+import {mergeArticleSynchronizationMetadata} from "./article-draft-sync-helpers";
+import {buildArticleMerge} from "../version-sync/article-merge";
 
 export type ArticleDraftSyncTask = {
     article: ArticleEntry;
@@ -53,20 +53,20 @@ const toErrorMessage = (error: unknown) => {
 };
 
 const useArticleDraftSync = ({
-    article,
-    initialDirty,
-    initialConflict = false,
-    initialState,
-    initialUpdatedAt,
-    isSyncable,
-    now = Date.now,
-    offline,
-    onPersist,
-    onRemove,
-    onRequestSync,
-    onSynced,
-    retryDelay = getArticleDraftRetryDelay,
-}: UseArticleDraftSyncOptions) => {
+                                 article,
+                                 initialDirty,
+                                 initialConflict = false,
+                                 initialState,
+                                 initialUpdatedAt,
+                                 isSyncable,
+                                 now = Date.now,
+                                 offline,
+                                 onPersist,
+                                 onRemove,
+                                 onRequestSync,
+                                 onSynced,
+                                 retryDelay = getArticleDraftRetryDelay,
+                             }: UseArticleDraftSyncOptions) => {
     const restoredStateRef = useRef<ArticleDraftSyncState | undefined>(undefined);
     if (!restoredStateRef.current) {
         restoredStateRef.current = restoreArticleDraftSyncState(
@@ -106,8 +106,8 @@ const useArticleDraftSync = ({
             syncStateRef.current.document === "clean"
                 ? article
                 : syncStateRef.current.sync === "conflict"
-                ? articleRef.current
-                : mergeArticleSynchronizationMetadata(articleRef.current, article);
+                    ? articleRef.current
+                    : mergeArticleSynchronizationMetadata(articleRef.current, article);
     }
 
     const transition = useCallback((event: ArticleDraftSyncEvent) => {
@@ -152,12 +152,12 @@ const useArticleDraftSync = ({
         const nextState = transition(
             offline
                 ? {
-                      type: "networkLost",
-                  }
+                    type: "networkLost",
+                }
                 : {
-                      type: "networkRestored",
-                      syncable: isSyncableRef.current(articleRef.current),
-                  }
+                    type: "networkRestored",
+                    syncable: isSyncableRef.current(articleRef.current),
+                }
         );
         if (nextState !== currentState && nextState.document !== "clean") {
             persistCurrent(nextState);
@@ -338,7 +338,7 @@ const useArticleDraftSync = ({
     );
 
     const markCommitted = useCallback(() => {
-        transition({ type: "commit" });
+        transition({type: "commit"});
     }, [transition]);
 
     const resolveConflict = useCallback(
@@ -372,7 +372,7 @@ const useArticleDraftSync = ({
     );
 
     const discard = useCallback(() => {
-        transition({ type: "commit" });
+        transition({type: "commit"});
         onRemoveRef.current(articleRef.current);
         articleRef.current = renderedArticleRef.current;
         onSyncedRef.current();
@@ -389,7 +389,7 @@ const useArticleDraftSync = ({
                 currentState.document === "clean" ||
                 buildArticleMerge(undefined, articleRef.current, serverArticle).conflicts.length === 0
             ) {
-                transition({ type: "commit" });
+                transition({type: "commit"});
                 onRemoveRef.current(articleRef.current);
                 articleRef.current = serverArticle;
                 onRemoveRef.current(serverArticle);
@@ -406,7 +406,7 @@ const useArticleDraftSync = ({
                 articleRef.current = mergeArticleSynchronizationMetadata(local.article, serverArticle, true);
                 local.article = articleRef.current;
             }
-            persistCurrent(transition({ type: "serverUpdated" }));
+            persistCurrent(transition({type: "serverUpdated"}));
             return local;
         },
         [persistCurrent, transition]
@@ -417,7 +417,7 @@ const useArticleDraftSync = ({
             if (syncStateRef.current.document === "clean") {
                 articleRef.current = submittedArticle;
                 updatedAtRef.current = nowRef.current();
-                transition({ type: "edit", revision: syncStateRef.current.revision + 1, syncable: false });
+                transition({type: "edit", revision: syncStateRef.current.revision + 1, syncable: false});
             }
             articleRef.current = {
                 ...articleRef.current,
@@ -425,7 +425,7 @@ const useArticleDraftSync = ({
                 version: submittedArticle.version,
                 rubbish: submittedArticle.rubbish,
             };
-            persistCurrent(transition({ type: "serverUpdated" }));
+            persistCurrent(transition({type: "serverUpdated"}));
             return {
                 article: articleRef.current,
                 revision: syncStateRef.current.revision,

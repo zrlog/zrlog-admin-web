@@ -1,37 +1,19 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.Gson;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
-import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
-import com.zrlog.admin.business.ai.exception.AIRequestException;
-import com.zrlog.admin.business.ai.exception.AIResponseException;
-import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
-import com.zrlog.admin.business.ai.exception.UnsupportedAIToolException;
+import com.zrlog.admin.business.ai.exception.*;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest;
 import com.zrlog.admin.business.rest.request.ScoreArticleRequest;
-import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import com.zrlog.admin.business.rest.response.ArticleProofreadResponse;
-import com.zrlog.admin.business.rest.response.ArticleReaderQuestionsResponse;
-import com.zrlog.admin.business.rest.response.ArticleSeoCheckResponse;
-import com.zrlog.admin.business.rest.response.ArticleStructureAdviceResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleMarkdownResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleTagsResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleTitleResponse;
-import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.util.I18nUtil;
-
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -42,11 +24,126 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static org.junit.Assert.*;
+
 public class AIWritingSkillServiceTest {
 
     private static final Gson GSON = new Gson();
 
-    @Test public void translatesFailuresWithoutShowingRawDiagnostics() {
+    private static GenerateArticleFieldRequest articleContext() {
+        GenerateArticleFieldRequest context = new GenerateArticleFieldRequest();
+        context.setTitle("Title");
+        context.setMarkdown("Markdown");
+        context.setDigest("Digest");
+        context.setKeywords("java,zrlog");
+        context.setSelectedText("Selected");
+        return context;
+    }
+
+    private static ScoreArticleResponse scoreResponse() {
+        ScoreArticleResponse response = new ScoreArticleResponse();
+        response.setScore(88);
+        response.setSummary("Looks good");
+        ScoreArticleResponse.ScoreItem item = new ScoreArticleResponse.ScoreItem();
+        item.setName("SEO");
+        item.setScore(80);
+        item.setSuggestion("Improve title");
+        response.setItems(List.of(item));
+        return response;
+    }
+
+    private static ArticleSeoCheckResponse seoResponse() {
+        ArticleSeoCheckResponse response = new ArticleSeoCheckResponse();
+        response.setScore(76);
+        response.setSummary("SEO ok");
+        ArticleSeoCheckResponse.SeoItem item = new ArticleSeoCheckResponse.SeoItem();
+        item.setName("title");
+        item.setStatus("warning");
+        item.setSuggestion("shorten");
+        response.setItems(List.of(item));
+        return response;
+    }
+
+    private static ArticleProofreadResponse proofreadResponse() {
+        ArticleProofreadResponse response = new ArticleProofreadResponse();
+        response.setSummary("Proofread ok");
+        ArticleProofreadResponse.ProofreadItem item = new ArticleProofreadResponse.ProofreadItem();
+        item.setOriginal("teh");
+        item.setIssue("typo");
+        item.setSuggestion("the");
+        response.setItems(List.of(item));
+        return response;
+    }
+
+    private static ArticleStructureAdviceResponse structureResponse() {
+        ArticleStructureAdviceResponse response = new ArticleStructureAdviceResponse();
+        response.setSummary("Structure ok");
+        ArticleStructureAdviceResponse.StructureItem item = new ArticleStructureAdviceResponse.StructureItem();
+        item.setName("intro");
+        item.setStatus("good");
+        item.setSuggestion("keep");
+        response.setItems(List.of(item));
+        return response;
+    }
+
+    private static ArticleReaderQuestionsResponse questionsResponse() {
+        ArticleReaderQuestionsResponse response = new ArticleReaderQuestionsResponse();
+        response.setSummary("Questions ok");
+        ArticleReaderQuestionsResponse.ReaderQuestionItem item =
+                new ArticleReaderQuestionsResponse.ReaderQuestionItem();
+        item.setQuestion("Why?");
+        item.setReason("reader intent");
+        item.setSuggestion("answer it");
+        response.setItems(List.of(item));
+        return response;
+    }
+
+    private static Object invoke(Object target, String methodName, Object... args) throws Exception {
+        Method method = findMethod(target.getClass(), methodName, args.length);
+        method.setAccessible(true);
+        return method.invoke(target, args);
+    }
+
+    private static Throwable invokeFailure(Object target, String methodName, Object... args) throws Exception {
+        try {
+            invoke(target, methodName, args);
+        } catch (InvocationTargetException e) {
+            return e.getCause();
+        }
+        throw new AssertionError("Expected method failure");
+    }
+
+    private static Method findMethod(Class<?> type, String methodName, int parameterCount) {
+        Class<?> current = type;
+        while (current != null) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (method.getName().equals(methodName) && method.getParameterCount() == parameterCount) {
+                    return method;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        throw new IllegalArgumentException("No method " + methodName);
+    }
+
+    private static String repeat(String value, int count) {
+        StringBuilder sb = new StringBuilder(value.length() * count);
+        for (int i = 0; i < count; i++) {
+            sb.append(value);
+        }
+        return sb.toString();
+    }
+
+    private static AIWebSiteInfoWithAIMessages providerInfo() {
+        AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
+        info.setAi_provider(AIProviderType.DEEP_SEEK);
+        info.setAi_model("deepseek-chat");
+        info.setAi_api_key("test-key");
+        return info;
+    }
+
+    @Test
+    public void translatesFailuresWithoutShowingRawDiagnostics() {
         for (String language : List.of("zh_CN", "en_US")) {
             try (var ignored = AdminLanguageContext.open(language)) {
                 AIWritingSkillService service =
@@ -55,8 +152,8 @@ public class AIWritingSkillServiceTest {
                                 AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                                 AIServiceDependencies.tools(null),
                                 AIServiceDependencies.images(null),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                                com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
                 AIResponseException failure = new AIResponseException("title response is invalid");
                 var payload = service.buildStreamErrorPayload(failure, null);
                 assertEquals(
@@ -97,9 +194,9 @@ public class AIWritingSkillServiceTest {
         AIStreamPayloads.ErrorPayload payload =
                 new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
 
-                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                                AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null),
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                        AIServiceDependencies.tools(null),
+                        AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(
@@ -156,9 +253,9 @@ public class AIWritingSkillServiceTest {
         AIStreamPayloads.ErrorPayload payload =
                 new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
 
-                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                                AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null),
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                        AIServiceDependencies.tools(null),
+                        AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(
@@ -349,18 +446,18 @@ public class AIWritingSkillServiceTest {
         AIStreamPayloads.ErrorPayload payload =
                 new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
 
-                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                                AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null),
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                        AIServiceDependencies.tools(null),
+                        AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(new RuntimeException(), null);
         AIStreamPayloads.ErrorPayload incomplete =
                 new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
 
-                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                                AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null),
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                        AIServiceDependencies.tools(null),
+                        AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(new AIIncompleteResponseException(""), null);
@@ -377,118 +474,6 @@ public class AIWritingSkillServiceTest {
         articleContext.setMessageType("articleContext");
         AIResponseEntry.AIContentEntry user = new AIResponseEntry.AIContentEntry("user", "question");
         return List.of(system, articleContext, user);
-    }
-
-    private static GenerateArticleFieldRequest articleContext() {
-        GenerateArticleFieldRequest context = new GenerateArticleFieldRequest();
-        context.setTitle("Title");
-        context.setMarkdown("Markdown");
-        context.setDigest("Digest");
-        context.setKeywords("java,zrlog");
-        context.setSelectedText("Selected");
-        return context;
-    }
-
-    private static ScoreArticleResponse scoreResponse() {
-        ScoreArticleResponse response = new ScoreArticleResponse();
-        response.setScore(88);
-        response.setSummary("Looks good");
-        ScoreArticleResponse.ScoreItem item = new ScoreArticleResponse.ScoreItem();
-        item.setName("SEO");
-        item.setScore(80);
-        item.setSuggestion("Improve title");
-        response.setItems(List.of(item));
-        return response;
-    }
-
-    private static ArticleSeoCheckResponse seoResponse() {
-        ArticleSeoCheckResponse response = new ArticleSeoCheckResponse();
-        response.setScore(76);
-        response.setSummary("SEO ok");
-        ArticleSeoCheckResponse.SeoItem item = new ArticleSeoCheckResponse.SeoItem();
-        item.setName("title");
-        item.setStatus("warning");
-        item.setSuggestion("shorten");
-        response.setItems(List.of(item));
-        return response;
-    }
-
-    private static ArticleProofreadResponse proofreadResponse() {
-        ArticleProofreadResponse response = new ArticleProofreadResponse();
-        response.setSummary("Proofread ok");
-        ArticleProofreadResponse.ProofreadItem item = new ArticleProofreadResponse.ProofreadItem();
-        item.setOriginal("teh");
-        item.setIssue("typo");
-        item.setSuggestion("the");
-        response.setItems(List.of(item));
-        return response;
-    }
-
-    private static ArticleStructureAdviceResponse structureResponse() {
-        ArticleStructureAdviceResponse response = new ArticleStructureAdviceResponse();
-        response.setSummary("Structure ok");
-        ArticleStructureAdviceResponse.StructureItem item = new ArticleStructureAdviceResponse.StructureItem();
-        item.setName("intro");
-        item.setStatus("good");
-        item.setSuggestion("keep");
-        response.setItems(List.of(item));
-        return response;
-    }
-
-    private static ArticleReaderQuestionsResponse questionsResponse() {
-        ArticleReaderQuestionsResponse response = new ArticleReaderQuestionsResponse();
-        response.setSummary("Questions ok");
-        ArticleReaderQuestionsResponse.ReaderQuestionItem item =
-                new ArticleReaderQuestionsResponse.ReaderQuestionItem();
-        item.setQuestion("Why?");
-        item.setReason("reader intent");
-        item.setSuggestion("answer it");
-        response.setItems(List.of(item));
-        return response;
-    }
-
-    private static Object invoke(Object target, String methodName, Object... args) throws Exception {
-        Method method = findMethod(target.getClass(), methodName, args.length);
-        method.setAccessible(true);
-        return method.invoke(target, args);
-    }
-
-    private static Throwable invokeFailure(Object target, String methodName, Object... args) throws Exception {
-        try {
-            invoke(target, methodName, args);
-        } catch (InvocationTargetException e) {
-            return e.getCause();
-        }
-        throw new AssertionError("Expected method failure");
-    }
-
-    private static Method findMethod(Class<?> type, String methodName, int parameterCount) {
-        Class<?> current = type;
-        while (current != null) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (method.getName().equals(methodName) && method.getParameterCount() == parameterCount) {
-                    return method;
-                }
-            }
-            current = current.getSuperclass();
-        }
-        throw new IllegalArgumentException("No method " + methodName);
-    }
-
-    private static String repeat(String value, int count) {
-        StringBuilder sb = new StringBuilder(value.length() * count);
-        for (int i = 0; i < count; i++) {
-            sb.append(value);
-        }
-        return sb.toString();
-    }
-
-    private static AIWebSiteInfoWithAIMessages providerInfo() {
-        AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
-        info.setAi_provider(AIProviderType.DEEP_SEEK);
-        info.setAi_model("deepseek-chat");
-        info.setAi_api_key("test-key");
-        return info;
     }
 
 }

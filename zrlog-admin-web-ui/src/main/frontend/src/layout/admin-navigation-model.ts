@@ -1,4 +1,4 @@
-import { getRes } from "../utils/constants";
+import {getRes} from "../utils/constants";
 
 export type AdminNavigationGroupKey = "content" | "site" | "extension" | "settings";
 

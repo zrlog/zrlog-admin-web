@@ -3,7 +3,9 @@ package com.zrlog.admin.util;
 import com.zrlog.common.vo.I18nVO;
 import com.zrlog.util.I18nUtil;
 
-/** A language scope for authenticated requests and tasks running on reusable threads. */
+/**
+ * A language scope for authenticated requests and tasks running on reusable threads.
+ */
 public final class AdminLanguageContext implements AutoCloseable {
     private final I18nVO previous;
 
@@ -24,7 +26,8 @@ public final class AdminLanguageContext implements AutoCloseable {
         return new AdminLanguageContext(language);
     }
 
-    @Override public void close() {
+    @Override
+    public void close() {
         if (previous == null) I18nUtil.removeI18n();
         else I18nUtil.threadLocal.set(previous);
     }

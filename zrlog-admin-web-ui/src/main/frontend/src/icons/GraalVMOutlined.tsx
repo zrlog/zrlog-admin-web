@@ -1,4 +1,4 @@
-const GraalVmOutlined = ({ size = 34 }: { size?: number }) => {
+const GraalVmOutlined = ({size = 34}: { size?: number }) => {
     return (
         <span
             className={"anticon"}

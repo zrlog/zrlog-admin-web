@@ -21,6 +21,20 @@ public class ArticleEditWebSiteInfo implements Validator {
     private Boolean article_publish_check_enabled;
     private String article_cover_aspect_ratio;
 
+    public static String normalizeArticleCoverAspectRatio(String aspectRatio) {
+        if (StringUtils.isEmpty(aspectRatio) || !SUPPORTED_ARTICLE_COVER_ASPECT_RATIOS.contains(aspectRatio)) {
+            return DEFAULT_ARTICLE_COVER_ASPECT_RATIO;
+        }
+        return aspectRatio;
+    }
+
+    public static Long normalizeArticleEditAutoSaveInterval(Long interval) {
+        if (Objects.isNull(interval) || !SUPPORTED_ARTICLE_EDIT_AUTO_SAVE_INTERVALS.contains(interval)) {
+            return DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL;
+        }
+        return interval;
+    }
+
     public Long getArticle_auto_digest_length() {
         return article_auto_digest_length;
     }
@@ -59,20 +73,6 @@ public class ArticleEditWebSiteInfo implements Validator {
 
     public void setArticle_cover_aspect_ratio(String article_cover_aspect_ratio) {
         this.article_cover_aspect_ratio = article_cover_aspect_ratio;
-    }
-
-    public static String normalizeArticleCoverAspectRatio(String aspectRatio) {
-        if (StringUtils.isEmpty(aspectRatio) || !SUPPORTED_ARTICLE_COVER_ASPECT_RATIOS.contains(aspectRatio)) {
-            return DEFAULT_ARTICLE_COVER_ASPECT_RATIO;
-        }
-        return aspectRatio;
-    }
-
-    public static Long normalizeArticleEditAutoSaveInterval(Long interval) {
-        if (Objects.isNull(interval) || !SUPPORTED_ARTICLE_EDIT_AUTO_SAVE_INTERVALS.contains(interval)) {
-            return DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL;
-        }
-        return interval;
     }
 
     @Override

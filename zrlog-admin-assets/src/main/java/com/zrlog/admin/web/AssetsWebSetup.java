@@ -7,7 +7,8 @@ import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.UploadService;
-import com.zrlog.admin.web.controller.api.*;
+import com.zrlog.admin.web.controller.api.FileManagerController;
+import com.zrlog.admin.web.controller.api.UploadController;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.assets.AssetsComponent;
 import com.zrlog.admin.web.di.assets.DaggerAssetsComponent;
@@ -40,7 +41,8 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
         return config.getBindings().build().get(AssetsComponent.class);
     }
 
-    @Override public void setup() {
+    @Override
+    public void setup() {
         Router router = config.getRouter();
         config.getBindings()
                 .singleton(
@@ -88,15 +90,18 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/download", FileManagerController.class, "download");
     }
 
-    @Override public String saveAvatar(byte[] bytes, String extension, com.hibegin.http.server.api.HttpRequest request) {
+    @Override
+    public String saveAvatar(byte[] bytes, String extension, com.hibegin.http.server.api.HttpRequest request) {
         return components()
                 .uploads()
                 .saveAvatarBytes(components().requestIdentity().current(), bytes, extension, request, AdminTokenThreadLocal.getUser())
                 .getUrl();
     }
-    @Override public String saveAttachment(com.zrlog.data.security.AccountAccess actor, byte[] bytes, String filename,
-                                            com.hibegin.http.server.api.HttpRequest request,
-                                            com.zrlog.common.vo.AdminTokenVO credential) throws Exception {
+
+    @Override
+    public String saveAttachment(com.zrlog.data.security.AccountAccess actor, byte[] bytes, String filename,
+                                 com.hibegin.http.server.api.HttpRequest request,
+                                 com.zrlog.common.vo.AdminTokenVO credential) throws Exception {
         components().permissions().require(actor, AccountAction.ASSET_UPLOAD);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
         String extension =
@@ -115,7 +120,9 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
                             request,
                             credential)
                     .getUrl();
-        } finally { java.nio.file.Files.deleteIfExists(temporary); }
+        } finally {
+            java.nio.file.Files.deleteIfExists(temporary);
+        }
     }
 
 }

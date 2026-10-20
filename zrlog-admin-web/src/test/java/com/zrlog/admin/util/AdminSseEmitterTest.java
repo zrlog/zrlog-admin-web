@@ -1,8 +1,5 @@
 package com.zrlog.admin.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -19,7 +16,6 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -28,6 +24,9 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class AdminSseEmitterTest {
 
@@ -79,11 +78,13 @@ public class AdminSseEmitterTest {
         org.junit.Assert.assertFalse(body.contains("event: publish-complete"));
     }
 
-    @Test public void sseWorkerCannotLoseDelegatedPublicationRestrictions() throws Exception {
+    @Test
+    public void sseWorkerCannotLoseDelegatedPublicationRestrictions() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             CapturedResponse response = new CapturedResponse();
             var identity = new OAuthModels.Identity();
-            identity.permissions = java.util.List.of("article.create"); identity.permissionMode = "custom";
+            identity.permissions = java.util.List.of("article.create");
+            identity.permissionMode = "custom";
             DelegatedAccess.withPermissions(
                     java.util.Set.copyOf(identity.permissions),
                     "inherit".equals(identity.permissionMode),
@@ -101,47 +102,47 @@ public class AdminSseEmitterTest {
                                             PermissionErrorException.class,
                                             () ->
                                                     new AdminArticleService(ApplicationServicesFixture
-                                                                            .capability(
-                                                                                    db.config(),
-                                                                                    ArticleAssistant
-                                                                                            .class),
-                                AccountServicesFixture
-                                                                            .component(
-                                                                                    db.dataSource())
-                                                                            .permissions(),
-                                AccountServicesFixture
-                                                                            .component(
-                                                                                    db.dataSource())
-                                                                            .identities(),
-                                AccountServicesFixture
-                                                                            .component(
-                                                                                    db.dataSource())
-                                                                            .preferences(),
-                                new ArticleVersionService(AccountServicesFixture
-                                                                                    .component(
-                                                                                            db
-                                                                                                    .dataSource())
-                                                                                    .permissions(),
-                                () ->
-                                                                                    new Log(
-                                                                                            db
-                                                                                                    .dataSource()),
-                                () ->
-                                                                                    new LogVersion(
-                                                                                            db
-                                                                                                    .dataSource())),
-                                new ArticlePinningService(
-                                                                            () ->
-                                                                                    new Log(
-                                                                                            db
-                                                                                                    .dataSource()),
-                                                                            ApplicationServicesFixture
-                                                                                    .locks(
-                                                                                            db
-                                                                                                    .dataSource())),
-                                () -> new Log(db.dataSource()),
-                                ApplicationServicesFixture
-                                                                            .locks(db.dataSource()))
+                                                            .capability(
+                                                                    db.config(),
+                                                                    ArticleAssistant
+                                                                            .class),
+                                                            AccountServicesFixture
+                                                                    .component(
+                                                                            db.dataSource())
+                                                                    .permissions(),
+                                                            AccountServicesFixture
+                                                                    .component(
+                                                                            db.dataSource())
+                                                                    .identities(),
+                                                            AccountServicesFixture
+                                                                    .component(
+                                                                            db.dataSource())
+                                                                    .preferences(),
+                                                            new ArticleVersionService(AccountServicesFixture
+                                                                    .component(
+                                                                            db
+                                                                                    .dataSource())
+                                                                    .permissions(),
+                                                                    () ->
+                                                                            new Log(
+                                                                                    db
+                                                                                            .dataSource()),
+                                                                    () ->
+                                                                            new LogVersion(
+                                                                                    db
+                                                                                            .dataSource())),
+                                                            new ArticlePinningService(
+                                                                    () ->
+                                                                            new Log(
+                                                                                    db
+                                                                                            .dataSource()),
+                                                                    ApplicationServicesFixture
+                                                                            .locks(
+                                                                                    db
+                                                                                            .dataSource())),
+                                                            () -> new Log(db.dataSource()),
+                                                            ApplicationServicesFixture
+                                                                    .locks(db.dataSource()))
                                                             .create(
                                                                     AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),
                                                                     request));

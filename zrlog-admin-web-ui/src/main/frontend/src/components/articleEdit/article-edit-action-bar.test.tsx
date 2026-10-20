@@ -1,33 +1,34 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import ArticleEditActionBar from "./article-edit-action-bar";
-import { ArticleEditState } from "./index.types";
-import { AIProviderType } from "../../type";
-import { createDraftAiSaveGate } from "./draft-ai-save-gate";
+import {ArticleEditState} from "./index.types";
+import {AIProviderType} from "../../type";
+import {createDraftAiSaveGate} from "./draft-ai-save-gate";
 
-import { hasAction } from "../../utils/account-access";
-jest.mock("../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn(() => true) }));
+import {hasAction} from "../../utils/account-access";
+
+jest.mock("../../utils/account-access", () => ({hasAction: require("@jest/globals").jest.fn(() => true)}));
 
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     return {
-        Button: React.forwardRef(({ children, icon, ...props }: any, ref: any) =>
-            React.createElement("button", { ...props, ref }, icon, children)
+        Button: React.forwardRef(({children, icon, ...props}: any, ref: any) =>
+            React.createElement("button", {...props, ref}, icon, children)
         ),
-        Grid: { useBreakpoint: () => ({ sm: true }) },
+        Grid: {useBreakpoint: () => ({sm: true})},
     };
 });
 
 jest.mock("@ant-design/icons", () => {
     const React = require("react") as typeof import("react");
     const Icon = () => React.createElement("span");
-    return { SaveOutlined: Icon, SendOutlined: Icon };
+    return {SaveOutlined: Icon, SendOutlined: Icon};
 });
 
-jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
-jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
-jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
+jest.mock("../../base/AppBase", () => ({useAxiosBaseInstance: () => ({})}));
+jest.mock("antd-style", () => ({useTheme: () => ({})}));
+jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({getAiDrawerOpen: () => false}));
 jest.mock("./article-ai-assistant/article-ai-assistant-button", () => ({
     __esModule: true,
     default: () => null,
@@ -41,7 +42,7 @@ jest.mock("./shortcut-utils", () => ({
 jest.mock("../../utils/constants", () => ({
     getRes: () => ({
         articleEdit: {
-            actions: { release: "Publish", save: "Save", saveAsDraft: "Save Draft" },
+            actions: {release: "Publish", save: "Save", saveAsDraft: "Save Draft"},
             saving: "Saving",
         },
     }),
@@ -122,22 +123,22 @@ describe("ArticleEditActionBar", () => {
                 />
             );
         });
-        return { onPreview, onRequestPublish, onSubmit };
+        return {onPreview, onRequestPublish, onSubmit};
     };
 
     it("hides publishing and ignores the publish shortcut without permission", () => {
         jest.mocked(hasAction).mockReturnValue(false);
-        const { onRequestPublish, onSubmit } = renderActionBar(state);
+        const {onRequestPublish, onSubmit} = renderActionBar(state);
         expect(
             Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Publish")
         ).toBe(false);
-        act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true })));
+        act(() => window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", ctrlKey: true})));
         expect(onRequestPublish).not.toHaveBeenCalled();
         expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it("opens the review without submitting when the public publish button is clicked", async () => {
-        const { onRequestPublish, onSubmit } = renderActionBar(state);
+        const {onRequestPublish, onSubmit} = renderActionBar(state);
         const publishButton = Array.from(container.querySelectorAll("button")).find(
             (button) => button.textContent === "Publish"
         ) as HTMLButtonElement;
@@ -149,18 +150,18 @@ describe("ArticleEditActionBar", () => {
     });
 
     it("routes Ctrl+Enter through the same public review entry", () => {
-        const { onRequestPublish, onSubmit } = renderActionBar(state);
+        const {onRequestPublish, onSubmit} = renderActionBar(state);
 
-        act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true })));
+        act(() => window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", ctrlKey: true})));
 
         expect(onRequestPublish).toHaveBeenCalledTimes(1);
         expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it("routes Ctrl+Shift+Enter to content preview without submitting", () => {
-        const { onPreview, onRequestPublish, onSubmit } = renderActionBar(state);
+        const {onPreview, onRequestPublish, onSubmit} = renderActionBar(state);
 
-        act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, shiftKey: true })));
+        act(() => window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", ctrlKey: true, shiftKey: true})));
 
         expect(onPreview).toHaveBeenCalledTimes(1);
         expect(onRequestPublish).not.toHaveBeenCalled();
@@ -170,12 +171,12 @@ describe("ArticleEditActionBar", () => {
     it("ignores editor shortcuts while the publish review or content preview is open", () => {
         const onSubmit = jest.fn(async () => true);
         const onPreview = jest.fn(async () => undefined);
-        const { onRequestPublish } = renderActionBar(state, onSubmit, onPreview, true);
+        const {onRequestPublish} = renderActionBar(state, onSubmit, onPreview, true);
 
         act(() => {
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true }));
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }));
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, shiftKey: true }));
+            window.dispatchEvent(new KeyboardEvent("keydown", {key: "s", ctrlKey: true}));
+            window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", ctrlKey: true}));
+            window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", ctrlKey: true, shiftKey: true}));
         });
 
         expect(onSubmit).not.toHaveBeenCalled();
@@ -185,7 +186,7 @@ describe("ArticleEditActionBar", () => {
 
     it("disables first save and publish actions while draft AI requests are pending", () => {
         const onSubmit = jest.fn(async () => true);
-        const { onRequestPublish } = renderActionBar(state, onSubmit, undefined, false, true);
+        const {onRequestPublish} = renderActionBar(state, onSubmit, undefined, false, true);
         const buttons = Array.from(container.querySelectorAll("button"));
         const saveButton = buttons.find(
             (button) => button.getAttribute("aria-label") === "Save Draft"
@@ -197,8 +198,8 @@ describe("ArticleEditActionBar", () => {
         act(() => {
             saveButton.click();
             publishButton.click();
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true }));
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }));
+            window.dispatchEvent(new KeyboardEvent("keydown", {key: "s", ctrlKey: true}));
+            window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", ctrlKey: true}));
         });
 
         expect(onSubmit).not.toHaveBeenCalled();
@@ -208,10 +209,10 @@ describe("ArticleEditActionBar", () => {
     it("keeps private article saves on the existing direct save path", async () => {
         const privateState = {
             ...state,
-            article: { ...state.article, privacy: true },
+            article: {...state.article, privacy: true},
         };
         const onSubmit = jest.fn(async () => true);
-        const { onRequestPublish } = renderActionBar(privateState, onSubmit);
+        const {onRequestPublish} = renderActionBar(privateState, onSubmit);
         const saveButton = Array.from(container.querySelectorAll("button")).find(
             (button) => button.textContent === "Save"
         ) as HTMLButtonElement;

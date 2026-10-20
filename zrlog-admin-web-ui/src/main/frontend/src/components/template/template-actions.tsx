@@ -1,33 +1,33 @@
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import EyeIcon from "@zrlog/ui/icons/eye";
 import LockIcon from "@zrlog/ui/icons/lock";
 import SettingsIcon from "@zrlog/ui/icons/settings";
-import { Button, Space, Tooltip } from "antd";
-import { useState } from "react";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRes } from "../../utils/constants";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
-import type { TemplateEntry } from "./template-model";
-import type { ApiResponse } from "../../type";
+import {Button, Space, Tooltip} from "antd";
+import {useState} from "react";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getRes} from "../../utils/constants";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
+import type {TemplateEntry} from "./template-model";
+import type {ApiResponse} from "../../type";
 
 const TemplateActions = ({
-    template,
-    onUpdate,
-    onConfigure,
-}: {
+                             template,
+                             onUpdate,
+                             onConfigure,
+                         }: {
     template: TemplateEntry;
     onUpdate: () => void;
     onConfigure: (template: TemplateEntry) => void;
 }) => {
     const axiosInstance = useAxiosBaseInstance();
     const [applying, setApplying] = useState(false);
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
     const res = getRes().websiteTemplate;
     const query = `shortTemplate=${encodeURIComponent(template.shortTemplate)}`;
     const preview = () => {
-        axiosInstance.post(`/api/admin/template/preview?${query}`).then(({ data }) => {
+        axiosInstance.post(`/api/admin/template/preview?${query}`).then(({data}) => {
             if (data.error) {
                 void messageApi.error(data.message);
                 return;
@@ -53,7 +53,7 @@ const TemplateActions = ({
             .finally(() => setApplying(false));
     };
     const deleteTemplate = () =>
-        axiosInstance.post(`/api/admin/template/delete?${query}`).then(({ data }) => {
+        axiosInstance.post(`/api/admin/template/delete?${query}`).then(({data}) => {
             if (data.error) {
                 void messageApi.error(data.message);
                 return;
@@ -66,7 +66,7 @@ const TemplateActions = ({
             {contextHolder}
             {!template.use && (
                 <>
-                    <Button icon={<EyeIcon />} onClick={preview}>
+                    <Button icon={<EyeIcon/>} onClick={preview}>
                         {res.actions.preview}
                     </Button>
                     <Button type="primary" loading={applying} onClick={apply}>
@@ -77,7 +77,7 @@ const TemplateActions = ({
             <Tooltip title={!template.use ? res.actions.config : undefined}>
                 <Button
                     type={template.use ? "primary" : "text"}
-                    icon={<SettingsIcon />}
+                    icon={<SettingsIcon/>}
                     aria-label={res.actions.config}
                     onClick={() => onConfigure(template)}
                 >
@@ -87,7 +87,7 @@ const TemplateActions = ({
             {template.builtIn ? (
                 <Tooltip title={res.builtInCannotDelete}>
                     <span>
-                        <Button type="text" disabled icon={<LockIcon />} aria-label={res.builtInCannotDelete} />
+                        <Button type="text" disabled icon={<LockIcon/>} aria-label={res.builtInCannotDelete}/>
                     </span>
                 </Tooltip>
             ) : (
@@ -98,9 +98,9 @@ const TemplateActions = ({
                         onConfirm={deleteTemplate}
                         okText={res.actions.delete}
                         cancelText={getRes().cancel}
-                        okButtonProps={{ danger: true }}
+                        okButtonProps={{danger: true}}
                     >
-                        <Button type="text" danger icon={<DeleteIcon />} aria-label={res.actions.delete} />
+                        <Button type="text" danger icon={<DeleteIcon/>} aria-label={res.actions.delete}/>
                     </Popconfirm>
                 )
             )}

@@ -1,23 +1,23 @@
 import Input from "@zrlog/ui/antd/Input";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import KeyIcon from "@zrlog/ui/icons/key";
 import AddIcon from "@zrlog/ui/icons/add";
-import { formatDateTime } from "../utils/date-time";
+import {formatDateTime} from "../utils/date-time";
 
-import { Button, Empty, Form, List, Modal, Space, Tooltip, Typography } from "antd";
-import { useTheme } from "antd-style";
-import { useEffect, useRef, useState } from "react";
+import {Button, Empty, Form, List, Modal, Space, Tooltip, Typography} from "antd";
+import {useTheme} from "antd-style";
+import {useEffect, useRef, useState} from "react";
 import SettingsSection from "./common/SettingsSection";
-import { useAxiosBaseInstance } from "../base/AppBase";
+import {useAxiosBaseInstance} from "../base/AppBase";
 import type {
     ApiResponse,
     PasskeyRegistrationOptionsResponse,
     PasskeyRegistrationVerifyRequest,
     PasskeySummary,
 } from "../type";
-import { getBackendServerUrl, getRes } from "../utils/constants";
-import { canUsePasskeys, isPasskeyCancellation, registerPasskey } from "../utils/passkey";
+import {getBackendServerUrl, getRes} from "../utils/constants";
+import {canUsePasskeys, isPasskeyCancellation, registerPasskey} from "../utils/passkey";
 import {
     PASSKEY_API_BASE,
     PASSKEY_REGISTRATION_MESSAGE_KEY,
@@ -50,19 +50,19 @@ type PasskeyRemoveFormValues = {
 const getRequestFailureMessage = (error: unknown, fallback: string) =>
     error instanceof Error && error.message ? error.message : fallback;
 
-const ReauthenticationFields = ({ mfaEnabled }: { mfaEnabled: boolean }) => {
+const ReauthenticationFields = ({mfaEnabled}: { mfaEnabled: boolean }) => {
     return (
         <>
             <Form.Item
                 label={getRes().accountSecurity.passkeyCurrentPassword}
                 name="password"
-                rules={[{ required: true }]}
+                rules={[{required: true}]}
             >
-                <Input.Password autoComplete="current-password" />
+                <Input.Password autoComplete="current-password"/>
             </Form.Item>
             {mfaEnabled && (
-                <Form.Item label={getRes().accountSecurity.mfaCode} name="mfaCode" rules={[{ required: true }]}>
-                    <Input.OTP inputMode="numeric" length={6} formatter={(value) => value.replace(/\D/g, "")} />
+                <Form.Item label={getRes().accountSecurity.mfaCode} name="mfaCode" rules={[{required: true}]}>
+                    <Input.OTP inputMode="numeric" length={6} formatter={(value) => value.replace(/\D/g, "")}/>
                 </Form.Item>
             )}
         </>
@@ -70,15 +70,15 @@ const ReauthenticationFields = ({ mfaEnabled }: { mfaEnabled: boolean }) => {
 };
 
 const PasskeyManagement = ({
-    offline,
-    mfaEnabled,
-    modalWidth,
-    initialPasskeys,
-    onPasskeysChange,
-}: PasskeyManagementProps) => {
+                               offline,
+                               mfaEnabled,
+                               modalWidth,
+                               initialPasskeys,
+                               onPasskeysChange,
+                           }: PasskeyManagementProps) => {
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
     const [passkeys, setPasskeys] = useState<PasskeySummary[]>(initialPasskeys ?? []);
     const [loading, setLoading] = useState(!offline && initialPasskeys === undefined);
     const [hasLoaded, setHasLoaded] = useState(initialPasskeys !== undefined);
@@ -95,7 +95,7 @@ const PasskeyManagement = ({
     const loadPasskeys = async () => {
         setLoading(true);
         try {
-            const { data } = await axiosInstance.get<ApiResponse<PasskeySummary[]>>(
+            const {data} = await axiosInstance.get<ApiResponse<PasskeySummary[]>>(
                 "/api/admin/account-security/passkeys"
             );
             if (data.error) {
@@ -259,7 +259,7 @@ const PasskeyManagement = ({
                 return;
             }
             if (data.error) {
-                void messageApi.error({ key: PASSKEY_REMOVE_MESSAGE_KEY, content: data.message });
+                void messageApi.error({key: PASSKEY_REMOVE_MESSAGE_KEY, content: data.message});
                 return;
             }
             void messageApi.success({
@@ -295,7 +295,7 @@ const PasskeyManagement = ({
                     <Tooltip title={readOnlyPreview ? getRes().accountSecurity.passkeyPreviewModeDisabled : undefined}>
                         <Button
                             disabled={offline || listLoading || submitting || !registrationSupported || readOnlyPreview}
-                            icon={<AddIcon />}
+                            icon={<AddIcon/>}
                             type="primary"
                             onClick={() => setRegistrationOpen(true)}
                         >
@@ -332,7 +332,7 @@ const PasskeyManagement = ({
                                     <Button
                                         danger
                                         disabled={offline || listLoading || submitting || readOnlyPreview}
-                                        icon={<DeleteIcon />}
+                                        icon={<DeleteIcon/>}
                                         type="text"
                                         onClick={() => setRemoveTarget(passkey)}
                                     >
@@ -342,24 +342,24 @@ const PasskeyManagement = ({
                             ]}
                         >
                             <List.Item.Meta
-                                style={{ minWidth: 0 }}
+                                style={{minWidth: 0}}
                                 avatar={
-                                    <KeyIcon style={{ color: theme.colorPrimary, fontSize: theme.fontSizeXL }} />
+                                    <KeyIcon style={{color: theme.colorPrimary, fontSize: theme.fontSizeXL}}/>
                                 }
                                 title={
                                     <Typography.Text
-                                        ellipsis={{ tooltip: passkey.name }}
-                                        style={{ display: "block", maxWidth: "100%" }}
+                                        ellipsis={{tooltip: passkey.name}}
+                                        style={{display: "block", maxWidth: "100%"}}
                                     >
                                         {passkey.name}
                                     </Typography.Text>
                                 }
                                 description={
-                                    <Space direction="vertical" size={0} style={{ maxWidth: "100%" }}>
-                                        <Typography.Text type="secondary" style={{ overflowWrap: "anywhere" }}>
+                                    <Space direction="vertical" size={0} style={{maxWidth: "100%"}}>
+                                        <Typography.Text type="secondary" style={{overflowWrap: "anywhere"}}>
                                             {getRes().accountSecurity.passkeyCreatedAt}: {formatTime(passkey.createdAt)}
                                         </Typography.Text>
-                                        <Typography.Text type="secondary" style={{ overflowWrap: "anywhere" }}>
+                                        <Typography.Text type="secondary" style={{overflowWrap: "anywhere"}}>
                                             {getRes().accountSecurity.passkeyLastUsedAt}:{" "}
                                             {formatTime(passkey.lastUsedAt)}
                                         </Typography.Text>
@@ -393,7 +393,7 @@ const PasskeyManagement = ({
                     <Form.Item
                         label={getRes().accountSecurity.passkeyName}
                         name="name"
-                        rules={[{ required: true, whitespace: true, max: 64 }]}
+                        rules={[{required: true, whitespace: true, max: 64}]}
                     >
                         <Input
                             autoComplete="off"
@@ -401,7 +401,7 @@ const PasskeyManagement = ({
                             placeholder={getRes().accountSecurity.passkeyNamePlaceholder}
                         />
                     </Form.Item>
-                    <ReauthenticationFields mfaEnabled={mfaEnabled} />
+                    <ReauthenticationFields mfaEnabled={mfaEnabled}/>
                 </Form>
             </Modal>
 
@@ -411,7 +411,7 @@ const PasskeyManagement = ({
                 confirmLoading={submitting}
                 cancelText={getRes().cancel}
                 okText={getRes().accountSecurity.passkeyRemove}
-                okButtonProps={{ danger: true }}
+                okButtonProps={{danger: true}}
                 onCancel={closeRemove}
                 onOk={() => removeForm.submit()}
                 maskClosable={!submitting}
@@ -420,7 +420,7 @@ const PasskeyManagement = ({
                 width={modalWidth}
             >
                 {removeTarget && (
-                    <Typography.Paragraph style={{ overflowWrap: "anywhere" }}>
+                    <Typography.Paragraph style={{overflowWrap: "anywhere"}}>
                         {getRes().accountSecurity.passkeyRemoveHint.replace("{name}", removeTarget.name)}
                     </Typography.Paragraph>
                 )}
@@ -430,7 +430,7 @@ const PasskeyManagement = ({
                     disabled={submitting}
                     onFinish={(values) => void submitRemove(values)}
                 >
-                    <ReauthenticationFields mfaEnabled={mfaEnabled} />
+                    <ReauthenticationFields mfaEnabled={mfaEnabled}/>
                 </Form>
             </Modal>
         </>

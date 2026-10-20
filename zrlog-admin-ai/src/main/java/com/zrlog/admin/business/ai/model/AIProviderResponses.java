@@ -106,13 +106,13 @@ public final class AIProviderResponses {
 
     public static class Message {
 
-        private String content;
         @SerializedName("tool_calls")
         public List<AIProviderRequests.ToolCall> toolCalls;
         @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
         public String reasoningContent;
         public JsonElement reasoning;
         public List<OpenAIResponses.Item> responsesOutput;
+        private String content;
 
         public String getReasoningText() {
             if (reasoningContent != null) return reasoningContent;
@@ -131,9 +131,9 @@ public final class AIProviderResponses {
 
     public static class Delta {
 
-        private String content;
         @SerializedName("tool_calls")
         public List<ToolCallDelta> toolCalls;
+        private String content;
         @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
         private String reasoningContent;
         private Object reasoning;

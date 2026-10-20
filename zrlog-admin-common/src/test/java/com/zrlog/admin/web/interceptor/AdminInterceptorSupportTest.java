@@ -27,16 +27,90 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.*;
 
 public class AdminInterceptorSupportTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
-
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
+    private static HttpRequest request() {
+        return request("/", HttpMethod.GET, Map.of(), null);
+    }
+
+    private static HttpRequest request(String uri, HttpMethod httpMethod, Map<String, String> headers,
+                                       RequestConfig requestConfig) {
+        ServerConfig serverConfig = new ServerConfig();
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminInterceptorSupportTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getUri":
+                            return uri;
+                        case "getMethod":
+                            return httpMethod;
+                        case "getHeader":
+                            return headers.get(args[0].toString());
+                        case "getHeaderMap":
+                        case "getParamMap":
+                        case "decodeParamMap":
+                            return Map.of();
+                        case "getContextPath":
+                            return "";
+                        case "getServerConfig":
+                            return serverConfig;
+                        case "getRequestConfig":
+                            return requestConfig;
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
+    private static RequestConfig requestConfig() {
+        Router router = new Router();
+        router.addMapper("", RefreshController.class);
+        RequestConfig requestConfig = new RequestConfig();
+        requestConfig.setRouter(router);
+        return requestConfig;
+    }
+
+    private static TokenService tokenService(AdminFullTokenVO token) {
+        return new TokenService() {
+            @Override
+            public void updateSessionTimeout(long sessionTimeoutInMinutes) {
+            }
+
+            @Override
+            public AdminFullTokenVO getAdminTokenVO(HttpRequest request) {
+                return token;
+            }
+
+            @Override
+            public void removeAdminToken(HttpRequest request, HttpResponse response) {
+            }
+
+            @Override
+            public void setAdminToken(Integer userId, String secretKey, String sessionId, String protocol,
+                                      HttpRequest request, HttpResponse response) {
+            }
+        };
+    }
+
+    private static void restoreProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
+        }
+    }
 
     @Test
     public void shouldReturnNullAdminTokenWhenBlogIsNotInstalled() throws Exception {
@@ -106,51 +180,8 @@ public class AdminInterceptorSupportTest {
         }
     }
 
-    private static HttpRequest request() {
-        return request("/", HttpMethod.GET, Map.of(), null);
-    }
-
-    private static HttpRequest request(String uri, HttpMethod httpMethod, Map<String, String> headers,
-                                       RequestConfig requestConfig) {
-        ServerConfig serverConfig = new ServerConfig();
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminInterceptorSupportTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return uri;
-                        case "getMethod":
-                            return httpMethod;
-                        case "getHeader":
-                            return headers.get(args[0].toString());
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "getContextPath":
-                            return "";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "getRequestConfig":
-                            return requestConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
-    }
-
-    private static RequestConfig requestConfig() {
-        Router router = new Router();
-        router.addMapper("", RefreshController.class);
-        RequestConfig requestConfig = new RequestConfig();
-        requestConfig.setRouter(router);
-        return requestConfig;
+    private interface ThrowingRunnable {
+        void run() throws Exception;
     }
 
     public static class RefreshController extends Controller {
@@ -180,40 +211,6 @@ public class AdminInterceptorSupportTest {
                         return null;
                     });
         }
-    }
-
-    private static TokenService tokenService(AdminFullTokenVO token) {
-        return new TokenService() {
-            @Override
-            public void updateSessionTimeout(long sessionTimeoutInMinutes) {
-            }
-
-            @Override
-            public AdminFullTokenVO getAdminTokenVO(HttpRequest request) {
-                return token;
-            }
-
-            @Override
-            public void removeAdminToken(HttpRequest request, HttpResponse response) {
-            }
-
-            @Override
-            public void setAdminToken(Integer userId, String secretKey, String sessionId, String protocol,
-                                      HttpRequest request, HttpResponse response) {
-            }
-        };
-    }
-
-    private static void restoreProperty(String key, String value) {
-        if (value == null) {
-            System.clearProperty(key);
-        } else {
-            System.setProperty(key, value);
-        }
-    }
-
-    private interface ThrowingRunnable {
-        void run() throws Exception;
     }
 
     private static class TestZrLogConfig extends ZrLogConfig {

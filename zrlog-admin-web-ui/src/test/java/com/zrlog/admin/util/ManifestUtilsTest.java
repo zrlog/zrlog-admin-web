@@ -12,16 +12,60 @@ import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSiteInfoProvider;
 import org.junit.Test;
 
+import javax.sql.DataSource;
 import java.lang.reflect.Proxy;
 import java.util.List;
-import javax.sql.DataSource;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ManifestUtilsTest {
+
+    private static PublicWebSiteInfo publicWebSiteInfo(boolean darkMode) {
+        PublicWebSiteInfo info = new PublicWebSiteInfo();
+        info.setTitle("Admin Test Blog");
+        info.setDescription("Admin description");
+        info.setAppId("admin-app-id");
+        info.setAdmin_color_primary("#45a29e");
+        info.setAdmin_darkMode(darkMode);
+        return info;
+    }
+
+    private static HttpRequest request(String userAgent) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                ManifestUtilsTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getContextPath".equals(method.getName())) {
+                        return "/blog";
+                    }
+                    if ("getHeader".equals(method.getName()) && "User-Agent".equals(args[0])) {
+                        return userAgent;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
+
+    private static CacheService cacheService(PublicWebSiteInfo publicWebSiteInfo) {
+        return (CacheService) Proxy.newProxyInstance(
+                ManifestUtilsTest.class.getClassLoader(),
+                new Class[]{CacheService.class},
+                (proxy, method, args) -> {
+                    if ("getPublicWebSiteInfo".equals(method.getName())) {
+                        return publicWebSiteInfo;
+                    }
+                    if ("getCurrentSqlVersion".equals(method.getName())
+                            || "getWebSiteVersion".equals(method.getName())) {
+                        return 0L;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "CacheServiceProxy";
+                    }
+                    return null;
+                });
+    }
 
     @Test
     public void shouldLoadManifestIconsFromBundledManifest() throws Exception {
@@ -57,36 +101,13 @@ public class ManifestUtilsTest {
         assertEquals("./index.html?pwa=true", manifest.getStart_url());
     }
 
-    private static PublicWebSiteInfo publicWebSiteInfo(boolean darkMode) {
-        PublicWebSiteInfo info = new PublicWebSiteInfo();
-        info.setTitle("Admin Test Blog");
-        info.setDescription("Admin description");
-        info.setAppId("admin-app-id");
-        info.setAdmin_color_primary("#45a29e");
-        info.setAdmin_darkMode(darkMode);
-        return info;
-    }
-
-    private static HttpRequest request(String userAgent) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                ManifestUtilsTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getContextPath".equals(method.getName())) {
-                        return "/blog";
-                    }
-                    if ("getHeader".equals(method.getName()) && "User-Agent".equals(args[0])) {
-                        return userAgent;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
-    }
-
     private static class TestZrLogConfig extends ZrLogConfig {
         private CacheService cacheService;
+
+        TestZrLogConfig(PublicWebSiteInfo publicWebSiteInfo) {
+            super(18080, null, "");
+            this.cacheService = cacheService(publicWebSiteInfo);
+        }
 
         @Override
         public <T> T getWebSetup(Class<T> capability) {
@@ -94,12 +115,6 @@ public class ManifestUtilsTest {
                 return capability.cast((WebSiteInfoProvider) cacheService::getPublicWebSiteInfo);
             }
             return super.getWebSetup(capability);
-        }
-
-
-        TestZrLogConfig(PublicWebSiteInfo publicWebSiteInfo) {
-            super(18080, null, "");
-            this.cacheService = cacheService(publicWebSiteInfo);
         }
 
         @Override
@@ -121,24 +136,5 @@ public class ManifestUtilsTest {
         public DataSource getDataSource() {
             return null;
         }
-    }
-
-    private static CacheService cacheService(PublicWebSiteInfo publicWebSiteInfo) {
-        return (CacheService) Proxy.newProxyInstance(
-                ManifestUtilsTest.class.getClassLoader(),
-                new Class[]{CacheService.class},
-                (proxy, method, args) -> {
-                    if ("getPublicWebSiteInfo".equals(method.getName())) {
-                        return publicWebSiteInfo;
-                    }
-                    if ("getCurrentSqlVersion".equals(method.getName())
-                            || "getWebSiteVersion".equals(method.getName())) {
-                        return 0L;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "CacheServiceProxy";
-                    }
-                    return null;
-                });
     }
 }

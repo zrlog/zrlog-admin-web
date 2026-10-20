@@ -1,9 +1,9 @@
-import { Alert, Button, Radio, Space, Typography } from "antd";
+import {Alert, Button, Radio, Space, Typography} from "antd";
 import Input from "@zrlog/ui/antd/Input";
-import { useEffect, useRef, useState } from "react";
+import {useEffect, useRef, useState} from "react";
 
-import { getRes } from "../../../utils/constants";
-import type { ChatRun } from "./use-article-chat";
+import {getRes} from "../../../utils/constants";
+import type {ChatRun} from "./use-article-chat";
 
 type Props = {
     run: ChatRun;
@@ -13,7 +13,7 @@ type Props = {
     onExpired?: () => void;
 };
 
-export default function ArticleAiInput({ run, disabled, contextRevision, onRespond, onExpired }: Props) {
+export default function ArticleAiInput({run, disabled, contextRevision, onRespond, onExpired}: Props) {
     const [value, setValue] = useState("");
     const [now, setNow] = useState(Date.now());
     const input = run.interaction;
@@ -40,8 +40,8 @@ export default function ArticleAiInput({ run, disabled, contextRevision, onRespo
             type={changed || run.status === "failed" ? "warning" : "info"}
             title={expired ? res.expired : changed ? res.contextChanged : waiting ? res.waiting : res.finished}
             description={
-                <Space orientation="vertical" style={{ width: "100%", minWidth: 0 }}>
-                    <Typography.Text style={{ overflowWrap: "anywhere" }}>{input.question}</Typography.Text>
+                <Space orientation="vertical" style={{width: "100%", minWidth: 0}}>
+                    <Typography.Text style={{overflowWrap: "anywhere"}}>{input.question}</Typography.Text>
                     {waiting && !changed && (
                         <>
                             {input.kind === "select" ? (
@@ -65,7 +65,7 @@ export default function ArticleAiInput({ run, disabled, contextRevision, onRespo
                                     onChange={(event) => setValue(event.target.value)}
                                     maxLength={8000}
                                     aria-label={input.question}
-                                    autoSize={{ minRows: 2, maxRows: 6 }}
+                                    autoSize={{minRows: 2, maxRows: 6}}
                                     disabled={disabled}
                                 />
                             )}

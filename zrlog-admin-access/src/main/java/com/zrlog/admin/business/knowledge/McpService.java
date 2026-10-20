@@ -1,17 +1,23 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.*;
-import com.zrlog.admin.business.knowledge.McpModels.*;
-
+import com.zrlog.admin.business.knowledge.McpModels.InitializeResult;
+import com.zrlog.admin.business.knowledge.McpModels.TextContent;
+import com.zrlog.admin.business.knowledge.McpModels.ToolList;
+import com.zrlog.admin.business.knowledge.McpModels.ToolResult;
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 import jakarta.inject.Named;
 
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
-/** Stateless MCP 2025 tool subset. JSON-RPC envelope fields are validated before dispatch. */
+/**
+ * Stateless MCP 2025 tool subset. JSON-RPC envelope fields are validated before dispatch.
+ */
 public final class McpService {
     public static final String LATEST = "2025-11-25";
     public static final Set<String> VERSIONS = Set.of("2025-03-26", "2025-06-18", LATEST);
@@ -20,10 +26,124 @@ public final class McpService {
     private final String language;
     private final KnowledgeMessages messages;
 
-    public McpService(Supplier<String> websiteTitle) { this(websiteTitle, "en_US"); }
+    public McpService(Supplier<String> websiteTitle) {
+        this(websiteTitle, "en_US");
+    }
+
     @AssistedInject
     public McpService(@Named("siteTitle") Supplier<String> websiteTitle, @Assisted String language) {
-        this.websiteTitle = websiteTitle; this.language = language; this.messages = new KnowledgeMessages(language);
+        this.websiteTitle = websiteTitle;
+        this.language = language;
+        this.messages = new KnowledgeMessages(language);
+    }
+
+    private static boolean isString(JsonElement value) {
+        return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString();
+    }
+
+    private static boolean stringEquals(JsonElement value, String expected) {
+        return isString(value) && expected.equals(value.getAsString());
+    }
+
+    public static Reply error(JsonElement id, int code, String message, int status) {
+        JsonObject body = envelope(id);
+        body.add("error", JSON.toJsonTree(new McpModels.Error(code, message)));
+        return new Reply(status, body);
+    }
+
+    private static JsonObject envelope(JsonElement id) {
+        JsonObject body = new JsonObject();
+        body.addProperty("jsonrpc", "2.0");
+        body.add("id", id);
+        return body;
+    }
+
+    public Reply handle(String body, ToolProvider knowledge) throws Exception {
+        try (com.zrlog.admin.util.AdminLanguageContext ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+            return handleRequest(body, knowledge);
+        }
+    }
+
+    private Reply handleRequest(String body, ToolProvider knowledge) throws Exception {
+        JsonElement parsed;
+        try {
+            parsed = JSON.fromJson(body, JsonElement.class);
+        } catch (JsonParseException e) {
+            return localizedError(JsonNull.INSTANCE, -32700, "parse", 400);
+        }
+        if (parsed == null || !parsed.isJsonObject()) return localizedError(JsonNull.INSTANCE, -32600, "request", 400);
+        JsonObject rpc = parsed.getAsJsonObject();
+        JsonElement id = rpc.get("id");
+        if (!stringEquals(rpc.get("jsonrpc"), "2.0") || !isString(rpc.get("method"))
+                || id != null && (!id.isJsonPrimitive() || !(id.getAsJsonPrimitive().isString() || id.getAsJsonPrimitive().isNumber()))
+                || rpc.has("params") && !rpc.get("params").isJsonObject())
+            return localizedError(JsonNull.INSTANCE, -32600, "request", 400);
+        // Notifications have no response and never invoke knowledge tools.
+        if (id == null) return new Reply(202, null);
+        String method = rpc.get("method").getAsString();
+        JsonObject params = rpc.has("params") ? rpc.getAsJsonObject("params") : new JsonObject();
+        switch (method) {
+            case "initialize":
+                if (!isString(params.get("protocolVersion")) || !params.has("capabilities") || !params.get("capabilities").isJsonObject()
+                        || !params.has("clientInfo") || !params.get("clientInfo").isJsonObject())
+                    return localizedError(id, -32602, "initialize", 200);
+                InitializeResult initialize = new InitializeResult();
+                String title = Objects.toString(websiteTitle.get(), "").strip();
+                if (title.isEmpty()) title = "ZrLog";
+                String description = messages.get("admin.mcp.description");
+                initialize.instructions = title + "\n\n" + description + "\n\n" + messages.get("admin.mcp.instructions");
+                String version = params.get("protocolVersion").getAsString();
+                initialize.protocolVersion = VERSIONS.contains(version) ? version : LATEST;
+                // Display titles were introduced in 2025-06-18; omit that field for the older version.
+                if (!"2025-03-26".equals(initialize.protocolVersion)) {
+                    initialize.serverInfo.title = title;
+                }
+                if (LATEST.equals(initialize.protocolVersion)) initialize.serverInfo.description = description;
+                return result(id, initialize);
+            case "ping":
+                return result(id, new JsonObject());
+            case "tools/list":
+                if (params.has("cursor")) return localizedError(id, -32602, "cursor", 200);
+                return result(id, new ToolList(knowledge == null ? KnowledgeService.tools(language) : knowledge.definitions(language)));
+            case "tools/call":
+                if (!isString(params.get("name")) || params.has("arguments") && !params.get("arguments").isJsonObject())
+                    return localizedError(id, -32602, "toolCall", 200);
+                String name = params.get("name").getAsString();
+                if (!ContentToolCatalog.NAMES.contains(name)) return localizedError(id, -32602, "unknownTool", 200);
+                ToolResult tool = new ToolResult();
+                try {
+                    tool.structuredContent = JSON.toJsonTree(knowledge.call(name, params.getAsJsonObject("arguments")));
+                } catch (IllegalArgumentException e) {
+                    tool.isError = true;
+                    tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getMessage()));
+                } catch (com.zrlog.admin.business.security.OAuthException e) {
+                    throw e;
+                } catch (com.zrlog.admin.business.exception.AbstractAdminBusinessException e) {
+                    tool.isError = true;
+                    tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getUserMessage(), e.getErrorCode()));
+                } catch (com.zrlog.common.exception.ArgsException e) {
+                    tool.isError = true;
+                    tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(messages.get("admin.mcp.validation.arguments")));
+                } catch (Exception e) {
+                    java.util.logging.Logger.getLogger(McpService.class.getName()).warning("MCP tool failed: tool=" + name + ", exception=" + e.getClass().getSimpleName());
+                    tool.isError = true;
+                    tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(messages.get("admin.mcp.error.toolExecution")));
+                }
+                tool.content = List.of(new TextContent(JSON.toJson(tool.structuredContent)));
+                return result(id, tool);
+            default:
+                return localizedError(id, -32601, "method", 200);
+        }
+    }
+
+    private Reply localizedError(JsonElement id, int code, String key, int status) {
+        return error(id, code, messages.get("admin.mcp.error." + key), status);
+    }
+
+    private Reply result(JsonElement id, Object result) {
+        JsonObject body = envelope(id);
+        body.add("result", JSON.toJsonTree(result));
+        return new Reply(200, body);
     }
 
     @AssistedFactory
@@ -34,80 +154,10 @@ public final class McpService {
     public static final class Reply {
         public final int status;
         public final JsonObject body;
-        Reply(int status, JsonObject body) { this.status = status; this.body = body; }
-    }
-    public Reply handle(String body, ToolProvider knowledge) throws Exception {
-        try (com.zrlog.admin.util.AdminLanguageContext ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
-            return handleRequest(body, knowledge);
+
+        Reply(int status, JsonObject body) {
+            this.status = status;
+            this.body = body;
         }
     }
-    private Reply handleRequest(String body, ToolProvider knowledge) throws Exception {
-        JsonElement parsed;
-        try { parsed = JSON.fromJson(body, JsonElement.class); }
-        catch (JsonParseException e) { return localizedError(JsonNull.INSTANCE, -32700, "parse", 400); }
-        if (parsed == null || !parsed.isJsonObject()) return localizedError(JsonNull.INSTANCE, -32600, "request", 400);
-        JsonObject rpc = parsed.getAsJsonObject();
-        JsonElement id = rpc.get("id");
-        if (!stringEquals(rpc.get("jsonrpc"), "2.0") || !isString(rpc.get("method"))
-                || id != null && (!id.isJsonPrimitive() || !(id.getAsJsonPrimitive().isString() || id.getAsJsonPrimitive().isNumber()))
-                || rpc.has("params") && !rpc.get("params").isJsonObject()) return localizedError(JsonNull.INSTANCE, -32600, "request", 400);
-        // Notifications have no response and never invoke knowledge tools.
-        if (id == null) return new Reply(202, null);
-        String method = rpc.get("method").getAsString();
-        JsonObject params = rpc.has("params") ? rpc.getAsJsonObject("params") : new JsonObject();
-        switch (method) {
-            case "initialize":
-                if (!isString(params.get("protocolVersion")) || !params.has("capabilities") || !params.get("capabilities").isJsonObject()
-                        || !params.has("clientInfo") || !params.get("clientInfo").isJsonObject()) return localizedError(id, -32602, "initialize", 200);
-                InitializeResult initialize = new InitializeResult();
-                String title = Objects.toString(websiteTitle.get(), "").strip();
-                if (title.isEmpty()) title = "ZrLog";
-                String description = messages.get("admin.mcp.description");
-                initialize.instructions = title + "\n\n" + description + "\n\n" + messages.get("admin.mcp.instructions");
-                String version = params.get("protocolVersion").getAsString(); initialize.protocolVersion = VERSIONS.contains(version) ? version : LATEST;
-                // Display titles were introduced in 2025-06-18; omit that field for the older version.
-                if (!"2025-03-26".equals(initialize.protocolVersion)) {
-                    initialize.serverInfo.title = title;
-                }
-                if (LATEST.equals(initialize.protocolVersion)) initialize.serverInfo.description = description;
-                return result(id, initialize);
-            case "ping": return result(id, new JsonObject());
-            case "tools/list":
-                if (params.has("cursor")) return localizedError(id, -32602, "cursor", 200);
-                return result(id, new ToolList(knowledge == null ? KnowledgeService.tools(language) : knowledge.definitions(language)));
-            case "tools/call":
-                if (!isString(params.get("name")) || params.has("arguments") && !params.get("arguments").isJsonObject()) return localizedError(id, -32602, "toolCall", 200);
-                String name = params.get("name").getAsString();
-                if (!ContentToolCatalog.NAMES.contains(name)) return localizedError(id, -32602, "unknownTool", 200);
-                ToolResult tool = new ToolResult();
-                try { tool.structuredContent = JSON.toJsonTree(knowledge.call(name, params.getAsJsonObject("arguments"))); }
-                catch (IllegalArgumentException e) { tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getMessage())); }
-                catch (com.zrlog.admin.business.security.OAuthException e) { throw e; }
-                catch (com.zrlog.admin.business.exception.AbstractAdminBusinessException e) {
-                    tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getUserMessage(), e.getErrorCode()));
-                }
-                catch (com.zrlog.common.exception.ArgsException e) {
-                    tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(messages.get("admin.mcp.validation.arguments")));
-                }
-                catch (Exception e) {
-                    java.util.logging.Logger.getLogger(McpService.class.getName()).warning("MCP tool failed: tool=" + name + ", exception=" + e.getClass().getSimpleName());
-                    tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(messages.get("admin.mcp.error.toolExecution")));
-                }
-                tool.content = List.of(new TextContent(JSON.toJson(tool.structuredContent)));
-                return result(id, tool);
-            default: return localizedError(id, -32601, "method", 200);
-        }
-    }
-    private Reply localizedError(JsonElement id, int code, String key, int status) {
-        return error(id, code, messages.get("admin.mcp.error." + key), status);
-    }
-    private static boolean isString(JsonElement value) { return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString(); }
-    private static boolean stringEquals(JsonElement value, String expected) { return isString(value) && expected.equals(value.getAsString()); }
-    private Reply result(JsonElement id, Object result) {
-        JsonObject body = envelope(id); body.add("result", JSON.toJsonTree(result)); return new Reply(200, body);
-    }
-    public static Reply error(JsonElement id, int code, String message, int status) {
-        JsonObject body = envelope(id); body.add("error", JSON.toJsonTree(new McpModels.Error(code, message))); return new Reply(status, body);
-    }
-    private static JsonObject envelope(JsonElement id) { JsonObject body = new JsonObject(); body.addProperty("jsonrpc", "2.0"); body.add("id", id); return body; }
 }

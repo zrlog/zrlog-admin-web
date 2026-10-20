@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.service;
 
 import com.zrlog.util.NetworkProxy;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -13,7 +12,8 @@ import java.time.Duration;
 
 public class AdminProxyService {
     @Inject
-    public AdminProxyService() {}
+    public AdminProxyService() {
+    }
 
     public boolean testConnection(NetworkProxy.Settings settings) {
         HttpClient client = HttpClient.newBuilder()

@@ -3,18 +3,18 @@ import DatabaseIcon from "@zrlog/ui/icons/database";
 import EditIcon from "@zrlog/ui/icons/edit";
 import AddCircleIcon from "@zrlog/ui/icons/add-circle";
 import BoltIcon from "@zrlog/ui/icons/bolt";
-import { Badge, Card, Col, Row, Typography } from "antd";
+import {Badge, Card, Col, Row, Typography} from "antd";
 
-import { Link } from "react-router-dom";
-import { getRealRouteUrl, getRes } from "utils/constants";
+import {Link} from "react-router-dom";
+import {getRealRouteUrl, getRes} from "utils/constants";
 
-import { useTheme } from "antd-style";
+import {useTheme} from "antd-style";
 
 type QuickActionCardData = {
     draftCount?: number;
 };
 
-const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardData; embedded?: boolean }) => {
+const QuickActionCard = ({data, embedded = false}: { data?: QuickActionCardData; embedded?: boolean }) => {
     const theme = useTheme();
     const draftCount = data?.draftCount || 0;
     const iconBgColor = embedded ? theme.colorFillQuaternary : theme.colorFillSecondary;
@@ -26,11 +26,11 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
     const transparentBorder = `${theme.lineWidth}px ${theme.lineType} transparent`;
 
     const ActionItem = ({
-        to,
-        icon,
-        label,
-        count,
-    }: {
+                            to,
+                            icon,
+                            label,
+                            count,
+                        }: {
         to: string;
         icon: React.ReactNode;
         label: string;
@@ -73,7 +73,7 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
                         </div>
                     </Badge>
                     <Typography.Text
-                        style={{ fontWeight: 500, fontSize: 13, whiteSpace: "nowrap", color: textColor }}
+                        style={{fontWeight: 500, fontSize: 13, whiteSpace: "nowrap", color: textColor}}
                         type={embedded ? undefined : "secondary"}
                     >
                         {label}
@@ -88,19 +88,19 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
             <Row gutter={[8, 8]}>
                 <ActionItem
                     to="/article-edit"
-                    icon={<AddCircleIcon />}
+                    icon={<AddCircleIcon/>}
                     label={getRes().index.quickAction.writeArticle}
                 />
                 <ActionItem
                     to="/article?status=draft"
-                    icon={<EditIcon />}
+                    icon={<EditIcon/>}
                     label={getRes().article.status.draft}
                     count={draftCount}
                 />
-                <ActionItem to="/article-type" icon={<AppsIcon />} label={getRes().articleType.title} />
+                <ActionItem to="/article-type" icon={<AppsIcon/>} label={getRes().articleType.title}/>
                 <ActionItem
                     to="/plugin?page=backup-sql-file/files"
-                    icon={<DatabaseIcon />}
+                    icon={<DatabaseIcon/>}
                     label={getRes().index.quickAction.backupFiles}
                 />
             </Row>
@@ -118,8 +118,8 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
                     border: embeddedContainerBorder,
                 }}
             >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <BoltIcon style={{ color: mutedTextColor, fontSize: 14 }} />
+                <div style={{display: "flex", alignItems: "center", gap: 8, marginBottom: 10}}>
+                    <BoltIcon style={{color: mutedTextColor, fontSize: 14}}/>
                     <Typography.Text
                         style={{
                             color: mutedTextColor,
@@ -138,14 +138,14 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
     return (
         <Card
             title={
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <BoltIcon />
+                <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                    <BoltIcon/>
                     <span>{getRes().index.quickAction.label}</span>
                 </div>
             }
             bordered={false}
             className="dashboard-card"
-            styles={{ body: { padding: 20 } }}
+            styles={{body: {padding: 20}}}
         >
             {content}
         </Card>

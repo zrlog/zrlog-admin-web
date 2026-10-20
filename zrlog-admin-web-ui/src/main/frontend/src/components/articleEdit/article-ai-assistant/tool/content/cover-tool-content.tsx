@@ -1,33 +1,33 @@
 import CutIcon from "@zrlog/ui/icons/cut";
-import { Button, Space } from "antd";
-import { FunctionComponent } from "react";
+import {Button, Space} from "antd";
+import {FunctionComponent} from "react";
 
-import { useTheme } from "antd-style";
-import { getRes, tryAppendBackendServerUrl } from "../../../../../utils/constants";
-import { AssistantToolPayload } from "../../article-ai-assistant.types";
+import {useTheme} from "antd-style";
+import {getRes, tryAppendBackendServerUrl} from "../../../../../utils/constants";
+import {AssistantToolPayload} from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
 import ArticleAiAssistantToolResultCard from "../article-ai-assistant-tool-result-card";
-import { SpecificToolContentProps } from "../article-ai-assistant-tool-content.types";
+import {SpecificToolContentProps} from "../article-ai-assistant-tool-content.types";
 import BackendImage from "../../../../../common/BackendImage";
 
 type CoverToolPayload = Extract<AssistantToolPayload, { tool: "cover" }>;
 
 const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayload>> = ({
-    aiProvider,
-    messageIndex,
-    messageId,
-    offline,
-    loadingKey,
-    applyingCoverMessageId,
-    toolPayload,
-    onApplyValues,
-    applyDisabled,
-    onUpdateToolPayload,
-    onApplyGeneratedCover,
-    onCoverApplyingChange,
-    onCropCover,
-    onRefine,
-}) => {
+                                                                                             aiProvider,
+                                                                                             messageIndex,
+                                                                                             messageId,
+                                                                                             offline,
+                                                                                             loadingKey,
+                                                                                             applyingCoverMessageId,
+                                                                                             toolPayload,
+                                                                                             onApplyValues,
+                                                                                             applyDisabled,
+                                                                                             onUpdateToolPayload,
+                                                                                             onApplyGeneratedCover,
+                                                                                             onCoverApplyingChange,
+                                                                                             onCropCover,
+                                                                                             onRefine,
+                                                                                         }) => {
     const theme = useTheme();
     const url = toolPayload.payload.url || "";
     const coverApplyKey = messageId || `${messageIndex}`;
@@ -42,8 +42,8 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                         getContainer: () => (document.fullscreenElement as HTMLElement) || document.body,
                     }}
                     styles={{
-                        root: { display: "block", marginBottom: theme.marginSM },
-                        cover: { borderRadius: theme.borderRadius },
+                        root: {display: "block", marginBottom: theme.marginSM},
+                        cover: {borderRadius: theme.borderRadius},
                     }}
                     style={{
                         display: "block",
@@ -76,7 +76,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                                         },
                                         false
                                     );
-                                    onApplyValues({ thumbnail: finalUrl });
+                                    onApplyValues({thumbnail: finalUrl});
                                 }
                             } finally {
                                 onCoverApplyingChange(undefined);
@@ -89,7 +89,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                 {url && (
                     <Button
                         size="small"
-                        icon={<CutIcon />}
+                        icon={<CutIcon/>}
                         disabled={applyDisabled}
                         onClick={() => onCropCover(tryAppendBackendServerUrl(url))}
                     >

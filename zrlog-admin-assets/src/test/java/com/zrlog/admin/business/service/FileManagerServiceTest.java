@@ -1,14 +1,8 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.FileEntryAccess;
@@ -16,11 +10,9 @@ import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.Log;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.model.Log;
 import com.zrlog.model.WebSite;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -32,10 +24,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 public class FileManagerServiceTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    private static void insertArticle(InMemoryZrLogDatabase db, int id, String content, String markdown) throws Exception {
+        db.execute("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
+                        + " keywords, thumbnail, recommended, releaseTime, last_update_date, title, typeId, userId,"
+                        + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(),"
+                        + " now(), ?, ?, ?, ?, ?, ?, ?)",
+                id, "file-manager-" + id, true, 0, 0, content, "plain " + id, markdown, "Digest " + id,
+                "zrlog,file", "", false, "File Manager " + id, 1, 1, false, false, false, "markdown");
+    }
+
+    private static FileEntryVO findByName(List<FileEntryVO> entries, String name) {
+        return entries.stream()
+                .filter(entry -> name.equals(entry.getName()))
+                .findFirst()
+                .orElse(null);
+    }
 
     @Test
     public void shouldResolveAllowedFileManagerPaths() throws Exception {
@@ -274,7 +284,7 @@ public class FileManagerServiceTest {
                             "hello".getBytes(StandardCharsets.UTF_8),
                             service.read("/attached/docs/a.txt"));
                     var readOnlyManager = AccountAccess.from(Map.of(
-                            "userId", 1, "role", "admin", "enabled", true, "authVersion", 0))
+                                    "userId", 1, "role", "admin", "enabled", true, "authVersion", 0))
                             .restrictActions(Set.of());
                     assertThrows(PermissionErrorException.class, () -> service.rename(
                             "/attached/docs/a.txt", "b.txt", true, readOnlyManager));
@@ -409,7 +419,7 @@ public class FileManagerServiceTest {
                                                 () -> null,
                                                 AccountServicesFixture.component(db.dataSource())
                                                         .identities(), AccountServicesFixture.component(db.dataSource())
-                                                        .permissions(),
+                                                .permissions(),
                                                 new DbFileService(
                                                         ApplicationServicesFixture.websiteKv(
                                                                 db.dataSource()),
@@ -487,7 +497,7 @@ public class FileManagerServiceTest {
                                                 () -> null,
                                                 AccountServicesFixture.component(db.dataSource())
                                                         .identities(), AccountServicesFixture.component(db.dataSource())
-                                                        .permissions(),
+                                                .permissions(),
                                                 new DbFileService(
                                                         ApplicationServicesFixture.websiteKv(
                                                                 db.dataSource()),
@@ -566,22 +576,6 @@ public class FileManagerServiceTest {
                 System.setProperty("sws.root.path", previousRootPath);
             }
         }
-    }
-
-    private static void insertArticle(InMemoryZrLogDatabase db, int id, String content, String markdown) throws Exception {
-        db.execute("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
-                        + " keywords, thumbnail, recommended, releaseTime, last_update_date, title, typeId, userId,"
-                        + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(),"
-                        + " now(), ?, ?, ?, ?, ?, ?, ?)",
-                id, "file-manager-" + id, true, 0, 0, content, "plain " + id, markdown, "Digest " + id,
-                "zrlog,file", "", false, "File Manager " + id, 1, 1, false, false, false, "markdown");
-    }
-
-    private static FileEntryVO findByName(List<FileEntryVO> entries, String name) {
-        return entries.stream()
-                .filter(entry -> name.equals(entry.getName()))
-                .findFirst()
-                .orElse(null);
     }
 
     private interface ThrowingRunnable {

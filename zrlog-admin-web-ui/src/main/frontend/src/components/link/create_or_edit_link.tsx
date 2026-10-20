@@ -1,18 +1,18 @@
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { FunctionComponent, PropsWithChildren, useEffect, useState } from "react";
-import { Col, Form, Modal } from "antd";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {FunctionComponent, PropsWithChildren, useEffect, useState} from "react";
+import {Col, Form, Modal} from "antd";
 import Row from "antd/es/grid/row";
 import TextArea from "antd/es/input/TextArea";
-import { Link } from "react-router-dom";
-import { getRes } from "../../utils/constants";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {Link} from "react-router-dom";
+import {getRes} from "../../utils/constants";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 
 const layout = {
-    labelCol: { span: 4 },
-    wrapperCol: { span: 20 },
+    labelCol: {span: 4},
+    wrapperCol: {span: 20},
 };
 
 export type EditLinkProps = PropsWithChildren & {
@@ -30,12 +30,12 @@ type LinkEntry = {
     introduction?: string;
 };
 
-const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSuccessCall, offline, children }) => {
+const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({record, editSuccessCall, offline, children}) => {
     const [showModel, setShowModel] = useState<boolean>(false);
     const [updateForm, setUpdateForm] = useState<LinkEntry>(record);
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
     const [loading, setLoading] = useState<boolean>(false);
-    const { formLayout, narrow } = useResponsiveFormLayout(layout);
+    const {formLayout, narrow} = useResponsiveFormLayout(layout);
 
     const isUpdate = () => {
         return record.id && record.id > 0;
@@ -103,19 +103,19 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                 width={narrow ? "calc(100vw - 32px)" : undefined}
             >
                 <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...formLayout}>
-                    <Form.Item name="id" style={{ display: "none" }}>
-                        <Input hidden={true} />
+                    <Form.Item name="id" style={{display: "none"}}>
+                        <Input hidden={true}/>
                     </Form.Item>
                     <Row>
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().link.title}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="url"
-                                rules={[{ required: true, message: "" }]}
+                                rules={[{required: true, message: ""}]}
                                 extra={getRes().link.urlHelp}
                             >
-                                <Input placeholder={getRes().link.urlPlaceholder} />
+                                <Input placeholder={getRes().link.urlPlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -123,12 +123,12 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().link.name}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="linkName"
-                                rules={[{ required: true, message: "" }]}
+                                rules={[{required: true, message: ""}]}
                                 extra={getRes().link.nameHelp}
                             >
-                                <Input placeholder={getRes().link.namePlaceholder} />
+                                <Input placeholder={getRes().link.namePlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -136,12 +136,12 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().introduction}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="alt"
-                                rules={[{ required: true, message: "" }]}
+                                rules={[{required: true, message: ""}]}
                                 extra={getRes().link.introductionHelp}
                             >
-                                <TextArea placeholder={getRes().link.introductionPlaceholder} />
+                                <TextArea placeholder={getRes().link.introductionPlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -149,12 +149,12 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().icon}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="icon"
-                                rules={[{ message: "" }]}
+                                rules={[{message: ""}]}
                                 extra={getRes().link.iconHelp}
                             >
-                                <Input placeholder={getRes().link.iconPlaceholder} />
+                                <Input placeholder={getRes().link.iconPlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -162,12 +162,12 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().order}
-                                style={{ marginBottom: 8 }}
+                                style={{marginBottom: 8}}
                                 name="sort"
-                                rules={[{ required: true, message: "" }]}
+                                rules={[{required: true, message: ""}]}
                                 extra={getRes().link.sortHelp}
                             >
-                                <InputNumber style={{ width: "100%" }} placeholder={getRes().link.sortPlaceholder} />
+                                <InputNumber style={{width: "100%"}} placeholder={getRes().link.sortPlaceholder}/>
                             </Form.Item>
                         </Col>
                     </Row>

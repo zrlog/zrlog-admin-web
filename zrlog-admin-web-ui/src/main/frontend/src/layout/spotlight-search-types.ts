@@ -1,5 +1,5 @@
-import type { AxiosInstance } from "axios";
-import type { ReactNode } from "react";
+import type {AxiosInstance} from "axios";
+import type {ReactNode} from "react";
 
 export type SpotlightItemType = "route" | "article" | "action" | "file" | "template" | "plugin";
 

@@ -3,17 +3,17 @@ import EditIcon from "@zrlog/ui/icons/edit";
 import EyeIcon from "@zrlog/ui/icons/eye";
 import MarkdownIcon from "@zrlog/ui/icons/markdown";
 import HomeIcon from "@zrlog/ui/icons/home";
-import { Button, Typography } from "antd";
-import { useTheme } from "antd-style";
-import { Link } from "react-router-dom";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import {Button, Typography} from "antd";
+import {useTheme} from "antd-style";
+import {Link} from "react-router-dom";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
 
 type FirstUseChecklistProps = {
     dismissing: boolean;
     onDismiss: () => void;
 };
 
-const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) => {
+const FirstUseChecklist = ({dismissing, onDismiss}: FirstUseChecklistProps) => {
     const theme = useTheme();
     const res = getRes().index.firstUse;
     const homeUrl = new URL(getRes().homeUrl || "/", window.location.href);
@@ -59,7 +59,7 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                 }}
             >
                 <Typography.Text strong>{res.title}</Typography.Text>
-                <Button type="text" size="small" icon={<CloseIcon />} loading={dismissing} onClick={onDismiss}>
+                <Button type="text" size="small" icon={<CloseIcon/>} loading={dismissing} onClick={onDismiss}>
                     {res.dismiss}
                 </Button>
             </div>
@@ -73,10 +73,10 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
             >
                 <div role="listitem" style={itemStyle}>
                     <span style={iconStyle}>
-                        <HomeIcon />
+                        <HomeIcon/>
                     </span>
-                    <div style={{ minWidth: 0 }}>
-                        <Typography.Text strong style={{ display: "block" }}>
+                    <div style={{minWidth: 0}}>
+                        <Typography.Text strong style={{display: "block"}}>
                             {res.viewSite}
                         </Typography.Text>
                         <Button
@@ -85,8 +85,8 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                             href={homeUrl.toString()}
                             target="_blank"
                             rel="noopener noreferrer"
-                            icon={<EyeIcon />}
-                            style={{ height: "auto", padding: "4px 0" }}
+                            icon={<EyeIcon/>}
+                            style={{height: "auto", padding: "4px 0"}}
                         >
                             {res.openSite}
                         </Button>
@@ -94,29 +94,29 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                 </div>
                 <div role="listitem" style={itemStyle}>
                     <span style={iconStyle}>
-                        <EditIcon />
+                        <EditIcon/>
                     </span>
-                    <div style={{ minWidth: 0 }}>
-                        <Typography.Text strong style={{ display: "block" }}>
+                    <div style={{minWidth: 0}}>
+                        <Typography.Text strong style={{display: "block"}}>
                             {res.createOrImport}
                         </Typography.Text>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
                             <Link to={getRealRouteUrl("/article-edit")}>{res.createArticle}</Link>
                             <Link to={getRealRouteUrl("/article-edit?intent=import-markdown")}>
-                                <MarkdownIcon /> {res.importMarkdown}
+                                <MarkdownIcon/> {res.importMarkdown}
                             </Link>
                         </div>
                     </div>
                 </div>
                 <div role="listitem" style={itemStyle}>
                     <span style={iconStyle}>
-                        <EyeIcon />
+                        <EyeIcon/>
                     </span>
-                    <div style={{ minWidth: 0 }}>
-                        <Typography.Text strong style={{ display: "block" }}>
+                    <div style={{minWidth: 0}}>
+                        <Typography.Text strong style={{display: "block"}}>
                             {res.previewAndPublish}
                         </Typography.Text>
-                        <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
+                        <Typography.Text type="secondary" style={{display: "block", marginTop: 4}}>
                             {res.previewAndPublishTip}
                         </Typography.Text>
                     </div>

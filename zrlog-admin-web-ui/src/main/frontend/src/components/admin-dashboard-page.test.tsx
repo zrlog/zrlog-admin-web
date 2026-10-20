@@ -1,13 +1,13 @@
-import { act, Suspense, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import SsData, { getSsDate, ssKeyStorageKey } from "../base/SsData";
-import { getRes } from "../utils/constants";
-import { refreshUserInfo } from "../utils/user-info";
-import { applyUserPreferences, cacheUserAppearance } from "../utils/user-preferences";
-import type { BasicUserInfo } from "../type";
+import type {Dispatch, SetStateAction} from "react";
+import {act, Suspense, useState} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {MemoryRouter} from "react-router-dom";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import SsData, {getSsDate, ssKeyStorageKey} from "../base/SsData";
+import {getRes} from "../utils/constants";
+import {refreshUserInfo} from "../utils/user-info";
+import {applyUserPreferences, cacheUserAppearance} from "../utils/user-preferences";
+import type {BasicUserInfo} from "../type";
 import AdminDashboardPage from "./admin-dashboard-page";
 
 const mockAxios = {};
@@ -20,26 +20,26 @@ jest.mock("../base/AppBase", () => ({
     useAxiosBaseInstance: () => mockAxios,
     jumpToLoginPage: () => mockRedirect(),
 }));
-jest.mock("../api", () => ({ getCsrData: (...args: unknown[]) => mockGetCsrData(...args) }));
+jest.mock("../api", () => ({getCsrData: (...args: unknown[]) => mockGetCsrData(...args)}));
 jest.mock("../utils/cache", () => ({
     getCacheByKey: () => mockCachedUser,
     cacheUserInfo: (user: BasicUserInfo) => {
         mockCachedUser = user;
     },
 }));
-jest.mock("../base/ConfigProviderApp", () => ({ changeAppState: (state: unknown) => mockChangeAppState(state) }));
+jest.mock("../base/ConfigProviderApp", () => ({changeAppState: (state: unknown) => mockChangeAppState(state)}));
 jest.mock("../base/AppInit", () => ({
     getColorPrimaryByRes: () => require("../utils/constants").getRes().admin_color_primary,
     isDarkModeByRes: () => require("../utils/constants").getRes().admin_darkMode,
 }));
 jest.mock("components/admin-dashboard-router", () => ({
     __esModule: true,
-    default: ({ userInfo }: { userInfo: BasicUserInfo }) => <main>{userInfo.userName}</main>,
+    default: ({userInfo}: { userInfo: BasicUserInfo }) => <main>{userInfo.userName}</main>,
 }));
 
 const personal = {
     language: "en_US" as const,
-    appearance: { theme: "antd" as const, darkMode: true, compactMode: true, colorPrimary: "#00875a" },
+    appearance: {theme: "antd" as const, darkMode: true, compactMode: true, colorPrimary: "#00875a"},
 };
 const user = (id = 1, key = "one"): BasicUserInfo => ({
     userId: id,
@@ -48,13 +48,13 @@ const user = (id = 1, key = "one"): BasicUserInfo => ({
     key,
     ...personal,
 });
-const userResponse = (value = user()) => ({ error: 0, data: value });
+const userResponse = (value = user()) => ({error: 0, data: value});
 const deferred = () => {
     let resolve!: (value: unknown) => void;
     const promise = new Promise((done) => {
         resolve = done;
     });
-    return { promise, resolve };
+    return {promise, resolve};
 };
 
 describe("dashboard appearance initialization", () => {
@@ -64,22 +64,22 @@ describe("dashboard appearance initialization", () => {
     let setMounted: Dispatch<SetStateAction<boolean>>;
     let setOffline: Dispatch<SetStateAction<boolean>>;
 
-    const Harness = ({ initiallyOffline }: { initiallyOffline: boolean }) => {
+    const Harness = ({initiallyOffline}: { initiallyOffline: boolean }) => {
         const [mounted, updateMounted] = useState(true);
         const [offline, updateOffline] = useState(initiallyOffline);
         setMounted = updateMounted;
         setOffline = updateOffline;
-        return mounted ? <AdminDashboardPage offline={offline} /> : null;
+        return mounted ? <AdminDashboardPage offline={offline}/> : null;
     };
 
     const render = async (data: Record<string, unknown>, offline = false) => {
-        payload.innerText = JSON.stringify({ pageBuildId: "test", systemNotification: "", ...data });
+        payload.innerText = JSON.stringify({pageBuildId: "test", systemNotification: "", ...data});
         await act(async () =>
             root.render(
                 <SsData>
-                    <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+                    <MemoryRouter future={{v7_relativeSplatPath: true, v7_startTransition: true}}>
                         <Suspense fallback={null}>
-                            <Harness initiallyOffline={offline} />
+                            <Harness initiallyOffline={offline}/>
                         </Suspense>
                     </MemoryRouter>
                 </SsData>
@@ -116,10 +116,10 @@ describe("dashboard appearance initialization", () => {
     });
 
     it("reuses authenticated server identity and appearance on entry and re-entry", async () => {
-        await render({ user: user(), key: "one", resourceInfo: { lang: "zh_CN", staticPage: false } });
+        await render({user: user(), key: "one", resourceInfo: {lang: "zh_CN", staticPage: false}});
         await remount();
         expect(container.textContent).toBe("user-1");
-        expect(getRes()).toMatchObject({ lang: "en_US", admin_theme: "antd", admin_darkMode: true });
+        expect(getRes()).toMatchObject({lang: "en_US", admin_theme: "antd", admin_darkMode: true});
         expect(mockGetCsrData).not.toHaveBeenCalled();
         expect(mockCachedUser).toEqual(user());
         expect(mockChangeAppState).not.toHaveBeenCalled();
@@ -132,12 +132,12 @@ describe("dashboard appearance initialization", () => {
             mockGetCsrData.mockReturnValueOnce(pending.promise);
             mockCachedUser = user();
             localStorage.setItem(ssKeyStorageKey, "one");
-            await render({ user: null, key: null, resourceInfo: { lang: "zh_CN", staticPage } });
+            await render({user: null, key: null, resourceInfo: {lang: "zh_CN", staticPage}});
             expect(container.textContent).toBe("user-1");
-            expect(getRes()).toMatchObject({ lang: "en_US", admin_theme: "antd", admin_darkMode: true });
+            expect(getRes()).toMatchObject({lang: "en_US", admin_theme: "antd", admin_darkMode: true});
             expect(document.documentElement.lang).toBe("en");
             expect(mockGetCsrData).toHaveBeenCalledWith("/user/info", expect.any(Number), mockAxios);
-            const fresh = { ...user(), appearance: { ...personal.appearance, colorPrimary: "#123456" } };
+            const fresh = {...user(), appearance: {...personal.appearance, colorPrimary: "#123456"}};
             await act(async () => pending.resolve(userResponse(fresh)));
             await remount();
             expect(mockGetCsrData).toHaveBeenCalledTimes(1);
@@ -148,7 +148,7 @@ describe("dashboard appearance initialization", () => {
 
     it("initializes identity, session and appearance together without cached account data", async () => {
         mockGetCsrData.mockResolvedValue(userResponse(user(2, "new-session")));
-        await render({ user: null, key: "", resourceInfo: { lang: "zh_CN", staticPage: true } });
+        await render({user: null, key: "", resourceInfo: {lang: "zh_CN", staticPage: true}});
         expect(container.textContent).toBe("user-2");
         expect(getSsDate().key).toBe("new-session");
         expect(localStorage.getItem(ssKeyStorageKey)).toBe("new-session");
@@ -158,8 +158,8 @@ describe("dashboard appearance initialization", () => {
     });
 
     it("refreshes legacy account data without appearance using user/info", async () => {
-        const legacy = { ...user(), language: undefined, appearance: undefined };
-        await render({ user: legacy, key: "one", resourceInfo: { lang: "zh_CN" } });
+        const legacy = {...user(), language: undefined, appearance: undefined};
+        await render({user: legacy, key: "one", resourceInfo: {lang: "zh_CN"}});
         expect(mockGetCsrData).toHaveBeenCalledTimes(1);
         expect(getSsDate().user).toEqual(user());
         expect(getRes().admin_theme).toBe("antd");
@@ -168,7 +168,7 @@ describe("dashboard appearance initialization", () => {
     it("renders cached appearance offline and revalidates once after reconnecting", async () => {
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } }, true);
+        await render({user: null, resourceInfo: {lang: "zh_CN", staticPage: true}}, true);
         expect(container.textContent).toBe("user-1");
         expect(getRes().lang).toBe("en_US");
         expect(mockGetCsrData).not.toHaveBeenCalled();
@@ -180,8 +180,8 @@ describe("dashboard appearance initialization", () => {
     });
 
     it("reconnects a cold offline shell and redirects invalid authentication", async () => {
-        mockGetCsrData.mockResolvedValue({ error: 401 });
-        await render({ user: null, key: "", resourceInfo: { staticPage: true } }, true);
+        mockGetCsrData.mockResolvedValue({error: 401});
+        await render({user: null, key: "", resourceInfo: {staticPage: true}}, true);
         expect(mockGetCsrData).not.toHaveBeenCalled();
         await act(async () => setOffline(false));
         expect(mockRedirect).toHaveBeenCalledTimes(1);
@@ -193,10 +193,10 @@ describe("dashboard appearance initialization", () => {
         mockGetCsrData.mockReturnValueOnce(pending.promise);
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { staticPage: true } });
-        applyUserPreferences({ language: "zh_CN", appearance: { theme: "desk", darkMode: false } });
+        await render({user: null, resourceInfo: {staticPage: true}});
+        applyUserPreferences({language: "zh_CN", appearance: {theme: "desk", darkMode: false}});
         await act(async () => pending.resolve(userResponse()));
-        expect(getRes()).toMatchObject({ lang: "zh_CN", admin_theme: "desk", admin_darkMode: false });
+        expect(getRes()).toMatchObject({lang: "zh_CN", admin_theme: "desk", admin_darkMode: false});
         expect(mockCachedUser).toEqual(user());
     });
 
@@ -205,7 +205,7 @@ describe("dashboard appearance initialization", () => {
         mockGetCsrData.mockReturnValueOnce(pending.promise);
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { staticPage: true } });
+        await render({user: null, resourceInfo: {staticPage: true}});
         getSsDate().key = "two";
         getSsDate().user = user(2, "two");
         await act(async () => pending.resolve(userResponse()));
@@ -225,23 +225,23 @@ describe("dashboard appearance initialization", () => {
         mockGetCsrData.mockReturnValueOnce(old.promise);
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { staticPage: true } });
-        const saved = { language: "zh_CN" as const, appearance: { ...personal.appearance, compactMode: false } };
+        await render({user: null, resourceInfo: {staticPage: true}});
+        const saved = {language: "zh_CN" as const, appearance: {...personal.appearance, compactMode: false}};
         cacheUserAppearance(saved);
         applyUserPreferences(saved);
-        mockGetCsrData.mockResolvedValueOnce(userResponse({ ...user(), ...saved, userName: "updated" }));
+        mockGetCsrData.mockResolvedValueOnce(userResponse({...user(), ...saved, userName: "updated"}));
         await act(async () => {
             await refreshUserInfo(mockAxios as any);
         });
         await act(async () => old.resolve(userResponse()));
         expect(container.textContent).toBe("updated");
-        expect(mockCachedUser).toMatchObject({ userName: "updated", ...saved });
-        expect(getRes()).toMatchObject({ lang: "zh_CN", admin_compactMode: false });
+        expect(mockCachedUser).toMatchObject({userName: "updated", ...saved});
+        expect(getRes()).toMatchObject({lang: "zh_CN", admin_compactMode: false});
     });
 
     it("retains a confirmed save when refreshing fails and retries on re-entry", async () => {
-        await render({ user: user(), key: "one", resourceInfo: { staticPage: false } });
-        const saved = { language: "zh_CN" as const, appearance: { ...personal.appearance, compactMode: false } };
+        await render({user: user(), key: "one", resourceInfo: {staticPage: false}});
+        const saved = {language: "zh_CN" as const, appearance: {...personal.appearance, compactMode: false}};
         cacheUserAppearance(saved);
         applyUserPreferences(saved);
         mockGetCsrData.mockRejectedValueOnce(new Error("unavailable"));
@@ -250,7 +250,7 @@ describe("dashboard appearance initialization", () => {
         });
         expect(mockCachedUser).toMatchObject(saved);
         expect(getSsDate().userFromCache).toBe(true);
-        mockGetCsrData.mockResolvedValueOnce(userResponse({ ...user(), ...saved }));
+        mockGetCsrData.mockResolvedValueOnce(userResponse({...user(), ...saved}));
         await remount();
         expect(getSsDate().userFromCache).toBe(false);
         expect(mockCachedUser).toMatchObject(saved);
@@ -259,7 +259,7 @@ describe("dashboard appearance initialization", () => {
     it("rejects a cached account whose session does not match", async () => {
         mockCachedUser = user(2, "two");
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } }, true);
+        await render({user: null, resourceInfo: {lang: "zh_CN", staticPage: true}}, true);
         expect(getSsDate().user).toBeNull();
         expect(getRes().lang).toBe("zh_CN");
         expect(mockGetCsrData).not.toHaveBeenCalled();

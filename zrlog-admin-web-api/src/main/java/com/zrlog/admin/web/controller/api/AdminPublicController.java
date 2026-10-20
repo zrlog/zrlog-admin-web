@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static com.zrlog.util.CrossUtils.cross;
-
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.PublicVersionResponse;
@@ -12,11 +10,12 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
+
+import static com.zrlog.util.CrossUtils.cross;
 
 public class AdminPublicController extends BaseController {
     private final AdminResourceService resources;

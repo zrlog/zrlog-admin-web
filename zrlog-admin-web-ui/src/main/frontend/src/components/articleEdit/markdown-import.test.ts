@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
-import { TextDecoder as NodeTextDecoder } from "util";
+import {afterAll, beforeAll, describe, expect, it} from "@jest/globals";
+import {TextDecoder as NodeTextDecoder} from "util";
 import {
     buildMarkdownImportedArticle,
     buildMarkdownImportedPatch,
@@ -118,7 +118,7 @@ describe("Markdown import parsing", () => {
             [
                 "---",
                 `alias: ${"a".repeat(65)}`,
-                `tags: [${Array.from({ length: 3 }, (_, index) => `${index}-${"x".repeat(90)}`).join(", ")}]`,
+                `tags: [${Array.from({length: 3}, (_, index) => `${index}-${"x".repeat(90)}`).join(", ")}]`,
                 "---",
                 "Body",
             ].join("\n"),
@@ -138,40 +138,40 @@ describe("Markdown import parsing", () => {
 
     it("rejects invalid files and unsafe or malformed front matter", () => {
         expect(() => parseMarkdownImportText("Body", "post.txt")).toThrow(
-            expect.objectContaining({ code: "invalid-extension" })
+            expect.objectContaining({code: "invalid-extension"})
         );
         expect(() => parseMarkdownImportText(" \n", "post.md")).toThrow(
-            expect.objectContaining({ code: "empty-file" })
+            expect.objectContaining({code: "empty-file"})
         );
         expect(() => parseMarkdownImportText("Body\0", "post.md")).toThrow(
-            expect.objectContaining({ code: "binary-file" })
+            expect.objectContaining({code: "binary-file"})
         );
         expect(() => parseMarkdownImportText("---\ntitle: Missing close\nBody", "post.md")).toThrow(
-            expect.objectContaining({ code: "unclosed-front-matter" })
+            expect.objectContaining({code: "unclosed-front-matter"})
         );
         expect(() => parseMarkdownImportText("---\n- invalid root\n---\nBody", "post.md")).toThrow(
-            expect.objectContaining({ code: "front-matter-root" })
+            expect.objectContaining({code: "front-matter-root"})
         );
     });
 
     it("rejects dangerous keys, excessive depth, and excessive aliases", () => {
         const dangerous = "---\n__proto__:\n  polluted: true\n---\nBody";
-        const deep = `---\n${Array.from({ length: 10 }, (_, index) => `${"  ".repeat(index)}level${index}:`).join(
+        const deep = `---\n${Array.from({length: 10}, (_, index) => `${"  ".repeat(index)}level${index}:`).join(
             "\n"
         )}\n${"  ".repeat(10)}value\n---\nBody`;
-        const aliases = `---\nbase: &base value\nitems: [${Array.from({ length: 21 }, () => "*base").join(
+        const aliases = `---\nbase: &base value\nitems: [${Array.from({length: 21}, () => "*base").join(
             ", "
         )}]\n---\nBody`;
 
         expect(() => parseMarkdownImportText(dangerous, "dangerous.md")).toThrow(
-            expect.objectContaining({ code: "front-matter-too-complex" })
+            expect.objectContaining({code: "front-matter-too-complex"})
         );
         expect(({} as Record<string, unknown>).polluted).toBeUndefined();
         expect(() => parseMarkdownImportText(deep, "deep.md")).toThrow(
-            expect.objectContaining({ code: "front-matter-too-complex" })
+            expect.objectContaining({code: "front-matter-too-complex"})
         );
         expect(() => parseMarkdownImportText(aliases, "aliases.md")).toThrow(
-            expect.objectContaining({ code: "invalid-front-matter" })
+            expect.objectContaining({code: "invalid-front-matter"})
         );
     });
 
@@ -256,8 +256,8 @@ describe("Markdown import target and metadata policy", () => {
     });
 
     it("never replaces published or private articles", () => {
-        expect(getMarkdownImportTargetPolicy({ ...article, logId: 42, rubbish: false }).currentAllowed).toBe(false);
-        expect(getMarkdownImportTargetPolicy({ ...article, privacy: true }).forcedNewDraftReason).toBe("private");
+        expect(getMarkdownImportTargetPolicy({...article, logId: 42, rubbish: false}).currentAllowed).toBe(false);
+        expect(getMarkdownImportTargetPolicy({...article, privacy: true}).forcedNewDraftReason).toBe("private");
         expect(getMarkdownImportTargetPolicy(article, article.markdown, true)).toEqual({
             initialTarget: "newDraft",
             currentAllowed: false,
@@ -269,8 +269,8 @@ describe("Markdown import target and metadata policy", () => {
 
     it("matches only existing categories and builds a clean server draft", () => {
         const category = resolveMarkdownImportCategory(preview.metadata.categoryNames, [
-            { value: 2, label: "Docs" },
-            { value: 3, label: "Notes" },
+            {value: 2, label: "Docs"},
+            {value: 3, label: "Notes"},
         ]);
         expect(category).toEqual({
             typeId: 2,
@@ -311,8 +311,8 @@ describe("Markdown import target and metadata policy", () => {
     it("separates additional existing categories from categories that do not exist", () => {
         expect(
             resolveMarkdownImportCategory(["Docs", "Notes", "Missing"], [
-                { value: 2, label: "Docs" },
-                { value: 3, label: "Notes" },
+                {value: 2, label: "Docs"},
+                {value: 3, label: "Notes"},
             ])
         ).toEqual({
             typeId: 2,
@@ -339,7 +339,7 @@ describe("Markdown import target and metadata policy", () => {
         const previewWithoutCategory = parseMarkdownImportText("Imported body", "post.md");
         const defaultFields = getDefaultMarkdownImportFields(
             previewWithoutCategory,
-            { ...article, typeId: undefined },
+            {...article, typeId: undefined},
             "current"
         );
 
@@ -351,7 +351,7 @@ describe("Markdown import target and metadata policy", () => {
 
     it("replaces an allowed draft atomically while retaining article identity and status", () => {
         const imported = buildMarkdownImportedArticle({
-            article: { ...article, logId: 42, alias: "current-alias" },
+            article: {...article, logId: 42, alias: "current-alias"},
             preview,
             selectedFields: new Set<MarkdownImportField>(["title", "keywords"]),
             selectedTypeId: 2,
@@ -396,10 +396,14 @@ describe("Markdown import target and metadata policy", () => {
 
         expect(getMarkdownImportTargetPolicy(blankArticle, "").initialTarget).toBe("current");
         expect(getMarkdownImportTargetPolicy(blankArticle, "live editor body").initialTarget).toBe("newDraft");
-        expect(getMarkdownImportTargetPolicy({ ...blankArticle, markdown: "", title: "Metadata only" }).initialTarget).toBe(
+        expect(getMarkdownImportTargetPolicy({
+            ...blankArticle,
+            markdown: "",
+            title: "Metadata only"
+        }).initialTarget).toBe(
             "newDraft"
         );
-        expect(getMarkdownImportTargetPolicy({ ...blankArticle, markdown: "", typeId: 2 })).toEqual({
+        expect(getMarkdownImportTargetPolicy({...blankArticle, markdown: "", typeId: 2})).toEqual({
             initialTarget: "current",
             currentAllowed: true,
             newDraftAllowed: false,

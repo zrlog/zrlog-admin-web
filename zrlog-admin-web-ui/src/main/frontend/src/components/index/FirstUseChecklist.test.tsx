@@ -1,16 +1,16 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {MemoryRouter} from "react-router-dom";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
 import FirstUseChecklist from "./FirstUseChecklist";
 
 jest.mock("antd", () => {
     const React = require("react");
     return {
-        Button: ({ children, href, icon, ...props }: any) =>
-            React.createElement(href ? "a" : "button", href ? { ...props, href } : props, icon, children),
+        Button: ({children, href, icon, ...props}: any) =>
+            React.createElement(href ? "a" : "button", href ? {...props, href} : props, icon, children),
         Typography: {
-            Text: ({ children, ...props }: any) => React.createElement("span", props, children),
+            Text: ({children, ...props}: any) => React.createElement("span", props, children),
         },
     };
 });
@@ -73,7 +73,7 @@ describe("FirstUseChecklist", () => {
         act(() => {
             root.render(
                 <MemoryRouter>
-                    <FirstUseChecklist dismissing={false} onDismiss={onDismiss} />
+                    <FirstUseChecklist dismissing={false} onDismiss={onDismiss}/>
                 </MemoryRouter>
             );
         });
@@ -91,7 +91,7 @@ describe("FirstUseChecklist", () => {
             (button) => button.textContent?.trim() === "Skip"
         );
         expect(skipButton).toBeDefined();
-        act(() => skipButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+        act(() => skipButton?.dispatchEvent(new MouseEvent("click", {bubbles: true})));
         expect(onDismiss).toHaveBeenCalledTimes(1);
     });
 });

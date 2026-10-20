@@ -1,11 +1,11 @@
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import BarChartIcon from "@zrlog/ui/icons/bar-chart";
 import InfoIcon from "@zrlog/ui/icons/info";
 import SmileIcon from "@zrlog/ui/icons/smile";
-import { Card, Col, Grid, Row } from "antd";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import {Card, Col, Grid, Row} from "antd";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
 
-import { FunctionComponent, ReactNode, useEffect, useRef, useState } from "react";
+import {FunctionComponent, ReactNode, useEffect, useRef, useState} from "react";
 import {
     AdminCommonProps,
     AdminDashboardCardConfig,
@@ -17,20 +17,20 @@ import {
     IndexData,
     StatisticsInfoState,
 } from "../../type";
-import ActivityGraph, { ActivityDay, generateCompleteData } from "./ActivityGraph";
+import ActivityGraph, {ActivityDay, generateCompleteData} from "./ActivityGraph";
 import StatisticsInfo from "./StatisticsInfo";
 import QuickActionCard from "./QuickAction";
 import DataInsights from "./DataInsights";
 import AuditTrail from "./AuditTrail";
 
-import { useAxiosBaseInstance } from "../../base/AppBase";
+import {useAxiosBaseInstance} from "../../base/AppBase";
 import PluginSurfacePanels from "./PluginSurfacePanels";
 import DashboardConfigDrawer from "./DashboardConfigDrawer";
-import { useLocation } from "react-router";
-import { getPageDataCacheKeyByPath } from "../../utils/cache";
+import {useLocation} from "react-router";
+import {getPageDataCacheKeyByPath} from "../../utils/cache";
 import LocalDraftCard from "./LocalDraftCard";
-import { getLocalArticleCaches } from "../../utils/article-cache";
-import { useTheme } from "antd-style";
+import {getLocalArticleCaches} from "../../utils/article-cache";
+import {useTheme} from "antd-style";
 import DashboardCardAction from "./DashboardCardAction";
 import FirstUseChecklist from "./FirstUseChecklist";
 
@@ -48,28 +48,28 @@ type DataInsightsCardData = {
     tagData?: StatisticsInfoState["tagData"];
 };
 
-const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
+const Index: FunctionComponent<IndexProps> = ({data, updateCache}) => {
     const axiosInstance = useAxiosBaseInstance();
     const location = useLocation();
     const theme = useTheme();
     const screens = Grid.useBreakpoint();
-    const { message } = useUiApp();
+    const {message} = useUiApp();
     const twoColumnDashboard = screens.lg === true;
     const dashboardGap = twoColumnDashboard ? theme.marginMD : theme.marginSM;
 
     const defaultCards: AdminDashboardCardConfig[] = [
-        { id: "welcome", enabled: true, sort: 0 },
-        { id: "localDraft", enabled: true, sort: 10 },
-        { id: "quickAction", enabled: true, sort: 20 },
-        { id: "statistics", enabled: true, sort: 30 },
-        { id: "activity", enabled: true, sort: 40 },
-        { id: "auditTrail", enabled: true, sort: 50 },
-        { id: "dataInsights", enabled: true, sort: 60 },
+        {id: "welcome", enabled: true, sort: 0},
+        {id: "localDraft", enabled: true, sort: 10},
+        {id: "quickAction", enabled: true, sort: 20},
+        {id: "statistics", enabled: true, sort: 30},
+        {id: "activity", enabled: true, sort: 40},
+        {id: "auditTrail", enabled: true, sort: 50},
+        {id: "dataInsights", enabled: true, sort: 60},
     ];
     const defaultConfig: AdminDashboardConfig = {
         autoRefreshEnabled: false,
         autoRefreshIntervalSeconds: 60,
-        cards: defaultCards.map((card) => ({ ...card, kind: "card" as const })),
+        cards: defaultCards.map((card) => ({...card, kind: "card" as const})),
     };
     const [dashboardConfig, setDashboardConfig] = useState<AdminDashboardConfig>(data.dashboardConfig || defaultConfig);
     const [firstUseChecklist, setFirstUseChecklist] = useState<FirstUseChecklistState | null>(
@@ -85,7 +85,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         setFirstUseChecklist(firstUseChecklistDismissedRef.current ? null : data.firstUseChecklist || null);
         if (firstUseChecklistDismissedRef.current && data.firstUseChecklist) {
             updateCache?.(
-                { ...data, firstUseChecklist: null },
+                {...data, firstUseChecklist: null},
                 getPageDataCacheKeyByPath(location.pathname, location.search)
             );
         }
@@ -124,7 +124,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         .filter((card) => card.id !== "pluginPanels" && card.id !== "welcome" && card.enabled !== false)
         .sort((a, b) => (a.sort || 0) - (b.sort || 0));
     const welcomeCard =
-        cardItems.find((card) => card.id === "welcome") || ({ id: "welcome", enabled: true, sort: 0 } as const);
+        cardItems.find((card) => card.id === "welcome") || ({id: "welcome", enabled: true, sort: 0} as const);
     const pluginPanels = (dashboardConfig.cards || [])
         .filter((item): item is Extract<AdminDashboardLayoutItem, { kind: "plugin" }> => item.kind === "plugin")
         .map(
@@ -152,7 +152,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
 
     const updateIndexData = (nextData: IndexData) => {
         const normalizedData = firstUseChecklistDismissedRef.current
-            ? { ...nextData, firstUseChecklist: null }
+            ? {...nextData, firstUseChecklist: null}
             : nextData;
         setDashboardConfig(normalizedData.dashboardConfig || defaultConfig);
         setFirstUseChecklist(normalizedData.firstUseChecklist || null);
@@ -165,9 +165,9 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         }
         setDismissingFirstUseChecklist(true);
         try {
-            const { data: response } = await axiosInstance.post<ApiResponse<FirstUseChecklistState>>(
+            const {data: response} = await axiosInstance.post<ApiResponse<FirstUseChecklistState>>(
                 "/api/admin/index/first-use/dismiss",
-                { version: firstUseChecklist.version }
+                {version: firstUseChecklist.version}
             );
             if (response.error) {
                 void message.error(response.message);
@@ -177,7 +177,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                 firstUseChecklistDismissedRef.current = true;
                 setFirstUseChecklist(null);
                 updateCache?.(
-                    { dashboardConfig, firstUseChecklist: null },
+                    {dashboardConfig, firstUseChecklist: null},
                     getPageDataCacheKeyByPath(location.pathname, location.search)
                 );
             }
@@ -207,7 +207,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
             }
             refreshRunningRef.current = true;
             try {
-                const { data } = await axiosInstance.get<ApiResponse<IndexData>>("/api/admin/index");
+                const {data} = await axiosInstance.get<ApiResponse<IndexData>>("/api/admin/index");
                 updateIndexData(data.data);
             } catch {
                 // Keep the refresh loop alive; visible error surfaces should stay with explicit user actions.
@@ -246,7 +246,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         updateCache,
     ]);
 
-    const getCardData = <T,>(card: AdminDashboardCardConfig | undefined): T | undefined => card?.data as T | undefined;
+    const getCardData = <T, >(card: AdminDashboardCardConfig | undefined): T | undefined => card?.data as T | undefined;
 
     const renderWelcomeCard = (card: AdminDashboardCardConfig) => {
         const welcomeData = getCardData<WelcomeCardData>(card);
@@ -259,8 +259,8 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                     borderRadius: theme.borderRadiusLG,
                 }}
                 title={
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <SmileIcon style={{ fontSize: 18 }} />
+                    <div style={{display: "flex", alignItems: "center", gap: 10}}>
+                        <SmileIcon style={{fontSize: 18}}/>
                         <span>{welcomeData?.welcomeTip || ""}</span>
                     </div>
                 }
@@ -310,7 +310,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                         }}
                     >
                         {(welcomeData?.tips || []).map((e, idx) => (
-                            <span key={idx} style={{ display: "block" }}>
+                            <span key={idx} style={{display: "block"}}>
                                 {e}
                             </span>
                         ))}
@@ -332,8 +332,8 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                                 color: theme.colorTextSecondary,
                             }}
                         >
-                            <InfoIcon style={{ fontSize: 14, opacity: 0.82 }} />
-                            <span style={{ fontSize: 12 }}>{getRes().index.welcome.currentVersion}</span>
+                            <InfoIcon style={{fontSize: 14, opacity: 0.82}}/>
+                            <span style={{fontSize: 12}}>{getRes().index.welcome.currentVersion}</span>
                             <span
                                 style={{
                                     fontSize: 14,
@@ -353,44 +353,44 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
     const cardRenderers: Record<string, (card: AdminDashboardCardConfig) => ReactNode> = {
         welcome: renderWelcomeCard,
         localDraft: () => (
-            <LocalDraftCard localDrafts={localDrafts} onClear={() => setLocalDrafts(getLocalArticleCaches())} />
+            <LocalDraftCard localDrafts={localDrafts} onClear={() => setLocalDrafts(getLocalArticleCaches())}/>
         ),
-        quickAction: (card) => <QuickActionCard data={getCardData<QuickActionCardData>(card)} />,
+        quickAction: (card) => <QuickActionCard data={getCardData<QuickActionCardData>(card)}/>,
         statistics: (card) => {
             const cardData = getCardData<StatisticsInfoState>(card);
-            return cardData ? <StatisticsInfo data={cardData} /> : null;
+            return cardData ? <StatisticsInfo data={cardData}/> : null;
         },
         activity: (card) => (
             <Card
                 title={
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <BarChartIcon />
+                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                        <BarChartIcon/>
                         <span>{getRes().index.activity}</span>
                     </div>
                 }
                 bordered={false}
                 className="dashboard-card"
-                styles={{ body: { padding: 0 } }}
+                styles={{body: {padding: 0}}}
             >
-                <div style={{ overflow: "hidden", padding: "8px 12px 10px" }}>
-                    <ActivityGraph data={generateCompleteData(getCardData<ActivityDay[]>(card) || [])} />
+                <div style={{overflow: "hidden", padding: "8px 12px 10px"}}>
+                    <ActivityGraph data={generateCompleteData(getCardData<ActivityDay[]>(card) || [])}/>
                 </div>
             </Card>
         ),
-        auditTrail: (card) => <AuditTrail data={getCardData(card)} />,
-        dataInsights: (card) => <DataInsights data={getCardData<DataInsightsCardData>(card)} />,
+        auditTrail: (card) => <AuditTrail data={getCardData(card)}/>,
+        dataInsights: (card) => <DataInsights data={getCardData<DataInsightsCardData>(card)}/>,
     };
     const layoutItems: (
         | { type: "card"; item: AdminDashboardCardConfig }
         | { type: "plugin"; item: AdminDashboardPluginPanelConfig }
-    )[] = [
-        ...cards.map((item) => ({ type: "card" as const, item })),
-        ...pluginPanels.map((item) => ({ type: "plugin" as const, item })),
+        )[] = [
+        ...cards.map((item) => ({type: "card" as const, item})),
+        ...pluginPanels.map((item) => ({type: "plugin" as const, item})),
     ].sort((a, b) => (a.item.sort ?? 0) - (b.item.sort ?? 0));
     const sortedNodes = layoutItems
         .map((layoutItem) => {
             if (layoutItem.type === "plugin") {
-                return <PluginSurfacePanels axiosInstance={axiosInstance} panels={[layoutItem.item]} />;
+                return <PluginSurfacePanels axiosInstance={axiosInstance} panels={[layoutItem.item]}/>;
             }
             return cardRenderers[layoutItem.item.id]?.(layoutItem.item);
         })
@@ -398,7 +398,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
     const leftNodes = sortedNodes.filter((_, index) => index % 2 === 1);
     const rightNodes = sortedNodes.filter((_, index) => index % 2 === 0);
     const renderDashboardItem = (node: ReactNode, index: number) => (
-        <div className="admin-dashboard-item" key={index} style={{ animationDelay: `${index * 35}ms` }}>
+        <div className="admin-dashboard-item" key={index} style={{animationDelay: `${index * 35}ms`}}>
             {node}
         </div>
     );
@@ -407,7 +407,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         return (
             <div
                 className="admin-dashboard-grid admin-dashboard-grid-single"
-                style={{ display: "flex", flexDirection: "column", gap: dashboardGap }}
+                style={{display: "flex", flexDirection: "column", gap: dashboardGap}}
             >
                 {renderWelcomeCard(welcomeCard)}
                 {sortedNodes.map(renderDashboardItem)}
@@ -421,7 +421,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                 <Col xs={24} lg={12}>
                     <div
                         className="admin-dashboard-column"
-                        style={{ display: "flex", flexDirection: "column", gap: dashboardGap }}
+                        style={{display: "flex", flexDirection: "column", gap: dashboardGap}}
                     >
                         {renderWelcomeCard(welcomeCard)}
                         {leftNodes.map(renderDashboardItem)}
@@ -430,7 +430,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                 <Col xs={24} lg={12}>
                     <div
                         className="admin-dashboard-column"
-                        style={{ display: "flex", flexDirection: "column", gap: dashboardGap }}
+                        style={{display: "flex", flexDirection: "column", gap: dashboardGap}}
                     >
                         {rightNodes.map(renderDashboardItem)}
                     </div>

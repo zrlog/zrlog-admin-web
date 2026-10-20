@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
@@ -10,11 +7,13 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminTokenVO;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 
@@ -32,15 +31,20 @@ import java.util.function.Supplier;
  * 如果想了解更多关于插件的实现可以浏览这篇文章 <a href="https://blog.zrlog.com/zrlog-plugin-dev.html">插件实现</a>
  */
 public class AdminPluginInterceptor implements HandleAbleInterceptor {
-    private final AdminAuditService adminAuditService;
-
-    private final AdminRequestIdentity requestIdentity;
-
+    private static final String notGoodAdminUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins";
+    private static final String adminPluginUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins/";
+    private static final List<String> PUBLIC_PLUGIN_PWA_RESOURCES = Arrays.asList(
+            "manifest.webmanifest",
+            "manifest.json",
+            "pwa-icon",
+            "pwa-sw.js"
+    );
     protected final Supplier<TokenService> tokenService;
-
+    private final AdminAuditService adminAuditService;
+    private final AdminRequestIdentity requestIdentity;
     private final Supplier<PluginCorePlugin> pluginCore;
     private final BooleanSupplier installed;
-
+    private final List<String> pluginHandlerPaths = Arrays.asList(notGoodAdminUriPath, adminPluginUriPath);
     @Inject
     public AdminPluginInterceptor(
             Supplier<TokenService> tokenService,
@@ -57,15 +61,21 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
         this.installed = Objects.requireNonNull(installed);
     }
 
-    private static final String notGoodAdminUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins";
-    private static final String adminPluginUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins/";
-    private static final List<String> PUBLIC_PLUGIN_PWA_RESOURCES = Arrays.asList(
-            "manifest.webmanifest",
-            "manifest.json",
-            "pwa-icon",
-            "pwa-sw.js"
-    );
-    private final List<String> pluginHandlerPaths = Arrays.asList(notGoodAdminUriPath, adminPluginUriPath);
+    static boolean isPluginPwaResource(String target) {
+        if (Objects.isNull(target) || !target.startsWith(adminPluginUriPath)) {
+            return false;
+        }
+        String path = target.split("\\?", 2)[0];
+        String relativePath = path.substring(adminPluginUriPath.length());
+        String[] segments = relativePath.split("/", -1);
+        return segments.length == 2
+                && !segments[0].isEmpty()
+                && PUBLIC_PLUGIN_PWA_RESOURCES.contains(segments[1]);
+    }
+
+    static String pluginCoreUri(String target) {
+        return target.replaceFirst(adminPluginUriPath, "/");
+    }
 
     @Override
     public boolean isHandleAble(HttpRequest request) {
@@ -109,22 +119,6 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             return;
         }
         this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
-    }
-
-    static boolean isPluginPwaResource(String target) {
-        if (Objects.isNull(target) || !target.startsWith(adminPluginUriPath)) {
-            return false;
-        }
-        String path = target.split("\\?", 2)[0];
-        String relativePath = path.substring(adminPluginUriPath.length());
-        String[] segments = relativePath.split("/", -1);
-        return segments.length == 2
-                && !segments[0].isEmpty()
-                && PUBLIC_PLUGIN_PWA_RESOURCES.contains(segments[1]);
-    }
-
-    static String pluginCoreUri(String target) {
-        return target.replaceFirst(adminPluginUriPath, "/");
     }
 
     private void renderPublicPluginPwaResource(String target, HttpRequest request, HttpResponse response)

@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.content;
 
 import com.hibegin.common.util.StringUtils;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -11,14 +10,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/** Article resource syntax and replacement rules; no database or filesystem access. */
+/**
+ * Article resource syntax and replacement rules; no database or filesystem access.
+ */
 public final class ArticleResourceReferences {
-    private final String contextPath;
-
-    public ArticleResourceReferences(String contextPath) {
-        this.contextPath = normalizeContextPath(contextPath);
-    }
-
     private static final Pattern MARKDOWN_LINK_PATTERN =
             Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)");
     private static final Pattern RESOURCE_URL_PATTERN =
@@ -26,7 +21,6 @@ public final class ArticleResourceReferences {
                     "(?i)(https?://[^\\s\"'<>)]*|//[^\\s\"'<>)]*|/(?:[^\\s\"'<>)]*/)?attached/[^\\s\"'<>)]*)");
     private static final List<String> ARTICLE_RESOURCE_FIELDS =
             List.of("thumbnail", "content", "markdown", "digest");
-
     private static final Set<String> RESOURCE_FILE_EXTENSIONS =
             new HashSet<>(
                     Arrays.asList(
@@ -35,6 +29,107 @@ public final class ArticleResourceReferences {
                             "rar", "7z", "tar", "gz", "bz2", "xz", "jar", "pdf", "doc", "docx",
                             "xls", "xlsx", "ppt", "pptx", "txt", "md", "json", "xml", "csv", "apk",
                             "dmg", "exe", "msi", "deb", "rpm"));
+    private final String contextPath;
+
+    public ArticleResourceReferences(String contextPath) {
+        this.contextPath = normalizeContextPath(contextPath);
+    }
+
+    private static String normalizeContextPath(String contextPath) {
+        if (StringUtils.isEmpty(contextPath) || Objects.equals(contextPath, "/")) {
+            return "";
+        }
+        String normalized = contextPath.trim().replace("\\", "/");
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.endsWith("/") && normalized.length() > 1) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    public static Set<String> extractExternalResourceUrls(String html) {
+        Set<String> urls = new LinkedHashSet<>();
+        if (html == null || html.isEmpty()) {
+            return urls;
+        }
+        org.jsoup.nodes.Document doc = Jsoup.parse(html);
+        doc.select("img[src],video[src],audio[src],source[src],track[src],embed[src]")
+                .forEach(element -> addExternalUrl(urls, element.attr("src")));
+        doc.select("video[poster]")
+                .forEach(element -> addExternalUrl(urls, element.attr("poster")));
+        doc.select("object[data]").forEach(element -> addExternalUrl(urls, element.attr("data")));
+        doc.select("a[href]").forEach(element -> addExternalResourceLink(urls, element));
+        return urls;
+    }
+
+    public static boolean isExternalUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return false;
+        }
+        String trimmed = url.trim();
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
+        if (!normalized.startsWith("http://")
+                && !normalized.startsWith("https://")
+                && !normalized.startsWith("//")) {
+            return false;
+        }
+        try {
+            String parseValue = normalized.startsWith("//") ? "https:" + trimmed : trimmed;
+            java.net.URI uri = new java.net.URI(parseValue);
+            String scheme = uri.getScheme();
+            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null
+                    && !uri.getHost().trim().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean isLikelyResourceUrl(String url) {
+        return isExternalUrl(url) && RESOURCE_FILE_EXTENSIONS.contains(getExtension(url));
+    }
+
+    private static void addExternalUrl(Set<String> urls, String url) {
+        if (isExternalUrl(url)) {
+            urls.add(url.trim());
+        }
+    }
+
+    private static void addExternalResourceLink(Set<String> urls, Element element) {
+        String href = element.attr("href");
+        if (isExternalUrl(href) && (element.hasAttr("download") || isLikelyResourceUrl(href))) {
+            urls.add(href.trim());
+        }
+    }
+
+    private static String getExtension(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            return "";
+        }
+        String normalized = stripQueryAndHash(fileName.trim()).toLowerCase(Locale.ROOT);
+        int slashIndex = normalized.lastIndexOf('/');
+        String name = slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
+        int dotIndex = name.lastIndexOf('.');
+        if (dotIndex < 0 || dotIndex == name.length() - 1) {
+            return "";
+        }
+        return name.substring(dotIndex + 1);
+    }
+
+    private static String stripQueryAndHash(String value) {
+        int queryIndex = value.indexOf('?');
+        int hashIndex = value.indexOf('#');
+        int endIndex = value.length();
+        if (queryIndex >= 0) {
+            endIndex = Math.min(endIndex, queryIndex);
+        }
+        if (hashIndex >= 0) {
+            endIndex = Math.min(endIndex, hashIndex);
+        }
+        return value.substring(0, endIndex);
+    }
 
     public String normalizePath(String value) {
         int queryIndex = value.indexOf('?');
@@ -299,101 +394,5 @@ public final class ArticleResourceReferences {
             this.toKey = toKey;
             this.prefix = prefix;
         }
-    }
-
-    private static String normalizeContextPath(String contextPath) {
-        if (StringUtils.isEmpty(contextPath) || Objects.equals(contextPath, "/")) {
-            return "";
-        }
-        String normalized = contextPath.trim().replace("\\", "/");
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-        while (normalized.endsWith("/") && normalized.length() > 1) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
-    }
-
-    public static Set<String> extractExternalResourceUrls(String html) {
-        Set<String> urls = new LinkedHashSet<>();
-        if (html == null || html.isEmpty()) {
-            return urls;
-        }
-        org.jsoup.nodes.Document doc = Jsoup.parse(html);
-        doc.select("img[src],video[src],audio[src],source[src],track[src],embed[src]")
-                .forEach(element -> addExternalUrl(urls, element.attr("src")));
-        doc.select("video[poster]")
-                .forEach(element -> addExternalUrl(urls, element.attr("poster")));
-        doc.select("object[data]").forEach(element -> addExternalUrl(urls, element.attr("data")));
-        doc.select("a[href]").forEach(element -> addExternalResourceLink(urls, element));
-        return urls;
-    }
-
-    public static boolean isExternalUrl(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return false;
-        }
-        String trimmed = url.trim();
-        String normalized = trimmed.toLowerCase(Locale.ROOT);
-        if (!normalized.startsWith("http://")
-                && !normalized.startsWith("https://")
-                && !normalized.startsWith("//")) {
-            return false;
-        }
-        try {
-            String parseValue = normalized.startsWith("//") ? "https:" + trimmed : trimmed;
-            java.net.URI uri = new java.net.URI(parseValue);
-            String scheme = uri.getScheme();
-            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
-                    && uri.getHost() != null
-                    && !uri.getHost().trim().isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public static boolean isLikelyResourceUrl(String url) {
-        return isExternalUrl(url) && RESOURCE_FILE_EXTENSIONS.contains(getExtension(url));
-    }
-
-    private static void addExternalUrl(Set<String> urls, String url) {
-        if (isExternalUrl(url)) {
-            urls.add(url.trim());
-        }
-    }
-
-    private static void addExternalResourceLink(Set<String> urls, Element element) {
-        String href = element.attr("href");
-        if (isExternalUrl(href) && (element.hasAttr("download") || isLikelyResourceUrl(href))) {
-            urls.add(href.trim());
-        }
-    }
-
-    private static String getExtension(String fileName) {
-        if (fileName == null || fileName.trim().isEmpty()) {
-            return "";
-        }
-        String normalized = stripQueryAndHash(fileName.trim()).toLowerCase(Locale.ROOT);
-        int slashIndex = normalized.lastIndexOf('/');
-        String name = slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
-        int dotIndex = name.lastIndexOf('.');
-        if (dotIndex < 0 || dotIndex == name.length() - 1) {
-            return "";
-        }
-        return name.substring(dotIndex + 1);
-    }
-
-    private static String stripQueryAndHash(String value) {
-        int queryIndex = value.indexOf('?');
-        int hashIndex = value.indexOf('#');
-        int endIndex = value.length();
-        if (queryIndex >= 0) {
-            endIndex = Math.min(endIndex, queryIndex);
-        }
-        if (hashIndex >= 0) {
-            endIndex = Math.min(endIndex, hashIndex);
-        }
-        return value.substring(0, endIndex);
     }
 }

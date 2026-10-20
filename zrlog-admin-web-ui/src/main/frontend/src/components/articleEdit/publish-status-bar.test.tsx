@@ -1,23 +1,23 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ArticleEditState, PublishStatusPopoverState } from "./index.types";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {ArticleEditState, PublishStatusPopoverState} from "./index.types";
 import PublishStatusBar from "./publish-status-bar";
 
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     return {
-        Button: ({ children, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
-            React.createElement("button", { onClick }, children),
-        Grid: { useBreakpoint: () => ({ md: true }) },
-        Popover: ({ children, content }: { children?: React.ReactNode; content?: React.ReactNode }) =>
+        Button: ({children, onClick}: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
+            React.createElement("button", {onClick}, children),
+        Grid: {useBreakpoint: () => ({md: true})},
+        Popover: ({children, content}: { children?: React.ReactNode; content?: React.ReactNode }) =>
             React.createElement("div", null, children, content),
-        Space: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
-        Tag: ({ children }: { children?: React.ReactNode }) => React.createElement("span", null, children),
+        Space: ({children}: { children?: React.ReactNode }) => React.createElement("div", null, children),
+        Tag: ({children}: { children?: React.ReactNode }) => React.createElement("span", null, children),
         Typography: {
-            Link: ({ children, href, rel, target }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
-                React.createElement("a", { href, rel, target }, children),
-            Text: ({ children }: { children?: React.ReactNode }) => React.createElement("span", null, children),
+            Link: ({children, href, rel, target}: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
+                React.createElement("a", {href, rel, target}, children),
+            Text: ({children}: { children?: React.ReactNode }) => React.createElement("span", null, children),
         },
     };
 });
@@ -81,7 +81,7 @@ jest.mock("../../utils/constants", () => ({
             saveFailed: "Publish failed",
         },
         backgroundTask: {
-            status: { error: "Failed", running: "Running", success: "Completed" },
+            status: {error: "Failed", running: "Running", success: "Completed"},
             updatedAt: "Updated",
         },
         staticSite: {

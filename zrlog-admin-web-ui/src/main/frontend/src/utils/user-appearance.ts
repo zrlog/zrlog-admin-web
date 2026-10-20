@@ -1,5 +1,5 @@
-import type { AdminRuntimeResourceInfo } from "./constants";
-import type { UserPreferences } from "./user-preferences";
+import type {AdminRuntimeResourceInfo} from "./constants";
+import type {UserPreferences} from "./user-preferences";
 
 export type UserAppearance = Pick<UserPreferences, "language" | "appearance">;
 

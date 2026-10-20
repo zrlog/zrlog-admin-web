@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
@@ -10,9 +9,9 @@ import com.zrlog.admin.business.rest.response.SystemResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -27,7 +26,7 @@ public class AdminSystemController extends Controller {
 
     @Inject
     public AdminSystemController(SystemInfoUtils systemInfo, AdminPageDataFactory pages,
-            AdminRequestIdentity requestIdentity) {
+                                 AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.pages = pages;
         this.systemInfo = systemInfo;

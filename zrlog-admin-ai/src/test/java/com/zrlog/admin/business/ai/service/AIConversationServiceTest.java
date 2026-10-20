@@ -1,19 +1,16 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.*;
 
 public class AIConversationServiceTest {
 
@@ -23,7 +20,9 @@ public class AIConversationServiceTest {
                 new AIConversationService(
                         AccountServicesFixture.component(null).security(),
                         ApplicationServicesFixture.websiteKv(null),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        },
                         new AIFileService(),
                         AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
@@ -46,7 +45,9 @@ public class AIConversationServiceTest {
                 new AIConversationService(
                         AccountServicesFixture.component(null).security(),
                         ApplicationServicesFixture.websiteKv(null),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        },
                         new AIFileService(),
                         AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
         List<AIResponseEntry.AIContentEntry> messages = new ArrayList<>();
@@ -67,7 +68,9 @@ public class AIConversationServiceTest {
                 new AIConversationService(
                         AccountServicesFixture.component(null).security(),
                         ApplicationServicesFixture.websiteKv(null),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        },
                         new AIFileService(),
                         AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
         AIResponseEntry.AIContentEntry existing = new AIResponseEntry.AIContentEntry("user", "existing");

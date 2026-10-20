@@ -1,24 +1,24 @@
 import FullscreenExitIcon from "@zrlog/ui/icons/fullscreen-exit";
 import FullscreenIcon from "@zrlog/ui/icons/fullscreen";
-import { isPWA } from "../../utils/env-utils";
-import { Button } from "antd";
+import {isPWA} from "../../utils/env-utils";
+import {Button} from "antd";
 import screenfull from "screenfull";
-import { FunctionComponent, useEffect } from "react";
-import { FullScreenProps } from "./index.types";
-import { getEnterFullscreen, getExitFullscreen } from "../../utils/constants";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { useTheme } from "antd-style";
+import {FunctionComponent, useEffect} from "react";
+import {FullScreenProps} from "./index.types";
+import {getEnterFullscreen, getExitFullscreen} from "../../utils/constants";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {useTheme} from "antd-style";
 
 type ArticleEditFullscreenButton = FullScreenProps & {
     fullScreenElement: HTMLDivElement;
 };
 
 const ArticleEditFullscreenButton: FunctionComponent<ArticleEditFullscreenButton> = ({
-    fullScreenElement,
-    onExitFullScreen,
-    onFullScreen,
-    fullScreen,
-}) => {
+                                                                                         fullScreenElement,
+                                                                                         onExitFullScreen,
+                                                                                         onFullScreen,
+                                                                                         fullScreen,
+                                                                                     }) => {
     const theme = useTheme();
     const toggleFullScreen = () => {
         if (fullScreen) {
@@ -85,12 +85,12 @@ const ArticleEditFullscreenButton: FunctionComponent<ArticleEditFullscreenButton
                 fullScreen ? (
                     <FullscreenExitIcon
                         title={getExitFullscreen()}
-                        style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }}
+                        style={{fontSize: getAppState().compactMode ? 18 : 24, display: "flex"}}
                     />
                 ) : (
                     <FullscreenIcon
                         title={getEnterFullscreen()}
-                        style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }}
+                        style={{fontSize: getAppState().compactMode ? 18 : 24, display: "flex"}}
                     />
                 )
             }

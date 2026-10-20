@@ -1,33 +1,86 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.support.AccountServicesFixture;
-import static org.junit.Assert.*;
-
 import com.zrlog.admin.business.content.ArticleResourceReferences;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.di.content.ContentComponent;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-
 import org.junit.Test;
 
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Arrays;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.*;
 
 public class ArticleResourceServiceDatabaseTest {
     private static final ArticleResourceReferences REFERENCES =
             new ArticleResourceReferences("/blog");
+
+    private static InMemoryZrLogDatabase open(String backend) throws Exception {
+        return "webapi".equals(backend)
+                ? InMemoryZrLogDatabase.openWebApi()
+                : "sqlite".equals(backend)
+                ? InMemoryZrLogDatabase.openSqlite()
+                : InMemoryZrLogDatabase.open();
+    }
+
+    private static void await(CountDownLatch latch) throws SQLException {
+        try {
+            if (!latch.await(15, TimeUnit.SECONDS))
+                throw new SQLException("Timed out waiting for concurrent writer");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SQLException(e);
+        }
+    }
+
+    private static CreateArticleRequest article() {
+        CreateArticleRequest body = new CreateArticleRequest();
+        fields(body);
+        body.setTitle("Original title");
+        body.setContent("<p>Original body<img src=\"/blog/attached/old/body.png\"></p>");
+        return body;
+    }
+
+    private static UpdateArticleRequest edit(int id) {
+        UpdateArticleRequest body = new UpdateArticleRequest();
+        fields(body);
+        body.setTitle("Edited title");
+        body.setContent("<p>Edited body<img src=\"/blog/attached/old/edited.png\"></p>");
+        body.setLogId(id);
+        body.setVersion(0);
+        return body;
+    }
+
+    private static void fields(CreateArticleRequest body) {
+        body.setTypeId(1L);
+        body.setAlias("article-resources");
+        body.setPreserveDraftAiMessages(true);
+        body.setArrange_plugin("article-arranger");
+        body.setPrivacy(false);
+        body.setRubbish(false);
+        body.setThumbnail("/blog/attached/old/cover.png?v=1#top");
+        body.setMarkdown("![image](/blog/attached/old/body.png)");
+        body.setDigest("<img src=\"/blog/attached/old/digest.png\">");
+    }
+
+    private static AdminTokenVO token() {
+        AdminTokenVO user = new AdminTokenVO();
+        user.setUserId(1);
+        return user;
+    }
 
     @Test
     public void replacementsPreserveArticleStateAndRecordExactlyOneVersionAcrossDatabases()
@@ -284,59 +337,5 @@ public class ArticleResourceServiceDatabaseTest {
             assertEquals(0, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
             assertEquals(0, ((Number) db.scalar("select count(*) from log_version where log_id=?", id)).intValue());
         }
-    }
-
-    private static InMemoryZrLogDatabase open(String backend) throws Exception {
-        return "webapi".equals(backend)
-                ? InMemoryZrLogDatabase.openWebApi()
-                : "sqlite".equals(backend)
-                        ? InMemoryZrLogDatabase.openSqlite()
-                        : InMemoryZrLogDatabase.open();
-    }
-
-    private static void await(CountDownLatch latch) throws SQLException {
-        try {
-            if (!latch.await(15, TimeUnit.SECONDS))
-                throw new SQLException("Timed out waiting for concurrent writer");
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new SQLException(e);
-        }
-    }
-
-    private static CreateArticleRequest article() {
-        CreateArticleRequest body = new CreateArticleRequest();
-        fields(body);
-        body.setTitle("Original title");
-        body.setContent("<p>Original body<img src=\"/blog/attached/old/body.png\"></p>");
-        return body;
-    }
-
-    private static UpdateArticleRequest edit(int id) {
-        UpdateArticleRequest body = new UpdateArticleRequest();
-        fields(body);
-        body.setTitle("Edited title");
-        body.setContent("<p>Edited body<img src=\"/blog/attached/old/edited.png\"></p>");
-        body.setLogId(id);
-        body.setVersion(0);
-        return body;
-    }
-
-    private static void fields(CreateArticleRequest body) {
-        body.setTypeId(1L);
-        body.setAlias("article-resources");
-        body.setPreserveDraftAiMessages(true);
-        body.setArrange_plugin("article-arranger");
-        body.setPrivacy(false);
-        body.setRubbish(false);
-        body.setThumbnail("/blog/attached/old/cover.png?v=1#top");
-        body.setMarkdown("![image](/blog/attached/old/body.png)");
-        body.setDigest("<img src=\"/blog/attached/old/digest.png\">");
-    }
-
-    private static AdminTokenVO token() {
-        AdminTokenVO user = new AdminTokenVO();
-        user.setUserId(1);
-        return user;
     }
 }

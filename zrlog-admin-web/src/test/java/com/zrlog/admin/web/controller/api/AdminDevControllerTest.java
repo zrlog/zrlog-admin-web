@@ -1,10 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -29,7 +24,6 @@ import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.WebSite;
-
 import org.junit.After;
 import org.junit.Test;
 
@@ -37,11 +31,48 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class AdminDevControllerTest {
 
+    private final String previousRunMode = System.getProperty("sws.run.mode");
     private ZrLogConfig applicationConfig;
 
-    private final String previousRunMode = System.getProperty("sws.run.mode");
+    private static HttpRequest request(Map<String, String> params, ServerConfig serverConfig) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminDevControllerTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getUri":
+                            return "/api/admin/dev";
+                        case "getParaToBool":
+                            return Boolean.parseBoolean(params.getOrDefault(args[0].toString(), args[1].toString()));
+                        case "getHeader":
+                            return "Host".equals(args[0]) ? "localhost:18080" : null;
+                        case "getHeaderMap":
+                            return Map.of("X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getServerConfig":
+                            return serverConfig;
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
+    private static HttpResponse response() {
+        return (HttpResponse) Proxy.newProxyInstance(
+                AdminDevControllerTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> null);
+    }
 
     @After
     public void tearDown() {
@@ -166,41 +197,5 @@ public class AdminDevControllerTest {
         responseField.setAccessible(true);
         responseField.set(controller, response());
         return controller;
-    }
-
-    private static HttpRequest request(Map<String, String> params, ServerConfig serverConfig) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminDevControllerTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return "/api/admin/dev";
-                        case "getParaToBool":
-                            return Boolean.parseBoolean(params.getOrDefault(args[0].toString(), args[1].toString()));
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
-    }
-
-    private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminDevControllerTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
     }
 }

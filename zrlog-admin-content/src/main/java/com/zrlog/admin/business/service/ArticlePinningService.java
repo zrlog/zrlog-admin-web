@@ -8,23 +8,18 @@ import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.exception.UnknownException;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.model.Log;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
 public class ArticlePinningService {
+    static final String LOCK_KEY = "article-sticky-order";
+    private static final long LOCK_WAIT_SECONDS = 20L;
     private final DistributedLock.Factory locks;
-
     private final jakarta.inject.Provider<Log> logProvider;
-
     @Inject
     public ArticlePinningService(
             jakarta.inject.Provider<Log> logProvider, DistributedLock.Factory locks) {
@@ -33,8 +28,76 @@ public class ArticlePinningService {
         this.logProvider = logProvider;
     }
 
-    static final String LOCK_KEY = "article-sticky-order";
-    private static final long LOCK_WAIT_SECONDS = 20L;
+    static String buildPersistSql(List<ArticlePinningEntryResponse> items) {
+        StringBuilder sql = new StringBuilder("update ").append(Log.TABLE_NAME)
+                .append(" set sticky=case when rubbish=? and privacy=? then case logId");
+        List<Long> logIds = new ArrayList<>(items.size());
+        long priority = items.size();
+        for (ArticlePinningEntryResponse item : items) {
+            long logId = requirePositiveLogId(item);
+            logIds.add(logId);
+            sql.append(" when ").append(logId).append(" then ").append(priority--);
+        }
+        sql.append(" else 0 end else 0 end where sticky>0 or logId in (");
+        for (int i = 0; i < logIds.size(); i++) {
+            if (i > 0) {
+                sql.append(',');
+            }
+            sql.append(logIds.get(i));
+        }
+        sql.append(')');
+        return sql.toString();
+    }
+
+    private static long requirePositiveLogId(ArticlePinningEntryResponse item) {
+        Long logId = item.getLogId();
+        if (logId == null || logId <= 0) {
+            throw new IllegalArgumentException("logId must be a positive number");
+        }
+        return logId;
+    }
+
+    private static ArticlePinningResponse response(List<ArticlePinningEntryResponse> items) {
+        ArticlePinningResponse response = new ArticlePinningResponse();
+        response.setItems(items);
+        return response;
+    }
+
+    private static int indexOf(List<ArticlePinningEntryResponse> items, Long logId) {
+        for (int i = 0; i < items.size(); i++) {
+            if (Objects.equals(items.get(i).getLogId(), logId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static ArticlePinningEntryResponse toEntry(Map<String, Object> row) {
+        ArticlePinningEntryResponse entry = new ArticlePinningEntryResponse();
+        entry.setLogId(toLong(getIgnoreCase(row, "logId")));
+        entry.setTitle(Objects.toString(getIgnoreCase(row, "title"), ""));
+        entry.setSticky(Objects.requireNonNullElse(toLong(getIgnoreCase(row, "sticky")), 0L));
+        return entry;
+    }
+
+    private static Object getIgnoreCase(Map<String, Object> row, String key) {
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private static Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return Long.valueOf(value.toString());
+    }
 
     public ArticlePinningResponse list() throws SQLException {
         return response(queryPinnedArticles());
@@ -151,77 +214,6 @@ public class ArticlePinningService {
             return;
         }
         this.logProvider.get().execute(buildPersistSql(items), false, false);
-    }
-
-    static String buildPersistSql(List<ArticlePinningEntryResponse> items) {
-        StringBuilder sql = new StringBuilder("update ").append(Log.TABLE_NAME)
-                .append(" set sticky=case when rubbish=? and privacy=? then case logId");
-        List<Long> logIds = new ArrayList<>(items.size());
-        long priority = items.size();
-        for (ArticlePinningEntryResponse item : items) {
-            long logId = requirePositiveLogId(item);
-            logIds.add(logId);
-            sql.append(" when ").append(logId).append(" then ").append(priority--);
-        }
-        sql.append(" else 0 end else 0 end where sticky>0 or logId in (");
-        for (int i = 0; i < logIds.size(); i++) {
-            if (i > 0) {
-                sql.append(',');
-            }
-            sql.append(logIds.get(i));
-        }
-        sql.append(')');
-        return sql.toString();
-    }
-
-    private static long requirePositiveLogId(ArticlePinningEntryResponse item) {
-        Long logId = item.getLogId();
-        if (logId == null || logId <= 0) {
-            throw new IllegalArgumentException("logId must be a positive number");
-        }
-        return logId;
-    }
-
-    private static ArticlePinningResponse response(List<ArticlePinningEntryResponse> items) {
-        ArticlePinningResponse response = new ArticlePinningResponse();
-        response.setItems(items);
-        return response;
-    }
-
-    private static int indexOf(List<ArticlePinningEntryResponse> items, Long logId) {
-        for (int i = 0; i < items.size(); i++) {
-            if (Objects.equals(items.get(i).getLogId(), logId)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static ArticlePinningEntryResponse toEntry(Map<String, Object> row) {
-        ArticlePinningEntryResponse entry = new ArticlePinningEntryResponse();
-        entry.setLogId(toLong(getIgnoreCase(row, "logId")));
-        entry.setTitle(Objects.toString(getIgnoreCase(row, "title"), ""));
-        entry.setSticky(Objects.requireNonNullElse(toLong(getIgnoreCase(row, "sticky")), 0L));
-        return entry;
-    }
-
-    private static Object getIgnoreCase(Map<String, Object> row, String key) {
-        for (Map.Entry<String, Object> entry : row.entrySet()) {
-            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    private static Long toLong(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return Long.valueOf(value.toString());
     }
 
     @FunctionalInterface

@@ -3,6 +3,7 @@ You are an AI prompt editor.
 Task: Improve the user's global prompt so it works better for an AI assistant in a blog admin console.
 
 Requirements:
+
 1. Output only the improved prompt body.
 2. Use English.
 3. Preserve the user's intended role, tone, boundaries, and output preferences.

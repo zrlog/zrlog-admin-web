@@ -3,31 +3,26 @@ package com.zrlog.admin.business.ai.service;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
-import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
-import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
-import com.zrlog.admin.business.ai.exception.AIRequestException;
-import com.zrlog.admin.business.ai.exception.AIResponseException;
-import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
-import com.zrlog.admin.business.ai.exception.UnsupportedAIToolException;
+import com.zrlog.admin.business.ai.exception.*;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest;
 import com.zrlog.admin.business.rest.request.ScoreArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
+import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.admin.business.service.AccountIdentityService;
-import com.zrlog.admin.business.service.AccountPermissionService;
-import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.util.I18nUtil;
-
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.List;
@@ -56,13 +51,8 @@ public class AIWritingSkillService extends AIService {
         this.conversationStore = conversationStore;
     }
 
-    @AssistedFactory
-    public interface Factory {
-        AIWritingSkillService create(AccountAccess actor, AIConversationService conversationStore);
-    }
-
     public AIStreamResponse startStreamResponse(String input, Long articleId, String tool,
-                                               GenerateArticleFieldRequest articleContext)
+                                                GenerateArticleFieldRequest articleContext)
             throws IOException, InterruptedException, SQLException {
         return startToolStreamResponse(input, articleId, tool, articleContext);
     }
@@ -133,12 +123,15 @@ public class AIWritingSkillService extends AIService {
         return result;
     }
 
-    /** Shared generator; chat owns its own message/checkpoint persistence. */
+    /**
+     * Shared generator; chat owns its own message/checkpoint persistence.
+     */
     AIResponseEntry.AIContentEntry generate(String tool, GenerateArticleFieldRequest context, String instruction)
             throws IOException, InterruptedException, SQLException {
         ToolResult result = runTool(tool, context, instruction);
         AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("assistant", result.content);
-        entry.setTool(tool); entry.setPayload(result.payload);
+        entry.setTool(tool);
+        entry.setPayload(result.payload);
         return entry;
     }
 
@@ -196,9 +189,9 @@ public class AIWritingSkillService extends AIService {
                 return new ToolResult(formatReaderQuestions(response), response);
             }
             case "cover": {
-                    GenerateArticleCoverResponse response =
-                            this.imageService.generateArticleCover(
-                                    actor, articleContext, conversationContext);
+                GenerateArticleCoverResponse response =
+                        this.imageService.generateArticleCover(
+                                actor, articleContext, conversationContext);
                 return new ToolResult(I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
                         new AIStreamPayloads.CoverPayload(response.getUrl()));
             }
@@ -483,6 +476,17 @@ public class AIWritingSkillService extends AIService {
         entry.setModel(info.getAi_model());
     }
 
+    enum ToolContextPolicy {
+        FULL_CONVERSATION,
+        CHAT_ONLY,
+        NONE
+    }
+
+    @AssistedFactory
+    public interface Factory {
+        AIWritingSkillService create(AccountAccess actor, AIConversationService conversationStore);
+    }
+
     private static class ToolResult {
         private final String content;
         private final Object payload;
@@ -491,11 +495,5 @@ public class AIWritingSkillService extends AIService {
             this.content = content;
             this.payload = payload;
         }
-    }
-
-    enum ToolContextPolicy {
-        FULL_CONVERSATION,
-        CHAT_ONLY,
-        NONE
     }
 }

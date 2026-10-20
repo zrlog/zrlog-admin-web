@@ -1,10 +1,15 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.util.NativeImageUtils;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public final class AiNativeImageUtils {
-    private AiNativeImageUtils() { }
+    private AiNativeImageUtils() {
+    }
+
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIFileModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
@@ -82,6 +87,7 @@ public final class AiNativeImageUtils {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIProviderRequests.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.OpenAIResponses.class.getDeclaredClasses()));
     }
+
     public static List<String> resources() {
         List<String> resourceUris = new ArrayList<>();
         resourceUris.add("/ai/comment-review/prompt_zh_CN.md");

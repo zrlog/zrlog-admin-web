@@ -1,5 +1,5 @@
-import { isFeaturePathEnabled } from "../utils/module-capabilities";
-import { Route, Routes } from "react-router-dom";
+import {isFeaturePathEnabled} from "../utils/module-capabilities";
+import {Route, Routes} from "react-router-dom";
 import {
     ComponentType,
     FunctionComponent,
@@ -13,8 +13,8 @@ import {
     useRef,
     useState,
 } from "react";
-import { useLocation } from "react-router";
-import { getCsrData, getTimeInfoBySearchStr } from "../api";
+import {useLocation} from "react-router";
+import {getCsrData, getTimeInfoBySearchStr} from "../api";
 import MyLoadingComponent from "./my-loading-component";
 import {
     addToCache,
@@ -26,15 +26,15 @@ import {
     getPageFullState,
     savePageFullState,
 } from "../utils/cache";
-import { deepEqualWithSpecialJSON, getFullPath, updateDocumentTitle } from "../utils/helpers";
-import { isPWA } from "../utils/env-utils";
+import {deepEqualWithSpecialJSON, getFullPath, updateDocumentTitle} from "../utils/helpers";
+import {isPWA} from "../utils/env-utils";
 import * as H from "history";
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { AdminCommonProps, BasicUserInfo } from "../type";
-import { getSsDate, getWindowPageBuildId } from "../base/SsData";
-import { JSX } from "react/jsx-runtime";
-import { createAdminDashboardRoutes } from "./admin-dashboard-routes";
-import { getAccountPage } from "../utils/account-page-routes";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {AdminCommonProps, BasicUserInfo} from "../type";
+import {getSsDate, getWindowPageBuildId} from "../base/SsData";
+import {JSX} from "react/jsx-runtime";
+import {createAdminDashboardRoutes} from "./admin-dashboard-routes";
+import {getAccountPage} from "../utils/account-page-routes";
 import IntrinsicAttributes = JSX.IntrinsicAttributes;
 
 const AsyncNotFoundPage = lazy(() => import("components/not-found-page"));
@@ -72,10 +72,10 @@ interface LazyWithFallbackElementProps<P> {
 }
 
 export function LazyWithFallbackElement<P extends IntrinsicAttributes>({
-    LazyComponent,
-    FallbackComponent,
-    props,
-}: LazyWithFallbackElementProps<P>) {
+                                                                           LazyComponent,
+                                                                           FallbackComponent,
+                                                                           props,
+                                                                       }: LazyWithFallbackElementProps<P>) {
     return (
         <Suspense fallback={<FallbackComponent {...props} />}>
             <LazyComponent {...props} />
@@ -84,7 +84,7 @@ export function LazyWithFallbackElement<P extends IntrinsicAttributes>({
 }
 
 export function AdminPage(props: AdminPageProps<any>): ReactElement<AdminPageProps<AdminCommonProps<any>>> {
-    const { FallbackComponent, LazyComponent, componentKey, props: componentProps } = props;
+    const {FallbackComponent, LazyComponent, componentKey, props: componentProps} = props;
 
     return (
         <AdminManageLayout
@@ -103,13 +103,13 @@ export function AdminPage(props: AdminPageProps<any>): ReactElement<AdminPagePro
                     props={componentProps}
                 />
             ) : (
-                <MyLoadingComponent />
+                <MyLoadingComponent/>
             )}
         </AdminManageLayout>
     );
 }
 
-const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ offline, userInfo }) => {
+const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({offline, userInfo}) => {
     const location = useLocation();
     const pwaLastOpenedPage = isPWA() ? getLastOpenedPage() : null;
     const defaultFullScreen = getPageFullState(pwaLastOpenedPage ? pwaLastOpenedPage : getFullPath(location));
@@ -119,7 +119,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
     const locationRef = useRef(location);
     locationRef.current = location;
     const sessionKey = getSsDate().key;
-    const previousRouteRef = useRef({ location, sessionKey });
+    const previousRouteRef = useRef({location, sessionKey});
     const previousRoute = previousRouteRef.current;
     const createdArticleFrom = (location.state as { articleCreatedFrom?: string } | null)?.articleCreatedFrom;
     const createdArticleData =
@@ -134,10 +134,10 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
             : undefined;
     const adoptCreatedArticle = Boolean(
         createdArticleData?.article?.logId > 0 &&
-            createdArticleData.article.logId === Number(new URLSearchParams(location.search).get("id"))
+        createdArticleData.article.logId === Number(new URLSearchParams(location.search).get("id"))
     );
     useLayoutEffect(() => {
-        previousRouteRef.current = { location, sessionKey };
+        previousRouteRef.current = {location, sessionKey};
     }, [location, sessionKey]);
 
     const [state, setState] = useState<AdminDashboardRouterState>({
@@ -180,7 +180,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
             });
             return;
         }
-        const { data, documentTitle, pageBuildId } = responseData;
+        const {data, documentTitle, pageBuildId} = responseData;
         if (documentTitle) {
             updateDocumentTitle(documentTitle);
         }
@@ -251,8 +251,8 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
                     cacheData !== undefined
                         ? currentPageDataKey
                         : samePathname && visibleCacheData !== undefined
-                        ? prevState.visiblePageDataCacheKey
-                        : currentPageDataKey,
+                            ? prevState.visiblePageDataCacheKey
+                            : currentPageDataKey,
                 visiblePathname: location.pathname,
                 fullScreen: getPageFullState(getFullPath(location)),
             };
@@ -287,7 +287,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
             if (prevState.fullScreen) {
                 return prevState;
             }
-            return { ...prevState, fullScreen: true };
+            return {...prevState, fullScreen: true};
         });
     }, []);
 
@@ -298,7 +298,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
                 return prevState;
             }
             savePageFullState(getFullPath(currentLocation), false);
-            return { ...prevState, fullScreen: false };
+            return {...prevState, fullScreen: false};
         });
     }, []);
 
@@ -332,7 +332,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
 
     const visiblePageDataCacheKey = getVisiblePageDataCacheKey();
     const nextRouteData = getDataFromCache();
-    const editorInstanceRef = useRef({ sessionKey, key: visiblePageDataCacheKey, revision: 0 });
+    const editorInstanceRef = useRef({sessionKey, key: visiblePageDataCacheKey, revision: 0});
     if (
         editorInstanceRef.current.sessionKey !== sessionKey ||
         editorInstanceRef.current.key !== visiblePageDataCacheKey
@@ -343,7 +343,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
             revision: editorInstanceRef.current.revision + (adoptCreatedArticle ? 0 : 1),
         };
     }
-    const routeSnapshot = useRef({ sessionKey, key: visiblePageDataCacheKey, data: nextRouteData });
+    const routeSnapshot = useRef({sessionKey, key: visiblePageDataCacheKey, data: nextRouteData});
     // localStorage deserializes a fresh object on every render. A theme/language
     // render is not new server data: keep its identity so forms retain drafts.
     if (
@@ -351,7 +351,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
         routeSnapshot.current.key !== visiblePageDataCacheKey ||
         !deepEqualWithSpecialJSON(routeSnapshot.current.data, nextRouteData)
     ) {
-        routeSnapshot.current = { sessionKey, key: visiblePageDataCacheKey, data: nextRouteData };
+        routeSnapshot.current = {sessionKey, key: visiblePageDataCacheKey, data: nextRouteData};
     }
     const visibleRouteData = routeSnapshot.current.data;
     const offlineData = isOfflineData();
@@ -373,7 +373,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
 
     return (
         <Routes>
-            {routes.flatMap(({ paths, lazy, fallback, props = {}, getComponentKey }, i) =>
+            {routes.flatMap(({paths, lazy, fallback, props = {}, getComponentKey}, i) =>
                 paths.filter(isFeaturePathEnabled).map((path, j) => {
                     return (
                         <Route
@@ -403,8 +403,8 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
             <Route
                 path={"*"}
                 element={
-                    <Suspense fallback={<MyLoadingComponent />}>
-                        <AsyncNotFoundPage />
+                    <Suspense fallback={<MyLoadingComponent/>}>
+                        <AsyncNotFoundPage/>
                     </Suspense>
                 }
             />

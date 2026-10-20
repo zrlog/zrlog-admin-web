@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.execption.NotFindResourceException;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
@@ -13,14 +11,15 @@ import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -87,7 +86,8 @@ public class AdminStaticSiteController extends BaseController {
                 response,
                 "admin-static-site-sync",
                 siteTypes,
-                emitter -> {},
+                emitter -> {
+                },
                 () -> synced.set(cacheRefresh.refreshStaticSiteCache(request, siteTypes)),
                 emitter -> {
                     this.messageCenterOperationService.recordStaticSiteSync(

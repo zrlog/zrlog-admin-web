@@ -1,4 +1,4 @@
-import { getContextPath } from "./helpers";
+import {getContextPath} from "./helpers";
 
 export type DockerUpgradeRequest = {
     requestId: string;
@@ -25,8 +25,11 @@ export function readDockerUpgrade(): DockerUpgradeRequest | undefined {
         const value = JSON.parse(localStorage.getItem(storageKey()) || "null") as DockerUpgradeRequest | null;
         if (value && /^[A-Za-z0-9][A-Za-z0-9_-]{15,79}$/.test(value.requestId)
             && typeof value.version === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.buildId)
-            && (value.channel === "release" || value.channel === "preview")) { return value; }
-    } catch { /* Unavailable storage is reported before submission. */ }
+            && (value.channel === "release" || value.channel === "preview")) {
+            return value;
+        }
+    } catch { /* Unavailable storage is reported before submission. */
+    }
 }
 
 export function saveDockerUpgrade(value: DockerUpgradeRequest) {
@@ -34,7 +37,9 @@ export function saveDockerUpgrade(value: DockerUpgradeRequest) {
 }
 
 export function clearDockerUpgrade(requestId: string) {
-    if (readDockerUpgrade()?.requestId === requestId) { localStorage.removeItem(storageKey()); }
+    if (readDockerUpgrade()?.requestId === requestId) {
+        localStorage.removeItem(storageKey());
+    }
 }
 
 export function newDockerRequestId() {

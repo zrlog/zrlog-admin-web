@@ -1,4 +1,5 @@
 import Typography from "@zrlog/ui/antd/Typography";
+import type {MenuProps} from "antd";
 import {
     Alert,
     Button,
@@ -18,7 +19,7 @@ import {
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import AppsIcon from "@zrlog/ui/icons/apps";
 import CopyIcon from "@zrlog/ui/icons/copy";
 import DeleteIcon from "@zrlog/ui/icons/delete";
@@ -45,26 +46,24 @@ import {
     useRef,
     useState,
 } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import {Link, useSearchParams} from "react-router-dom";
 
-import type { MenuProps } from "antd";
-
-import { useTheme } from "antd-style";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { addToCache, getCacheByKey } from "../../utils/cache";
-import { getLabelValueSeparator, getRealRouteUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
+import {useTheme} from "antd-style";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {addToCache, getCacheByKey} from "../../utils/cache";
+import {getLabelValueSeparator, getRealRouteUrl, getRes, tryAppendBackendServerUrl} from "../../utils/constants";
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import FileManagerView from "./view";
-import { FileEntry, formatSize, getFileIcon, hasAction, hasDirectoryAction, isExternalPath, isImage } from "./shared";
+import {FileEntry, formatSize, getFileIcon, hasAction, hasDirectoryAction, isExternalPath, isImage} from "./shared";
 import BaseDragger from "@zrlog/editor/dist/editor/common/BaseDragger";
 import SidebarNavItem from "../common/SidebarNavItem";
-import BackendImage, { resolveBackendImageSrc } from "../../common/BackendImage";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
-import type { ApiResponse } from "../../type";
-import { buildBackgroundTaskResult } from "../../utils/background-task-result";
+import BackendImage, {resolveBackendImageSrc} from "../../common/BackendImage";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
+import type {ApiResponse} from "../../type";
+import {buildBackgroundTaskResult} from "../../utils/background-task-result";
 
-const { useBreakpoint } = Grid;
-const { Paragraph, Text } = Typography;
+const {useBreakpoint} = Grid;
+const {Paragraph, Text} = Typography;
 
 const FILE_MANAGER_API = "/api/admin/file-manager";
 const UPLOAD_API = "/api/admin/upload";
@@ -106,12 +105,12 @@ const normalizeSortOrder = (value: string | null): FileManagerSortOrder | undefi
     return value === "asc" || value === "desc" ? value : undefined;
 };
 
-const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
-    const { token } = theme.useToken();
+const FileManager: FunctionComponent<FileManagerProps> = ({data, style}) => {
+    const {token} = theme.useToken();
     const themeVars = useTheme();
     const screens = useBreakpoint();
     const axiosInstance = useAxiosBaseInstance();
-    const { message: msgApi } = useUiApp();
+    const {message: msgApi} = useUiApp();
     const borderSecondary = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
     const sidebarMenuItemStyle: CSSProperties = {
         height: token.controlHeight,
@@ -131,8 +130,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         urlViewMode === "grid" || urlViewMode === "list"
             ? urlViewMode
             : cachedViewMode === "grid" || cachedViewMode === "list"
-            ? cachedViewMode
-            : "grid";
+                ? cachedViewMode
+                : "grid";
     const setCurrentPath = (path: string) => {
         setSearchParams((prev) => {
             prev.delete("key");
@@ -157,7 +156,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 prev.delete("_refresh");
                 return prev;
             },
-            { replace: true }
+            {replace: true}
         );
     };
 
@@ -182,7 +181,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 }
                 return prev;
             },
-            { replace: true }
+            {replace: true}
         );
     };
     const setSortByFilter = (value: FileManagerSortBy) => {
@@ -192,7 +191,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 prev.set("sortBy", value);
                 return prev;
             },
-            { replace: true }
+            {replace: true}
         );
     };
     const setSortOrderFilter = (value: FileManagerSortOrder) => {
@@ -202,7 +201,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 prev.set("sortOrder", value);
                 return prev;
             },
-            { replace: true }
+            {replace: true}
         );
     };
     const shortcuts = data?.shortcuts ?? [];
@@ -225,7 +224,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     const [sortBy, setSortBy] = useState<FileManagerSortBy>(normalizeSortBy(searchParams.get("sortBy")));
     const [sortOrder, setSortOrder] = useState<FileManagerSortOrder>(
         normalizeSortOrder(searchParams.get("sortOrder")) ||
-            (normalizeSortBy(searchParams.get("sortBy")) === "name" ? "asc" : "desc")
+        (normalizeSortBy(searchParams.get("sortBy")) === "name" ? "asc" : "desc")
     );
     const [referenceRefreshing, setReferenceRefreshing] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
@@ -243,7 +242,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     const refreshReferenceIndex = async () => {
         setReferenceRefreshing(true);
         try {
-            const { data } = await axiosInstance.post<ApiResponse<boolean>>(
+            const {data} = await axiosInstance.post<ApiResponse<boolean>>(
                 FILE_MANAGER_API + "/refreshReferenceIndex"
             );
             if (data.error) {
@@ -273,10 +272,10 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             setPreviewSrc(entry.path.startsWith("/") ? entry.path : entry.path);
         } else if (isText) {
             try {
-                const { data } = await axiosInstance.get(FILE_MANAGER_API + "/read", {
-                    params: { path: entry.path },
+                const {data} = await axiosInstance.get(FILE_MANAGER_API + "/read", {
+                    params: {path: entry.path},
                 });
-                setPreviewContent({ name: entry.name, content: data.data });
+                setPreviewContent({name: entry.name, content: data.data});
             } catch (e) {
                 msgApi.error(res.readFailed);
             }
@@ -296,11 +295,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     // 面包屑
     const breadcrumbItems = (() => {
         if (!effectivePath) {
-            return [{ key: "", title: res.title }];
+            return [{key: "", title: res.title}];
         }
         const matchedRoot = getMatchedRoot(effectivePath);
         if (!matchedRoot) {
-            return [{ key: "", title: <a onClick={() => setCurrentPath("")}>{res.title}</a> }];
+            return [{key: "", title: <a onClick={() => setCurrentPath("")}>{res.title}</a>}];
         }
         const rootKey = matchedRoot.path;
         const rootTitle = matchedRoot.name;
@@ -321,12 +320,12 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 });
             });
         }
-        return [{ key: "", title: <a onClick={() => setCurrentPath("")}>{res.title}</a> }, ...items];
+        return [{key: "", title: <a onClick={() => setCurrentPath("")}>{res.title}</a>}, ...items];
     })();
 
     const handleDelete = async (entry: FileEntry) => {
-        const params = new URLSearchParams({ path: entry.path });
-        const { data } = await axiosInstance.post(`${FILE_MANAGER_API}/delete?${params.toString()}`);
+        const params = new URLSearchParams({path: entry.path});
+        const {data} = await axiosInstance.post(`${FILE_MANAGER_API}/delete?${params.toString()}`);
         msgApi.success(data.message || res.deleteSuccess);
         setDeleteTarget(null);
         if (selectedEntry?.path === entry.path) {
@@ -424,7 +423,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     newName: nextName,
                     syncArticleReferences: String(renameSyncReferences && hasAction(renameTarget, "UPDATE_REFERENCES")),
                 });
-                const { data } = await axiosInstance.post(`${FILE_MANAGER_API}/rename?${params.toString()}`);
+                const {data} = await axiosInstance.post(`${FILE_MANAGER_API}/rename?${params.toString()}`);
                 msgApi.success(data.message || res.renameSuccess);
             } else if (hasAction(renameTarget, "UPDATE_REFERENCES")) {
                 const data = await postRefreshCacheSse<ApiResponse<ReplaceArticleResourceUrlResponse>>(
@@ -463,8 +462,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         const newPath = basePath.endsWith("/")
             ? basePath + newFolderName.trim()
             : basePath + "/" + newFolderName.trim();
-        const params = new URLSearchParams({ path: newPath });
-        const { data } = await axiosInstance.post(`${FILE_MANAGER_API}/mkdir?${params.toString()}`);
+        const params = new URLSearchParams({path: newPath});
+        const {data} = await axiosInstance.post(`${FILE_MANAGER_API}/mkdir?${params.toString()}`);
         msgApi.success(data.message || res.newFolderSuccess);
         setNewFolderOpen(false);
         setNewFolderName("");
@@ -531,7 +530,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     background: token.colorBgElevated,
                 }}
             >
-                <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                <Space direction="vertical" size={4} style={{width: "100%"}}>
                     <Text strong>{res.replaceArticleResourceUrl.impactTitle}</Text>
                     {syncDisabled ? (
                         <Text type="secondary">{res.replaceArticleResourceUrl.syncDisabled}</Text>
@@ -546,7 +545,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             <Space
                                 direction="vertical"
                                 size={4}
-                                style={{ width: "100%", maxHeight: 180, overflowY: "auto" }}
+                                style={{width: "100%", maxHeight: 180, overflowY: "auto"}}
                             >
                                 {references.map((reference) => (
                                     <div
@@ -560,11 +559,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     >
                                         <Link
                                             to={getRealRouteUrl(`/article-edit?id=${reference.logId}`)}
-                                            style={{ flex: 1, minWidth: 0 }}
+                                            style={{flex: 1, minWidth: 0}}
                                         >
                                             <Text ellipsis>{reference.title || reference.logId}</Text>
                                         </Link>
-                                        <Tag style={{ marginInlineEnd: 0 }}>{getReferenceUsageText(reference)}</Tag>
+                                        <Tag style={{marginInlineEnd: 0}}>{getReferenceUsageText(reference)}</Tag>
                                     </div>
                                 ))}
                             </Space>
@@ -584,17 +583,17 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             items.push({
                 key: "copy",
                 label: res.copyUrl,
-                icon: <CopyIcon />,
+                icon: <CopyIcon/>,
                 onClick: () => handleCopyUrl(entry),
             });
         }
         if (hasAction(entry, "DOWNLOAD")) {
             items.push({
                 key: "download",
-                icon: <DownloadIcon />,
+                icon: <DownloadIcon/>,
                 label: res.download,
                 onClick: () => {
-                    const params = new URLSearchParams({ path: entry.path });
+                    const params = new URLSearchParams({path: entry.path});
                     window.open(
                         tryAppendBackendServerUrl(`${FILE_MANAGER_API}/download?${params.toString()}`),
                         "_blank"
@@ -605,7 +604,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         if (hasAction(entry, "PREVIEW")) {
             items.push({
                 key: "preview",
-                icon: <ImageFileIcon />,
+                icon: <ImageFileIcon/>,
                 label: res.preview,
                 onClick: () => handlePreview(entry),
                 disabled: !(entry.image === true || entry.textPreviewable === true),
@@ -616,7 +615,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             items.push({
                 key: "replaceArticleResourceUrl",
                 label: getReplaceArticleResourceUrlAction(entry),
-                icon: <EditIcon />,
+                icon: <EditIcon/>,
                 onClick: () => openRename(entry),
             });
         }
@@ -625,18 +624,18 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             items.push({
                 key: "reuploadMissingResource",
                 label: res.reuploadMissingAction,
-                icon: <UploadIcon />,
+                icon: <UploadIcon/>,
                 onClick: () => openReupload(entry),
             });
         }
 
         if (hasAction(entry, "RENAME") || hasAction(entry, "DELETE")) {
-            items.push({ type: "divider" });
+            items.push({type: "divider"});
             if (hasAction(entry, "RENAME")) {
                 items.push({
                     key: "rename",
                     label: res.rename,
-                    icon: <EditIcon />,
+                    icon: <EditIcon/>,
                     onClick: () => {
                         openRename(entry);
                     },
@@ -653,10 +652,10 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             cancelText={getRes().cancel}
                             okType="danger"
                         >
-                            <span style={{ color: token.colorError }}>{res.delete}</span>
+                            <span style={{color: token.colorError}}>{res.delete}</span>
                         </Popconfirm>
                     ),
-                    icon: <DeleteIcon style={{ color: token.colorError }} />,
+                    icon: <DeleteIcon style={{color: token.colorError}}/>,
                 });
             }
         }
@@ -681,7 +680,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         const compactGridItem = screens.sm !== true;
 
         return (
-            <Dropdown key={entry.path} menu={{ items: contextMenuItems(entry) }} trigger={["contextMenu"]}>
+            <Dropdown key={entry.path} menu={{items: contextMenuItems(entry)}} trigger={["contextMenu"]}>
                 <div>
                     <div
                         ref={(el) => {
@@ -738,7 +737,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             </div>
                         )}
                         <Text
-                            ellipsis={{ tooltip: entry.name }}
+                            ellipsis={{tooltip: entry.name}}
                             style={{
                                 width: "100%",
                                 fontSize: compactGridItem ? token.fontSizeSM : token.fontSize,
@@ -746,17 +745,17 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         >
                             {entry.name}
                         </Text>
-                        <Space size={6} style={{ width: "100%" }} wrap>
+                        <Space size={6} style={{width: "100%"}} wrap>
                             {entry.type !== "directory" && <Text type="secondary">{formatSize(entry.size)}</Text>}
                             {entry.lastModified > 0 && (
                                 <Text type="secondary">
-                                    <TimeAgo timestamp={entry.lastModified} />
+                                    <TimeAgo timestamp={entry.lastModified}/>
                                 </Text>
                             )}
                             {entry.missing === true && <Tag color="warning">{res.resourceType.broken}</Tag>}
                         </Space>
                         {shouldShowReferenceCount(entry) && (
-                            <Tag color={entry.referenced ? "processing" : "default"} style={{ width: "fit-content" }}>
+                            <Tag color={entry.referenced ? "processing" : "default"} style={{width: "fit-content"}}>
                                 {getReferenceText(entry)}
                             </Tag>
                         )}
@@ -770,7 +769,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         const isDir = entry.type === "directory";
 
         return (
-            <Dropdown key={entry.path} menu={{ items: contextMenuItems(entry) }} trigger={["contextMenu"]}>
+            <Dropdown key={entry.path} menu={{items: contextMenuItems(entry)}} trigger={["contextMenu"]}>
                 <div
                     ref={(el) => {
                         entryRefMap.current[entry.path] = el;
@@ -791,23 +790,23 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     onFocus={() => setSelectedEntry(entry)}
                 >
                     {getFileIcon(entry, token)}
-                    <Text ellipsis style={{ flex: 1, minWidth: 0 }}>
+                    <Text ellipsis style={{flex: 1, minWidth: 0}}>
                         {entry.name}
                     </Text>
                     {!isDir && (
-                        <Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                        <Text type="secondary" style={{fontSize: 12, whiteSpace: "nowrap"}}>
                             {formatSize(entry.size)}
                         </Text>
                     )}
                     {shouldShowReferenceCount(entry) && (
-                        <Tag color={entry.referenced ? "processing" : "default"} style={{ marginInlineEnd: 0 }}>
+                        <Tag color={entry.referenced ? "processing" : "default"} style={{marginInlineEnd: 0}}>
                             {getReferenceText(entry)}
                         </Tag>
                     )}
                     {entry.missing === true && <Tag color="warning">{res.resourceType.broken}</Tag>}
                     {entry.lastModified > 0 && (
-                        <Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                            <TimeAgo timestamp={entry.lastModified} />
+                        <Text type="secondary" style={{fontSize: 12, whiteSpace: "nowrap"}}>
+                            <TimeAgo timestamp={entry.lastModified}/>
                         </Text>
                     )}
                     <Space size={4}>
@@ -816,7 +815,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Button
                                     size="small"
                                     type="text"
-                                    icon={<ImageFileIcon />}
+                                    icon={<ImageFileIcon/>}
                                     disabled={!(entry.image === true || entry.textPreviewable === true)}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -830,7 +829,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Button
                                     size="small"
                                     type="text"
-                                    icon={<CopyIcon />}
+                                    icon={<CopyIcon/>}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleCopyUrl(entry);
@@ -843,7 +842,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Button
                                     size="small"
                                     type="text"
-                                    icon={<UploadIcon />}
+                                    icon={<UploadIcon/>}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         openReupload(entry);
@@ -858,7 +857,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         <Button
                                             size="small"
                                             type="text"
-                                            icon={<EditIcon />}
+                                            icon={<EditIcon/>}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 openRename(entry);
@@ -878,7 +877,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             size="small"
                                             type="text"
                                             danger
-                                            icon={<DeleteIcon />}
+                                            icon={<DeleteIcon/>}
                                             onClick={(e) => e.stopPropagation()}
                                         />
                                     </Popconfirm>
@@ -915,37 +914,37 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     }, []);
     const categoryItems = useMemo<ResourceTypeItem[]>(
         () => [
-            { key: "all", label: res.resourceType.all, icon: <AppsIcon selected={resourceType === "all"} /> },
+            {key: "all", label: res.resourceType.all, icon: <AppsIcon selected={resourceType === "all"}/>},
             {
                 key: "image",
                 label: res.resourceType.image,
-                icon: <ImageFileIcon selected={resourceType === "image"} />,
+                icon: <ImageFileIcon selected={resourceType === "image"}/>,
             },
             {
                 key: "document",
                 label: res.resourceType.document,
-                icon: <FileTextIcon selected={resourceType === "document"} />,
+                icon: <FileTextIcon selected={resourceType === "document"}/>,
             },
-            { key: "video", label: res.resourceType.video, icon: <VideoIcon selected={resourceType === "video"} /> },
+            {key: "video", label: res.resourceType.video, icon: <VideoIcon selected={resourceType === "video"}/>},
             {
                 key: "archive",
                 label: res.resourceType.archive,
-                icon: <ArchiveIcon selected={resourceType === "archive"} />,
+                icon: <ArchiveIcon selected={resourceType === "archive"}/>,
             },
             {
                 key: "external",
                 label: res.resourceType.external,
-                icon: <LinkIcon selected={resourceType === "external"} />,
+                icon: <LinkIcon selected={resourceType === "external"}/>,
             },
             {
                 key: "broken",
                 label: res.resourceType.broken,
-                icon: <WarningIcon selected={resourceType === "broken"} />,
+                icon: <WarningIcon selected={resourceType === "broken"}/>,
             },
             {
                 key: "unused",
                 label: res.resourceType.unused,
-                icon: <DeleteIcon selected={resourceType === "unused"} />,
+                icon: <DeleteIcon selected={resourceType === "unused"}/>,
             },
         ],
         [res.resourceType, resourceType]
@@ -1010,7 +1009,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         if (target && document.activeElement === contentAreaRef.current) {
             target.focus();
         }
-        target?.scrollIntoView({ block: "nearest" });
+        target?.scrollIntoView({block: "nearest"});
     }, [selectedEntry]);
 
     useEffect(() => {
@@ -1145,17 +1144,17 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         selectable
                         inlineIndent={0}
                         selectedKeys={[resourceType]}
-                        style={{ borderInlineEnd: "none", background: "transparent" }}
+                        style={{borderInlineEnd: "none", background: "transparent"}}
                         items={categoryItems.map((item) => ({
                             key: item.key,
-                            label: <SidebarNavItem icon={item.icon} label={item.label} />,
+                            label: <SidebarNavItem icon={item.icon} label={item.label}/>,
                             disabled: item.disabled,
                             title: item.disabled ? res.todo : undefined,
                             style: sidebarMenuItemStyle,
                         }))}
-                        onClick={({ key }) => setResourceTypeFilter(String(key))}
+                        onClick={({key}) => setResourceTypeFilter(String(key))}
                     />
-                    <Divider style={{ margin: `${token.marginXS}px 0` }} />
+                    <Divider style={{margin: `${token.marginXS}px 0`}}/>
                 </>
             }
             filterActions={
@@ -1173,26 +1172,26 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             ),
                             disabled: item.disabled,
                         }))}
-                        style={{ minWidth: 140 }}
+                        style={{minWidth: 140}}
                     />
                     <Select
                         value={sortBy}
                         onChange={setSortByFilter}
                         options={[
-                            { value: "time", label: res.sortBy.time },
-                            { value: "name", label: res.sortBy.name },
-                            { value: "size", label: res.sortBy.size },
+                            {value: "time", label: res.sortBy.time},
+                            {value: "name", label: res.sortBy.name},
+                            {value: "size", label: res.sortBy.size},
                         ]}
-                        style={{ minWidth: 140 }}
+                        style={{minWidth: 140}}
                     />
                     <Select
                         value={sortOrder}
                         onChange={setSortOrderFilter}
                         options={[
-                            { value: "desc", label: res.sortOrder.desc },
-                            { value: "asc", label: res.sortOrder.asc },
+                            {value: "desc", label: res.sortOrder.desc},
+                            {value: "asc", label: res.sortOrder.asc},
                         ]}
-                        style={{ minWidth: 112 }}
+                        style={{minWidth: 112}}
                     />
                 </>
             }
@@ -1206,10 +1205,10 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             onError={(e) => msgApi.error(e.message || res.uploadFailed)}
                             type={"any"}
                             disabled={!canUpload || isRootOverview}
-                            style={{ border: 0, background: "transparent", padding: 0 }}
+                            style={{border: 0, background: "transparent", padding: 0}}
                             uploadConfig={{
                                 buildUploadUrl: function (): string {
-                                    const params = new URLSearchParams({ dir: effectivePath + "/" });
+                                    const params = new URLSearchParams({dir: effectivePath + "/"});
                                     return `${UPLOAD_API}?${params.toString()}`;
                                 },
                                 formName: "imgFile",
@@ -1217,14 +1216,14 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 tryAppendBackendServerUrl: tryAppendBackendServerUrl,
                             }}
                         >
-                            <Button icon={<UploadIcon />} type="primary" disabled={!canUpload || isRootOverview}>
+                            <Button icon={<UploadIcon/>} type="primary" disabled={!canUpload || isRootOverview}>
                                 {res.upload}
                             </Button>
                         </BaseDragger>
                     </Tooltip>
                     <Tooltip title={!canMkdir || isRootOverview ? directoryActionDisabledHint : undefined}>
                         <Button
-                            icon={<FolderAddIcon />}
+                            icon={<FolderAddIcon/>}
                             onClick={() => {
                                 setNewFolderName("");
                                 setNewFolderOpen(true);
@@ -1236,7 +1235,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     </Tooltip>
                     {referenceResourceView && (
                         <Button
-                            icon={<RefreshIcon />}
+                            icon={<RefreshIcon/>}
                             loading={referenceRefreshing}
                             onClick={() => void refreshReferenceIndex()}
                         >
@@ -1247,18 +1246,18 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             }
             contentNotice={
                 isRootOverview ? (
-                    <Alert type="info" showIcon message={res.rootOverviewTitle} description={res.rootOverviewHint} />
+                    <Alert type="info" showIcon message={res.rootOverviewTitle} description={res.rootOverviewHint}/>
                 ) : undefined
             }
             detailPanel={
-                <div style={{ padding: token.padding }}>
+                <div style={{padding: token.padding}}>
                     <Space align="center" size={6}>
                         <Text strong>{res.detailTitle}</Text>
                         <Tooltip title={res.keyboardTip}>
-                            <HelpIcon style={{ color: token.colorTextTertiary }} />
+                            <HelpIcon style={{color: token.colorTextTertiary}}/>
                         </Tooltip>
                     </Space>
-                    <div style={{ marginTop: token.marginSM }}>
+                    <div style={{marginTop: token.marginSM}}>
                         {!selectedEntry ? (
                             <div
                                 style={{
@@ -1268,10 +1267,10 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     justifyContent: "center",
                                 }}
                             >
-                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.selectTip} />
+                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.selectTip}/>
                             </div>
                         ) : (
-                            <Space direction="vertical" style={{ width: "100%" }} size={token.marginXS}>
+                            <Space direction="vertical" style={{width: "100%"}} size={token.marginXS}>
                                 {isImage(selectedEntry) ? (
                                     <BackendImage
                                         src={selectedEntry.path}
@@ -1299,7 +1298,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         {getFileIcon(selectedEntry, token, 36)}
                                     </div>
                                 )}
-                                <Text strong ellipsis={{ tooltip: selectedEntry.name }} style={{ width: "100%" }}>
+                                <Text strong ellipsis={{tooltip: selectedEntry.name}} style={{width: "100%"}}>
                                     {getEntryDisplayName(selectedEntry)}
                                 </Text>
                                 <Tag>{res.resourceType[selectedEntryType] || res.type.file}</Tag>
@@ -1321,7 +1320,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             {res.lastModified}
                                             {getLabelValueSeparator()}
                                             {selectedEntry.lastModified > 0 ? (
-                                                <TimeAgo timestamp={selectedEntry.lastModified} />
+                                                <TimeAgo timestamp={selectedEntry.lastModified}/>
                                             ) : (
                                                 "-"
                                             )}
@@ -1333,8 +1332,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                                     {getLabelValueSeparator()}
                                                 </Text>
                                                 <Paragraph
-                                                    copyable={{ text: selectedEntryUrl }}
-                                                    style={{ marginBottom: 0, wordBreak: "break-all" }}
+                                                    copyable={{text: selectedEntryUrl}}
+                                                    style={{marginBottom: 0, wordBreak: "break-all"}}
                                                 >
                                                     {selectedEntryUrl || "-"}
                                                 </Paragraph>
@@ -1357,7 +1356,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             background: token.colorBgElevated,
                                         }}
                                     >
-                                        <Space direction="vertical" size={token.marginXS} style={{ width: "100%" }}>
+                                        <Space direction="vertical" size={token.marginXS} style={{width: "100%"}}>
                                             <Text strong>{res.references}</Text>
                                             {selectedEntry.references && selectedEntry.references.length > 0 ? (
                                                 selectedEntry.references.map((reference) => (
@@ -1372,11 +1371,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                                     >
                                                         <Link
                                                             to={getRealRouteUrl(`/article-edit?id=${reference.logId}`)}
-                                                            style={{ flex: 1, minWidth: 0 }}
+                                                            style={{flex: 1, minWidth: 0}}
                                                         >
                                                             <Text ellipsis>{reference.title || reference.logId}</Text>
                                                         </Link>
-                                                        <Tag style={{ marginInlineEnd: 0 }}>
+                                                        <Tag style={{marginInlineEnd: 0}}>
                                                             {getReferenceUsageText(reference)}
                                                         </Tag>
                                                     </div>
@@ -1390,7 +1389,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Space wrap>
                                     {hasAction(selectedEntry, "PREVIEW") && (
                                         <Button
-                                            icon={<ImageFileIcon />}
+                                            icon={<ImageFileIcon/>}
                                             disabled={
                                                 !(
                                                     selectedEntry.image === true ||
@@ -1405,15 +1404,15 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         </Button>
                                     )}
                                     {hasAction(selectedEntry, "COPY_URL") && (
-                                        <Button icon={<CopyIcon />} onClick={() => handleCopyUrl(selectedEntry)}>
+                                        <Button icon={<CopyIcon/>} onClick={() => handleCopyUrl(selectedEntry)}>
                                             {res.copyUrl}
                                         </Button>
                                     )}
                                     {hasAction(selectedEntry, "DOWNLOAD") && (
                                         <Button
-                                            icon={<DownloadIcon />}
+                                            icon={<DownloadIcon/>}
                                             onClick={() => {
-                                                const params = new URLSearchParams({ path: selectedEntry.path });
+                                                const params = new URLSearchParams({path: selectedEntry.path});
                                                 window.open(
                                                     tryAppendBackendServerUrl(
                                                         `${FILE_MANAGER_API}/download?${params.toString()}`
@@ -1427,14 +1426,14 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     )}
                                     {(hasAction(selectedEntry, "RENAME") ||
                                         isReplaceArticleResourceUrlEntry(selectedEntry)) && (
-                                        <Button icon={<EditIcon />} onClick={() => openRename(selectedEntry)}>
+                                        <Button icon={<EditIcon/>} onClick={() => openRename(selectedEntry)}>
                                             {isReplaceArticleResourceUrlEntry(selectedEntry)
                                                 ? getReplaceArticleResourceUrlAction(selectedEntry)
                                                 : res.rename}
                                         </Button>
                                     )}
                                     {isReuploadMissingReferenceEntry(selectedEntry) && (
-                                        <Button icon={<UploadIcon />} onClick={() => openReupload(selectedEntry)}>
+                                        <Button icon={<UploadIcon/>} onClick={() => openReupload(selectedEntry)}>
                                             {res.reuploadMissingAction}
                                         </Button>
                                     )}
@@ -1446,7 +1445,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             cancelText={getRes().cancel}
                                             okType="danger"
                                         >
-                                            <Button danger icon={<DeleteIcon />}>
+                                            <Button danger icon={<DeleteIcon/>}>
                                                 {res.delete}
                                             </Button>
                                         </Popconfirm>
@@ -1468,7 +1467,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             }
                         }}
                         onCancel={() => setDeleteTarget(null)}
-                        okButtonProps={{ danger: true }}
+                        okButtonProps={{danger: true}}
                         okText={res.delete}
                         cancelText={getRes().cancel}
                     >
@@ -1481,7 +1480,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         onClose={() => setMobileDetailOpen(false)}
                     >
                         {selectedEntry && (
-                            <Space direction="vertical" style={{ width: "100%" }}>
+                            <Space direction="vertical" style={{width: "100%"}}>
                                 <Text strong>{getEntryDisplayName(selectedEntry)}</Text>
                                 <Text type="secondary">
                                     {res.size}
@@ -1492,7 +1491,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     {res.lastModified}
                                     {getLabelValueSeparator()}
                                     {selectedEntry.lastModified > 0 ? (
-                                        <TimeAgo timestamp={selectedEntry.lastModified} />
+                                        <TimeAgo timestamp={selectedEntry.lastModified}/>
                                     ) : (
                                         "-"
                                     )}
@@ -1517,12 +1516,12 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 )}
                                 <Space wrap>
                                     {isReuploadMissingReferenceEntry(selectedEntry) && (
-                                        <Button icon={<UploadIcon />} onClick={() => openReupload(selectedEntry)}>
+                                        <Button icon={<UploadIcon/>} onClick={() => openReupload(selectedEntry)}>
                                             {res.reuploadMissingAction}
                                         </Button>
                                     )}
                                     {isReplaceArticleResourceUrlEntry(selectedEntry) && (
-                                        <Button icon={<EditIcon />} onClick={() => openRename(selectedEntry)}>
+                                        <Button icon={<EditIcon/>} onClick={() => openRename(selectedEntry)}>
                                             {getReplaceArticleResourceUrlAction(selectedEntry)}
                                         </Button>
                                     )}
@@ -1554,7 +1553,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         destroyOnHidden
                     >
                         {reuploadTarget && (
-                            <Space direction="vertical" style={{ width: "100%" }}>
+                            <Space direction="vertical" style={{width: "100%"}}>
                                 <Text type="secondary">{res.reuploadMissingTip}</Text>
                                 <div
                                     style={{
@@ -1569,8 +1568,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         {getLabelValueSeparator()}
                                     </Text>
                                     <Paragraph
-                                        copyable={{ text: reuploadTarget.path }}
-                                        style={{ marginBottom: 0, wordBreak: "break-all" }}
+                                        copyable={{text: reuploadTarget.path}}
+                                        style={{marginBottom: 0, wordBreak: "break-all"}}
                                     >
                                         {reuploadTarget.path}
                                     </Paragraph>
@@ -1586,7 +1585,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     }}
                                     uploadConfig={{
                                         buildUploadUrl: function (): string {
-                                            const params = new URLSearchParams({ path: reuploadTarget.path });
+                                            const params = new URLSearchParams({path: reuploadTarget.path});
                                             return `${FILE_MANAGER_API}/reupload?${params.toString()}`;
                                         },
                                         formName: "imgFile",
@@ -1600,12 +1599,12 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             borderRadius: themeVars.borderRadius,
                                         }}
                                     >
-                                        <Space direction="vertical" align="center" style={{ width: "100%" }}>
-                                            <UploadIcon />
+                                        <Space direction="vertical" align="center" style={{width: "100%"}}>
+                                            <UploadIcon/>
                                             <Text>{res.uploadDrop}</Text>
                                             <Button
                                                 type="primary"
-                                                icon={<UploadIcon />}
+                                                icon={<UploadIcon/>}
                                                 loading={reuploading}
                                                 disabled={reuploading}
                                             >
@@ -1640,7 +1639,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 renameName.trim() === getEditableName(renameTarget),
                         }}
                     >
-                        <Space direction="vertical" style={{ width: "100%" }}>
+                        <Space direction="vertical" style={{width: "100%"}}>
                             {renameTarget && !hasAction(renameTarget, "RENAME") && (
                                 <Text type="secondary">{getReplaceArticleResourceUrlTip(renameTarget)}</Text>
                             )}
@@ -1667,7 +1666,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         </Space>
                     </Modal>
                     <BackendImage
-                        styles={{ root: { display: "none" } }}
+                        styles={{root: {display: "none"}}}
                         preview={{
                             visible: !!previewSrc,
                             src: resolveBackendImageSrc(previewSrc ?? undefined),
@@ -1697,7 +1696,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 borderRadius: themeVars.borderRadius,
                             }}
                         >
-                            <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                            <pre style={{margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all"}}>
                                 {previewContent?.content}
                             </pre>
                         </div>

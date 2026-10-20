@@ -16,6 +16,10 @@ public class AdminStaticSiteProgress {
         this.staticSites = Objects.requireNonNull(staticSites);
     }
 
+    static StaticSiteProgressResponse response(int total, int handled, int handing, int pending, int retrying,
+                                               List<String> siteTypes) {
+        return new StaticSiteProgressResponse(total, handled, handing, pending, retrying, siteTypes);
+    }
 
     public StaticSiteProgressResponse snapshot(List<StaticSiteType> siteTypes) {
         int total = 0;
@@ -59,10 +63,5 @@ public class AdminStaticSiteProgress {
             }
         }
         return response(total, handled, handing, pending, retrying, List.of(siteType.name()));
-    }
-
-    static StaticSiteProgressResponse response(int total, int handled, int handing, int pending, int retrying,
-                                               List<String> siteTypes) {
-        return new StaticSiteProgressResponse(total, handled, handing, pending, retrying, siteTypes);
     }
 }

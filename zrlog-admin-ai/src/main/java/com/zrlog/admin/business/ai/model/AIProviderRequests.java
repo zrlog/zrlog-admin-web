@@ -11,11 +11,11 @@ public final class AIProviderRequests {
 
     public static class CompletionRequest {
 
+        public List<Tool> tools;
+        public String tool_choice;
         private List<Message> messages;
         private String model;
         private boolean stream;
-        public List<Tool> tools;
-        public String tool_choice;
         @SerializedName("max_completion_tokens")
         private Integer maxCompletionTokens;
         @SerializedName("max_tokens")
@@ -74,8 +74,6 @@ public final class AIProviderRequests {
 
     public static class Message {
 
-        private String role;
-        private String content;
         // Private file references, projected to native content parts at the provider boundary.
         public List<AIFileModels.Attachment> attachments;
         @SerializedName("tool_calls")
@@ -86,6 +84,8 @@ public final class AIProviderRequests {
         public String reasoningContent;
         // Private checkpoint data, converted to Responses input before sending to OpenAI.
         public List<OpenAIResponses.Item> responsesOutput;
+        private String role;
+        private String content;
 
         public Message() {
         }
@@ -116,19 +116,28 @@ public final class AIProviderRequests {
         public String type = "function";
         public Function function;
     }
+
     public static class Function {
         public String name;
         public String description;
         public com.google.gson.JsonObject parameters;
     }
+
     public static class ToolCall {
         public String id;
         public String type;
         public FunctionCall function;
         public ExtraContent extra_content;
     }
-    public static class ExtraContent { public GoogleContent google; }
-    public static class GoogleContent { public String thought_signature; }
+
+    public static class ExtraContent {
+        public GoogleContent google;
+    }
+
+    public static class GoogleContent {
+        public String thought_signature;
+    }
+
     public static class FunctionCall {
         public String name;
         public String arguments;

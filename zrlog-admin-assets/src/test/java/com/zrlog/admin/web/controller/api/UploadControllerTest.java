@@ -1,11 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -21,7 +15,6 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.model.WebSite;
-
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,20 +28,58 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class UploadControllerTest {
 
 
+    private final String previousRootPath = System.getProperty("sws.root.path");
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
     private InMemoryZrLogDatabase permissionDb;
+
+    private static void setControllerField(UploadController controller, String name, Object value) throws Exception {
+        Field field = Controller.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(controller, value);
+    }
+
+    private static HttpRequest request(Map<String, String> params, Map<String, File> files) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                UploadControllerTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getFile".equals(method.getName())) {
+                        return files.get(args[0].toString());
+                    }
+                    if ("getParaToStr".equals(method.getName())) {
+                        String key = args[0].toString();
+                        if (args.length == 2) {
+                            return params.getOrDefault(key, args[1].toString());
+                        }
+                        return params.get(key);
+                    }
+                    if ("getContextPath".equals(method.getName())) {
+                        return "/blog";
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
+
+    private static HttpResponse response() {
+        return (HttpResponse) Proxy.newProxyInstance(
+                UploadControllerTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> null);
+    }
 
     @org.junit.Before
     public void openPermissionDatabase() throws Exception {
         permissionDb = InMemoryZrLogDatabase.open();
     }
-
-    private final String previousRootPath = System.getProperty("sws.root.path");
 
     @After
     public void tearDown() throws Exception {
@@ -172,43 +203,5 @@ public class UploadControllerTest {
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;
-    }
-
-    private static void setControllerField(UploadController controller, String name, Object value) throws Exception {
-        Field field = Controller.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(controller, value);
-    }
-
-    private static HttpRequest request(Map<String, String> params, Map<String, File> files) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                UploadControllerTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getFile".equals(method.getName())) {
-                        return files.get(args[0].toString());
-                    }
-                    if ("getParaToStr".equals(method.getName())) {
-                        String key = args[0].toString();
-                        if (args.length == 2) {
-                            return params.getOrDefault(key, args[1].toString());
-                        }
-                        return params.get(key);
-                    }
-                    if ("getContextPath".equals(method.getName())) {
-                        return "/blog";
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
-    }
-
-    private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                UploadControllerTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
     }
 }

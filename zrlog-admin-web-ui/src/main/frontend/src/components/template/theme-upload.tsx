@@ -1,13 +1,13 @@
-import { Alert, Card, Modal, Space, Typography, Upload } from "antd";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {Alert, Card, Modal, Space, Typography, Upload} from "antd";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import InboxIcon from "@zrlog/ui/icons/inbox";
 import SecurityIcon from "@zrlog/ui/icons/security";
 
-import type { RcFile } from "antd/es/upload";
-import { useState } from "react";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRes } from "../../utils/constants";
-import type { TemplateEntry } from "./index";
+import type {RcFile} from "antd/es/upload";
+import {useState} from "react";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getRes} from "../../utils/constants";
+import type {TemplateEntry} from "./index";
 
 type UploadThemeResponse = {
     error: number;
@@ -27,10 +27,10 @@ type ThemeUploadProps = {
 
 const SHORT_TEMPLATE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-const ThemeUpload = ({ templates, onInstalled }: ThemeUploadProps) => {
+const ThemeUpload = ({templates, onInstalled}: ThemeUploadProps) => {
     const axiosInstance = useAxiosBaseInstance();
     const [uploading, setUploading] = useState(false);
-    const [messageApi, messageContextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, messageContextHolder] = useUiMessage({maxCount: 3});
     const [modal, modalContextHolder] = Modal.useModal();
     const res = getRes().websiteTemplate.upload;
 
@@ -43,7 +43,7 @@ const ThemeUpload = ({ templates, onInstalled }: ThemeUploadProps) => {
                 shortTemplate,
                 overwrite: String(overwrite),
             });
-            const { data } = await axiosInstance.post<UploadThemeResponse>(
+            const {data} = await axiosInstance.post<UploadThemeResponse>(
                 `/api/admin/template/upload?${query.toString()}`,
                 formData
             );
@@ -100,9 +100,9 @@ const ThemeUpload = ({ templates, onInstalled }: ThemeUploadProps) => {
         <Card size="small" title={res.title}>
             {messageContextHolder}
             {modalContextHolder}
-            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            <Space direction="vertical" size={12} style={{width: "100%"}}>
                 <Alert
-                    icon={<SecurityIcon />}
+                    icon={<SecurityIcon/>}
                     message={res.riskTitle}
                     description={res.riskDescription}
                     showIcon
@@ -116,7 +116,7 @@ const ThemeUpload = ({ templates, onInstalled }: ThemeUploadProps) => {
                     showUploadList={false}
                 >
                     <Space direction="vertical" size={4}>
-                        <InboxIcon style={{ fontSize: 28 }} />
+                        <InboxIcon style={{fontSize: 28}}/>
                         <Typography.Text>{uploading ? res.uploading : res.dropHere}</Typography.Text>
                         <Typography.Text type="secondary">{res.fileNameHint}</Typography.Text>
                     </Space>

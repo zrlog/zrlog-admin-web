@@ -1,27 +1,27 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import AppsIcon from "@zrlog/ui/icons/apps";
 import EditIcon from "@zrlog/ui/icons/edit";
 import GlobeIcon from "@zrlog/ui/icons/globe";
 import LockIcon from "@zrlog/ui/icons/lock";
 import PinIcon from "@zrlog/ui/icons/pin";
 import StarIcon from "@zrlog/ui/icons/star";
-import { hasAction } from "../../utils/account-access";
+import {hasAction} from "../../utils/account-access";
 
 
-import { Button, Grid, Segmented, Space, TableColumnsType, Tooltip, Typography, theme } from "antd";
+import {Button, Grid, Segmented, Space, TableColumnsType, theme, Tooltip, Typography} from "antd";
 import Divider from "antd/es/divider";
-import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
+import {getLabelValueSeparator, getRealRouteUrl, getRes} from "../../utils/constants";
 import type * as React from "react";
-import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
+import {ReactElement, useEffect, useMemo, useRef, useState} from "react";
 import Tags from "../../common/Tags";
-import BaseTable, { ArticlePageDataSource } from "../../common/BaseTable";
-import { Link, useNavigate } from "react-router-dom";
-import { useLocation } from "react-router";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { ArticlePreviewAction } from "./ArticlePreviewAction";
-import { getPageDataCacheKeyByPath, removeCacheDataByKey } from "../../utils/cache";
+import BaseTable, {ArticlePageDataSource} from "../../common/BaseTable";
+import {Link, useNavigate} from "react-router-dom";
+import {useLocation} from "react-router";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {ArticlePreviewAction} from "./ArticlePreviewAction";
+import {getPageDataCacheKeyByPath, removeCacheDataByKey} from "../../utils/cache";
 import BackendImage from "../../common/BackendImage";
 import HighlightText from "../../common/HighlightText";
 import ArticlePinningManager from "./ArticlePinningManager";
@@ -37,12 +37,12 @@ import {
     tryBeginArticlePinningRequest,
     updateArticlePinning,
 } from "./article-pinning";
-import { AdminCommonProps } from "../../type";
+import {AdminCommonProps} from "../../type";
 import styled from "styled-components";
 
-const { Search } = Input;
-const { Text } = Typography;
-const { useBreakpoint } = Grid;
+const {Search} = Input;
+const {Text} = Typography;
+const {useBreakpoint} = Grid;
 
 type ArticleTypeFilter = {
     text: string;
@@ -55,12 +55,12 @@ const genTypes = (d: ArticlePageDataSource, search: string): ArticleTypeFilter[]
 
     return d.types
         ? d.types.map((e) => {
-              return {
-                  text: e.typeName,
-                  value: e.alias,
-                  selected: typesStr ? typesStr.split(",").includes(e.alias) : false,
-              };
-          })
+            return {
+                text: e.typeName,
+                value: e.alias,
+                selected: typesStr ? typesStr.split(",").includes(e.alias) : false,
+            };
+        })
         : [];
 };
 
@@ -71,7 +71,7 @@ const StyledArticleList = styled.div<{ $gap: number }>`
         align-items: center;
         display: flex;
         flex-flow: row wrap;
-        gap: ${({ $gap }) => $gap}px;
+        gap: ${({$gap}) => $gap}px;
         justify-content: space-between;
     }
 
@@ -79,7 +79,7 @@ const StyledArticleList = styled.div<{ $gap: number }>`
         align-items: center;
         display: flex;
         flex: 1 1 0;
-        gap: ${({ $gap }) => $gap}px;
+        gap: ${({$gap}) => $gap}px;
         min-width: 0;
     }
 
@@ -137,14 +137,14 @@ const StyledArticleList = styled.div<{ $gap: number }>`
     }
 `;
 
-const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataSource>) => {
+const Index = ({data, offline, updateCache}: AdminCommonProps<ArticlePageDataSource>) => {
     const screens = useBreakpoint();
     const compactArticleTable = screens.md !== true;
     const location = useLocation();
     const navigate = useNavigate();
-    const { message } = useUiApp();
+    const {message} = useUiApp();
     const ds = genTypes(data, location.search);
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const pinningRes = getRes().article.pinning;
     const [pinningManagerOpen, setPinningManagerOpen] = useState(false);
     const [pinningLogId, setPinningLogId] = useState<number>();
@@ -205,22 +205,22 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         {
             label: `${getRes().article.tag.all} (${data.statusCounts?.total || 0})`,
             value: "",
-            icon: <AppsIcon />,
+            icon: <AppsIcon/>,
         },
         {
             label: `${getRes().article.status.published} (${data.statusCounts?.published || 0})`,
             value: "published",
-            icon: <GlobeIcon />,
+            icon: <GlobeIcon/>,
         },
         {
             label: `${getRes().article.status.private} (${data.statusCounts?.privateCount || 0})`,
             value: "private",
-            icon: <LockIcon />,
+            icon: <LockIcon/>,
         },
         {
             label: `${getRes().article.status.draft} (${data.statusCounts?.draft || 0})`,
             value: "draft",
-            icon: <EditIcon />,
+            icon: <EditIcon/>,
         },
     ];
 
@@ -236,10 +236,10 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         currentStatus === "published"
             ? getRes().article.status.published
             : currentStatus === "private"
-            ? getRes().article.status.private
-            : currentStatus === "draft"
-            ? getRes().article.status.draft
-            : getRes().article.tag.all;
+                ? getRes().article.status.private
+                : currentStatus === "draft"
+                    ? getRes().article.status.draft
+                    : getRes().article.tag.all;
 
     const handleStatusChange = (value: string | number) => {
         const params = new URLSearchParams(location.search);
@@ -266,7 +266,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
     };
 
     const handleFilterChange = (value: string, checked: boolean) => {
-        setFilters((prevFilters) => prevFilters.map((f) => (f.value === value ? { ...f, selected: checked } : f)));
+        setFilters((prevFilters) => prevFilters.map((f) => (f.value === value ? {...f, selected: checked} : f)));
     };
 
     useEffect(() => {
@@ -285,7 +285,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
             stickyById: toArticleStickyMap(nextRows),
         });
         updateCache?.(
-            { ...data, rows: nextRows as ArticlePageDataSource["rows"] },
+            {...data, rows: nextRows as ArticlePageDataSource["rows"]},
             getPageDataCacheKeyByPath(location.pathname, location.search)
         );
     };
@@ -322,18 +322,18 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
             <span style={surface.titleStateRow}>
                 {element}
                 {record.rubbish && <span style={surface.titleStateDraft}>{getRes().article.status.draft}</span>}
-                {record.privacy && <LockIcon style={surface.titleStateIcon} />}
+                {record.privacy && <LockIcon style={surface.titleStateIcon}/>}
                 {record.recommended && (
-                    <Tag color="gold" bordered={false} icon={<StarIcon selected />} style={{ marginInlineEnd: 0 }}>
+                    <Tag color="gold" bordered={false} icon={<StarIcon selected/>} style={{marginInlineEnd: 0}}>
                         {getRes().article.recommended}
                     </Tag>
                 )}
                 {getSticky(record) > 0 && (
-                    <Tag color="blue" bordered={false} icon={<PinIcon selected />} style={{ marginInlineEnd: 0 }}>
+                    <Tag color="blue" bordered={false} icon={<PinIcon selected/>} style={{marginInlineEnd: 0}}>
                         {pinningRes.label}
                     </Tag>
                 )}
-                {record.keywords && <Tags closeable={false} keywords={record.keywords} />}
+                {record.keywords && <Tags closeable={false} keywords={record.keywords}/>}
             </span>
         );
     };
@@ -346,12 +346,12 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 title={
                     <div>
                         {getRes().article.previewOpenPrefix}
-                        <HighlightText text={text} keyword={keyword} />
+                        <HighlightText text={text} keyword={keyword}/>
                         {getRes().article.previewOpenSuffix}
                     </div>
                 }
             >
-                <HighlightText text={text} keyword={keyword} style={surface.titleText} />
+                <HighlightText text={text} keyword={keyword} style={surface.titleText}/>
             </Tooltip>
         );
         const titleLink = record["url"].includes("previewMode") ? (
@@ -431,7 +431,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 key: "typeName",
                 dataIndex: "typeName",
                 width: 100,
-                filters: filters.map(({ text, value }) => ({ text, value })),
+                filters: filters.map(({text, value}) => ({text, value})),
                 filterMultiple: false,
                 filteredValue: filters.filter((e) => e.selected).map((e) => e.value), // 动态绑定当前选中值
                 onFilter: (value: React.Key | boolean) => {
@@ -502,7 +502,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 width: 108,
                 render: (url: string) => {
                     if (url && url.length > 0) {
-                        return <BackendImage style={surface.thumbnailImage} src={url} />;
+                        return <BackendImage style={surface.thumbnailImage} src={url}/>;
                     }
                     return <></>;
                 },
@@ -539,7 +539,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                         <Tooltip title={pinningRes.manage}>
                             <Button
                                 className="article-pinning-manager-button"
-                                icon={<PinIcon />}
+                                icon={<PinIcon/>}
                                 aria-label={pinningRes.manage}
                                 disabled={offline || pinningLogId !== undefined}
                                 onClick={() => setPinningManagerOpen(true)}
@@ -559,7 +559,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                     className="article-desk-list-search"
                 />
             </div>
-            <Divider />
+            <Divider/>
             <BaseTable
                 defaultPageSize={data.defaultPageSize}
                 offline={offline}
@@ -569,7 +569,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 hideId={compactArticleTable}
                 editBtnRender={(id, record) => (
                     <>
-                        <ArticlePreviewAction article={record} />
+                        <ArticlePreviewAction article={record}/>
                         {hasAction("article.pin") && (
                             <Tooltip
                                 title={
@@ -588,9 +588,9 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                                     aria-label={getSticky(record) > 0 ? pinningRes.unpin : pinningRes.pin}
                                     icon={
                                         getSticky(record) > 0 ? (
-                                            <PinIcon selected style={surface.pinActionIcon} />
+                                            <PinIcon selected style={surface.pinActionIcon}/>
                                         ) : (
-                                            <PinIcon style={surface.pinActionIcon} />
+                                            <PinIcon style={surface.pinActionIcon}/>
                                         )
                                     }
                                     onClick={() => void updatePinning(record)}
@@ -603,7 +603,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                                     type="text"
                                     size="small"
                                     title={getRes().edit}
-                                    icon={<EditIcon style={surface.editActionIcon} />}
+                                    icon={<EditIcon style={surface.editActionIcon}/>}
                                 />
                             </Link>
                         </Tooltip>

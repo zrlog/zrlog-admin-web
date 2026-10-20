@@ -1,9 +1,9 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import TagIcon from "@zrlog/ui/icons/tag";
-import { CSSProperties, FunctionComponent, MouseEvent } from "react";
+import {CSSProperties, FunctionComponent, MouseEvent} from "react";
 
 
-import { getAppState } from "../base/ConfigProviderApp";
+import {getAppState} from "../base/ConfigProviderApp";
 
 type TagsProps = {
     keywords: string;
@@ -13,14 +13,14 @@ type TagsProps = {
     onClose?: (e: MouseEvent<HTMLElement>, tag: string) => void;
 };
 
-const Tags: FunctionComponent<TagsProps> = ({ keywords, closeable, tagStyle, onClick, onClose }) => {
+const Tags: FunctionComponent<TagsProps> = ({keywords, closeable, tagStyle, onClick, onClose}) => {
     const buildTag = (tag: string) => {
         if (tag === null || tag.trim() === "") {
             return <></>;
         }
         return (
             <Tag
-                icon={<TagIcon />}
+                icon={<TagIcon/>}
                 closable={closeable}
                 onClick={onClick}
                 onClose={(e) => {
@@ -29,7 +29,7 @@ const Tags: FunctionComponent<TagsProps> = ({ keywords, closeable, tagStyle, onC
                     }
                 }}
                 color={getAppState().colorPrimary}
-                style={{ userSelect: "none", marginRight: 0, ...tagStyle }}
+                style={{userSelect: "none", marginRight: 0, ...tagStyle}}
             >
                 {tag.trim()}
             </Tag>
@@ -37,7 +37,7 @@ const Tags: FunctionComponent<TagsProps> = ({ keywords, closeable, tagStyle, onC
     };
 
     return (
-        <span key={"all-" + keywords} style={{ display: "flex", gap: 4, whiteSpace: "normal", flexFlow: "wrap" }}>
+        <span key={"all-" + keywords} style={{display: "flex", gap: 4, whiteSpace: "normal", flexFlow: "wrap"}}>
             {keywords.split(",").map(buildTag)}
         </span>
     );

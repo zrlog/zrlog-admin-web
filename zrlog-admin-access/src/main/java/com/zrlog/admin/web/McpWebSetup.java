@@ -6,11 +6,18 @@ import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSetupContext;
 
-/** MCP is a separately selectable transport inside external access, independent of AI. */
+/**
+ * MCP is a separately selectable transport inside external access, independent of AI.
+ */
 public class McpWebSetup implements WebSetup {
     private final WebSetupContext context;
-    public McpWebSetup(WebSetupContext context) { this.context = context; }
-    @Override public void setup() {
+
+    public McpWebSetup(WebSetupContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public void setup() {
         context.getZrLogConfig()
                 .getServerConfig()
                 .getBindings()

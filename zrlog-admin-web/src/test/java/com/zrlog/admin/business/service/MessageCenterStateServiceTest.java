@@ -1,18 +1,15 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.Gson;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.util.Map;
+
+import static org.junit.Assert.*;
 
 public class MessageCenterStateServiceTest {
 
@@ -20,7 +17,9 @@ public class MessageCenterStateServiceTest {
     public void shouldParseStoredStatusAndFallbackForInvalidValues() throws Exception {
         MessageCenterStateService service =
                 new MessageCenterStateService(
-                        ApplicationServicesFixture.websiteCache(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        ApplicationServicesFixture.websiteCache(null), () -> {
+                    throw new IllegalStateException("Database is unavailable in this test");
+                });
 
         MessageCenterStatusResponse empty = service.parseStatus("");
         MessageCenterStatusResponse invalid = service.parseStatus("{bad-json");
@@ -38,7 +37,9 @@ public class MessageCenterStateServiceTest {
     public void shouldCompareStatusValues() throws Exception {
         MessageCenterStateService service =
                 new MessageCenterStateService(
-                        ApplicationServicesFixture.websiteCache(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        ApplicationServicesFixture.websiteCache(null), () -> {
+                    throw new IllegalStateException("Database is unavailable in this test");
+                });
 
         assertTrue(service.sameStatus(
                 new MessageCenterStatusResponse(7L, true),
@@ -55,7 +56,9 @@ public class MessageCenterStateServiceTest {
     public void shouldGenerateMonotonicNextRevision() throws Exception {
         MessageCenterStateService service =
                 new MessageCenterStateService(
-                        ApplicationServicesFixture.websiteCache(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        ApplicationServicesFixture.websiteCache(null), () -> {
+                    throw new IllegalStateException("Database is unavailable in this test");
+                });
         long now = System.currentTimeMillis();
 
         long fromPast = service.nextRevision(now - 10_000);

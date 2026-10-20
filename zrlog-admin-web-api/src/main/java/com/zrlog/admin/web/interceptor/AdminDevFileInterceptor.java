@@ -1,21 +1,19 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.common.TokenService;
-
 import jakarta.inject.Inject;
 
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdminDevFileInterceptor implements HandleAbleInterceptor {
-    private final AdminRequestIdentity requestIdentity;
-
     protected final Supplier<TokenService> tokenService;
+    private final AdminRequestIdentity requestIdentity;
 
     @Inject
     public AdminDevFileInterceptor(

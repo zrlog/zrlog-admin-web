@@ -2,23 +2,38 @@ package com.zrlog.admin.business.service;
 
 import com.google.gson.*;
 import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.admin.business.rest.base.*;
-import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
+import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
+import com.zrlog.admin.business.rest.base.UserPreferences;
+import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
+import com.zrlog.admin.business.rest.response.UserPreferencesResponse;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.service.UserPreferenceStore;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-/** Personal configuration only. Never use this JSON for authorization or public resources. */
+/**
+ * Personal configuration only. Never use this JSON for authorization or public resources.
+ */
 @Singleton
 public class UserPreferenceService {
+    private static final Gson GSON = new Gson();
+    private static final Set<String> KEYS = Set.of("language", "appearance", "articlePageSize", "editor", "assistant", "session", "articleList");
+    private static final Set<String> THEMES = Set.of("default", "antd", "geek", "shadcn", "cartoon", "illustration", "bootstrap", "desk", "glass");
+    private static final Map<String, Set<String>> SECTIONS = Map.of(
+            "appearance", Set.of("language", "appearance"),
+            "writing", Set.of("articlePageSize", "editor", "articleList"),
+            "assistant", Set.of("assistant"), "session", Set.of("session"));
     private final WebSiteService webSiteService;
-
+    private final UserPreferenceStore store;
     @Inject
     public UserPreferenceService(
             WebSiteService webSiteService,
@@ -27,14 +42,132 @@ public class UserPreferenceService {
         this.store = store;
     }
 
-    private static final Gson GSON = new Gson();
-    private static final Set<String> KEYS = Set.of("language", "appearance", "articlePageSize", "editor", "assistant", "session", "articleList");
-    private static final Set<String> THEMES = Set.of("default", "antd", "geek", "shadcn", "cartoon", "illustration", "bootstrap", "desk", "glass");
-    private final UserPreferenceStore store;
-    private static final Map<String, Set<String>> SECTIONS = Map.of(
-            "appearance", Set.of("language", "appearance"),
-            "writing", Set.of("articlePageSize", "editor", "articleList"),
-            "assistant", Set.of("assistant"), "session", Set.of("session"));
+    private static UserPreferences.Assistant assistantDefaults() {
+        UserPreferences.Assistant result = new UserPreferences.Assistant();
+        result.knowledgeScope = "own_public";
+        return result;
+    }
+
+    private static int userId(AccountAccess actor) {
+        if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
+        return actor.getUserId();
+    }
+
+    static UserPreferences merge(UserPreferences defaults, UserPreferences overrides) {
+        JsonObject target = GSON.toJsonTree(defaults).getAsJsonObject();
+        overlay(target, GSON.toJsonTree(overrides).getAsJsonObject());
+        return GSON.fromJson(target, UserPreferences.class);
+    }
+
+    private static void overlay(JsonObject target, JsonObject source) {
+        source.entrySet().forEach(entry -> {
+            if (entry.getValue().isJsonObject() && target.has(entry.getKey()) && target.get(entry.getKey()).isJsonObject()) {
+                overlay(target.getAsJsonObject(entry.getKey()), entry.getValue().getAsJsonObject());
+            } else target.add(entry.getKey(), entry.getValue());
+        });
+    }
+
+    static UserPreferences validate(JsonObject body) {
+        if (body == null) throw new ArgsException("preferences");
+        only(body, KEYS);
+        string(body, "language", Set.of("zh_CN", "en_US"));
+        number(body, "articlePageSize", 1, 100, null);
+        JsonObject appearance = object(body, "appearance");
+        if (appearance != null) {
+            only(appearance, Set.of("theme", "darkMode", "compactMode", "colorPrimary"));
+            string(appearance, "theme", THEMES);
+            bool(appearance, "darkMode");
+            bool(appearance, "compactMode");
+            if (present(appearance, "colorPrimary")) {
+                JsonElement value = appearance.get("colorPrimary");
+                if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
+                        || !value.getAsString().matches("#[0-9a-fA-F]{6}"))
+                    throw new ArgsException("appearance.colorPrimary");
+            }
+        }
+        JsonObject editor = object(body, "editor");
+        if (editor != null) {
+            only(editor, Set.of("autoSaveInterval", "linkPreviewEnabled", "publishCheckEnabled", "autoDigestLength", "coverAspectRatio"));
+            bool(editor, "linkPreviewEnabled");
+            bool(editor, "publishCheckEnabled");
+            number(editor, "autoDigestLength", -1, 99999, null);
+            string(editor, "coverAspectRatio", Set.of("16:9", "4:3", "3:2", "1:1", "21:9"));
+            number(editor, "autoSaveInterval", 2, 10, Set.of(2L, 5L, 10L));
+        }
+        JsonObject articleList = object(body, "articleList");
+        if (articleList != null) {
+            only(articleList, Set.of("sort", "status", "columns"));
+            string(articleList, "status", Set.of("", "draft", "private", "published"));
+            Set<String> sorts = new HashSet<>();
+            for (String field : List.of("id", "click", "commentSize", "releaseTime", "lastUpdateDate")) {
+                sorts.add(field + ",ASC");
+                sorts.add(field + ",DESC");
+            }
+            string(articleList, "sort", sorts);
+            if (present(articleList, "columns")) {
+                JsonElement columns = articleList.get("columns");
+                Set<String> allowed = Set.of("thumbnail", "typeName", "click", "canComment", "commentSize", "releaseTime", "lastUpdateDate");
+                if (!columns.isJsonArray() || columns.getAsJsonArray().size() > allowed.size())
+                    throw new ArgsException("columns");
+                Set<String> selected = new HashSet<>();
+                for (JsonElement value : columns.getAsJsonArray()) {
+                    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
+                            || !allowed.contains(value.getAsString()) || !selected.add(value.getAsString()))
+                        throw new ArgsException("columns");
+                }
+            }
+        }
+        JsonObject session = object(body, "session");
+        if (session != null) {
+            only(session, Set.of("timeoutMinutes"));
+            number(session, "timeoutMinutes", UserPreferenceStore.MIN_SESSION_MINUTES, UserPreferenceStore.MAX_SESSION_MINUTES, null);
+        }
+        JsonObject assistant = object(body, "assistant");
+        if (assistant != null) {
+            only(assistant, Set.of("knowledgeScope"));
+            string(assistant, "knowledgeScope", Set.of("off", "own_public", "own_all", "accessible_public", "accessible_all"));
+        }
+        return GSON.fromJson(body, UserPreferences.class);
+    }
+
+    private static boolean present(JsonObject body, String key) {
+        return body.has(key) && !body.get(key).isJsonNull();
+    }
+
+    private static void only(JsonObject body, Set<String> keys) {
+        for (String key : body.keySet()) if (!keys.contains(key)) throw new ArgsException("preferences");
+    }
+
+    private static JsonObject object(JsonObject body, String key) {
+        if (!present(body, key)) return null;
+        if (!body.get(key).isJsonObject()) throw new ArgsException(key);
+        return body.getAsJsonObject(key);
+    }
+
+    private static void string(JsonObject body, String key, Set<String> values) {
+        if (!present(body, key)) return;
+        JsonElement value = body.get(key);
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString() || !values.contains(value.getAsString()))
+            throw new ArgsException(key);
+    }
+
+    private static void bool(JsonObject body, String key) {
+        if (present(body, key) && (!body.get(key).isJsonPrimitive() || !body.getAsJsonPrimitive(key).isBoolean()))
+            throw new ArgsException(key);
+    }
+
+    private static void number(JsonObject body, String key, long min, long max, Set<Long> values) {
+        if (!present(body, key)) return;
+        JsonElement value = body.get(key);
+        try {
+            if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new ArithmeticException();
+            long number = value.getAsBigDecimal().longValueExact();
+            if (number < min || number > max || (values != null && !values.contains(number)))
+                throw new ArithmeticException();
+        } catch (ArithmeticException | NumberFormatException e) {
+            throw new ArgsException(key);
+        }
+    }
 
     public UserPreferencesResponse current(AccountAccess actor) throws SQLException {
         UserPreferencesResponse response = new UserPreferencesResponse();
@@ -44,7 +177,9 @@ public class UserPreferenceService {
         return response;
     }
 
-    /** A null actor explicitly selects the public site defaults. */
+    /**
+     * A null actor explicitly selects the public site defaults.
+     */
     public UserPreferences effective(AccountAccess actor) {
         UserPreferences defaults = defaults();
         if (actor == null) return defaults;
@@ -55,22 +190,30 @@ public class UserPreferenceService {
         }
     }
 
-    /** Resolve preferences for an already authenticated external account, without a browser session. */
+    /**
+     * Resolve preferences for an already authenticated external account, without a browser session.
+     */
     public UserPreferences effective(int userId) throws SQLException {
         return merge(defaults(), read(userId));
     }
 
-    public UserPreferencesResponse updateBody(AccountAccess actor, String body) throws SQLException { return updateBody(actor, body, null); }
+    public UserPreferencesResponse updateBody(AccountAccess actor, String body) throws SQLException {
+        return updateBody(actor, body, null);
+    }
 
     public UserPreferencesResponse updateBody(AccountAccess actor, String body, String section) throws SQLException {
         try {
             JsonElement parsed = JsonParser.parseString(body);
             if (!parsed.isJsonObject()) throw new ArgsException("preferences");
             return update(actor, parsed.getAsJsonObject(), section);
-        } catch (JsonParseException e) { throw new ArgsException("preferences"); }
+        } catch (JsonParseException e) {
+            throw new ArgsException("preferences");
+        }
     }
 
-    public UserPreferencesResponse update(AccountAccess actor, JsonObject body) throws SQLException { return update(actor, body, null); }
+    public UserPreferencesResponse update(AccountAccess actor, JsonObject body) throws SQLException {
+        return update(actor, body, null);
+    }
 
     public UserPreferencesResponse update(AccountAccess actor, JsonObject body, String section) throws SQLException {
         Set<String> keys = section == null ? KEYS : SECTIONS.get(section);
@@ -107,8 +250,10 @@ public class UserPreferenceService {
             if (!root.has(key)) continue;
             JsonObject section = new JsonObject();
             section.add(key, root.get(key));
-            try { validate(section); known.add(key, root.get(key)); }
-            catch (ArgsException ignored) { /* A corrupt partition inherits its defaults. */ }
+            try {
+                validate(section);
+                known.add(key, root.get(key));
+            } catch (ArgsException ignored) { /* A corrupt partition inherits its defaults. */ }
         }
         return validate(known);
     }
@@ -119,14 +264,20 @@ public class UserPreferenceService {
         try {
             JsonElement value = store.read(userId).get("dashboard");
             return value == null || !value.isJsonObject() ? null : GSON.fromJson(value, AdminDashboardConfigResponse.class);
-        } catch (JsonParseException e) { return null; }
-        catch (SQLException e) { throw new IllegalStateException("Unable to read dashboard preferences", e); }
+        } catch (JsonParseException e) {
+            return null;
+        } catch (SQLException e) {
+            throw new IllegalStateException("Unable to read dashboard preferences", e);
+        }
     }
 
     public void saveDashboard(AccountAccess actor, AdminDashboardConfigResponse config) {
         int userId = userId(actor);
-        try { store.mutate(userId, root -> root.add("dashboard", GSON.toJsonTree(config))); }
-        catch (SQLException e) { throw new IllegalStateException("Unable to save dashboard preferences", e); }
+        try {
+            store.mutate(userId, root -> root.add("dashboard", GSON.toJsonTree(config)));
+        } catch (SQLException e) {
+            throw new IllegalStateException("Unable to save dashboard preferences", e);
+        }
     }
 
     public void apply(AdminResourceInfoResponse resource, String language, UserPreferences.Appearance appearance) {
@@ -165,121 +316,14 @@ public class UserPreferenceService {
         return result;
     }
 
-    private static UserPreferences.Assistant assistantDefaults() {
-        UserPreferences.Assistant result = new UserPreferences.Assistant();
-        result.knowledgeScope = "own_public";
-        return result;
-    }
-
     public UserPreferences.Assistant assistant(AccountAccess actor) {
         int userId = userId(actor);
         UserPreferences defaults = new UserPreferences();
         defaults.assistant = assistantDefaults();
-        try { return merge(defaults, read(userId)).assistant; }
-        catch (SQLException e) { throw new IllegalStateException("Unable to read assistant settings", e); }
-    }
-
-    private static int userId(AccountAccess actor) {
-        if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
-        return actor.getUserId();
-    }
-
-    static UserPreferences merge(UserPreferences defaults, UserPreferences overrides) {
-        JsonObject target = GSON.toJsonTree(defaults).getAsJsonObject();
-        overlay(target, GSON.toJsonTree(overrides).getAsJsonObject());
-        return GSON.fromJson(target, UserPreferences.class);
-    }
-
-    private static void overlay(JsonObject target, JsonObject source) {
-        source.entrySet().forEach(entry -> {
-            if (entry.getValue().isJsonObject() && target.has(entry.getKey()) && target.get(entry.getKey()).isJsonObject()) {
-                overlay(target.getAsJsonObject(entry.getKey()), entry.getValue().getAsJsonObject());
-            } else target.add(entry.getKey(), entry.getValue());
-        });
-    }
-
-    static UserPreferences validate(JsonObject body) {
-        if (body == null) throw new ArgsException("preferences");
-        only(body, KEYS);
-        string(body, "language", Set.of("zh_CN", "en_US"));
-        number(body, "articlePageSize", 1, 100, null);
-        JsonObject appearance = object(body, "appearance");
-        if (appearance != null) {
-            only(appearance, Set.of("theme", "darkMode", "compactMode", "colorPrimary"));
-            string(appearance, "theme", THEMES);
-            bool(appearance, "darkMode"); bool(appearance, "compactMode");
-            if (present(appearance, "colorPrimary")) {
-                JsonElement value = appearance.get("colorPrimary");
-                if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
-                        || !value.getAsString().matches("#[0-9a-fA-F]{6}")) throw new ArgsException("appearance.colorPrimary");
-            }
-        }
-        JsonObject editor = object(body, "editor");
-        if (editor != null) {
-            only(editor, Set.of("autoSaveInterval", "linkPreviewEnabled", "publishCheckEnabled", "autoDigestLength", "coverAspectRatio"));
-            bool(editor, "linkPreviewEnabled");
-            bool(editor, "publishCheckEnabled");
-            number(editor, "autoDigestLength", -1, 99999, null);
-            string(editor, "coverAspectRatio", Set.of("16:9", "4:3", "3:2", "1:1", "21:9"));
-            number(editor, "autoSaveInterval", 2, 10, Set.of(2L, 5L, 10L));
-        }
-        JsonObject articleList = object(body, "articleList");
-        if (articleList != null) {
-            only(articleList, Set.of("sort", "status", "columns"));
-            string(articleList, "status", Set.of("", "draft", "private", "published"));
-            Set<String> sorts = new HashSet<>();
-            for (String field : List.of("id", "click", "commentSize", "releaseTime", "lastUpdateDate")) {
-                sorts.add(field + ",ASC"); sorts.add(field + ",DESC");
-            }
-            string(articleList, "sort", sorts);
-            if (present(articleList, "columns")) {
-                JsonElement columns = articleList.get("columns");
-                Set<String> allowed = Set.of("thumbnail", "typeName", "click", "canComment", "commentSize", "releaseTime", "lastUpdateDate");
-                if (!columns.isJsonArray() || columns.getAsJsonArray().size() > allowed.size()) throw new ArgsException("columns");
-                Set<String> selected = new HashSet<>();
-                for (JsonElement value : columns.getAsJsonArray()) {
-                    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
-                            || !allowed.contains(value.getAsString()) || !selected.add(value.getAsString())) throw new ArgsException("columns");
-                }
-            }
-        }
-        JsonObject session = object(body, "session");
-        if (session != null) {
-            only(session, Set.of("timeoutMinutes"));
-            number(session, "timeoutMinutes", UserPreferenceStore.MIN_SESSION_MINUTES, UserPreferenceStore.MAX_SESSION_MINUTES, null);
-        }
-        JsonObject assistant = object(body, "assistant");
-        if (assistant != null) {
-            only(assistant, Set.of("knowledgeScope"));
-            string(assistant, "knowledgeScope", Set.of("off", "own_public", "own_all", "accessible_public", "accessible_all"));
-        }
-        return GSON.fromJson(body, UserPreferences.class);
-    }
-
-    private static boolean present(JsonObject body, String key) { return body.has(key) && !body.get(key).isJsonNull(); }
-    private static void only(JsonObject body, Set<String> keys) {
-        for (String key : body.keySet()) if (!keys.contains(key)) throw new ArgsException("preferences");
-    }
-    private static JsonObject object(JsonObject body, String key) {
-        if (!present(body, key)) return null;
-        if (!body.get(key).isJsonObject()) throw new ArgsException(key);
-        return body.getAsJsonObject(key);
-    }
-    private static void string(JsonObject body, String key, Set<String> values) {
-        if (!present(body, key)) return;
-        JsonElement value = body.get(key);
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString() || !values.contains(value.getAsString())) throw new ArgsException(key);
-    }
-    private static void bool(JsonObject body, String key) {
-        if (present(body, key) && (!body.get(key).isJsonPrimitive() || !body.getAsJsonPrimitive(key).isBoolean())) throw new ArgsException(key);
-    }
-    private static void number(JsonObject body, String key, long min, long max, Set<Long> values) {
-        if (!present(body, key)) return;
-        JsonElement value = body.get(key);
         try {
-            if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new ArithmeticException();
-            long number = value.getAsBigDecimal().longValueExact();
-            if (number < min || number > max || (values != null && !values.contains(number))) throw new ArithmeticException();
-        } catch (ArithmeticException | NumberFormatException e) { throw new ArgsException(key); }
+            return merge(defaults, read(userId)).assistant;
+        } catch (SQLException e) {
+            throw new IllegalStateException("Unable to read assistant settings", e);
+        }
     }
 }

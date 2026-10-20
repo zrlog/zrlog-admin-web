@@ -1,9 +1,9 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { IndexData } from "../../type";
-import { getAdminI18n } from "../../i18n/admin";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {MemoryRouter} from "react-router-dom";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {IndexData} from "../../type";
+import {getAdminI18n} from "../../i18n/admin";
 import Index from "./index";
 
 const mockAxios = {
@@ -18,8 +18,8 @@ jest.mock("@zrlog/ui/feedback", () => ({
     useUiApp: () => require("antd").App.useApp(),
 }));
 
-jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
-jest.mock("../../utils/article-cache", () => ({ getLocalArticleCaches: () => [] }));
+jest.mock("../../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
+jest.mock("../../utils/article-cache", () => ({getLocalArticleCaches: () => []}));
 jest.mock("../../utils/cache", () => ({
     getPageDataCacheKeyByPath: (pathname: string, search: string) => pathname + search,
 }));
@@ -30,7 +30,7 @@ jest.mock("../../utils/constants", () => ({
         homeUrl: "https://example.test/blog/",
     }),
 }));
-jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
+jest.mock("antd-style", () => ({useTheme: () => ({})}));
 jest.mock("@ant-design/icons", () => ({
     BarChartOutlined: () => null,
     CloseOutlined: () => null,
@@ -43,20 +43,20 @@ jest.mock("@ant-design/icons", () => ({
 }));
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
-    const Container = ({ children }: { children?: import("react").ReactNode }) =>
+    const Container = ({children}: { children?: import("react").ReactNode }) =>
         React.createElement("div", null, children);
     return {
-        App: { useApp: () => ({ message: { error: mockMessageError } }) },
+        App: {useApp: () => ({message: {error: mockMessageError}})},
         Card: Container,
         Col: Container,
-        Grid: { useBreakpoint: () => ({}) },
+        Grid: {useBreakpoint: () => ({})},
         Row: Container,
-        Button: ({ children, href, loading, onClick }: any) =>
-            React.createElement(href ? "a" : "button", { href, disabled: loading, onClick }, children),
-        Typography: { Text: Container },
+        Button: ({children, href, loading, onClick}: any) =>
+            React.createElement(href ? "a" : "button", {href, disabled: loading, onClick}, children),
+        Typography: {Text: Container},
     };
 });
-jest.mock("./ActivityGraph", () => ({ __esModule: true, default: () => null, generateCompleteData: () => [] }));
+jest.mock("./ActivityGraph", () => ({__esModule: true, default: () => null, generateCompleteData: () => []}));
 jest.mock("./StatisticsInfo", () => () => null);
 jest.mock("./QuickAction", () => () => null);
 jest.mock("./DataInsights", () => () => null);
@@ -74,9 +74,9 @@ const initialData = (): IndexData => ({
     dashboardConfig: {
         autoRefreshEnabled: true,
         autoRefreshIntervalSeconds: 10,
-        cards: [{ kind: "card", id: "welcome", enabled: true }],
+        cards: [{kind: "card", id: "welcome", enabled: true}],
     },
-    firstUseChecklist: { version: 1, status: "pending" },
+    firstUseChecklist: {version: 1, status: "pending"},
 });
 
 describe("dashboard first-use dismissal", () => {
@@ -90,9 +90,9 @@ describe("dashboard first-use dismissal", () => {
             root.render(
                 <MemoryRouter
                     initialEntries={["/index"]}
-                    future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+                    future={{v7_relativeSplatPath: true, v7_startTransition: true}}
                 >
-                    <Index key={key} data={data} offline={false} offlineData={false} updateCache={updateCache} />
+                    <Index key={key} data={data} offline={false} offlineData={false} updateCache={updateCache}/>
                 </MemoryRouter>
             );
         });
@@ -102,7 +102,7 @@ describe("dashboard first-use dismissal", () => {
     const skip = async () => {
         const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === "Skip");
         expect(button).toBeDefined();
-        await act(async () => button?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+        await act(async () => button?.dispatchEvent(new MouseEvent("click", {bubbles: true})));
     };
 
     beforeEach(() => {
@@ -137,20 +137,20 @@ describe("dashboard first-use dismissal", () => {
                 finishRefresh = resolve;
             })
         );
-        mockAxios.post.mockResolvedValue({ data: { error: 0, data: { version: 1, status: "dismissed" } } });
+        mockAxios.post.mockResolvedValue({data: {error: 0, data: {version: 1, status: "dismissed"}}});
         render(cachedData);
         expect(checklist()).not.toBeNull();
 
         act(() => jest.advanceTimersByTime(10_000));
         expect(mockAxios.get).toHaveBeenCalledWith("/api/admin/index");
         await skip();
-        expect(mockAxios.post).toHaveBeenCalledWith("/api/admin/index/first-use/dismiss", { version: 1 });
+        expect(mockAxios.post).toHaveBeenCalledWith("/api/admin/index/first-use/dismiss", {version: 1});
         expect(checklist()).toBeNull();
         expect(cachedData.firstUseChecklist).toBeNull();
 
         const staleData = initialData();
         staleData.dashboardConfig.autoRefreshIntervalSeconds = 30;
-        await act(async () => finishRefresh({ data: { error: 0, data: staleData } }));
+        await act(async () => finishRefresh({data: {error: 0, data: staleData}}));
         expect(checklist()).toBeNull();
         expect(cachedData.firstUseChecklist).toBeNull();
         expect(cachedData.dashboardConfig.autoRefreshIntervalSeconds).toBe(30);
@@ -162,13 +162,13 @@ describe("dashboard first-use dismissal", () => {
     });
 
     it("repairs a late route response already written to the cache after skipping", async () => {
-        mockAxios.post.mockResolvedValue({ data: { error: 0, data: { version: 1, status: "dismissed" } } });
+        mockAxios.post.mockResolvedValue({data: {error: 0, data: {version: 1, status: "dismissed"}}});
         render(cachedData);
         await skip();
         expect(cachedData.firstUseChecklist).toBeNull();
 
         const staleData = initialData();
-        staleData.dashboardConfig.cards[0].data = { tips: ["A different welcome tip"] };
+        staleData.dashboardConfig.cards[0].data = {tips: ["A different welcome tip"]};
         // The router persists a changed response before passing it to the mounted page.
         cachedData = staleData;
         render(staleData);
@@ -187,7 +187,7 @@ describe("dashboard first-use dismissal", () => {
         "keeps the checklist and cache when dismissal has a %s failure",
         async (failure) => {
             if (failure === "business") {
-                mockAxios.post.mockResolvedValue({ data: { error: 1, message: "Unable to save" } });
+                mockAxios.post.mockResolvedValue({data: {error: 1, message: "Unable to save"}});
             } else {
                 mockAxios.post.mockRejectedValue(new Error("Network unavailable"));
             }

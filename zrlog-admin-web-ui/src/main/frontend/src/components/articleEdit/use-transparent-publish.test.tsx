@@ -1,10 +1,10 @@
-import { act, SetStateAction } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { postRefreshCacheSse, RefreshCacheSseOptions, SseEvent } from "../../utils/sse-utils";
-import { ArticleEntry, PublishStatusPopoverState } from "./index.types";
-import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
+import {act, SetStateAction} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {postRefreshCacheSse, RefreshCacheSseOptions, SseEvent} from "../../utils/sse-utils";
+import {ArticleEntry, PublishStatusPopoverState} from "./index.types";
+import {ToolAwareAIContent} from "./article-ai-assistant/article-ai-assistant.types";
 import useTransparentPublish from "./use-transparent-publish";
 
 let mockSupportSse = true;
@@ -12,11 +12,11 @@ let mockSupportSse = true;
 jest.mock("../../utils/constants", () => ({
     getRes: () => ({
         articleEdit: {
-            actions: { release: "Publish" },
-            publishCheck: { failed: "Check failed", finished: "Check finished", running: "Checking" },
+            actions: {release: "Publish"},
+            publishCheck: {failed: "Check failed", finished: "Check finished", running: "Checking"},
             saveFailed: "Publish failed",
         },
-        backgroundTask: { title: "Tasks" },
+        backgroundTask: {title: "Tasks"},
         staticSite: {
             publishComplete: "Published",
             publishStart: "Publishing",
@@ -110,7 +110,7 @@ describe("useTransparentPublish", () => {
         aiMessagesArticleId = undefined;
         postPublish.mockReset();
         act(() => {
-            root.render(<Harness />);
+            root.render(<Harness/>);
         });
     });
 
@@ -124,11 +124,11 @@ describe("useTransparentPublish", () => {
 
     it("records a successful static sync and the public article URL", async () => {
         const response = await publishWithEvents([
-            { event: "publish-start", data: { message: "Publishing" } },
-            { event: "article", data: articleResponse },
-            { event: "static-sync-start", data: { siteTypes: ["BLOG"] } },
-            { event: "static-sync-complete", data: { siteTypes: ["BLOG"] } },
-            { event: "publish-complete", data: { message: "Article published" } },
+            {event: "publish-start", data: {message: "Publishing"}},
+            {event: "article", data: articleResponse},
+            {event: "static-sync-start", data: {siteTypes: ["BLOG"]}},
+            {event: "static-sync-complete", data: {siteTypes: ["BLOG"]}},
+            {event: "publish-complete", data: {message: "Article published"}},
         ]);
 
         expect(response).toBe(articleResponse);
@@ -143,11 +143,11 @@ describe("useTransparentPublish", () => {
 
     it("keeps the article published when static sync fails", async () => {
         await publishWithEvents([
-            { event: "publish-start", data: { message: "Publishing" } },
-            { event: "article", data: articleResponse },
-            { event: "publish-check-start", data: {} },
-            { event: "static-sync-start", data: { siteTypes: ["BLOG"] } },
-            { event: "static-error", data: { message: "CDN upload failed" } },
+            {event: "publish-start", data: {message: "Publishing"}},
+            {event: "article", data: articleResponse},
+            {event: "publish-check-start", data: {}},
+            {event: "static-sync-start", data: {siteTypes: ["BLOG"]}},
+            {event: "static-error", data: {message: "CDN upload failed"}},
         ]);
 
         expect(publishStatus).toMatchObject({
@@ -162,10 +162,10 @@ describe("useTransparentPublish", () => {
 
     it("records that static sync is not required", async () => {
         await publishWithEvents([
-            { event: "publish-start", data: { message: "Publishing" } },
-            { event: "article", data: articleResponse },
-            { event: "static-sync-skipped", data: { siteTypes: ["BLOG"] } },
-            { event: "publish-complete", data: { message: "Article published" } },
+            {event: "publish-start", data: {message: "Publishing"}},
+            {event: "article", data: articleResponse},
+            {event: "static-sync-skipped", data: {siteTypes: ["BLOG"]}},
+            {event: "publish-complete", data: {message: "Article published"}},
         ]);
 
         expect(publishStatus).toMatchObject({
@@ -195,12 +195,12 @@ describe("useTransparentPublish", () => {
         aiMessages = [existingResult, messageAddedAfterPublishStarted];
 
         await publishWithEvents([
-            { event: "article", data: articleResponse },
+            {event: "article", data: articleResponse},
             {
                 event: "publish-check-complete",
                 data: {
-                    aiMessages: [{ ...existingResult }, newResult],
-                    toolPayload: { tool: "publishCheck", payload: { score: 90 } },
+                    aiMessages: [{...existingResult}, newResult],
+                    toolPayload: {tool: "publishCheck", payload: {score: 90}},
                 },
             },
         ]);
@@ -213,16 +213,16 @@ describe("useTransparentPublish", () => {
         expect(aiMessagesArticleId).toBe(42);
         expect(publishStatus).toMatchObject({
             checkStatus: "success",
-            checkPayload: { tool: "publishCheck", payload: { score: 90 } },
+            checkPayload: {tool: "publishCheck", payload: {score: 90}},
         });
     });
 
     it("marks an interrupted background stream without reverting the published article", async () => {
         await publishWithEvents([
-            { event: "publish-start", data: { message: "Publishing" } },
-            { event: "article", data: articleResponse },
-            { event: "publish-check-start", data: {} },
-            { event: "static-sync-start", data: { siteTypes: ["BLOG"] } },
+            {event: "publish-start", data: {message: "Publishing"}},
+            {event: "article", data: articleResponse},
+            {event: "publish-check-start", data: {}},
+            {event: "static-sync-start", data: {siteTypes: ["BLOG"]}},
         ]);
 
         const options = postPublish.mock.calls[0][1];
@@ -268,7 +268,7 @@ describe("useTransparentPublish", () => {
         expect(postPublish).toHaveBeenCalledWith(
             "/api/admin/article/create",
             expect.objectContaining({
-                body: expect.objectContaining({ transparentPublish: false }),
+                body: expect.objectContaining({transparentPublish: false}),
             })
         );
         expect(publishStatus).toMatchObject({
@@ -280,7 +280,7 @@ describe("useTransparentPublish", () => {
 
     it("records a JSON fallback business error", async () => {
         mockSupportSse = false;
-        postPublish.mockResolvedValueOnce({ error: 9026, message: "Title is required" });
+        postPublish.mockResolvedValueOnce({error: 9026, message: "Title is required"});
 
         await act(async () => {
             await publish("/api/admin/article/create", article);
@@ -293,9 +293,9 @@ describe("useTransparentPublish", () => {
         });
     });
     it("returns a rejected publication's business code to the article synchronization layer", async () => {
-        const conflict = { error: 9094, message: "Version expired" };
+        const conflict = {error: 9094, message: "Version expired"};
         postPublish.mockImplementationOnce(async (_uri, options: RefreshCacheSseOptions<unknown> = {}) => {
-            options.onEvent?.({ event: "publish-error", data: conflict });
+            options.onEvent?.({event: "publish-error", data: conflict});
             throw new Error(conflict.message);
         });
         await act(async () => {

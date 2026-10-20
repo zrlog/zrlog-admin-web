@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -9,7 +7,6 @@ import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.ui.AdminUiComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -17,12 +14,39 @@ import org.junit.runners.Parameterized;
 import java.lang.reflect.Proxy;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class PageActorBoundaryTest {
-    @Parameterized.Parameters(name = "sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
     private final boolean sqlite;
-    public PageActorBoundaryTest(boolean sqlite) { this.sqlite = sqlite; }
+
+    public PageActorBoundaryTest(boolean sqlite) {
+        this.sqlite = sqlite;
+    }
+
+    @Parameterized.Parameters(name = "sqlite={0}")
+    public static Boolean[] databases() {
+        return new Boolean[]{false, true};
+    }
+
+    private static HttpRequest request(boolean generated) {
+        return (HttpRequest) Proxy.newProxyInstance(PageActorBoundaryTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getUri":
+                            return "/admin/index";
+                        case "getContextPath":
+                            return "/sub";
+                        case "getScheme":
+                            return "http";
+                        case "getHeader":
+                            return "Host".equals(args[0]) ? "localhost:18080"
+                                    : "User-Agent".equals(args[0]) && generated ? BaseStaticSitePlugin.STATIC_USER_AGENT : null;
+                        default:
+                            return null;
+                    }
+                });
+    }
 
     @Test
     public void rendererUsesExplicitActorSessionAndPreferencesWithoutThreadIdentity() throws Exception {
@@ -86,19 +110,5 @@ public class PageActorBoundaryTest {
             db.close();
             throw error;
         }
-    }
-
-    private static HttpRequest request(boolean generated) {
-        return (HttpRequest) Proxy.newProxyInstance(PageActorBoundaryTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri": return "/admin/index";
-                        case "getContextPath": return "/sub";
-                        case "getScheme": return "http";
-                        case "getHeader": return "Host".equals(args[0]) ? "localhost:18080"
-                                : "User-Agent".equals(args[0]) && generated ? BaseStaticSitePlugin.STATIC_USER_AGENT : null;
-                        default: return null;
-                    }
-                });
     }
 }

@@ -1,10 +1,5 @@
 package com.zrlog.admin.web.interceptor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
@@ -20,7 +15,6 @@ import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-
 import org.junit.Test;
 
 import java.io.IOException;
@@ -29,174 +23,11 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class AdminPluginInterceptorTest {
 
     private ZrLogConfig applicationConfig;
-
-    @Test
-    public void shouldTreatOnlyPluginRootPwaResourcesAsPublic() {
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.webmanifest"));
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.json"));
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon"));
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-sw.js"));
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.webmanifest?v=1"));
-
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/static/app.js"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/api/status"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/nested/manifest.json"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon/"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugin/reminder/manifest.json"));
-    }
-
-    @Test
-    public void shouldConvertAdminPluginPathToPluginCorePath() {
-        assertEquals("/reminder/manifest.webmanifest",
-                AdminPluginInterceptor.pluginCoreUri("/admin/plugins/reminder/manifest.webmanifest"));
-    }
-
-    @Test
-    public void shouldRedirectPluginRootToSlashPath() throws Exception {
-        ResponseRecorder response = new ResponseRecorder();
-
-        new AdminPluginInterceptor(
-                        () -> applicationConfig.getTokenService(),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        ApplicationServicesFixture.installed(applicationConfig),
-                        AccountServicesFixture.component(null).requestIdentity(),
-                        ApplicationServicesFixture.audit(null))
-                .doInterceptor(request(HttpMethod.GET, "/admin/plugins"), response.response());
-
-        assertEquals("/admin/plugins/", response.redirected);
-    }
-
-    @Test
-    public void shouldProxyPublicPluginPwaResourceWithoutAdminToken() throws Exception {
-        FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
-
-        withConfig(
-                new TestZrLogConfig(tokenService(null), plugin),
-                () ->
-                        new AdminPluginInterceptor(
-                                        () -> applicationConfig.getTokenService(),
-                                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                        ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).requestIdentity(),
-                                        ApplicationServicesFixture.audit(null))
-                                .doInterceptor(
-                                        request(
-                                                HttpMethod.GET,
-                                                "/admin/plugins/reminder/manifest.json"),
-                                        new ResponseRecorder().response()));
-
-        assertEquals("/reminder/manifest.json", plugin.lastUri);
-        assertNull(plugin.lastToken);
-    }
-
-    @Test
-    public void shouldRender404WhenPublicPluginPwaResourceIsMissing() throws Exception {
-        FakePluginCorePlugin plugin = new FakePluginCorePlugin(false);
-        ResponseRecorder response = new ResponseRecorder();
-
-        withConfig(
-                new TestZrLogConfig(tokenService(null), plugin),
-                () ->
-                        new AdminPluginInterceptor(
-                                        () -> applicationConfig.getTokenService(),
-                                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                        ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).requestIdentity(),
-                                        ApplicationServicesFixture.audit(null))
-                                .doInterceptor(
-                                        request(
-                                                HttpMethod.GET,
-                                                "/admin/plugins/reminder/manifest.json"),
-                                        response.response()));
-
-        assertEquals(Integer.valueOf(404), response.renderedCode);
-    }
-
-    @Test
-    public void shouldRedirectUnauthorizedPluginSurfaceRequest() throws Exception {
-        ResponseRecorder response = new ResponseRecorder();
-
-        withConfig(
-                new TestZrLogConfig(tokenService(null), new FakePluginCorePlugin(true)),
-                () ->
-                        new AdminPluginInterceptor(
-                                        () -> applicationConfig.getTokenService(),
-                                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                        ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).requestIdentity(),
-                                        ApplicationServicesFixture.audit(null))
-                                .doInterceptor(
-                                        request(HttpMethod.GET, "/admin/plugins/reminder/index"),
-                                        response.response()));
-
-        assertTrue(response.redirected.contains("/admin/login"));
-        assertTrue(response.redirected.contains("redirectFrom="));
-    }
-
-    @Test
-    public void shouldRender404WhenAuthorizedPluginAccessFails() throws Exception {
-        ResponseRecorder response = new ResponseRecorder();
-
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            applicationConfig = db.config();
-            withConfig(
-                    new TestZrLogConfig(tokenService(token()), new FakePluginCorePlugin(false)),
-                    () ->
-                            new AdminPluginInterceptor(
-                                            () -> applicationConfig.getTokenService(),
-                                            () ->
-                                                    applicationConfig.getPlugin(
-                                                            PluginCorePlugin.class),
-                                            ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                                            ApplicationServicesFixture.audit(db.dataSource()))
-                                    .doInterceptor(
-                                            request(
-                                                    HttpMethod.GET,
-                                                    "/admin/plugins/reminder/index"),
-                                            response.response()));
-        }
-
-        assertEquals(Integer.valueOf(404), response.renderedCode);
-    }
-
-    @Test
-    public void shouldRecordPluginSurfaceActionThroughRealAuditStore() throws Exception {
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            applicationConfig = db.config();
-            FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
-
-            withConfig(
-                    new TestZrLogConfig(tokenService(token()), plugin),
-                    () ->
-                            new AdminPluginInterceptor(
-                                            () -> applicationConfig.getTokenService(),
-                                            () ->
-                                                    applicationConfig.getPlugin(
-                                                            PluginCorePlugin.class),
-                                            ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                                            ApplicationServicesFixture.audit(db.dataSource()))
-                                    .doInterceptor(
-                                            request(
-                                                    HttpMethod.POST,
-                                                    "/admin/plugins/reminder/surfaceAction"),
-                                            new ResponseRecorder().response()));
-
-            assertEquals("/reminder/surfaceAction", plugin.lastUri);
-            assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
-                    .get("value")).contains("PLUGIN_SURFACE_ACTION"));
-        }
-    }
-
-    private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
-        applicationConfig = config;
-        runnable.run();
-    }
 
     private static HttpRequest request(HttpMethod method, String uri) {
         return (HttpRequest) Proxy.newProxyInstance(
@@ -256,6 +87,171 @@ public class AdminPluginInterceptorTest {
                                       HttpRequest request, HttpResponse response) {
             }
         };
+    }
+
+    @Test
+    public void shouldTreatOnlyPluginRootPwaResourcesAsPublic() {
+        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.webmanifest"));
+        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.json"));
+        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon"));
+        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-sw.js"));
+        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.webmanifest?v=1"));
+
+        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/"));
+        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/static/app.js"));
+        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/api/status"));
+        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/nested/manifest.json"));
+        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon/"));
+        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugin/reminder/manifest.json"));
+    }
+
+    @Test
+    public void shouldConvertAdminPluginPathToPluginCorePath() {
+        assertEquals("/reminder/manifest.webmanifest",
+                AdminPluginInterceptor.pluginCoreUri("/admin/plugins/reminder/manifest.webmanifest"));
+    }
+
+    @Test
+    public void shouldRedirectPluginRootToSlashPath() throws Exception {
+        ResponseRecorder response = new ResponseRecorder();
+
+        new AdminPluginInterceptor(
+                () -> applicationConfig.getTokenService(),
+                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                ApplicationServicesFixture.installed(applicationConfig),
+                AccountServicesFixture.component(null).requestIdentity(),
+                ApplicationServicesFixture.audit(null))
+                .doInterceptor(request(HttpMethod.GET, "/admin/plugins"), response.response());
+
+        assertEquals("/admin/plugins/", response.redirected);
+    }
+
+    @Test
+    public void shouldProxyPublicPluginPwaResourceWithoutAdminToken() throws Exception {
+        FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
+
+        withConfig(
+                new TestZrLogConfig(tokenService(null), plugin),
+                () ->
+                        new AdminPluginInterceptor(
+                                () -> applicationConfig.getTokenService(),
+                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                ApplicationServicesFixture.installed(applicationConfig),
+                                AccountServicesFixture.component(null).requestIdentity(),
+                                ApplicationServicesFixture.audit(null))
+                                .doInterceptor(
+                                        request(
+                                                HttpMethod.GET,
+                                                "/admin/plugins/reminder/manifest.json"),
+                                        new ResponseRecorder().response()));
+
+        assertEquals("/reminder/manifest.json", plugin.lastUri);
+        assertNull(plugin.lastToken);
+    }
+
+    @Test
+    public void shouldRender404WhenPublicPluginPwaResourceIsMissing() throws Exception {
+        FakePluginCorePlugin plugin = new FakePluginCorePlugin(false);
+        ResponseRecorder response = new ResponseRecorder();
+
+        withConfig(
+                new TestZrLogConfig(tokenService(null), plugin),
+                () ->
+                        new AdminPluginInterceptor(
+                                () -> applicationConfig.getTokenService(),
+                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                ApplicationServicesFixture.installed(applicationConfig),
+                                AccountServicesFixture.component(null).requestIdentity(),
+                                ApplicationServicesFixture.audit(null))
+                                .doInterceptor(
+                                        request(
+                                                HttpMethod.GET,
+                                                "/admin/plugins/reminder/manifest.json"),
+                                        response.response()));
+
+        assertEquals(Integer.valueOf(404), response.renderedCode);
+    }
+
+    @Test
+    public void shouldRedirectUnauthorizedPluginSurfaceRequest() throws Exception {
+        ResponseRecorder response = new ResponseRecorder();
+
+        withConfig(
+                new TestZrLogConfig(tokenService(null), new FakePluginCorePlugin(true)),
+                () ->
+                        new AdminPluginInterceptor(
+                                () -> applicationConfig.getTokenService(),
+                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                ApplicationServicesFixture.installed(applicationConfig),
+                                AccountServicesFixture.component(null).requestIdentity(),
+                                ApplicationServicesFixture.audit(null))
+                                .doInterceptor(
+                                        request(HttpMethod.GET, "/admin/plugins/reminder/index"),
+                                        response.response()));
+
+        assertTrue(response.redirected.contains("/admin/login"));
+        assertTrue(response.redirected.contains("redirectFrom="));
+    }
+
+    @Test
+    public void shouldRender404WhenAuthorizedPluginAccessFails() throws Exception {
+        ResponseRecorder response = new ResponseRecorder();
+
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
+            withConfig(
+                    new TestZrLogConfig(tokenService(token()), new FakePluginCorePlugin(false)),
+                    () ->
+                            new AdminPluginInterceptor(
+                                    () -> applicationConfig.getTokenService(),
+                                    () ->
+                                            applicationConfig.getPlugin(
+                                                    PluginCorePlugin.class),
+                                    ApplicationServicesFixture.installed(applicationConfig),
+                                    AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                                    ApplicationServicesFixture.audit(db.dataSource()))
+                                    .doInterceptor(
+                                            request(
+                                                    HttpMethod.GET,
+                                                    "/admin/plugins/reminder/index"),
+                                            response.response()));
+        }
+
+        assertEquals(Integer.valueOf(404), response.renderedCode);
+    }
+
+    @Test
+    public void shouldRecordPluginSurfaceActionThroughRealAuditStore() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
+            FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
+
+            withConfig(
+                    new TestZrLogConfig(tokenService(token()), plugin),
+                    () ->
+                            new AdminPluginInterceptor(
+                                    () -> applicationConfig.getTokenService(),
+                                    () ->
+                                            applicationConfig.getPlugin(
+                                                    PluginCorePlugin.class),
+                                    ApplicationServicesFixture.installed(applicationConfig),
+                                    AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                                    ApplicationServicesFixture.audit(db.dataSource()))
+                                    .doInterceptor(
+                                            request(
+                                                    HttpMethod.POST,
+                                                    "/admin/plugins/reminder/surfaceAction"),
+                                            new ResponseRecorder().response()));
+
+            assertEquals("/reminder/surfaceAction", plugin.lastUri);
+            assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
+                    .get("value")).contains("PLUGIN_SURFACE_ACTION"));
+        }
+    }
+
+    private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
+        applicationConfig = config;
+        runnable.run();
     }
 
     private interface ThrowingRunnable {

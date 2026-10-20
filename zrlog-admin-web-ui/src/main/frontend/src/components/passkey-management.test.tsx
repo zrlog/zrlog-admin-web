@@ -1,7 +1,7 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ApiResponse, PasskeyRegistrationVerifyRequest, PasskeySummary } from "../type";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import type {ApiResponse, PasskeyRegistrationVerifyRequest, PasskeySummary} from "../type";
 import PasskeyManagement from "./passkey-management";
 
 type PasskeyListAxiosResponse = {
@@ -34,11 +34,11 @@ jest.mock("antd", () => {
         submit: () => void;
     };
     const Form = ({
-        children,
-        disabled,
-        form,
-        onFinish,
-    }: {
+                      children,
+                      disabled,
+                      form,
+                      onFinish,
+                  }: {
         children?: React.ReactNode;
         disabled?: boolean;
         form?: MockFormController;
@@ -60,13 +60,13 @@ jest.mock("antd", () => {
             children
         );
     };
-    Form.Item = ({ children, label, name }: { children?: React.ReactNode; label?: React.ReactNode; name?: string }) =>
+    Form.Item = ({children, label, name}: { children?: React.ReactNode; label?: React.ReactNode; name?: string }) =>
         React.createElement(
             "label",
             null,
             label,
             React.isValidElement(children)
-                ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, { name })
+                ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {name})
                 : children
         );
     Form.useForm = () => {
@@ -92,18 +92,18 @@ jest.mock("antd", () => {
     };
 
     const Input = (props: Record<string, unknown>) => React.createElement("input", props);
-    Input.Password = (props: Record<string, unknown>) => React.createElement("input", { ...props, type: "password" });
+    Input.Password = (props: Record<string, unknown>) => React.createElement("input", {...props, type: "password"});
     Input.OTP = (props: Record<string, unknown>) => React.createElement("input", props);
 
-    const Empty = ({ description }: { description?: React.ReactNode }) => React.createElement("div", null, description);
+    const Empty = ({description}: { description?: React.ReactNode }) => React.createElement("div", null, description);
     Empty.PRESENTED_IMAGE_SIMPLE = "simple";
 
     const ListItemMeta = ({
-        avatar,
-        description,
-        style,
-        title,
-    }: {
+                              avatar,
+                              description,
+                              style,
+                              title,
+                          }: {
         avatar?: React.ReactNode;
         description?: React.ReactNode;
         style?: React.CSSProperties;
@@ -111,21 +111,21 @@ jest.mock("antd", () => {
     }) =>
         React.createElement(
             "div",
-            { className: "ant-list-item-meta", style },
+            {className: "ant-list-item-meta", style},
             avatar,
-            React.createElement("div", { className: "ant-list-item-meta-title" }, title),
+            React.createElement("div", {className: "ant-list-item-meta-title"}, title),
             description
         );
-    const ListItem = ({ actions, children }: { actions?: React.ReactNode[]; children?: React.ReactNode }) =>
-        React.createElement("div", { className: "ant-list-item" }, children, React.createElement("div", null, actions));
+    const ListItem = ({actions, children}: { actions?: React.ReactNode[]; children?: React.ReactNode }) =>
+        React.createElement("div", {className: "ant-list-item"}, children, React.createElement("div", null, actions));
     ListItem.Meta = ListItemMeta;
 
     const List = ({
-        dataSource = [],
-        loading,
-        locale,
-        renderItem,
-    }: {
+                      dataSource = [],
+                      loading,
+                      locale,
+                      renderItem,
+                  }: {
         dataSource?: unknown[];
         loading?: boolean;
         locale?: { emptyText?: React.ReactNode };
@@ -133,26 +133,26 @@ jest.mock("antd", () => {
     }) =>
         React.createElement(
             "div",
-            { className: loading ? "ant-list-loading" : "" },
+            {className: loading ? "ant-list-loading" : ""},
             loading
                 ? null
                 : dataSource.length > 0
-                ? dataSource.map((item, index) =>
-                      React.createElement(React.Fragment, { key: index }, renderItem?.(item))
-                  )
-                : locale?.emptyText
+                    ? dataSource.map((item, index) =>
+                        React.createElement(React.Fragment, {key: index}, renderItem?.(item))
+                    )
+                    : locale?.emptyText
         );
     List.Item = ListItem;
 
-    const TypographyText = ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) =>
-        React.createElement("span", { className: "ant-typography", style }, children);
-    const TypographyParagraph = ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) =>
-        React.createElement("p", { style }, children);
+    const TypographyText = ({children, style}: { children?: React.ReactNode; style?: React.CSSProperties }) =>
+        React.createElement("span", {className: "ant-typography", style}, children);
+    const TypographyParagraph = ({children, style}: { children?: React.ReactNode; style?: React.CSSProperties }) =>
+        React.createElement("p", {style}, children);
 
     return {
-        theme: { useToken: () => ({ token: {} }) },
-        Button: ({ children, disabled, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
-            React.createElement("button", { disabled, onClick }, children),
+        theme: {useToken: () => ({token: {}})},
+        Button: ({children, disabled, onClick}: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
+            React.createElement("button", {disabled, onClick}, children),
         Empty,
         Form,
         Input,
@@ -167,12 +167,12 @@ jest.mock("antd", () => {
             ],
         },
         Modal: ({
-            children,
-            confirmLoading,
-            okText,
-            onOk,
-            open,
-        }: {
+                    children,
+                    confirmLoading,
+                    okText,
+                    onOk,
+                    open,
+                }: {
             children?: React.ReactNode;
             confirmLoading?: boolean;
             okText?: React.ReactNode;
@@ -181,24 +181,24 @@ jest.mock("antd", () => {
         }) =>
             open
                 ? React.createElement(
-                      "div",
-                      { role: "dialog" },
-                      children,
-                      React.createElement(
-                          "button",
-                          {
-                              "data-modal-action": "ok",
-                              disabled: confirmLoading,
-                              onClick: onOk,
-                          },
-                          okText
-                      )
-                  )
+                    "div",
+                    {role: "dialog"},
+                    children,
+                    React.createElement(
+                        "button",
+                        {
+                            "data-modal-action": "ok",
+                            disabled: confirmLoading,
+                            onClick: onOk,
+                        },
+                        okText
+                    )
+                )
                 : null,
-        Space: ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) =>
-            React.createElement("div", { style }, children),
-        Tooltip: ({ children, title }: { children?: React.ReactNode; title?: React.ReactNode }) =>
-            React.createElement("span", { "data-tooltip": title }, children),
+        Space: ({children, style}: { children?: React.ReactNode; style?: React.CSSProperties }) =>
+            React.createElement("div", {style}, children),
+        Tooltip: ({children, title}: { children?: React.ReactNode; title?: React.ReactNode }) =>
+            React.createElement("span", {"data-tooltip": title}, children),
         Typography: {
             Paragraph: TypographyParagraph,
             Text: TypographyText,
@@ -267,19 +267,19 @@ const reactActEnvironment = globalThis as typeof globalThis & {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
 
-const apiResponse = <T,>(data: T, error = 0, message = ""): ApiResponse<T> => ({
+const apiResponse = <T, >(data: T, error = 0, message = ""): ApiResponse<T> => ({
     data,
     error,
     message,
     pageBuildId: "test",
 });
 
-const deferred = <T,>() => {
+const deferred = <T, >() => {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((nextResolve) => {
         resolve = nextResolve;
     });
-    return { promise, resolve };
+    return {promise, resolve};
 };
 
 describe("PasskeyManagement", () => {
@@ -321,7 +321,7 @@ describe("PasskeyManagement", () => {
     it.each([false, true])(
         "renders server-provided passkeys without another request or spinner (offline: %s)",
         async (offline) => {
-            await render(offline, [{ id: 1, name: "Work computer", createdAt: 1 }]);
+            await render(offline, [{id: 1, name: "Work computer", createdAt: 1}]);
 
             expect(container.textContent).toContain("Work computer");
             expect(container.querySelector(".ant-list-loading")).toBeNull();
@@ -340,7 +340,7 @@ describe("PasskeyManagement", () => {
 
     it("uses updated page data without reloading the list", async () => {
         await render(true);
-        await render(false, [{ id: 1, name: "Work computer", createdAt: 1 }]);
+        await render(false, [{id: 1, name: "Work computer", createdAt: 1}]);
         expect(container.textContent).toContain("Work computer");
 
         await render(false, []);
@@ -421,13 +421,13 @@ describe("PasskeyManagement", () => {
         expect(container.querySelector(".ant-list-loading")).not.toBeNull();
 
         await act(async () => {
-            reconnectResponse.resolve({ data: apiResponse<PasskeySummary[]>([]) });
+            reconnectResponse.resolve({data: apiResponse<PasskeySummary[]>([])});
             await reconnectResponse.promise;
         });
     });
 
     it("keeps the registration action visible when WebAuthn is unavailable", async () => {
-        mockAxiosGet.mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) });
+        mockAxiosGet.mockResolvedValueOnce({data: apiResponse<PasskeySummary[]>([])});
 
         await render(false);
         let addButton = Array.from(container.querySelectorAll("button")).find(
@@ -489,11 +489,11 @@ describe("PasskeyManagement", () => {
             clientExtensionResults: {},
             type: "public-key" as const,
         };
-        mockAxiosGet.mockResolvedValueOnce({ data: apiResponse([addedPasskey]) });
+        mockAxiosGet.mockResolvedValueOnce({data: apiResponse([addedPasskey])});
         mockAxiosPost.mockResolvedValueOnce({
             data: apiResponse({
                 requestId: "registration-request",
-                options: { challenge: "challenge" },
+                options: {challenge: "challenge"},
             }),
         });
         mockRegisterPasskey.mockResolvedValueOnce(credentialResponse);
@@ -550,7 +550,7 @@ describe("PasskeyManagement", () => {
             name: "Old computer",
             createdAt: 3,
         };
-        mockAxiosGet.mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) });
+        mockAxiosGet.mockResolvedValueOnce({data: apiResponse<PasskeySummary[]>([])});
         mockPostPasskeyRemoval.mockResolvedValueOnce(apiResponse(true));
 
         await render(false, [passkey]);

@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.Gson;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -18,7 +16,6 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.access.AccessComponent;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.common.ZrLogConfig;
-
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
 
@@ -31,10 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 public class AdminOriginControllerTest {
 
-    private ZrLogConfig applicationConfig;
     private static final String FRONTEND = "https://admin.example";
+    private ZrLogConfig applicationConfig;
 
     private void configure(InMemoryZrLogDatabase db) throws Exception {
         db.putWebsite("backend_server_url", "https://api.example/sub");
@@ -42,7 +41,8 @@ public class AdminOriginControllerTest {
         db.loadAdminWebModules();
     }
 
-    @Test public void configuredFrontendCanRegisterAuthorizeAndRevokeApplicationsAndTokens() throws Exception {
+    @Test
+    public void configuredFrontendCanRegisterAuthorizeAndRevokeApplicationsAndTokens() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
@@ -89,53 +89,54 @@ public class AdminOriginControllerTest {
         }
     }
 
-    @Test public void configuredFrontendCanCreateAndUpdateMembers() throws Exception {
+    @Test
+    public void configuredFrontendCanCreateAndUpdateMembers() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
             var member =
                     controller(
-                                    new MemberController(
-                                            new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
-                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                                            new AdminPageDataFactory(
-                                                    ApplicationServicesFixture.site(db.config()),
-                                                    ApplicationServicesFixture.buildId(
-                                                            db.resources()),
-                                                    ApplicationServicesFixture.messages(db.dataSource())),
-                                            AccountServicesFixture.component(db.dataSource()).members(),
-                                            ApplicationServicesFixture.audit(db.dataSource())),
-                                    FRONTEND,
-                                    Map.of(
-                                            "userName",
-                                            "writer",
-                                            "password",
-                                            "test-member-password",
-                                            "role",
-                                            "author"))
+                            new MemberController(
+                                    new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
+                                    AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(
+                                                    db.resources()),
+                                            ApplicationServicesFixture.messages(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).members(),
+                                    ApplicationServicesFixture.audit(db.dataSource())),
+                            FRONTEND,
+                            Map.of(
+                                    "userName",
+                                    "writer",
+                                    "password",
+                                    "test-member-password",
+                                    "role",
+                                    "author"))
                             .create()
                             .getData();
             assertEquals("author", member.role);
             var updated =
                     controller(
-                                    new MemberController(
-                                            new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
-                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                                            new AdminPageDataFactory(
-                                                    ApplicationServicesFixture.site(db.config()),
-                                                    ApplicationServicesFixture.buildId(
-                                                            db.resources()),
-                                                    ApplicationServicesFixture.messages(db.dataSource())),
-                                            AccountServicesFixture.component(db.dataSource()).members(),
-                                            ApplicationServicesFixture.audit(db.dataSource())),
-                                    FRONTEND,
-                                    Map.of(
-                                            "userId",
-                                            member.userId,
-                                            "role",
-                                            "contributor",
-                                            "enabled",
-                                            false))
+                            new MemberController(
+                                    new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
+                                    AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(
+                                                    db.resources()),
+                                            ApplicationServicesFixture.messages(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).members(),
+                                    ApplicationServicesFixture.audit(db.dataSource())),
+                            FRONTEND,
+                            Map.of(
+                                    "userId",
+                                    member.userId,
+                                    "role",
+                                    "contributor",
+                                    "enabled",
+                                    false))
                             .update()
                             .getData();
             assertEquals("contributor", updated.role);
@@ -143,7 +144,8 @@ public class AdminOriginControllerTest {
         }
     }
 
-    @Test public void unconfiguredSourcesCannotMutateApplicationsTokensOrMembers() throws Exception {
+    @Test
+    public void unconfiguredSourcesCannotMutateApplicationsTokensOrMembers() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
@@ -153,7 +155,7 @@ public class AdminOriginControllerTest {
                         controller(
                                 new MemberController(
                                         new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
-                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
                                         new AdminPageDataFactory(
                                                 ApplicationServicesFixture.site(db.config()),
                                                 ApplicationServicesFixture.buildId(db.resources()),
@@ -190,15 +192,24 @@ public class AdminOriginControllerTest {
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
                 new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
                     switch (method.getName()) {
-                        case "getMethod": return HttpMethod.POST;
-                        case "getScheme": return "https";
-                        case "getInputStream": return new ByteArrayInputStream(json);
-                        case "getHeader": return "Origin".equals(args[0]) ? origin : null;
-                        case "getHeaderMap": return Map.of("Origin", origin, "X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost": return "127.0.0.1";
-                        case "getContextPath": return "/sub";
-                        case "getUri": return "/api/admin/oauth";
-                        default: return null;
+                        case "getMethod":
+                            return HttpMethod.POST;
+                        case "getScheme":
+                            return "https";
+                        case "getInputStream":
+                            return new ByteArrayInputStream(json);
+                        case "getHeader":
+                            return "Origin".equals(args[0]) ? origin : null;
+                        case "getHeaderMap":
+                            return Map.of("Origin", origin, "X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getContextPath":
+                            return "/sub";
+                        case "getUri":
+                            return "/api/admin/oauth";
+                        default:
+                            return null;
                     }
                 });
         HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(),

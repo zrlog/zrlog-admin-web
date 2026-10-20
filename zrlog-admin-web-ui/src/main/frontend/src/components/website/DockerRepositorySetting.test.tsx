@@ -1,28 +1,28 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
 import DockerRepositorySetting from "./DockerRepositorySetting";
-import type { Upgrade } from "./index";
+import type {Upgrade} from "./index";
 
 const mockGet = jest.fn<Promise<any>, [string, unknown]>();
-const mockAxios = { get: mockGet };
-jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
+const mockAxios = {get: mockGet};
+jest.mock("../../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
 jest.mock("../../utils/constants", () => ({
     getRes: () => require("../../i18n/admin").getAdminI18n("en_US"),
 }));
 jest.mock("antd", () => {
     const React = require("react");
     return {
-        Space: ({ children }: any) => React.createElement("div", null, children),
-        Alert: ({ message, action }: any) => React.createElement("div", { role: "alert" }, message, action),
-        Button: ({ children, onClick, disabled, htmlType }: any) =>
-            React.createElement("button", { onClick, disabled, type: htmlType }, children),
-        Select: ({ options, onChange, value, disabled }: any) =>
+        Space: ({children}: any) => React.createElement("div", null, children),
+        Alert: ({message, action}: any) => React.createElement("div", {role: "alert"}, message, action),
+        Button: ({children, onClick, disabled, htmlType}: any) =>
+            React.createElement("button", {onClick, disabled, type: htmlType}, children),
+        Select: ({options, onChange, value, disabled}: any) =>
             React.createElement(
                 "select",
-                { value: value ?? "", disabled, onChange: (event: any) => onChange(event.target.value) },
+                {value: value ?? "", disabled, onChange: (event: any) => onChange(event.target.value)},
                 options.map((option: any) =>
-                    React.createElement("option", { key: option.value, value: option.value }, option.label)
+                    React.createElement("option", {key: option.value, value: option.value}, option.label)
                 )
             ),
     };
@@ -34,9 +34,9 @@ const initial: Upgrade = {
     upgradePreview: true,
     dockerMode: true,
     dockerSettings: {
-        settings: { repository: hub, channel: "preview" },
+        settings: {repository: hub, channel: "preview"},
         currentRepository: aliyun,
-        images: [aliyun, hub].map((repository) => ({ repository, platforms: ["linux/amd64"] })),
+        images: [aliyun, hub].map((repository) => ({repository, platforms: ["linux/amd64"]})),
     },
 };
 const response = (repository = hub) => ({
@@ -44,7 +44,7 @@ const response = (repository = hub) => ({
         error: 0,
         data: {
             ...initial,
-            dockerSettings: { ...initial.dockerSettings, settings: { repository, channel: "release" } },
+            dockerSettings: {...initial.dockerSettings, settings: {repository, channel: "release"}},
         },
     },
 });
@@ -88,7 +88,7 @@ test("shows the initial repository without a request or independent save button"
     expect(container.querySelector("button")).toBeNull();
     await act(async () => {
         select().value = aliyun;
-        select().dispatchEvent(new Event("change", { bubbles: true }));
+        select().dispatchEvent(new Event("change", {bubbles: true}));
     });
     expect(change).toHaveBeenCalledWith(aliyun);
     expect(mockGet).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ test("ignores stale channel replies and preserves the unsaved repository", async
     expect(select().value).toBe(aliyun);
     expect(select().textContent).not.toContain("stale.example");
     expect(mockGet).toHaveBeenLastCalledWith("/api/admin/system/upgrade", {
-        params: { channel: "preview" },
+        params: {channel: "preview"},
         showError: false,
     });
     expect(busy).toHaveBeenLastCalledWith(false);
@@ -134,7 +134,7 @@ test.each([
     ["updater_configuration_mismatch", "The updater configuration is incomplete"],
     ["unexpected private detail", "Unable to load image repositories"],
 ])("explains %s and retries through the existing website endpoint", async (errorCode, message) => {
-    const data = { ...initial, dockerSettings: undefined, dockerErrorCode: errorCode };
+    const data = {...initial, dockerSettings: undefined, dockerErrorCode: errorCode};
     await render(data);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(message);
     expect(container.textContent).not.toContain("private");
@@ -142,7 +142,7 @@ test.each([
     mockGet.mockResolvedValue(response(aliyun));
     await act(async () => container.querySelector("button")!.click());
     expect(mockGet).toHaveBeenCalledWith("/api/admin/system/upgrade", {
-        params: { channel: "preview" },
+        params: {channel: "preview"},
         showError: false,
     });
     expect(select().value).toBe(aliyun);

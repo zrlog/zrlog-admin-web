@@ -1,13 +1,13 @@
-import { Alert, Button, Drawer, Spin } from "antd";
+import {Alert, Button, Drawer, Spin} from "antd";
 import HelpIcon from "@zrlog/ui/icons/help";
 
-import type { AxiosRequestConfig } from "axios";
-import { useEffect, useState } from "react";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRes } from "../../utils/constants";
-import PermissionHelpContent, { AccessPage, PermissionHelpView } from "./PermissionHelpContent";
+import type {AxiosRequestConfig} from "axios";
+import {useEffect, useState} from "react";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getRes} from "../../utils/constants";
+import PermissionHelpContent, {AccessPage, PermissionHelpView} from "./PermissionHelpContent";
 
-export default function PermissionHelp({ initialView = "roles" }: { initialView?: PermissionHelpView }) {
+export default function PermissionHelp({initialView = "roles"}: { initialView?: PermissionHelpView }) {
     const api = useAxiosBaseInstance();
     const [open, setOpen] = useState(false);
     const [data, setData] = useState<AccessPage>();
@@ -37,7 +37,7 @@ export default function PermissionHelp({ initialView = "roles" }: { initialView?
 
     return (
         <>
-            <Button icon={<HelpIcon />} onClick={() => setOpen(true)}>
+            <Button icon={<HelpIcon/>} onClick={() => setOpen(true)}>
                 {res.title}
             </Button>
             <Drawer
@@ -55,9 +55,9 @@ export default function PermissionHelp({ initialView = "roles" }: { initialView?
                         action={<Button onClick={() => setAttempt((value) => value + 1)}>{res.retry}</Button>}
                     />
                 ) : data ? (
-                    <PermissionHelpContent data={data} initialView={initialView} />
+                    <PermissionHelpContent data={data} initialView={initialView}/>
                 ) : (
-                    <Spin />
+                    <Spin/>
                 )}
             </Drawer>
         </>

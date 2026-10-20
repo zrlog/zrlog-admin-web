@@ -1,28 +1,28 @@
-import { Alert, Space, theme } from "antd";
+import {Alert, Space, theme} from "antd";
 import Switch from "@zrlog/ui/antd/Switch";
-import { isModuleEnabled } from "../../utils/module-capabilities";
-import { Link } from "react-router-dom";
-import { USER_ROUTES } from "../../utils/account-page-routes";
+import {isModuleEnabled} from "../../utils/module-capabilities";
+import {Link} from "react-router-dom";
+import {USER_ROUTES} from "../../utils/account-page-routes";
 import Form from "antd/es/form";
 
-import { useEffect } from "react";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
-import { FeatureLab } from "./index";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {useEffect} from "react";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
+import {FeatureLab} from "./index";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 const FeatureLabForm = ({
-    data,
-    offlineData,
-    offline,
-    onSubmit,
-    loading,
-}: {
+                            data,
+                            offlineData,
+                            offline,
+                            onSubmit,
+                            loading,
+                        }: {
     data: FeatureLab;
     offlineData: boolean;
     offline: boolean;
@@ -30,8 +30,8 @@ const FeatureLabForm = ({
     loading?: boolean;
 }) => {
     const [form] = Form.useForm();
-    const { formLayout } = useResponsiveFormLayout(layout);
-    const { token } = theme.useToken();
+    const {formLayout} = useResponsiveFormLayout(layout);
+    const {token} = theme.useToken();
 
     useEffect(() => {
         form.setFieldsValue(data);
@@ -43,13 +43,13 @@ const FeatureLabForm = ({
             form={form}
             disabled={offline || offlineData}
             initialValues={data}
-            onFinish={(values) => onSubmit({ ...data, ...values })}
+            onFinish={(values) => onSubmit({...data, ...values})}
         >
             <Alert
                 type="warning"
                 showIcon
                 message={getRes().websiteLab.notice}
-                style={{ marginBottom: token.margin }}
+                style={{marginBottom: token.margin}}
             />
             <Form.Item
                 valuePropName="checked"
@@ -57,7 +57,7 @@ const FeatureLabForm = ({
                 label={getRes().websiteLab.resourceReference}
                 tooltip={getRes().websiteLab.resourceReferenceTip}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
@@ -65,7 +65,7 @@ const FeatureLabForm = ({
                 label={getRes().websiteLab.articleExtensionFilter}
                 tooltip={getRes().websiteLab.articleExtensionFilterTip}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
@@ -74,7 +74,7 @@ const FeatureLabForm = ({
                 htmlFor="lab-article-arrangement"
                 tooltip={getRes().websiteLab.articleArrangementTip}
             >
-                <Switch id="lab-article-arrangement" />
+                <Switch id="lab-article-arrangement"/>
             </Form.Item>
             {isModuleEnabled("access") && (
                 <Form.Item
@@ -89,7 +89,7 @@ const FeatureLabForm = ({
                         </Space>
                     }
                 >
-                    <Switch />
+                    <Switch/>
                 </Form.Item>
             )}
             <Form.Item
@@ -98,10 +98,10 @@ const FeatureLabForm = ({
                 label={getRes().websiteLab.personalData}
                 tooltip={getRes().websiteLab.personalDataTip}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
 
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
         </Form>
     );
 };

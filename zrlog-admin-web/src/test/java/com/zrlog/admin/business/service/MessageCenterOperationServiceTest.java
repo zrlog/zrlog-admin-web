@@ -1,10 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hibegin.common.dao.DataSourceWrapper;
@@ -16,7 +11,6 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -27,9 +21,103 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class MessageCenterOperationServiceTest {
 
     private static final Gson GSON = new Gson();
+
+    private static List<MessageCenterOperationNoticeEntry> notices(int count) {
+        List<MessageCenterOperationNoticeEntry> notices = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
+            notice.setTaskKey("task-" + i);
+            notice.setUpdatedAt((long) i);
+            notices.add(notice);
+        }
+        return notices;
+    }
+
+    private static boolean hasPayload(List<MessageCenterNoticeResponse> notices, String actionPath, String status,
+                                      Map<String, Object> expectedValues) {
+        for (MessageCenterNoticeResponse notice : notices) {
+            if (!status.equals(notice.getStatus())) {
+                continue;
+            }
+            MessageCenterNoticeResponse.OperationTaskPayload payload =
+                    (MessageCenterNoticeResponse.OperationTaskPayload) notice.getPayload();
+            if (!actionPath.equals(payload.getActionPath())) {
+                continue;
+            }
+            JsonObject rawPayload = GSON.toJsonTree(payload.getPayload()).getAsJsonObject();
+            boolean matches = true;
+            for (Map.Entry<String, Object> entry : expectedValues.entrySet()) {
+                if (!GSON.toJsonTree(entry.getValue()).equals(rawPayload.get(entry.getKey()))) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static MessageCenterOperationService newService() throws Exception {
+        return allocate(MessageCenterOperationService.class);
+    }
+
+    private static MessageCenterOperationService newService(FakeWebsiteCacheService cacheService,
+                                                            FakeMessageCenterStateService stateService)
+            throws Exception {
+        MessageCenterOperationService service = newService();
+        setField(service, "cacheService", cacheService);
+        setField(service, "messageCenterStateService", stateService);
+        return service;
+    }
+
+    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
+        Method method = MessageCenterOperationService.class.getDeclaredMethod(name, parameterTypes);
+        method.setAccessible(true);
+        return method;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T allocate(Class<T> type) throws Exception {
+        return (T) unsafe().allocateInstance(type);
+    }
+
+    private static sun.misc.Unsafe unsafe() throws Exception {
+        Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        field.setAccessible(true);
+        return (sun.misc.Unsafe) field.get(null);
+    }
+
+    private static void setField(Object target, String name, Object value) throws Exception {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            try {
+                Field field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                field.set(target, value);
+                return;
+            } catch (NoSuchFieldException e) {
+                type = type.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException(name);
+    }
+
+    private static FakeWebsiteCacheService fakeCache() throws Exception {
+        FakeWebsiteCacheService cache = allocate(FakeWebsiteCacheService.class);
+        setField(cache, "values", new HashMap<String, Object>());
+        return cache;
+    }
+
+    private static FakeMessageCenterStateService fakeState() throws Exception {
+        return allocate(FakeMessageCenterStateService.class);
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -168,104 +256,12 @@ public class MessageCenterOperationServiceTest {
                 Map.of("articleId", 9L, "articleTitle", "Warn Article", "score", 60, "itemCount", 2)));
     }
 
-    private static List<MessageCenterOperationNoticeEntry> notices(int count) {
-        List<MessageCenterOperationNoticeEntry> notices = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
-            notice.setTaskKey("task-" + i);
-            notice.setUpdatedAt((long) i);
-            notices.add(notice);
-        }
-        return notices;
-    }
-
-    private static boolean hasPayload(List<MessageCenterNoticeResponse> notices, String actionPath, String status,
-                                      Map<String, Object> expectedValues) {
-        for (MessageCenterNoticeResponse notice : notices) {
-            if (!status.equals(notice.getStatus())) {
-                continue;
-            }
-            MessageCenterNoticeResponse.OperationTaskPayload payload =
-                    (MessageCenterNoticeResponse.OperationTaskPayload) notice.getPayload();
-            if (!actionPath.equals(payload.getActionPath())) {
-                continue;
-            }
-            JsonObject rawPayload = GSON.toJsonTree(payload.getPayload()).getAsJsonObject();
-            boolean matches = true;
-            for (Map.Entry<String, Object> entry : expectedValues.entrySet()) {
-                if (!GSON.toJsonTree(entry.getValue()).equals(rawPayload.get(entry.getKey()))) {
-                    matches = false;
-                    break;
-                }
-            }
-            if (matches) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static MessageCenterOperationService newService() throws Exception {
-        return allocate(MessageCenterOperationService.class);
-    }
-
-    private static MessageCenterOperationService newService(FakeWebsiteCacheService cacheService,
-                                                            FakeMessageCenterStateService stateService)
-            throws Exception {
-        MessageCenterOperationService service = newService();
-        setField(service, "cacheService", cacheService);
-        setField(service, "messageCenterStateService", stateService);
-        return service;
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = MessageCenterOperationService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T allocate(Class<T> type) throws Exception {
-        return (T) unsafe().allocateInstance(type);
-    }
-
-    private static sun.misc.Unsafe unsafe() throws Exception {
-        Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-        field.setAccessible(true);
-        return (sun.misc.Unsafe) field.get(null);
-    }
-
-    private static void setField(Object target, String name, Object value) throws Exception {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Field field = type.getDeclaredField(name);
-                field.setAccessible(true);
-                field.set(target, value);
-                return;
-            } catch (NoSuchFieldException e) {
-                type = type.getSuperclass();
-            }
-        }
-        throw new NoSuchFieldException(name);
-    }
-
-    private static FakeWebsiteCacheService fakeCache() throws Exception {
-        FakeWebsiteCacheService cache = allocate(FakeWebsiteCacheService.class);
-        setField(cache, "values", new HashMap<String, Object>());
-        return cache;
-    }
-
-    private static FakeMessageCenterStateService fakeState() throws Exception {
-        return allocate(FakeMessageCenterStateService.class);
-    }
-
     private static class FakeWebsiteCacheService extends WebsiteCacheService {
+        private Map<String, Object> values;
+
         FakeWebsiteCacheService(DataSourceWrapper testDataSource) {
             super(ApplicationServicesFixture.websiteKv(testDataSource));
         }
-
-        private Map<String, Object> values;
 
         @Override
         @SuppressWarnings("unchecked")
@@ -285,12 +281,11 @@ public class MessageCenterOperationServiceTest {
     }
 
     private static class FakeMessageCenterStateService extends MessageCenterStateService {
+        private boolean changed;
+        private boolean mayHaveUnread;
         FakeMessageCenterStateService(DataSourceWrapper testDataSource) {
             super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSite(testDataSource));
         }
-
-        private boolean changed;
-        private boolean mayHaveUnread;
 
         @Override
         public void markChanged() {

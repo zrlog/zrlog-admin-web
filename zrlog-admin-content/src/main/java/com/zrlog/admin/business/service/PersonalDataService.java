@@ -7,17 +7,17 @@ import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.model.Comment;
 import com.zrlog.model.User;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class PersonalDataService {
+    private static final String COMMENT_MATCH_CONDITION =
+            "(lower(coalesce(userMail, '')) = ?"
+                    + " or lower(coalesce(userName, '')) = ?"
+                    + " or lower(coalesce(userHome, '')) = ?"
+                    + " or lower(coalesce(userIp, '')) = ?)";
     private final jakarta.inject.Provider<User> userProvider;
     private final jakarta.inject.Provider<Comment> commentProvider;
 
@@ -28,12 +28,6 @@ public class PersonalDataService {
         this.userProvider = userProvider;
         this.commentProvider = commentProvider;
     }
-
-    private static final String COMMENT_MATCH_CONDITION =
-            "(lower(coalesce(userMail, '')) = ?"
-                    + " or lower(coalesce(userName, '')) = ?"
-                    + " or lower(coalesce(userHome, '')) = ?"
-                    + " or lower(coalesce(userIp, '')) = ?)";
 
     public PersonalDataPreviewResponse preview(PersonalDataPreviewRequest request, int currentUserId)
             throws SQLException {

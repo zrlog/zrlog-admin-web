@@ -7,6 +7,7 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.util.ZrLogUtil;
 
+import javax.sql.DataSource;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -17,10 +18,10 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.sql.DataSource;
 
 public class SystemInfoUtils {
 
+    public static final Logger LOGGER = LoggerUtil.getLogger(SystemInfoUtils.class);
     private final BooleanSupplier installed;
     private final Supplier<DataSource> dataSource;
     private final Supplier<File> executable;
@@ -33,30 +34,6 @@ public class SystemInfoUtils {
         this.executable = Objects.requireNonNull(executable);
         this.uptime = Objects.requireNonNull(uptime);
     }
-
-    public static final Logger LOGGER = LoggerUtil.getLogger(SystemInfoUtils.class);
-
-
-    private Properties getSystemProp() {
-        Properties systemProp = new Properties();
-        systemProp.putAll(System.getProperties());
-        systemProp.setProperty("zrlog.runtime.path", PathUtil.getRootPath());
-        systemProp.setProperty("server.info", "SimpleWebServer/" + com.hibegin.http.server.util.ServerInfo.getVersion());
-        if (StringUtils.isNotEmpty(systemProp.getProperty("os.name"))) {
-            if (systemProp.get("os.name").toString().startsWith("Mac")) {
-                systemProp.put("os.type", "apple");
-            } else {
-                systemProp.put("os.type", systemProp.getProperty("os.name").toLowerCase());
-            }
-            systemProp.put("docker", ZrLogUtil.isDockerMode() ? "docker" : "");
-        }
-        systemProp.remove("dbServer.version");
-        if (installed.getAsBoolean()) {
-            systemProp.put("dbServer.version", getDatabaseServerVersion(dataSource.get()));
-        }
-        return systemProp;
-    }
-
 
     static String getDatabaseServerVersion(DataSource dataSource) {
         if (Objects.isNull(dataSource)) {
@@ -87,6 +64,25 @@ public class SystemInfoUtils {
         return jdbcUrl != null && jdbcUrl.startsWith("jdbc:sqlite:");
     }
 
+    private Properties getSystemProp() {
+        Properties systemProp = new Properties();
+        systemProp.putAll(System.getProperties());
+        systemProp.setProperty("zrlog.runtime.path", PathUtil.getRootPath());
+        systemProp.setProperty("server.info", "SimpleWebServer/" + com.hibegin.http.server.util.ServerInfo.getVersion());
+        if (StringUtils.isNotEmpty(systemProp.getProperty("os.name"))) {
+            if (systemProp.get("os.name").toString().startsWith("Mac")) {
+                systemProp.put("os.type", "apple");
+            } else {
+                systemProp.put("os.type", systemProp.getProperty("os.name").toLowerCase());
+            }
+            systemProp.put("docker", ZrLogUtil.isDockerMode() ? "docker" : "");
+        }
+        systemProp.remove("dbServer.version");
+        if (installed.getAsBoolean()) {
+            systemProp.put("dbServer.version", getDatabaseServerVersion(dataSource.get()));
+        }
+        return systemProp;
+    }
 
     public List<ServerInfo> serverInfo(HttpRequest httpRequest) throws SQLException {
         ServerInfoSnapshot snapshot = ServerInfoSnapshot.fromProperties(getSystemProp());

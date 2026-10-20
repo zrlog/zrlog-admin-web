@@ -1,7 +1,7 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { getAdminI18n } from "../../../../i18n/admin";
-import { assistantTools } from "../article-ai-assistant.types";
-import { buildAssistantToolButtons, buildAssistantToolGroups } from "./article-ai-assistant-tools";
+import {describe, expect, it, jest} from "@jest/globals";
+import {getAdminI18n} from "../../../../i18n/admin";
+import {assistantTools} from "../article-ai-assistant.types";
+import {buildAssistantToolButtons, buildAssistantToolGroups} from "./article-ai-assistant-tools";
 
 jest.mock("../../../../utils/constants", () => ({
     getRes: () => require("../../../../i18n/admin").getAdminI18n("zh_CN"),
@@ -10,9 +10,9 @@ jest.mock("../../../../utils/constants", () => ({
 describe("article AI assistant tool stages", () => {
     it("uses the frozen three-stage labels", () => {
         expect(buildAssistantToolGroups()).toEqual([
-            { key: "ideation", label: "构思" },
-            { key: "editing", label: "编辑" },
-            { key: "publishCheck", label: "发布检查" },
+            {key: "ideation", label: "构思"},
+            {key: "editing", label: "编辑"},
+            {key: "publishCheck", label: "发布检查"},
         ]);
 
         const englishAssistant = getAdminI18n("en_US").articleEdit.assistant;

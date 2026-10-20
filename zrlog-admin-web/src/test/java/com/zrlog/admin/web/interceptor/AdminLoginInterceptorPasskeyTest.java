@@ -12,20 +12,6 @@ public class AdminLoginInterceptorPasskeyTest {
 
     private final AdminLoginInterceptor interceptor = new AdminLoginInterceptor(() -> null);
 
-    @Test
-    public void shouldAllowOnlyPasskeyAuthenticationEndpointsWithoutLogin() {
-        assertTrue(interceptor.isHandleAble(request("/api/admin/passkey/authentication/options")));
-        assertTrue(interceptor.isHandleAble(request("/api/admin/passkey/authentication/verify")));
-
-        assertFalse(interceptor.isHandleAble(request("/api/admin/passkey/authentication/options/extra")));
-        assertFalse(interceptor.isHandleAble(request("/api/admin/account-security/passkeys")));
-        assertFalse(interceptor.isHandleAble(
-                request("/api/admin/account-security/passkey/registration/options")));
-        assertFalse(interceptor.isHandleAble(
-                request("/api/admin/account-security/passkey/registration/verify")));
-        assertFalse(interceptor.isHandleAble(request("/api/admin/account-security/passkey/remove")));
-    }
-
     private static HttpRequest request(String uri) {
         return (HttpRequest) Proxy.newProxyInstance(
                 AdminLoginInterceptorPasskeyTest.class.getClassLoader(),
@@ -42,5 +28,19 @@ public class AdminLoginInterceptorPasskeyTest {
                     }
                     return null;
                 });
+    }
+
+    @Test
+    public void shouldAllowOnlyPasskeyAuthenticationEndpointsWithoutLogin() {
+        assertTrue(interceptor.isHandleAble(request("/api/admin/passkey/authentication/options")));
+        assertTrue(interceptor.isHandleAble(request("/api/admin/passkey/authentication/verify")));
+
+        assertFalse(interceptor.isHandleAble(request("/api/admin/passkey/authentication/options/extra")));
+        assertFalse(interceptor.isHandleAble(request("/api/admin/account-security/passkeys")));
+        assertFalse(interceptor.isHandleAble(
+                request("/api/admin/account-security/passkey/registration/options")));
+        assertFalse(interceptor.isHandleAble(
+                request("/api/admin/account-security/passkey/registration/verify")));
+        assertFalse(interceptor.isHandleAble(request("/api/admin/account-security/passkey/remove")));
     }
 }

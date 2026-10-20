@@ -1,6 +1,6 @@
 import Result from "@zrlog/ui/antd/Result";
-import type { ExceptionStatusType } from "antd/es/result";
-import { CSSProperties, FunctionComponent, ReactNode } from "react";
+import type {ExceptionStatusType} from "antd/es/result";
+import {CSSProperties, FunctionComponent, ReactNode} from "react";
 
 export type ErrorPageProps = {
     code: ExceptionStatusType;
@@ -10,8 +10,8 @@ export type ErrorPageProps = {
     style?: CSSProperties;
 };
 
-const UnknownErrorPage: FunctionComponent<ErrorPageProps> = ({ code, data, style }) => {
-    return <Result status={code} title={code} subTitle={data.message} style={style} />;
+const UnknownErrorPage: FunctionComponent<ErrorPageProps> = ({code, data, style}) => {
+    return <Result status={code} title={code} subTitle={data.message} style={style}/>;
 };
 
 export default UnknownErrorPage;

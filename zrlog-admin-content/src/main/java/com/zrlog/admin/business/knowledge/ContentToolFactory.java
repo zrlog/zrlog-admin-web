@@ -5,13 +5,14 @@ import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.util.Set;
 
-/** Binds an explicit account and source to an individual AI or MCP operation. */
+/**
+ * Binds an explicit account and source to an individual AI or MCP operation.
+ */
 @Singleton
 public final class ContentToolFactory {
     private final ContentToolProvider.Factory tools;

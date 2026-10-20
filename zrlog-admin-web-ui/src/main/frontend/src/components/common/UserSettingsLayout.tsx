@@ -6,29 +6,29 @@ import RobotIcon from "@zrlog/ui/icons/robot";
 import KeyIcon from "@zrlog/ui/icons/key";
 import SecurityIcon from "@zrlog/ui/icons/security";
 import ApiIcon from "@zrlog/ui/icons/api";
-import { isFeaturePathEnabled } from "../../utils/module-capabilities";
-import { ReactNode } from "react";
-import { theme } from "antd";
+import {isFeaturePathEnabled} from "../../utils/module-capabilities";
+import {ReactNode} from "react";
+import {theme} from "antd";
 
-import { getRes } from "../../utils/constants";
-import { USER_ROUTES, UserPreferencePage, UserApplicationPage } from "../../utils/account-page-routes";
-import { hasAction } from "../../utils/account-access";
-import SettingsLayout, { SettingsNavigationGroup } from "./SettingsLayout";
+import {getRes} from "../../utils/constants";
+import {USER_ROUTES, UserApplicationPage, UserPreferencePage} from "../../utils/account-page-routes";
+import {hasAction} from "../../utils/account-access";
+import SettingsLayout, {SettingsNavigationGroup} from "./SettingsLayout";
 import PermissionHelp from "./PermissionHelp";
 
 export type UserSettingsPage = "profile" | "security" | UserPreferencePage | UserApplicationPage;
 
 const UserSettingsLayout = ({
-    activeKey,
-    administrator,
-    children,
-}: {
+                                activeKey,
+                                administrator,
+                                children,
+                            }: {
     activeKey: UserSettingsPage;
     administrator?: boolean;
     children: ReactNode;
 }) => {
     const res = getRes();
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const canManageClients = administrator ?? hasAction("oauth.client.manage");
     const groups: SettingsNavigationGroup[] = [
         {
@@ -38,13 +38,13 @@ const UserSettingsLayout = ({
                     key: "profile",
                     label: res.user.title,
                     path: USER_ROUTES.profile,
-                    icon: <UserIcon style={activeKey === "profile" ? { color: token.colorPrimary } : undefined} />,
+                    icon: <UserIcon style={activeKey === "profile" ? {color: token.colorPrimary} : undefined}/>,
                 },
                 {
                     key: "security",
                     label: res.accountSecurity.title,
                     path: USER_ROUTES.security,
-                    icon: activeKey === "security" ? <LockIcon selected /> : <LockIcon />,
+                    icon: activeKey === "security" ? <LockIcon selected/> : <LockIcon/>,
                 },
             ],
         },
@@ -54,24 +54,24 @@ const UserSettingsLayout = ({
                 {
                     key: "appearance",
                     label: res.user.preferences.appearanceTitle,
-                    icon: activeKey === "appearance" ? <AppearanceIcon selected /> : <AppearanceIcon />,
+                    icon: activeKey === "appearance" ? <AppearanceIcon selected/> : <AppearanceIcon/>,
                 },
                 {
                     key: "writing",
                     label: res.user.preferences.writingTitle,
-                    icon: activeKey === "writing" ? <EditIcon selected /> : <EditIcon />,
+                    icon: activeKey === "writing" ? <EditIcon selected/> : <EditIcon/>,
                 },
                 {
                     key: "session",
                     label: res.user.preferences.sessionTitle,
-                    icon: activeKey === "session" ? <LockIcon selected /> : <LockIcon />,
+                    icon: activeKey === "session" ? <LockIcon selected/> : <LockIcon/>,
                 },
                 {
                     key: "assistant",
                     label: res.user.preferences.assistantTitle,
-                    icon: activeKey === "assistant" ? <RobotIcon selected /> : <RobotIcon />,
+                    icon: activeKey === "assistant" ? <RobotIcon selected/> : <RobotIcon/>,
                 },
-            ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserPreferencePage] })),
+            ].map((item) => ({...item, path: USER_ROUTES[item.key as UserPreferencePage]})),
         },
         {
             label: res.oauth.title,
@@ -79,23 +79,23 @@ const UserSettingsLayout = ({
                 {
                     key: "tokens",
                     label: res.oauth.personalTokens.title,
-                    icon: <KeyIcon style={activeKey === "tokens" ? { color: token.colorPrimary } : undefined} />,
+                    icon: <KeyIcon style={activeKey === "tokens" ? {color: token.colorPrimary} : undefined}/>,
                 },
                 {
                     key: "grants",
                     label: res.oauth.grants,
-                    icon: activeKey === "grants" ? <SecurityIcon selected /> : <SecurityIcon />,
+                    icon: activeKey === "grants" ? <SecurityIcon selected/> : <SecurityIcon/>,
                 },
                 ...(canManageClients
                     ? [
-                          {
-                              key: "clients",
-                              label: res.oauth.applications,
-                              icon: activeKey === "clients" ? <ApiIcon selected /> : <ApiIcon />,
-                          },
-                      ]
+                        {
+                            key: "clients",
+                            label: res.oauth.applications,
+                            icon: activeKey === "clients" ? <ApiIcon selected/> : <ApiIcon/>,
+                        },
+                    ]
                     : []),
-            ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserApplicationPage] })),
+            ].map((item) => ({...item, path: USER_ROUTES[item.key as UserApplicationPage]})),
         },
     ];
     const active = groups.flatMap((group) => group.items).find((item) => item.key === activeKey);
@@ -117,9 +117,9 @@ const UserSettingsLayout = ({
             title={active?.label ?? res.oauth.applications}
             summary={summaries[activeKey]}
             groups={groups
-                .map((group) => ({ ...group, items: group.items.filter((item) => isFeaturePathEnabled(item.path)) }))
+                .map((group) => ({...group, items: group.items.filter((item) => isFeaturePathEnabled(item.path))}))
                 .filter((group) => group.items.length > 0)}
-            extra={applicationPage && <PermissionHelp initialView="scopes" />}
+            extra={applicationPage && <PermissionHelp initialView="scopes"/>}
         >
             <div
                 style={{

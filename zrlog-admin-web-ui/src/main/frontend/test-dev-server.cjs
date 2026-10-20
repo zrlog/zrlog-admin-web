@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const http = require("node:http");
 const https = require("node:https");
-const { test } = require("node:test");
+const {test} = require("node:test");
 
 process.env.NODE_ENV = "development";
 const webpack = require("webpack");
@@ -16,12 +16,16 @@ const adaptConfig = require("./dev-server-config.cjs");
 function requestWithCa(protocol, port, pathname, headers, ca) {
     return new Promise((resolve, reject) => {
         const client = protocol === "https" ? https : http;
-        const req = client.get({ hostname: "127.0.0.1", port, path: pathname, headers,
-            ca, servername: "localhost", timeout: 5000 }, (res) => {
+        const req = client.get({
+            hostname: "127.0.0.1", port, path: pathname, headers,
+            ca, servername: "localhost", timeout: 5000
+        }, (res) => {
             let body = "";
             res.setEncoding("utf8");
-            res.on("data", (chunk) => { body += chunk; });
-            res.on("end", () => resolve({ status: res.statusCode, body, headers: res.headers }));
+            res.on("data", (chunk) => {
+                body += chunk;
+            });
+            res.on("end", () => resolve({status: res.statusCode, body, headers: res.headers}));
         });
         req.on("error", reject);
         req.on("timeout", () => req.destroy(new Error("development server request timed out")));
@@ -34,8 +38,8 @@ for (const protocol of ["http", "https"]) {
         fs.writeFileSync(path.join(directory, "entry.js"), 'console.log("development fixture");');
         const compiler = webpack({
             mode: "development", entry: path.join(directory, "entry.js"),
-            output: { path: path.join(directory, "dist"), filename: "bundle.js", publicPath: paths.publicUrlOrPath },
-            infrastructureLogging: { level: "error" }, stats: "errors-only",
+            output: {path: path.join(directory, "dist"), filename: "bundle.js", publicPath: paths.publicUrlOrPath},
+            infrastructureLogging: {level: "error"}, stats: "errors-only",
         });
         const cra = createCraConfig(undefined, "localhost");
         cra.https = protocol === "https";
@@ -44,12 +48,13 @@ for (const protocol of ["http", "https"]) {
             before(server);
             server.app.get("/__compat-before", (_req, res) => res.send("hook preserved"));
         };
-        const server = new DevServer({ ...adaptConfig(cra), host: "127.0.0.1", port: 0,
+        const server = new DevServer({
+            ...adaptConfig(cra), host: "127.0.0.1", port: 0,
             open: false, hot: false, client: false, webSocketServer: false,
         }, compiler);
         t.after(async () => {
             await server.stop();
-            fs.rmSync(directory, { recursive: true, force: true });
+            fs.rmSync(directory, {recursive: true, force: true});
         });
         await server.start();
         const port = server.server.address().port;
@@ -69,9 +74,9 @@ for (const protocol of ["http", "https"]) {
         assert.equal(worker.status, 200);
         assert.match(worker.body, /skipWaiting/);
         for (const pathname of [paths.publicUrlOrPath + "bundle.js", "/__compat-before", "/__get-internal-source"]) {
-            const hostile = await request(protocol, port, pathname, { Host: "attacker.invalid" });
+            const hostile = await request(protocol, port, pathname, {Host: "attacker.invalid"});
             assert.equal(hostile.status, 403, pathname);
-            const malformed = await request(protocol, port, pathname, { Host: "[malformed" });
+            const malformed = await request(protocol, port, pathname, {Host: "[malformed"});
             assert.equal(malformed.status, 403, pathname);
             const crossSite = await request(protocol, port, pathname, {
                 Origin: "https://attacker.invalid", "Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "no-cors",

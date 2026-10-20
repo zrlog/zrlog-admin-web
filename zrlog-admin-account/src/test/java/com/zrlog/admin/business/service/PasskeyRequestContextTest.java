@@ -13,6 +13,44 @@ public class PasskeyRequestContextTest {
 
     private final PasskeyRequestContext requestContext = new PasskeyRequestContext(() -> "");
 
+    private static HttpRequest request(String origin, String host, String scheme) {
+        return request(origin, host, scheme, null, null);
+    }
+
+    private static HttpRequest request(String origin, String host, String scheme,
+                                       String referer, String fetchSite) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                PasskeyRequestContextTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getHeader":
+                            if ("Origin".equals(args[0])) {
+                                return origin;
+                            }
+                            if ("Host".equals(args[0])) {
+                                return host;
+                            }
+                            if ("Referer".equals(args[0])) {
+                                return referer;
+                            }
+                            if ("Sec-Fetch-Site".equals(args[0])) {
+                                return fetchSite;
+                            }
+                            return null;
+                        case "getScheme":
+                            return scheme;
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
     @Test
     public void shouldAcceptSameOriginHttpsRequest() {
         PasskeyRequestContext.Context context = requestContext.resolve(
@@ -165,43 +203,5 @@ public class PasskeyRequestContextTest {
 
         assertThrows(PasskeyVerificationException.class, () -> requestContext.resolve(
                 request("https://" + oversizedHost, oversizedHost, "https")));
-    }
-
-    private static HttpRequest request(String origin, String host, String scheme) {
-        return request(origin, host, scheme, null, null);
-    }
-
-    private static HttpRequest request(String origin, String host, String scheme,
-                                       String referer, String fetchSite) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                PasskeyRequestContextTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getHeader":
-                            if ("Origin".equals(args[0])) {
-                                return origin;
-                            }
-                            if ("Host".equals(args[0])) {
-                                return host;
-                            }
-                            if ("Referer".equals(args[0])) {
-                                return referer;
-                            }
-                            if ("Sec-Fetch-Site".equals(args[0])) {
-                                return fetchSite;
-                            }
-                            return null;
-                        case "getScheme":
-                            return scheme;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
     }
 }

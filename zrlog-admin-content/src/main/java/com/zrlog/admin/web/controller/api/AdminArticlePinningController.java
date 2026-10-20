@@ -1,7 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -13,18 +11,20 @@ import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 
 public class AdminArticlePinningController extends BaseController {
     private final AdminAuditService adminAuditService;
+    private final ArticlePinningService pinningService;
 
     @Inject
     public AdminArticlePinningController(
@@ -32,8 +32,6 @@ public class AdminArticlePinningController extends BaseController {
         this.adminAuditService = adminAuditService;
         this.pinningService = pinningService;
     }
-
-    private final ArticlePinningService pinningService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.pins")

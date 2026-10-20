@@ -3,10 +3,8 @@ package com.zrlog.admin.web.di.content;
 import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.vo.PublicWebSiteInfo;
-
 import dagger.Module;
 import dagger.Provides;
-
 import jakarta.inject.Named;
 import jakarta.inject.Provider;
 
@@ -15,7 +13,8 @@ import java.util.function.Supplier;
 
 @Module
 public final class ContentModule {
-    private ContentModule() {}
+    private ContentModule() {
+    }
 
     @Provides
     static Supplier<PublicWebSiteInfo> site(Provider<CacheService> cache) {

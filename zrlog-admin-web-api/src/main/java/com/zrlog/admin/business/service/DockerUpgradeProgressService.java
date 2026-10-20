@@ -6,21 +6,25 @@ import com.zrlog.common.updater.UpgradeProgressEvent;
 import com.zrlog.common.updater.UpgradeProgressListener;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.updater.spi.DockerControl;
-
 import jakarta.inject.Inject;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-/** Adapts durable updater jobs to the application's existing upgrade SSE contract. */
+/**
+ * Adapts durable updater jobs to the application's existing upgrade SSE contract.
+ */
 public class DockerUpgradeProgressService {
     @Inject
-    public DockerUpgradeProgressService() {}
+    public DockerUpgradeProgressService() {
+    }
 
     public ApiStandardResponse<UpgradeProcessResponse> watch(DockerControl client,
-            DockerUpdaterProtocol.Job initial, UpgradeProgressListener listener, Map<String, Object> messages) throws Exception {
-        if (initial == null) { return new ApiStandardResponse<>(null); }
+                                                             DockerUpdaterProtocol.Job initial, UpgradeProgressListener listener, Map<String, Object> messages) throws Exception {
+        if (initial == null) {
+            return new ApiStandardResponse<>(null);
+        }
         DockerUpdaterProtocol.Job job = initial;
         long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
         while (true) {
@@ -31,11 +35,23 @@ public class DockerUpgradeProgressService {
             boolean failed = "failed".equals(job.phase) || "interrupted".equals(job.phase);
             String stage;
             switch (job.phase) {
-                case "queued": case "pulling": stage = UpgradeProgressEvent.STAGE_DOWNLOAD; break;
-                case "replacing": case "checking": stage = UpgradeProgressEvent.STAGE_RESTART; break;
-                case "succeeded": stage = UpgradeProgressEvent.STAGE_COMPLETE; break;
-                case "failed": case "interrupted": stage = UpgradeProgressEvent.STAGE_ERROR; break;
-                default: throw new IllegalStateException("Unknown updater phase");
+                case "queued":
+                case "pulling":
+                    stage = UpgradeProgressEvent.STAGE_DOWNLOAD;
+                    break;
+                case "replacing":
+                case "checking":
+                    stage = UpgradeProgressEvent.STAGE_RESTART;
+                    break;
+                case "succeeded":
+                    stage = UpgradeProgressEvent.STAGE_COMPLETE;
+                    break;
+                case "failed":
+                case "interrupted":
+                    stage = UpgradeProgressEvent.STAGE_ERROR;
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown updater phase");
             }
             String message = Objects.toString(messages.get("admin.upgrade.docker." + job.phase), "");
             String detail = failed && job.recoveryRequired
@@ -45,7 +61,9 @@ public class DockerUpgradeProgressService {
                             : UpgradeProgressEvent.STATUS_RUNNING, message, detail));
             if (job.terminal()) {
                 var result = new ApiStandardResponse<>(new UpgradeProcessResponse(!failed, message), message);
-                if (failed) { result.setError(1); }
+                if (failed) {
+                    result.setError(1);
+                }
                 return result;
             }
             if (System.nanoTime() >= deadline) {
@@ -57,5 +75,7 @@ public class DockerUpgradeProgressService {
         }
     }
 
-    protected void awaitNextStatus() throws InterruptedException { Thread.sleep(1000); }
+    protected void awaitNextStatus() throws InterruptedException {
+        Thread.sleep(1000);
+    }
 }

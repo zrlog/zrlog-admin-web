@@ -1,11 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -25,7 +19,6 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.model.WebSite;
-
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,14 +35,61 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static org.junit.Assert.*;
+
 public class TemplateControllerTest {
 
-    private ZrLogConfig applicationConfig;
-
+    private final String previousRootPath = System.getProperty("sws.root.path");
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private ZrLogConfig applicationConfig;
 
-    private final String previousRootPath = System.getProperty("sws.root.path");
+    private static void setControllerField(TemplateController controller, String name, Object value) throws Exception {
+        Field field = Controller.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(controller, value);
+    }
+
+    private static HttpRequest request(Map<String, String> params, String body, File file) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                TemplateControllerTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getParaToStr":
+                            if (args.length == 2) {
+                                return params.getOrDefault(args[0].toString(), args[1].toString());
+                            }
+                            return params.get(args[0].toString());
+                        case "getHeader":
+                            return params.get(args[0].toString());
+                        case "getContextPath":
+                            return "/blog";
+                        case "getCreateTime":
+                            return System.currentTimeMillis();
+                        case "getUri":
+                            return "/api/admin/template";
+                        case "getHeaderMap":
+                            return Map.of("X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getInputStream":
+                            if (body == null) {
+                                return null;
+                            }
+                            return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                        case "getFile":
+                            return file;
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
 
     @After
     public void tearDown() {
@@ -223,13 +263,13 @@ public class TemplateControllerTest {
     }
 
     private TemplateController controllerWithFile(Map<String, String> params, File file,
-                                                         ResponseRecorder response, DataSourceWrapper testDataSource)
+                                                  ResponseRecorder response, DataSourceWrapper testDataSource)
             throws Exception {
         return controller(params, null, file, response, testDataSource);
     }
 
     private TemplateController controller(Map<String, String> params, String body, File file,
-                                                 ResponseRecorder response, DataSourceWrapper testDataSource) throws Exception {
+                                          ResponseRecorder response, DataSourceWrapper testDataSource) throws Exception {
         TemplateController controller =
                 new TemplateController(
                         new TemplateService(
@@ -246,53 +286,6 @@ public class TemplateControllerTest {
         setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;
-    }
-
-    private static void setControllerField(TemplateController controller, String name, Object value) throws Exception {
-        Field field = Controller.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(controller, value);
-    }
-
-    private static HttpRequest request(Map<String, String> params, String body, File file) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                TemplateControllerTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getParaToStr":
-                            if (args.length == 2) {
-                                return params.getOrDefault(args[0].toString(), args[1].toString());
-                            }
-                            return params.get(args[0].toString());
-                        case "getHeader":
-                            return params.get(args[0].toString());
-                        case "getContextPath":
-                            return "/blog";
-                        case "getCreateTime":
-                            return System.currentTimeMillis();
-                        case "getUri":
-                            return "/api/admin/template";
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getInputStream":
-                            if (body == null) {
-                                return null;
-                            }
-                            return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                        case "getFile":
-                            return file;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
     }
 
     private static class ResponseRecorder {

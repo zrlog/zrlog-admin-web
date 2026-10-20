@@ -1,8 +1,8 @@
-import { theme as antdTheme } from "antd";
-import { FunctionComponent } from "react";
+import {theme as antdTheme} from "antd";
+import {FunctionComponent} from "react";
 
 const DeskGlobalStyle: FunctionComponent = () => {
-    const { token } = antdTheme.useToken();
+    const {token} = antdTheme.useToken();
 
     return (
         <style>

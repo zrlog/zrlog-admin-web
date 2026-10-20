@@ -3,9 +3,9 @@ import EditIcon from "@zrlog/ui/icons/edit";
 import ImageFileIcon from "@zrlog/ui/icons/image-file";
 import FolderIcon from "@zrlog/ui/icons/folder";
 import AppearanceIcon from "@zrlog/ui/icons/appearance";
-import { hasAction } from "../utils/account-access";
+import {hasAction} from "../utils/account-access";
 
-import { getAdminDashboardRouteSearchItems } from "../components/admin-dashboard-routes";
+import {getAdminDashboardRouteSearchItems} from "../components/admin-dashboard-routes";
 import {
     cacheIgnoreReloadTime,
     formatLabelValue,
@@ -54,12 +54,12 @@ type TemplateSearchEntry = {
 type PluginIconEntry =
     | string
     | {
-          src?: string;
-          url?: string;
-          href?: string;
-          base64?: string;
-          data?: string;
-      };
+    src?: string;
+    url?: string;
+    href?: string;
+    base64?: string;
+    data?: string;
+};
 
 type PluginSearchEntry = {
     id?: string;
@@ -160,14 +160,14 @@ const buildArticleCreatePath = (typeId?: number) => {
 };
 
 const loadArticleCreateItems = async (
-    { axiosInstance, normalizedKeyword }: SpotlightSearchContext,
+    {axiosInstance, normalizedKeyword}: SpotlightSearchContext,
     showDefault: boolean
 ): Promise<SpotlightItem[]> => {
     const commandMatches = articleCreateCommandMatches(normalizedKeyword);
     let rows: ArticleTypeSearchEntry[] = [];
     try {
         const typeRes = await axiosInstance.get("/api/admin/article", {
-            params: { page: 1, size: 1 },
+            params: {page: 1, size: 1},
             showError: false,
         } as any);
         rows = typeRes?.data?.data?.types || [];
@@ -184,7 +184,7 @@ const loadArticleCreateItems = async (
                 title: getRes().articleEdit.new,
                 subTitle: getRes().pleaseChoose + getRes().articleType.title,
                 path: buildArticleCreatePath(),
-                icon: <EditIcon />,
+                icon: <EditIcon/>,
                 keywords: articleCreateCommandKeywords,
                 type: "action" as const,
                 persist: false,
@@ -209,7 +209,7 @@ const loadArticleCreateItems = async (
                 title: `${getRes().articleEdit.new} - ${typeName}`,
                 subTitle: formatLabelValue(getRes().type, typeName),
                 path: buildArticleCreatePath(typeId),
-                icon: <EditIcon />,
+                icon: <EditIcon/>,
                 keywords: [...articleCreateCommandKeywords, typeName, row.alias || ""],
                 type: "action" as const,
                 persist: false,
@@ -255,8 +255,8 @@ const templateToSpotlightItem = (row: TemplateSearchEntry): SpotlightItem => ({
     id: `template-${row.shortTemplate || row.name}`,
     title: row.name || row.shortTemplate || getRes().websiteTemplate.title,
     subTitle: row.shortTemplate || row.digest,
-    path: buildQueryPath("/template", { shortTemplate: row.shortTemplate || "" }),
-    icon: <AppearanceIcon />,
+    path: buildQueryPath("/template", {shortTemplate: row.shortTemplate || ""}),
+    icon: <AppearanceIcon/>,
     keywords: [],
     type: "template",
 });
@@ -269,21 +269,21 @@ const pluginToSpotlightItem = (row: PluginSearchEntry, renderImageIcon: Spotligh
         id: `plugin-${row.shortName || row.id}`,
         title,
         subTitle: pluginDescription(row),
-        path: buildQueryPath("/plugin", { page }),
-        icon: renderImageIcon(iconSrc, title, <ApiIcon />),
+        path: buildQueryPath("/plugin", {page}),
+        icon: renderImageIcon(iconSrc, title, <ApiIcon/>),
         iconSrc,
         keywords: [],
         type: "plugin",
     };
 };
 
-const refreshTemplateRows = ({ axiosInstance, onSourceRefresh }: SpotlightSearchContext) => {
+const refreshTemplateRows = ({axiosInstance, onSourceRefresh}: SpotlightSearchContext) => {
     if (!shouldRefreshReferenceCache(templateSearchCache)) {
         return;
     }
     templateSearchCache.requestedAt = Date.now();
     templateSearchCache.inFlight = axiosInstance
-        .get("/api/admin/template", { showError: false } as any)
+        .get("/api/admin/template", {showError: false} as any)
         .then((templateRes) => {
             const rows: TemplateSearchEntry[] = templateRes?.data?.data || [];
             updateReferenceCache(templateSearchCache, rows, onSourceRefresh);
@@ -294,13 +294,13 @@ const refreshTemplateRows = ({ axiosInstance, onSourceRefresh }: SpotlightSearch
         });
 };
 
-const refreshPluginRows = ({ axiosInstance, onSourceRefresh }: SpotlightSearchContext) => {
+const refreshPluginRows = ({axiosInstance, onSourceRefresh}: SpotlightSearchContext) => {
     if (!shouldRefreshReferenceCache(pluginSearchCache)) {
         return;
     }
     pluginSearchCache.requestedAt = Date.now();
     pluginSearchCache.inFlight = axiosInstance
-        .get("/admin/plugins/api/plugins", { showError: false } as any)
+        .get("/admin/plugins/api/plugins", {showError: false} as any)
         .then((pluginRes) => {
             const rows: PluginSearchEntry[] = pluginRes?.data?.plugins || [];
             updateReferenceCache(pluginSearchCache, rows, onSourceRefresh);
@@ -341,7 +341,7 @@ const createRouteSource = (): SpotlightSource => {
     return {
         id: "route",
         empty: () => items().slice(0, SOURCE_RESULT_LIMIT),
-        search: ({ normalizedKeyword }) =>
+        search: ({normalizedKeyword}) =>
             items().filter(
                 (item) =>
                     includesKeyword(item.title, normalizedKeyword) ||
@@ -358,9 +358,9 @@ const articleCreateCommandSource: SpotlightSource = {
 
 const articleSource: SpotlightSource = {
     id: "article",
-    search: async ({ axiosInstance, keyword }) => {
+    search: async ({axiosInstance, keyword}) => {
         const articleRes = await axiosInstance.get("/api/admin/article", {
-            params: { key: keyword, page: 1, size: 5 },
+            params: {key: keyword, page: 1, size: 5},
         });
         const rows = articleRes?.data?.data?.rows || [];
         return rows.map((row: any) => ({
@@ -368,7 +368,7 @@ const articleSource: SpotlightSource = {
             title: row.title,
             subTitle: row.typeName,
             path: `/article-edit?id=${row.id}`,
-            icon: <EditIcon />,
+            icon: <EditIcon/>,
             keywords: [],
             type: "article",
         }));
@@ -377,15 +377,15 @@ const articleSource: SpotlightSource = {
 
 const fileSource: SpotlightSource = {
     id: "file",
-    search: async ({ axiosInstance, keyword }) => {
-        const fileRes = await axiosInstance.get("/api/admin/file-manager/search", { params: { key: keyword } });
+    search: async ({axiosInstance, keyword}) => {
+        const fileRes = await axiosInstance.get("/api/admin/file-manager/search", {params: {key: keyword}});
         const rows = fileRes?.data?.data || [];
         return rows.map((row: any) => ({
             id: `file-${row.path}`,
             title: row.name,
             subTitle: row.path,
             path: `/file-manager?path=${row.path}`,
-            icon: row.type === "directory" ? <FolderIcon /> : <ImageFileIcon />,
+            icon: row.type === "directory" ? <FolderIcon/> : <ImageFileIcon/>,
             iconVariant: row.type === "directory" ? "directory" : "file",
             keywords: [],
             type: "file",
@@ -441,7 +441,7 @@ const pluginSource: SpotlightSource = {
 
 export const createSpotlightCommandSource = (commands: SpotlightCommand[], sourceId = "command"): SpotlightSource => ({
     id: sourceId,
-    search: ({ normalizedKeyword }) =>
+    search: ({normalizedKeyword}) =>
         commands
             .filter(
                 (command) =>

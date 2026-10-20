@@ -1,32 +1,16 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.Gson;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
-import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
-import com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest;
-import com.zrlog.admin.business.rest.request.OptimizeAiPromptRequest;
-import com.zrlog.admin.business.rest.request.OptimizeWebsiteDescriptionRequest;
-import com.zrlog.admin.business.rest.request.ScoreArticleRequest;
-import com.zrlog.admin.business.rest.response.ArticleProofreadResponse;
-import com.zrlog.admin.business.rest.response.ArticleReaderQuestionsResponse;
-import com.zrlog.admin.business.rest.response.ArticleSeoCheckResponse;
-import com.zrlog.admin.business.rest.response.ArticleStructureAdviceResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleAliasResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleDigestResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleMarkdownResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleTagsResponse;
-import com.zrlog.admin.business.rest.response.GenerateArticleTitleResponse;
-import com.zrlog.admin.business.rest.response.OptimizeAiPromptResponse;
-import com.zrlog.admin.business.rest.response.OptimizeWebsiteDescriptionResponse;
-import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
-
 import org.junit.Test;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -41,26 +25,165 @@ import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Flow;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class AIToolServiceTest {
 
     private static final Gson GSON = new Gson();
+
+    private static void seedAiConfig(InMemoryZrLogDatabase db) throws Exception {
+        db.putWebsite("ai_provider", "DEEP_SEEK");
+        db.putWebsite("ai_model", "deepseek-chat");
+        db.putWebsite("ai_api_key", "test-key");
+        db.putWebsite("ai_prompt", "System prompt");
+    }
+
+    private static OptimizeWebsiteDescriptionRequest websiteDescriptionRequest() {
+        OptimizeWebsiteDescriptionRequest request = new OptimizeWebsiteDescriptionRequest();
+        request.setTitle("ZrLog");
+        request.setSecond_title("Blog");
+        request.setKeywords("java,blog");
+        request.setDescription("Old description");
+        request.setAuthor("admin");
+        return request;
+    }
+
+    private static OptimizeAiPromptRequest aiPromptRequest() {
+        OptimizeAiPromptRequest request = new OptimizeAiPromptRequest();
+        request.setPrompt("Make the article assistant concise");
+        return request;
+    }
+
+    private static GenerateArticleTitleRequest titleRequest() {
+        GenerateArticleTitleRequest request = new GenerateArticleTitleRequest();
+        request.setTitle("Draft title");
+        request.setMarkdown("Draft markdown");
+        request.setDigest("Draft digest");
+        request.setKeywords("java,zrlog");
+        request.setSelectedText("selected sentence");
+        return request;
+    }
+
+    private static ScoreArticleRequest scoreRequest() {
+        ScoreArticleRequest request = new ScoreArticleRequest();
+        request.setTitle("Draft title");
+        request.setMarkdown("Draft markdown");
+        request.setDigest("Draft digest");
+        request.setKeywords("java,zrlog");
+        request.setSelectedText("score selected sentence");
+        return request;
+    }
+
+    private static String scoreJson(String summary) {
+        return "{\"score\":88,\"summary\":\"" + summary + "\",\"items\":["
+                + "{\"name\":\"SEO\",\"score\":80,\"suggestion\":\"Improve title\"}]}";
+    }
+
+    private static HttpResponse<String> completionResponse(String content) {
+        return stringResponse(200, GSON.toJson(Map.of("choices",
+                List.of(Map.of("message", Map.of("content", content))))));
+    }
+
+    private static HttpResponse<String> stringResponse(int statusCode, String body) {
+        return new HttpResponse<>() {
+            @Override
+            public int statusCode() {
+                return statusCode;
+            }
+
+            @Override
+            public HttpRequest request() {
+                return null;
+            }
+
+            @Override
+            public Optional<HttpResponse<String>> previousResponse() {
+                return Optional.empty();
+            }
+
+            @Override
+            public HttpHeaders headers() {
+                return HttpHeaders.of(Map.of(), (name, value) -> true);
+            }
+
+            @Override
+            public String body() {
+                return body;
+            }
+
+            @Override
+            public Optional<SSLSession> sslSession() {
+                return Optional.empty();
+            }
+
+            @Override
+            public URI uri() {
+                return URI.create("http://localhost");
+            }
+
+            @Override
+            public HttpClient.Version version() {
+                return HttpClient.Version.HTTP_1_1;
+            }
+        };
+    }
+
+    private static void assertProviderRequests(FakeHttpClient client, int expectedRequestCount) {
+        assertEquals(expectedRequestCount, client.requests.size());
+        assertEquals(expectedRequestCount, client.requestBodies.size());
+        for (HttpRequest request : client.requests) {
+            assertEquals("https://api.deepseek.com/chat/completions", request.uri().toString());
+            assertEquals("Bearer test-key", request.headers().firstValue("Authorization").orElse(""));
+            assertEquals("application/json", request.headers().firstValue("Content-Type").orElse(""));
+            assertEquals("identity", request.headers().firstValue("Accept-Encoding").orElse(""));
+        }
+    }
+
+    private static String readBody(HttpRequest request) {
+        return request.bodyPublisher().map(AIToolServiceTest::readBody).orElse("");
+    }
+
+    private static String readBody(HttpRequest.BodyPublisher publisher) {
+        BodyCollector collector = new BodyCollector();
+        publisher.subscribe(collector);
+        return collector.body();
+    }
+
+    private static Object invoke(AIToolService service, String methodName, Object... args) throws Exception {
+        Method method = findMethod(methodName, args.length);
+        method.setAccessible(true);
+        return method.invoke(service, args);
+    }
+
+    private static void assertAiResponseError(AIToolService service, String methodName, String expectedMessage,
+                                              Object... args)
+            throws Exception {
+        Throwable error = invokeFailure(service, methodName, args);
+        assertTrue(error instanceof AIResponseException);
+        assertTrue(error.getMessage().contains(expectedMessage));
+    }
+
+    private static Throwable invokeFailure(AIToolService service, String methodName, Object... args) throws Exception {
+        try {
+            invoke(service, methodName, args);
+        } catch (InvocationTargetException e) {
+            return e.getCause();
+        }
+        throw new AssertionError("Expected method failure");
+    }
+
+    private static Method findMethod(String methodName, int parameterCount) {
+        for (Method method : AIToolService.class.getDeclaredMethods()) {
+            if (method.getName().equals(methodName) && method.getParameterCount() == parameterCount) {
+                return method;
+            }
+        }
+        throw new IllegalArgumentException("No method " + methodName);
+    }
 
     @Test(expected = ArgsException.class)
     public void shouldRejectMarkdownRewriteWithoutDraftBody() throws Exception {
@@ -317,49 +440,6 @@ public class AIToolServiceTest {
         return sb.toString();
     }
 
-    private static void seedAiConfig(InMemoryZrLogDatabase db) throws Exception {
-        db.putWebsite("ai_provider", "DEEP_SEEK");
-        db.putWebsite("ai_model", "deepseek-chat");
-        db.putWebsite("ai_api_key", "test-key");
-        db.putWebsite("ai_prompt", "System prompt");
-    }
-
-    private static OptimizeWebsiteDescriptionRequest websiteDescriptionRequest() {
-        OptimizeWebsiteDescriptionRequest request = new OptimizeWebsiteDescriptionRequest();
-        request.setTitle("ZrLog");
-        request.setSecond_title("Blog");
-        request.setKeywords("java,blog");
-        request.setDescription("Old description");
-        request.setAuthor("admin");
-        return request;
-    }
-
-    private static OptimizeAiPromptRequest aiPromptRequest() {
-        OptimizeAiPromptRequest request = new OptimizeAiPromptRequest();
-        request.setPrompt("Make the article assistant concise");
-        return request;
-    }
-
-    private static GenerateArticleTitleRequest titleRequest() {
-        GenerateArticleTitleRequest request = new GenerateArticleTitleRequest();
-        request.setTitle("Draft title");
-        request.setMarkdown("Draft markdown");
-        request.setDigest("Draft digest");
-        request.setKeywords("java,zrlog");
-        request.setSelectedText("selected sentence");
-        return request;
-    }
-
-    private static ScoreArticleRequest scoreRequest() {
-        ScoreArticleRequest request = new ScoreArticleRequest();
-        request.setTitle("Draft title");
-        request.setMarkdown("Draft markdown");
-        request.setDigest("Draft digest");
-        request.setKeywords("java,zrlog");
-        request.setSelectedText("score selected sentence");
-        return request;
-    }
-
     private GenerateArticleFieldRequest articleFieldRequest() {
         GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
         request.setTitle("Draft title");
@@ -373,113 +453,6 @@ public class AIToolServiceTest {
         request.setStaticSiteEnabled(true);
         request.setStaticSitePluginEnabled(true);
         return request;
-    }
-
-    private static String scoreJson(String summary) {
-        return "{\"score\":88,\"summary\":\"" + summary + "\",\"items\":["
-                + "{\"name\":\"SEO\",\"score\":80,\"suggestion\":\"Improve title\"}]}";
-    }
-
-    private static HttpResponse<String> completionResponse(String content) {
-        return stringResponse(200, GSON.toJson(Map.of("choices",
-                List.of(Map.of("message", Map.of("content", content))))));
-    }
-
-    private static HttpResponse<String> stringResponse(int statusCode, String body) {
-        return new HttpResponse<>() {
-            @Override
-            public int statusCode() {
-                return statusCode;
-            }
-
-            @Override
-            public HttpRequest request() {
-                return null;
-            }
-
-            @Override
-            public Optional<HttpResponse<String>> previousResponse() {
-                return Optional.empty();
-            }
-
-            @Override
-            public HttpHeaders headers() {
-                return HttpHeaders.of(Map.of(), (name, value) -> true);
-            }
-
-            @Override
-            public String body() {
-                return body;
-            }
-
-            @Override
-            public Optional<SSLSession> sslSession() {
-                return Optional.empty();
-            }
-
-            @Override
-            public URI uri() {
-                return URI.create("http://localhost");
-            }
-
-            @Override
-            public HttpClient.Version version() {
-                return HttpClient.Version.HTTP_1_1;
-            }
-        };
-    }
-
-    private static void assertProviderRequests(FakeHttpClient client, int expectedRequestCount) {
-        assertEquals(expectedRequestCount, client.requests.size());
-        assertEquals(expectedRequestCount, client.requestBodies.size());
-        for (HttpRequest request : client.requests) {
-            assertEquals("https://api.deepseek.com/chat/completions", request.uri().toString());
-            assertEquals("Bearer test-key", request.headers().firstValue("Authorization").orElse(""));
-            assertEquals("application/json", request.headers().firstValue("Content-Type").orElse(""));
-            assertEquals("identity", request.headers().firstValue("Accept-Encoding").orElse(""));
-        }
-    }
-
-    private static String readBody(HttpRequest request) {
-        return request.bodyPublisher().map(AIToolServiceTest::readBody).orElse("");
-    }
-
-    private static String readBody(HttpRequest.BodyPublisher publisher) {
-        BodyCollector collector = new BodyCollector();
-        publisher.subscribe(collector);
-        return collector.body();
-    }
-
-    private static Object invoke(AIToolService service, String methodName, Object... args) throws Exception {
-        Method method = findMethod(methodName, args.length);
-        method.setAccessible(true);
-        return method.invoke(service, args);
-    }
-
-    private static void assertAiResponseError(AIToolService service, String methodName, String expectedMessage,
-                                              Object... args)
-            throws Exception {
-        Throwable error = invokeFailure(service, methodName, args);
-        assertTrue(error instanceof AIResponseException);
-        assertTrue(error.getMessage().contains(expectedMessage));
-    }
-
-    private static Throwable invokeFailure(AIToolService service, String methodName, Object... args) throws Exception {
-        try {
-            invoke(service, methodName, args);
-        } catch (InvocationTargetException e) {
-            return e.getCause();
-        }
-        throw new AssertionError("Expected method failure");
-    }
-
-    private static Method findMethod(String methodName, int parameterCount) {
-        for (Method method : AIToolService.class.getDeclaredMethods()) {
-            if (method.getName().equals(methodName) && method.getParameterCount() == parameterCount) {
-                return method;
-            }
-        }
-        throw new IllegalArgumentException("No method " + methodName);
     }
 
     private static class FakeHttpClient extends HttpClient {

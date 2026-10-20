@@ -1,18 +1,17 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.util.AdminWebTools;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.common.vo.I18nVO;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.lang.reflect.Method;
@@ -24,12 +23,10 @@ import java.util.function.Supplier;
  * 负责全部后台请求的处理（/admin/plugins/*,/api/admin/plugins/* 除外）
  */
 public class AdminInterceptor extends AdminMethodInterceptor {
+    protected final Supplier<TokenService> tokenService;
     private final AdminRequestIdentity requestIdentity;
     private final AdminRouteAuthorizer routeAuthorizer;
-
     private final UserPreferenceService userPreferenceService;
-
-    protected final Supplier<TokenService> tokenService;
     private final BooleanSupplier installed;
 
     @Inject
@@ -71,9 +68,10 @@ public class AdminInterceptor extends AdminMethodInterceptor {
                 response.addHeader("Referrer-Policy", "no-referrer");
                 response.addHeader("X-Frame-Options", "DENY");
                 if (java.util.Set.of("/admin", "/admin/", "/admin/index", "/admin/index.html")
-                                .contains(request.getUri())
+                        .contains(request.getUri())
                         && !requestIdentity.current().isAdministrator()) {
-                    response.redirect(request.getContextPath() + "/admin/article"); return false;
+                    response.redirect(request.getContextPath() + "/admin/article");
+                    return false;
                 }
                 routeAuthorizer.checkRoute(requestIdentity.current(), method, request);
                 I18nVO locale = I18nUtil.threadLocal.get();

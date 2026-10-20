@@ -1,4 +1,25 @@
-import { Alert, Button, Card, Checkbox, ColorPicker, Drawer, Dropdown, Empty, Flex, Form, Modal, Radio, Segmented, Select, Slider, Spin, Tabs, Typography, Upload, theme } from "antd";
+import {
+    Alert,
+    Button,
+    Card,
+    Checkbox,
+    ColorPicker,
+    Drawer,
+    Dropdown,
+    Empty,
+    Flex,
+    Form,
+    Modal,
+    Radio,
+    Segmented,
+    Select,
+    Slider,
+    Spin,
+    Tabs,
+    theme,
+    Typography,
+    Upload
+} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import DatePicker from "@zrlog/ui/antd/DatePicker";
 import Progress from "@zrlog/ui/antd/Progress";
@@ -8,51 +29,51 @@ import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
 import Pagination from "@zrlog/ui/antd/Pagination";
 import Table from "@zrlog/ui/antd/Table";
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import EditIcon from "@zrlog/ui/icons/edit";
 import AddIcon from "@zrlog/ui/icons/add";
 import UploadIcon from "@zrlog/ui/icons/upload";
-import { useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type {ReactNode} from "react";
+import {useRef, useState} from "react";
 
 
-import { getAppState } from "../base/ConfigProviderApp";
-import { getColorByTheme, isDarkByTheme } from "../base/AppInit";
-import { getRes } from "../utils/constants";
-import type { AdminTheme } from "../utils/constants";
-import { useAppearancePreview } from "../utils/use-appearance-preview";
-import { getAdminThemeOptions, supportsDarkMode, supportsCustomPrimary } from "../utils/admin-themes";
+import {getAppState} from "../base/ConfigProviderApp";
+import {getColorByTheme, isDarkByTheme} from "../base/AppInit";
+import type {AdminTheme} from "../utils/constants";
+import {getRes} from "../utils/constants";
+import {useAppearancePreview} from "../utils/use-appearance-preview";
+import {getAdminThemeOptions, supportsCustomPrimary, supportsDarkMode} from "../utils/admin-themes";
 
 // This is an engineering inventory, not a second source of design rules or a compliance score.
 // Use the real theme provider; never style a fixture to make its screenshot pass.
 const ReviewSection = ({
-    id,
-    title,
-    components,
-    status,
-    children,
-}: {
+                           id,
+                           title,
+                           components,
+                           status,
+                           children,
+                       }: {
     id: string;
     title: string;
     components: string;
     status: string;
     children: ReactNode;
 }) => {
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     return (
-        <section id={id} aria-labelledby={`${id}-title`} style={{ minWidth: 0 }}>
-            <Card style={{ height: "100%" }}>
+        <section id={id} aria-labelledby={`${id}-title`} style={{minWidth: 0}}>
+            <Card style={{height: "100%"}}>
                 <Flex wrap gap={token.marginXS} align="center" justify="space-between">
                     <Typography.Title
                         level={2}
                         id={`${id}-title`}
-                        style={{ fontSize: token.fontSizeHeading4, margin: 0 }}
+                        style={{fontSize: token.fontSizeHeading4, margin: 0}}
                     >
                         {title}
                     </Typography.Title>
                     <Tag>{status}</Tag>
                 </Flex>
-                <Typography.Paragraph type="secondary" style={{ marginTop: token.marginXS }}>
+                <Typography.Paragraph type="secondary" style={{marginTop: token.marginXS}}>
                     {components}
                 </Typography.Paragraph>
                 <Flex vertical gap={token.marginLG}>
@@ -64,8 +85,8 @@ const ReviewSection = ({
 };
 
 const AppearancePreview = () => {
-    const { token } = theme.useToken();
-    const initial = useRef({ ...getAppState() }).current;
+    const {token} = theme.useToken();
+    const initial = useRef({...getAppState()}).current;
     const [preview, setPreview] = useState(initial);
     const appearancePreview = useAppearancePreview();
     const res = getRes();
@@ -74,7 +95,7 @@ const AppearancePreview = () => {
         appearancePreview.restore();
     };
     const update = (next: Partial<typeof preview>) => {
-        const value = { ...preview, ...next };
+        const value = {...preview, ...next};
         setPreview(value);
         appearancePreview.preview({
             language: value.lang,
@@ -88,7 +109,7 @@ const AppearancePreview = () => {
     };
     return (
         <Card>
-            <Typography.Title level={2} style={{ marginTop: 0, fontSize: token.fontSizeHeading4 }}>
+            <Typography.Title level={2} style={{marginTop: 0, fontSize: token.fontSizeHeading4}}>
                 {res.dev.ui.preview}
             </Typography.Title>
             <Typography.Paragraph type="secondary">{res.dev.ui.previewNote}</Typography.Paragraph>
@@ -98,19 +119,19 @@ const AppearancePreview = () => {
                         <Select
                             id="ui-preview-language"
                             value={preview.lang}
-                            style={{ width: 160 }}
+                            style={{width: 160}}
                             options={[
-                                { value: "zh_CN", label: res.websiteAdmin.language.chinese },
-                                { value: "en_US", label: res.websiteAdmin.language.english },
+                                {value: "zh_CN", label: res.websiteAdmin.language.chinese},
+                                {value: "en_US", label: res.websiteAdmin.language.english},
                             ]}
-                            onChange={(lang) => update({ lang })}
+                            onChange={(lang) => update({lang})}
                         />
                     </Form.Item>
                     <Form.Item label={res.websiteAdmin.theme.label} htmlFor="ui-preview-theme">
                         <Select
                             id="ui-preview-theme"
                             value={preview.theme}
-                            style={{ width: 180 }}
+                            style={{width: 180}}
                             options={getAdminThemeOptions(res.websiteAdmin.theme.option)}
                             onChange={(value) =>
                                 update({
@@ -128,14 +149,14 @@ const AppearancePreview = () => {
                             id="ui-preview-dark"
                             checked={preview.dark}
                             disabled={!supportsDarkMode(preview.theme)}
-                            onChange={(dark) => update({ dark })}
+                            onChange={(dark) => update({dark})}
                         />
                     </Form.Item>
                     <Form.Item label={res.websiteAdmin.compact.mode} htmlFor="ui-preview-compact">
                         <Switch
                             id="ui-preview-compact"
                             checked={preview.compactMode}
-                            onChange={(compactMode) => update({ compactMode })}
+                            onChange={(compactMode) => update({compactMode})}
                         />
                     </Form.Item>
                     <Form.Item label={res.websiteAdmin.color.primary}>
@@ -144,7 +165,7 @@ const AppearancePreview = () => {
                             disabledAlpha
                             showText
                             disabled={!supportsCustomPrimary(preview.theme)}
-                            onChangeComplete={(color) => update({ colorPrimary: color.toHexString() })}
+                            onChangeComplete={(color) => update({colorPrimary: color.toHexString()})}
                         />
                     </Form.Item>
                     <Form.Item>
@@ -158,17 +179,17 @@ const AppearancePreview = () => {
 
 const Fixtures = () => {
     const r = getRes().dev.ui;
-    const { token } = theme.useToken();
-    const { message, notification } = useUiApp();
+    const {token} = theme.useToken();
+    const {message, notification} = useUiApp();
     const [dialog, setDialog] = useState(false);
     const [drawer, setDrawer] = useState(false);
     const [added, setAdded] = useState(false);
     const [menuResult, setMenuResult] = useState(r.none);
     const [slider, setSlider] = useState(35);
     const choices = [
-        { value: "published", label: r.published },
-        { value: "draft", label: r.drafts },
-        { value: "disabled", label: r.disabled, disabled: true },
+        {value: "published", label: r.published},
+        {value: "draft", label: r.drafts},
+        {value: "disabled", label: r.disabled, disabled: true},
     ];
     const sample = (name: string, control: ReactNode) => (
         <Flex vertical gap="small" align="start" key={name}>
@@ -192,15 +213,15 @@ const Fixtures = () => {
                     status={r.adapted}
                 >
                     <Flex wrap gap="large">
-                        {sample(r.off, <Switch aria-label={r.off} />)}
-                        {sample(r.on, <Switch aria-label={r.on} defaultChecked />)}
-                        {sample(r.disabled, <Switch aria-label={r.disabled} disabled />)}
-                        {sample(r.selectedDisabled, <Switch aria-label={r.selectedDisabled} disabled defaultChecked />)}
-                        {sample(r.loading, <Switch aria-label={r.loading} loading defaultChecked />)}
-                        {sample(r.small, <Switch aria-label={r.small} size="small" />)}
+                        {sample(r.off, <Switch aria-label={r.off}/>)}
+                        {sample(r.on, <Switch aria-label={r.on} defaultChecked/>)}
+                        {sample(r.disabled, <Switch aria-label={r.disabled} disabled/>)}
+                        {sample(r.selectedDisabled, <Switch aria-label={r.selectedDisabled} disabled defaultChecked/>)}
+                        {sample(r.loading, <Switch aria-label={r.loading} loading defaultChecked/>)}
+                        {sample(r.small, <Switch aria-label={r.small} size="small"/>)}
                         {sample(
                             r.textSwitch,
-                            <Switch aria-label={r.textSwitch} checkedChildren={r.on} unCheckedChildren={r.off} />
+                            <Switch aria-label={r.textSwitch} checkedChildren={r.on} unCheckedChildren={r.off}/>
                         )}
                     </Flex>
                     <Flex wrap gap="small">
@@ -215,7 +236,7 @@ const Fixtures = () => {
                             {r.mixedDisabled}
                         </Checkbox>
                     </Flex>
-                    <Radio.Group aria-label="Radio" defaultValue="published" options={choices} />
+                    <Radio.Group aria-label="Radio" defaultValue="published" options={choices}/>
                     <Radio.Group
                         aria-label="Radio.Button"
                         defaultValue="published"
@@ -231,7 +252,7 @@ const Fixtures = () => {
                 >
                     <Segmented
                         aria-label="Segmented"
-                        options={[{ value: "all", label: r.all }, ...choices]}
+                        options={[{value: "all", label: r.all}, ...choices]}
                         defaultValue="all"
                     />
                     <Tabs
@@ -241,8 +262,8 @@ const Fixtures = () => {
                                 label: r.overview,
                                 children: r.tabContent.replace("{name}", r.overview),
                             },
-                            { key: "details", label: r.details, children: r.tabContent.replace("{name}", r.details) },
-                            { key: "disabled", label: r.disabled, disabled: true },
+                            {key: "details", label: r.details, children: r.tabContent.replace("{name}", r.details)},
+                            {key: "disabled", label: r.disabled, disabled: true},
                         ]}
                     />
                     <Flex wrap gap="small">
@@ -251,7 +272,7 @@ const Fixtures = () => {
                         <Tag color="warning">{r.warning}</Tag>
                         <Tag color="error">{r.error}</Tag>
                         <Tag closable>{r.removable}</Tag>
-                        <Tag icon={<AddIcon />} onClick={() => setAdded(!added)}>
+                        <Tag icon={<AddIcon/>} onClick={() => setAdded(!added)}>
                             {added ? r.added : r.addTag}
                         </Tag>
                         <Tag disabled onClick={() => setAdded(!added)}>
@@ -275,8 +296,8 @@ const Fixtures = () => {
                         <Button type="primary" disabled>
                             {r.selectedDisabled}
                         </Button>
-                        <Button icon={<EditIcon />} aria-label={r.edit} />
-                        <Button type="text" icon={<EditIcon />} aria-label={r.edit} />
+                        <Button icon={<EditIcon/>} aria-label={r.edit}/>
+                        <Button type="text" icon={<EditIcon/>} aria-label={r.edit}/>
                         <Button loading>{r.loading}</Button>
                     </Flex>
                 </ReviewSection>
@@ -286,15 +307,15 @@ const Fixtures = () => {
                     components="Slider · Progress · Spin"
                     status={r.adapted}
                 >
-                    <Slider value={slider} onChange={setSlider} ariaLabelForHandle={r.slider} />
-                    <Slider defaultValue={35} disabled ariaLabelForHandle={r.disabled} />
-                    <Progress percent={slider} />
-                    <Progress percent={70} status="exception" />
+                    <Slider value={slider} onChange={setSlider} ariaLabelForHandle={r.slider}/>
+                    <Slider defaultValue={35} disabled ariaLabelForHandle={r.disabled}/>
+                    <Progress percent={slider}/>
+                    <Progress percent={70} status="exception"/>
                     <Flex wrap align="center" gap="large">
-                        <Progress percent={slider} type="circle" size={72} />
-                        <Spin size="small" />
-                        <Spin />
-                        <Spin size="large" />
+                        <Progress percent={slider} type="circle" size={72}/>
+                        <Spin size="small"/>
+                        <Spin/>
+                        <Spin size="large"/>
                     </Flex>
                 </ReviewSection>
                 <ReviewSection
@@ -306,13 +327,13 @@ const Fixtures = () => {
                     <Typography.Text type="secondary">{r.fieldsNote}</Typography.Text>
                     <Form layout="vertical">
                         <Form.Item label={r.textField} htmlFor="ui-text">
-                            <Input id="ui-text" placeholder={r.placeholder} allowClear />
+                            <Input id="ui-text" placeholder={r.placeholder} allowClear/>
                         </Form.Item>
                         <Form.Item label={r.numberField} htmlFor="ui-number">
-                            <InputNumber id="ui-number" defaultValue={4} min={0} max={10} style={{ width: "100%" }} />
+                            <InputNumber id="ui-number" defaultValue={4} min={0} max={10} style={{width: "100%"}}/>
                         </Form.Item>
                         <Form.Item label={r.selectField} htmlFor="ui-select">
-                            <Select id="ui-select" showSearch defaultValue="published" options={choices} />
+                            <Select id="ui-select" showSearch defaultValue="published" options={choices}/>
                         </Form.Item>
                         <Form.Item
                             label={r.error}
@@ -328,22 +349,22 @@ const Fixtures = () => {
                             />
                         </Form.Item>
                         <Form.Item label={r.disabledField} htmlFor="ui-disabled">
-                            <Input id="ui-disabled" disabled defaultValue={r.exampleValue} />
+                            <Input id="ui-disabled" disabled defaultValue={r.exampleValue}/>
                         </Form.Item>
                         <Flex wrap gap="small">
-                            <InputNumber status="error" aria-label={`${r.numberField} ${r.error}`} defaultValue={-1} />
+                            <InputNumber status="error" aria-label={`${r.numberField} ${r.error}`} defaultValue={-1}/>
                             <Select
                                 status="error"
                                 aria-label={`${r.selectField} ${r.error}`}
-                                style={{ minWidth: 150 }}
+                                style={{minWidth: 150}}
                                 options={choices}
                                 placeholder={r.selectField}
                             />
-                            <InputNumber disabled aria-label={`${r.numberField} ${r.disabled}`} defaultValue={4} />
+                            <InputNumber disabled aria-label={`${r.numberField} ${r.disabled}`} defaultValue={4}/>
                             <Select
                                 disabled
                                 aria-label={`${r.selectField} ${r.disabled}`}
-                                style={{ minWidth: 150 }}
+                                style={{minWidth: 150}}
                                 options={choices}
                                 defaultValue="published"
                             />
@@ -363,11 +384,11 @@ const Fixtures = () => {
                             trigger={["click"]}
                             menu={{
                                 items: [
-                                    { key: "action", label: r.menuAction },
-                                    { key: "disabled", label: r.disabled, disabled: true },
-                                    { key: "danger", label: r.danger, danger: true },
+                                    {key: "action", label: r.menuAction},
+                                    {key: "disabled", label: r.disabled, disabled: true},
+                                    {key: "danger", label: r.danger, danger: true},
                                 ],
-                                onClick: ({ key }) => setMenuResult(key === "danger" ? r.danger : r.menuAction),
+                                onClick: ({key}) => setMenuResult(key === "danger" ? r.danger : r.menuAction),
                             }}
                         >
                             <Button>{r.openMenu}</Button>
@@ -387,16 +408,16 @@ const Fixtures = () => {
                         size="small"
                         pagination={false}
                         rowKey="name"
-                        dataSource={[{ name: r.exampleValue, status: r.published }]}
+                        dataSource={[{name: r.exampleValue, status: r.published}]}
                         columns={[
-                            { title: r.name, dataIndex: "name" },
-                            { title: r.status, dataIndex: "status" },
+                            {title: r.name, dataIndex: "name"},
+                            {title: r.status, dataIndex: "status"},
                         ]}
                     />
-                    <Pagination size="small" defaultCurrent={1} total={30} showSizeChanger={false} />
+                    <Pagination size="small" defaultCurrent={1} total={30} showSizeChanger={false}/>
                     <Form layout="vertical">
                         <Form.Item label={r.date} htmlFor="ui-date">
-                            <DatePicker id="ui-date" style={{ width: "100%" }} />
+                            <DatePicker id="ui-date" style={{width: "100%"}}/>
                         </Form.Item>
                     </Form>
                     <Tree
@@ -407,8 +428,8 @@ const Fixtures = () => {
                                 key: "root",
                                 title: r.treeRoot,
                                 children: [
-                                    { key: "leaf", title: r.treeLeaf },
-                                    { key: "disabled", title: r.disabled, disabled: true },
+                                    {key: "leaf", title: r.treeLeaf},
+                                    {key: "disabled", title: r.disabled, disabled: true},
                                 ],
                             },
                         ]}
@@ -420,21 +441,21 @@ const Fixtures = () => {
                     components="Alert · Message · Notification · Upload · Empty"
                     status={r.tokensOnly}
                 >
-                    <Alert type="info" showIcon title={r.feedback} />
-                    <Alert type="error" showIcon title={r.fieldError} />
+                    <Alert type="info" showIcon title={r.feedback}/>
+                    <Alert type="error" showIcon title={r.fieldError}/>
                     <Flex wrap gap="small">
                         <Button onClick={() => message.info(r.feedback)}>{r.showMessage}</Button>
-                        <Button onClick={() => notification.info({ title: r.notification, description: r.feedback })}>
+                        <Button onClick={() => notification.info({title: r.notification, description: r.feedback})}>
                             {r.showNotification}
                         </Button>
                     </Flex>
                     <Upload disabled beforeUpload={() => false}>
-                        <Button disabled icon={<UploadIcon />}>
+                        <Button disabled icon={<UploadIcon/>}>
                             {r.upload}
                         </Button>
                     </Upload>
                     <Typography.Text type="secondary">{r.uploadNote}</Typography.Text>
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={r.empty} />
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={r.empty}/>
                 </ReviewSection>
             </div>
             <Modal
@@ -465,24 +486,24 @@ const Fixtures = () => {
 
 const DevUi = () => {
     const r = getRes().dev.ui;
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const [revision, setRevision] = useState(0);
     return (
-        <div data-ui-review style={{ minWidth: 0 }}>
+        <div data-ui-review style={{minWidth: 0}}>
             <Flex vertical gap={token.marginLG}>
                 <div>
                     <Flex wrap justify="space-between" align="center" gap="small">
-                        <Typography.Title level={1} style={{ fontSize: token.fontSizeHeading2, margin: 0 }}>
+                        <Typography.Title level={1} style={{fontSize: token.fontSizeHeading2, margin: 0}}>
                             {r.title}
                         </Typography.Title>
                         <Button onClick={() => setRevision((current) => current + 1)}>{r.reset}</Button>
                     </Flex>
-                    <Typography.Paragraph style={{ marginTop: token.marginSM }}>{r.description}</Typography.Paragraph>
+                    <Typography.Paragraph style={{marginTop: token.marginSM}}>{r.description}</Typography.Paragraph>
                     <Typography.Paragraph type="secondary">{r.inventoryNote}</Typography.Paragraph>
                     <Typography.Text type="secondary">{r.adaptedNote}</Typography.Text>
                 </div>
-                <AppearancePreview />
-                <Fixtures key={revision} />
+                <AppearancePreview/>
+                <Fixtures key={revision}/>
                 <Typography.Paragraph type="secondary">{r.excludedNote}</Typography.Paragraph>
             </Flex>
         </div>

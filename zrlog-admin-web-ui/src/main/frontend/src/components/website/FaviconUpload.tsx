@@ -1,26 +1,26 @@
 import Image from "@zrlog/ui/antd/Image";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import CameraIcon from "@zrlog/ui/icons/camera";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 
 
-import { FunctionComponent, useState } from "react";
-import { RcFile } from "antd/es/upload";
+import {FunctionComponent, useState} from "react";
+import {RcFile} from "antd/es/upload";
 import ResourceDragger from "../../common/ResourceDragger";
-import { useTheme } from "antd-style";
+import {useTheme} from "antd-style";
 import ImageCropper from "../../common/ImageCropper";
-import { resolveBackendCropImageUrl } from "../../utils/crop-image-url";
-import { colorToRgba } from "../../layout/slider";
+import {resolveBackendCropImageUrl} from "../../utils/crop-image-url";
+import {colorToRgba} from "../../layout/slider";
 
 type ThumbnailUploadProps = {
     onChange?: (e: string | null) => void;
     url?: string;
 };
 
-const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url }) => {
+const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({onChange, url}) => {
     const [cropOpen, setCropOpen] = useState(false);
     const [cropImageUrl, setCropImageUrl] = useState("");
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
 
     const changeToDataUrl = (dataUrl: string | null) => {
         onChange?.(dataUrl);
@@ -64,7 +64,7 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                     onlyImage: true,
                     onSelectFile: openCropper,
                 }}
-                style={{ overflow: "hidden" }}
+                style={{overflow: "hidden"}}
             >
                 {(url === undefined || url === null || url === "") && (
                     <p
@@ -78,16 +78,16 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                             alignItems: "center",
                         }}
                     >
-                        <CameraIcon style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading3 }} />
+                        <CameraIcon style={{color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading3}}/>
                     </p>
                 )}
                 {url != null && url !== "" && (
-                    <div style={{ position: "relative", height: "100%" }}>
+                    <div style={{position: "relative", height: "100%"}}>
                         <Image
-                            style={{ position: "relative" }}
+                            style={{position: "relative"}}
                             preview={false}
                             src={url}
-                            wrapperStyle={{ position: "relative" }}
+                            wrapperStyle={{position: "relative"}}
                         />
                         <div
                             style={{
@@ -105,7 +105,7 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                                 e.stopPropagation();
                             }}
                         >
-                            <DeleteIcon selected />
+                            <DeleteIcon selected/>
                         </div>
                     </div>
                 )}

@@ -1,12 +1,12 @@
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import ArrowDownIcon from "@zrlog/ui/icons/arrow-down";
 import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
 import PinIcon from "@zrlog/ui/icons/pin";
 import RefreshIcon from "@zrlog/ui/icons/refresh";
-import { Button, Drawer, Empty, Grid, List, Space, Spin, Tooltip, Typography, theme } from "antd";
-import { useEffect, useState } from "react";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRes } from "../../utils/constants";
+import {Button, Drawer, Empty, Grid, List, Space, Spin, theme, Tooltip, Typography} from "antd";
+import {useEffect, useState} from "react";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getRes} from "../../utils/constants";
 import {
     ArticlePinningData,
     ArticlePinningDirection,
@@ -22,11 +22,11 @@ type ArticlePinningManagerProps = {
     onItemsChange: (items: ArticlePinningEntry[]) => void;
 };
 
-const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: ArticlePinningManagerProps) => {
+const ArticlePinningManager = ({offline, open, onOpenChange, onItemsChange}: ArticlePinningManagerProps) => {
     const axiosInstance = useAxiosBaseInstance();
-    const { message } = useUiApp();
+    const {message} = useUiApp();
     const screens = Grid.useBreakpoint();
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const res = getRes().article.pinning;
     const [items, setItems] = useState<ArticlePinningEntry[]>([]);
     const [loading, setLoading] = useState(false);
@@ -96,27 +96,27 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                 <Tooltip title={res.reload}>
                     <Button
                         type="text"
-                        icon={<RefreshIcon />}
+                        icon={<RefreshIcon/>}
                         aria-label={res.reload}
                         disabled={offline || loading || mutating}
                         onClick={() => void load()}
                     />
                 </Tooltip>
             }
-            styles={{ body: { padding: token.paddingSM } }}
+            styles={{body: {padding: token.paddingSM}}}
         >
             <Spin spinning={loading}>
-                {items.length === 0 && !loading ? <Empty description={res.empty} /> : null}
+                {items.length === 0 && !loading ? <Empty description={res.empty}/> : null}
                 <List
                     dataSource={items}
                     renderItem={(entry, index) => (
                         <List.Item
-                            style={{ alignItems: "center", gap: token.marginSM }}
+                            style={{alignItems: "center", gap: token.marginSM}}
                             actions={[
                                 <Tooltip title={res.moveUp} key="up">
                                     <Button
                                         type="text"
-                                        icon={<ArrowUpIcon />}
+                                        icon={<ArrowUpIcon/>}
                                         aria-label={res.moveUp}
                                         disabled={offline || mutating || index === 0}
                                         loading={actionKey === `${entry.logId}:UP`}
@@ -126,7 +126,7 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                                 <Tooltip title={res.moveDown} key="down">
                                     <Button
                                         type="text"
-                                        icon={<ArrowDownIcon />}
+                                        icon={<ArrowDownIcon/>}
                                         aria-label={res.moveDown}
                                         disabled={offline || mutating || index === items.length - 1}
                                         loading={actionKey === `${entry.logId}:DOWN`}
@@ -137,7 +137,7 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                                     <Button
                                         type="text"
                                         danger
-                                        icon={<PinIcon />}
+                                        icon={<PinIcon/>}
                                         aria-label={res.unpin}
                                         disabled={offline || mutating}
                                         loading={actionKey === `${entry.logId}:unpin`}
@@ -146,13 +146,13 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                                 </Tooltip>,
                             ]}
                         >
-                            <Space size={token.marginSM} style={{ minWidth: 0 }}>
-                                <Typography.Text type="secondary" style={{ minWidth: 24 }}>
+                            <Space size={token.marginSM} style={{minWidth: 0}}>
+                                <Typography.Text type="secondary" style={{minWidth: 24}}>
                                     {index + 1}
                                 </Typography.Text>
                                 <Typography.Text
-                                    ellipsis={{ tooltip: entry.title }}
-                                    style={{ maxWidth: screens.sm === false ? 150 : 280 }}
+                                    ellipsis={{tooltip: entry.title}}
+                                    style={{maxWidth: screens.sm === false ? 150 : 280}}
                                 >
                                     {entry.title}
                                 </Typography.Text>

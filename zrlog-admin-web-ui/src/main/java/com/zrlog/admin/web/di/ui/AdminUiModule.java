@@ -1,15 +1,14 @@
 package com.zrlog.admin.web.di.ui;
 
-import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.business.service.TemplateService;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.di.AdminComponent;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.PublicWebSiteInfo;
-
 import dagger.Module;
 import dagger.Provides;
-
 import jakarta.inject.Provider;
 
 import java.util.function.BooleanSupplier;
@@ -17,7 +16,8 @@ import java.util.function.Supplier;
 
 @Module
 public final class AdminUiModule {
-    private AdminUiModule() {}
+    private AdminUiModule() {
+    }
 
     @Provides
     static AdminStaticSiteSsePublisher publisher(Supplier<AdminStaticSiteSsePublisher> publisher) {

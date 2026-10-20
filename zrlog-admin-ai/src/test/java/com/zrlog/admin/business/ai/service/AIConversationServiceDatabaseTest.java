@@ -1,9 +1,5 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
@@ -12,12 +8,13 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import static org.junit.Assert.*;
 
 public class AIConversationServiceDatabaseTest {
 
@@ -56,15 +53,15 @@ public class AIConversationServiceDatabaseTest {
             assertEquals(
                     List.of("first account", "async reply"),
                     new AIConversationService(
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
+                            new AIFileService(),
+                            AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L).getMessages().stream()
-                                    .filter(entry -> !"system".equals(entry.getRole()))
-                                    .map(AIResponseEntry.AIContentEntry::getContent)
-                                    .collect(Collectors.toList()));
+                            .filter(entry -> !"system".equals(entry.getRole()))
+                            .map(AIResponseEntry.AIContentEntry::getContent)
+                            .collect(Collectors.toList()));
         }
     }
 
@@ -87,11 +84,11 @@ public class AIConversationServiceDatabaseTest {
             assertTrue(service.captureAccount(java.util.Objects.requireNonNullElse(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), 0)).clearAIMessage(7L));
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
+                            new AIFileService(),
+                            AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
                             .getMessages()
                             .isEmpty());
@@ -110,11 +107,11 @@ public class AIConversationServiceDatabaseTest {
                     PermissionErrorException.class,
                     () ->
                             new AIConversationService(
-                                            AccountServicesFixture.component(db.dataSource()).security(),
-                                            ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                            () -> new WebSite(db.dataSource()),
-                                            new AIFileService(),
-                                            AIServiceDependencies.approvals(db.dataSource()))
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals(db.dataSource()))
                                     .saveAIMessage(
                                             List.of(
                                                     new AIResponseEntry.AIContentEntry(

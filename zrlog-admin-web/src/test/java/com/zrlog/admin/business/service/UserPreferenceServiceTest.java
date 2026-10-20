@@ -1,12 +1,12 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
-import com.zrlog.admin.support.AccountServicesFixture;
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.business.rest.response.UserPreferencesResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
@@ -15,35 +15,52 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.User;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
+import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class UserPreferenceServiceTest {
-    @Parameterized.Parameters(name = "sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
     private final boolean sqlite;
-    public UserPreferenceServiceTest(boolean sqlite) { this.sqlite = sqlite; }
+
+    public UserPreferenceServiceTest(boolean sqlite) {
+        this.sqlite = sqlite;
+    }
+
+    @Parameterized.Parameters(name = "sqlite={0}")
+    public static Boolean[] databases() {
+        return new Boolean[]{false, true};
+    }
+
+    private static com.zrlog.data.security.AccountAccess actor(InMemoryZrLogDatabase db) {
+        return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
+    }
+
     private InMemoryZrLogDatabase database() throws Exception {
         return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
     }
-    private JsonObject json(String text) { return JsonParser.parseString(text).getAsJsonObject(); }
-    private void login(int id) throws Exception {
-        AdminTokenVO token = new AdminTokenVO(); token.setUserId(id); token.setSessionId("test-session-" + id);
-        java.lang.reflect.Method setter = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
-        setter.setAccessible(true); AdminTokenThreadLocal.remove(); setter.invoke(null, token);
+
+    private JsonObject json(String text) {
+        return JsonParser.parseString(text).getAsJsonObject();
     }
 
-    @Test public void isolatedOverridesInheritResetAndKeepAuthentication() throws Exception {
+    private void login(int id) throws Exception {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(id);
+        token.setSessionId("test-session-" + id);
+        java.lang.reflect.Method setter = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
+        setter.setAccessible(true);
+        AdminTokenThreadLocal.remove();
+        setter.invoke(null, token);
+    }
+
+    @Test
+    public void isolatedOverridesInheritResetAndKeepAuthentication() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             db.execute("insert into user(userId,userName,role) values(2,'writer','contributor')");
             db.putWebsite("admin_article_page_size", 20);
@@ -81,7 +98,8 @@ public class UserPreferenceServiceTest {
         }
     }
 
-    @Test public void extendedPreferencesAreIsolatedInheritedAndLegacySafe() throws Exception {
+    @Test
+    public void extendedPreferencesAreIsolatedInheritedAndLegacySafe() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
             db.putWebsite("session_timeout", 90);
@@ -120,7 +138,8 @@ public class UserPreferenceServiceTest {
         }
     }
 
-    @Test public void validatesExtendedFieldsAndKeepsValidPartitionsWhenAnotherIsCorrupt() throws Exception {
+    @Test
+    public void validatesExtendedFieldsAndKeepsValidPartitionsWhenAnotherIsCorrupt() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
@@ -140,7 +159,8 @@ public class UserPreferenceServiceTest {
         }
     }
 
-    @Test public void assistantDefaultsAndSingleScopeAreAccountSpecific() throws Exception {
+    @Test
+    public void assistantDefaultsAndSingleScopeAreAccountSpecific() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
             UserPreferenceService service =
@@ -159,7 +179,8 @@ public class UserPreferenceServiceTest {
         }
     }
 
-    @Test public void validatesTypesRangesAndRejectsAuthorizationFields() throws Exception {
+    @Test
+    public void validatesTypesRangesAndRejectsAuthorizationFields() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
@@ -183,7 +204,8 @@ public class UserPreferenceServiceTest {
         }
     }
 
-    @Test public void preservesDashboardAndFutureSectionsAndRecoversCorruptStorage() throws Exception {
+    @Test
+    public void preservesDashboardAndFutureSectionsAndRecoversCorruptStorage() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
@@ -205,7 +227,9 @@ public class UserPreferenceServiceTest {
             assertEquals(Integer.valueOf(25), service.effective(actor(db)).articlePageSize);
         }
     }
-    @Test public void concurrentSectionsDoNotOverwriteEachOther() throws Exception {
+
+    @Test
+    public void concurrentSectionsDoNotOverwriteEachOther() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             db.loadAdminWebModules();
             ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -220,9 +244,9 @@ public class UserPreferenceServiceTest {
                                         for (int i = 1; i <= 10; i++)
                                             db.component(AccountComponent.class).preferences()
                                                     .update(actor(db), json(
-                                                                    "{\"articlePageSize\":"
-                                                                            + i
-                                                                            + "}"));
+                                                            "{\"articlePageSize\":"
+                                                                    + i
+                                                                    + "}"));
                                     } catch (Exception e) {
                                         throw new RuntimeException(e);
                                     } finally {
@@ -262,12 +286,10 @@ public class UserPreferenceServiceTest {
                         db.component(AccountComponent.class).preferences()
                                 .dashboard(actor(db))
                                 .getAutoRefreshIntervalSeconds());
-            } finally { pool.shutdownNow(); }
+            } finally {
+                pool.shutdownNow();
+            }
         }
-    }
-
-    private static com.zrlog.data.security.AccountAccess actor(InMemoryZrLogDatabase db) {
-        return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
     }
 
 }

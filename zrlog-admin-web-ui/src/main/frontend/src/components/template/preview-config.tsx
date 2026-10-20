@@ -1,8 +1,8 @@
-import { Form } from "antd";
+import {Form} from "antd";
 import Card from "antd/es/card";
-import { getRes } from "../../utils/constants";
-import { CSSProperties, FunctionComponent, useEffect, useRef, useState } from "react";
-import { useAxiosBaseInstance } from "../../base/AppBase";
+import {getRes} from "../../utils/constants";
+import {CSSProperties, FunctionComponent, useEffect, useRef, useState} from "react";
+import {useAxiosBaseInstance} from "../../base/AppBase";
 import XxsTips from "../xxs-tips";
 
 type PreviewConfigProps = {
@@ -12,7 +12,7 @@ type PreviewConfigProps = {
     style?: CSSProperties;
 };
 
-const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, value, initPreviewValue, style }) => {
+const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({contentType, value, initPreviewValue, style}) => {
     const [previewValue, setPreviewValue] = useState<string>(initPreviewValue != null ? initPreviewValue : "");
 
     const axiosInstance = useAxiosBaseInstance();
@@ -27,7 +27,7 @@ const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, val
         if (contentType === "html") {
             axiosInstance
                 .get("/api/admin/template/previewConfigValue?value=" + encodeURIComponent(value))
-                .then(({ data }) => {
+                .then(({data}) => {
                     setPreviewValue(data.data.previewValue);
                 });
         }
@@ -39,7 +39,7 @@ const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, val
 
     return (
         <Form.Item label={" "} colon={false}>
-            <XxsTips />
+            <XxsTips/>
             <Card
                 title={getRes().preview + " (" + contentType + ")"}
                 size={"small"}
@@ -48,11 +48,11 @@ const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, val
                         minHeight: 36,
                     },
                 }}
-                style={{ overflow: "hidden", ...style }}
+                style={{overflow: "hidden", ...style}}
             >
                 <div
-                    style={{ userSelect: "none" }}
-                    dangerouslySetInnerHTML={{ __html: previewValue ? previewValue : "" }}
+                    style={{userSelect: "none"}}
+                    dangerouslySetInnerHTML={{__html: previewValue ? previewValue : ""}}
                 />
             </Card>
         </Form.Item>

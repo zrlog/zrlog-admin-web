@@ -17,11 +17,52 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class AdminPwaInterceptorTest {
+
+    private static AdminResource resources() {
+        return (AdminResource) Proxy.newProxyInstance(AdminPwaInterceptorTest.class.getClassLoader(),
+                new Class[]{AdminResource.class}, (proxy, method, args) -> {
+                    if ("renderServiceWorker".equals(method.getName())) {
+                        return new java.io.ByteArrayInputStream("const urlsToCache = [];".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
+    }
+
+    private static HttpRequest request(String uri, ServerConfig serverConfig) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminPwaInterceptorTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getUri":
+                            return uri;
+                        case "getMethod":
+                            return HttpMethod.GET;
+                        case "getHeader":
+                            return "Host".equals(args[0]) ? "localhost:18080" : null;
+                        case "getHeaderMap":
+                        case "getParamMap":
+                        case "decodeParamMap":
+                            return Map.of();
+                        case "getContextPath":
+                            return "/blog";
+                        case "getScheme":
+                            return "http";
+                        case "getServerConfig":
+                            return serverConfig;
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
 
     @Test
     public void shouldRenderServiceWorkerThroughConfiguredAdminResource() throws Exception {
@@ -75,49 +116,6 @@ public class AdminPwaInterceptorTest {
                 request("/admin/pwa/missing.json", new ServerConfig()), response.response());
 
         assertEquals(Integer.valueOf(404), response.renderedCode);
-    }
-
-    private static AdminResource resources() {
-        return (AdminResource) Proxy.newProxyInstance(AdminPwaInterceptorTest.class.getClassLoader(),
-                new Class[]{AdminResource.class}, (proxy, method, args) -> {
-                    if ("renderServiceWorker".equals(method.getName())) {
-                        return new java.io.ByteArrayInputStream("const urlsToCache = [];".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    }
-                    throw new UnsupportedOperationException(method.getName());
-                });
-    }
-
-    private static HttpRequest request(String uri, ServerConfig serverConfig) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminPwaInterceptorTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return uri;
-                        case "getMethod":
-                            return HttpMethod.GET;
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "getContextPath":
-                            return "/blog";
-                        case "getScheme":
-                            return "http";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
     }
 
     private static class ResponseRecorder {

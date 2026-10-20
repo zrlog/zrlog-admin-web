@@ -12,9 +12,12 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/** Adapts existing database fixtures to the same generated graph used by the application. */
+/**
+ * Adapts existing database fixtures to the same generated graph used by the application.
+ */
 public final class AccountServicesFixture {
-    private AccountServicesFixture() {}
+    private AccountServicesFixture() {
+    }
 
     public static AccountComponent component(DataSourceWrapper source) {
         return component(source, Collections::emptySet);

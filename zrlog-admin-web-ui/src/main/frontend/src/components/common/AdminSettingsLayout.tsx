@@ -1,18 +1,18 @@
-import { ReactNode } from "react";
-import { theme } from "antd";
-import { getRes } from "../../utils/constants";
-import { AdminSettingsPage, getAdminSettingsItems, getVisibleSettingsItems } from "../../utils/settings-navigation";
-import { renderAdminDashboardRouteIcon } from "../admin-dashboard-routes";
+import {ReactNode} from "react";
+import {theme} from "antd";
+import {getRes} from "../../utils/constants";
+import {AdminSettingsPage, getAdminSettingsItems, getVisibleSettingsItems} from "../../utils/settings-navigation";
+import {renderAdminDashboardRouteIcon} from "../admin-dashboard-routes";
 import SettingsLayout from "./SettingsLayout";
 
 const AdminSettingsLayout = ({
-    activeKey,
-    children,
-    extra,
-    title,
-    summary,
-    footer,
-}: {
+                                 activeKey,
+                                 children,
+                                 extra,
+                                 title,
+                                 summary,
+                                 footer,
+                             }: {
     activeKey: AdminSettingsPage;
     children: ReactNode;
     extra?: ReactNode;
@@ -20,7 +20,7 @@ const AdminSettingsLayout = ({
     summary?: ReactNode;
     footer?: ReactNode;
 }) => {
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const res = getRes();
     const activeMeta = getAdminSettingsItems().find((item) => item.key === activeKey)!;
     const visibleItems = getVisibleSettingsItems(activeKey);
@@ -45,7 +45,7 @@ const AdminSettingsLayout = ({
             summary={summary === undefined ? activeMeta.summary : summary}
             groups={groups}
             extra={extra}
-            footer={footer && <div style={{ maxWidth: 800 }}>{footer}</div>}
+            footer={footer && <div style={{maxWidth: 800}}>{footer}</div>}
         >
             <div
                 style={{

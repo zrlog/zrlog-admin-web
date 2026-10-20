@@ -1,11 +1,11 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { getRes } from "../../../utils/constants";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {getRes} from "../../../utils/constants";
 import ArticleAiApproval from "./article-ai-approval";
-import { ChatRun } from "./use-article-chat";
+import {ChatRun} from "./use-article-chat";
 
-jest.mock("antd-style", () => ({ useTheme: () => ({ paddingXS: 8, colorFillQuaternary: "#eee", borderRadiusSM: 4 }) }));
+jest.mock("antd-style", () => ({useTheme: () => ({paddingXS: 8, colorFillQuaternary: "#eee", borderRadiusSM: 4})}));
 
 const paused = (): ChatRun => ({
     runId: "run",
@@ -21,7 +21,7 @@ const paused = (): ChatRun => ({
         publicImpact: true,
         expiresAt: Date.now() + 60000,
         changes: [
-            { field: "content", before: "Old body", after: '<img src="bad" onerror="alert(1)">', truncated: false },
+            {field: "content", before: "Old body", after: '<img src="bad" onerror="alert(1)">', truncated: false},
         ],
     },
 });
@@ -45,9 +45,11 @@ describe("article operation approval", () => {
             observe() {
                 return undefined;
             }
+
             unobserve() {
                 return undefined;
             }
+
             disconnect() {
                 return undefined;
             }
@@ -65,14 +67,14 @@ describe("article operation approval", () => {
     });
     const render = (run = paused(), disabled = false) =>
         act(() =>
-            root.render(<ArticleAiApproval run={run} disabled={disabled} onDecide={decide} onRefresh={refresh} />)
+            root.render(<ArticleAiApproval run={run} disabled={disabled} onDecide={decide} onRefresh={refresh}/>)
         );
     const button = (label: string) =>
         Array.from(container.querySelectorAll("button")).find(
             (node) => node.textContent?.replace(/\s/g, "") === label.replace(/\s/g, "")
         )!;
     it.each(["zh_CN", "en_US"] as const)("reviews changes as text and allows or rejects once in %s", (lang) => {
-        window.__SS_DATA__ = { resourceInfo: { lang } } as NonNullable<typeof window.__SS_DATA__>;
+        window.__SS_DATA__ = {resourceInfo: {lang}} as NonNullable<typeof window.__SS_DATA__>;
         const res = getRes().articleEdit.approval;
         render();
         expect(container.textContent).toContain(res.publicImpact);
@@ -93,13 +95,13 @@ describe("article operation approval", () => {
         render(view);
         expect(container.textContent).toContain(getRes().articleEdit.approval.expired);
         expect(button(getRes().articleEdit.approval.approve)).toBeUndefined();
-        render({ ...paused(), status: "uncertain" });
+        render({...paused(), status: "uncertain"});
         expect(button(getRes().articleEdit.approval.approve)).toBeUndefined();
-        render({ ...paused(), status: "running" });
+        render({...paused(), status: "running"});
         expect(refresh).not.toHaveBeenCalled();
         act(() => button(getRes().articleEdit.approval.refresh).click());
         expect(refresh).toHaveBeenCalledTimes(1);
-        render({ ...paused(), status: "failed", error: "permission" });
+        render({...paused(), status: "failed", error: "permission"});
         expect(container.textContent).toContain(getRes().articleEdit.knowledge.permission);
     });
 });

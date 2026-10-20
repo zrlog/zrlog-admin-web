@@ -1,7 +1,8 @@
 package com.zrlog.admin.business.service;
 
 import com.hibegin.common.dao.ResultValueConvertUtils;
-import com.hibegin.common.util.*;
+import com.hibegin.common.util.ObjectHelpers;
+import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.ArticleResourceReferences;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
@@ -10,7 +11,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
-import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.exception.UnknownException;
 import com.zrlog.data.security.AccountAccess;
@@ -18,15 +19,16 @@ import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.model.Log;
 import com.zrlog.util.ParseUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
@@ -60,6 +62,12 @@ public class AdminArticleService {
         this.articlePinningService = articlePinningService;
         this.logProvider = logProvider;
         this.locks = locks;
+    }
+
+    private static boolean isPublicArticle(Map<String, Object> log) {
+        return log != null
+                && !ResultValueConvertUtils.toBoolean(log.get("privacy"))
+                && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
     }
 
     private Lock getWriteLock(Integer logId) {
@@ -249,12 +257,6 @@ public class AdminArticleService {
                 isPublicArticle(oldLog)
                         || (!createArticleRequest.isPrivacy() && !createArticleRequest.isRubbish()));
         return response;
-    }
-
-    private static boolean isPublicArticle(Map<String, Object> log) {
-        return log != null
-                && !ResultValueConvertUtils.toBoolean(log.get("privacy"))
-                && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
     }
 
     private Map<String, Object> getLog(AccountAccess actor, CreateArticleRequest createArticleRequest,

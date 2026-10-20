@@ -1,15 +1,15 @@
-import { useUiApp } from "@zrlog/ui/feedback";
-import { Route, Routes, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useMemo } from "react";
-import { Spin } from "antd";
-import axios, { AxiosError, AxiosInstance } from "axios";
-import { API_DO_UPGRADE_PATH, API_VERSION_PATH } from "../api";
+import {useUiApp} from "@zrlog/ui/feedback";
+import {Route, Routes, useNavigate} from "react-router-dom";
+import {lazy, Suspense, useMemo} from "react";
+import {Spin} from "antd";
+import axios, {AxiosError, AxiosInstance} from "axios";
+import {API_DO_UPGRADE_PATH, API_VERSION_PATH} from "../api";
 import ErrorBoundary from "../common/ErrorBoundary";
-import { getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../utils/constants";
+import {getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage} from "../utils/constants";
 import AdminDashboardPage from "../components/admin-dashboard-page";
-import { NavigateFunction } from "react-router";
-import { syncMessageCenterStatus } from "../utils/message-center-status";
-import { ADMIN_ERROR_CODE } from "../common/admin-error-code";
+import {NavigateFunction} from "react-router";
+import {syncMessageCenterStatus} from "../utils/message-center-status";
+import {ADMIN_ERROR_CODE} from "../common/admin-error-code";
 
 const AsyncLogin = lazy(() => import("components/login"));
 
@@ -37,13 +37,13 @@ export const jumpToLoginPage = (navigate: NavigateFunction): void => {
                     window.location.pathname.split(".html")[0]
                 )}${encodeURIComponent(window.location.search)}`
             ),
-            { replace: true }
+            {replace: true}
         );
     }
 };
 
 export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosInstance => {
-    const { modal, message } = useUiApp();
+    const {modal, message} = useUiApp();
     const navigate = useNavigate();
 
     return useMemo(() => {
@@ -147,7 +147,7 @@ export const buildUriPaths = (uri: string) => {
     return [uri, uri + ".html"];
 };
 
-const AppBase = ({ offline }: { offline: boolean }) => {
+const AppBase = ({offline}: { offline: boolean }) => {
     return (
         <Routes>
             {buildUriPaths("login").map((e) => {
@@ -157,8 +157,8 @@ const AppBase = ({ offline }: { offline: boolean }) => {
                         path={e}
                         element={
                             <ErrorBoundary>
-                                <Suspense fallback={<Spin spinning={true} fullscreen delay={1000} />}>
-                                    <AsyncLogin offline={offline} />
+                                <Suspense fallback={<Spin spinning={true} fullscreen delay={1000}/>}>
+                                    <AsyncLogin offline={offline}/>
                                 </Suspense>
                             </ErrorBoundary>
                         }
@@ -170,8 +170,8 @@ const AppBase = ({ offline }: { offline: boolean }) => {
                 path={"logout"}
                 element={
                     <ErrorBoundary>
-                        <Suspense fallback={<Spin spinning={true} fullscreen delay={1000} />}>
-                            <AsyncLogin offline={offline} />
+                        <Suspense fallback={<Spin spinning={true} fullscreen delay={1000}/>}>
+                            <AsyncLogin offline={offline}/>
                         </Suspense>
                     </ErrorBoundary>
                 }
@@ -181,7 +181,7 @@ const AppBase = ({ offline }: { offline: boolean }) => {
                 element={
                     <ErrorBoundary>
                         <Suspense>
-                            <AdminDashboardPage offline={offline} />
+                            <AdminDashboardPage offline={offline}/>
                         </Suspense>
                     </ErrorBoundary>
                 }

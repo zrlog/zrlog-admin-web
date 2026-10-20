@@ -5,7 +5,6 @@ import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
 import com.zrlog.business.service.WebsiteKvService;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -20,15 +19,14 @@ import java.util.logging.Logger;
 @Singleton
 public class WebsiteCacheService {
 
-    @Inject
-    public WebsiteCacheService(WebsiteKvService kvService) {
-        this.kvService = kvService;
-    }
-
     public static final String KEY_PREFIX = "admin_cache:";
     private static final Logger LOGGER = LoggerUtil.getLogger(WebsiteCacheService.class);
     private static final Gson GSON = new Gson();
     private final WebsiteKvService kvService;
+    @Inject
+    public WebsiteCacheService(WebsiteKvService kvService) {
+        this.kvService = kvService;
+    }
 
     public <T> T getJson(String key, Class<T> clazz) {
         String json = getString(key);

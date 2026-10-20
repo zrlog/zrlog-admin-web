@@ -4,7 +4,6 @@ import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.business.dto.StoredUpgradeNotice;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.service.UpgradeNoticeService;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -15,8 +14,14 @@ import java.util.List;
 @Singleton
 public class MessageCenterService {
 
+    private static final String VERSION_UPDATE_NOTICE_TYPE = "versionUpdate";
+    private static final String COMMENT_NOTICE_TYPE = "unreadComment";
+    private static final String COMMENT_NOTICE_STATUS = "notice";
     private final UpgradeNoticeService upgradeNoticeService;
-
+    private final AdminCommentService adminCommentService;
+    private final WebhookService webhookService;
+    private final MessageCenterOperationService operationService;
+    private final MessageCenterStateService messageCenterStateService;
     @Inject
     public MessageCenterService(
             UpgradeNoticeService upgradeNoticeService,
@@ -31,14 +36,6 @@ public class MessageCenterService {
 
         this.upgradeNoticeService = upgradeNoticeService;
     }
-
-    private final AdminCommentService adminCommentService;
-    private final WebhookService webhookService;
-    private final MessageCenterOperationService operationService;
-    private final MessageCenterStateService messageCenterStateService;
-    private static final String VERSION_UPDATE_NOTICE_TYPE = "versionUpdate";
-    private static final String COMMENT_NOTICE_TYPE = "unreadComment";
-    private static final String COMMENT_NOTICE_STATUS = "notice";
 
     public List<MessageCenterNoticeResponse> listNotices() throws SQLException {
         long observedRevision = messageCenterStateService.current().getRevision();

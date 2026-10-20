@@ -2,21 +2,21 @@ import ChevronDownIcon from "@zrlog/ui/icons/chevron-down";
 import KeyIcon from "@zrlog/ui/icons/key";
 import LogoutIcon from "@zrlog/ui/icons/logout";
 import UserIcon from "@zrlog/ui/icons/user";
-import { USER_ROUTES } from "../utils/account-page-routes";
+import {USER_ROUTES} from "../utils/account-page-routes";
 
-import { Avatar, MenuProps, Modal, Typography } from "antd";
-import { Link } from "react-router-dom";
+import {Avatar, MenuProps, Modal, Typography} from "antd";
+import {Link} from "react-router-dom";
 
 import Dropdown from "antd/es/dropdown";
-import { AdminResourceInfo, getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../utils/constants";
-import { BasicUserInfo } from "../type";
-import { tryBlock } from "../utils/helpers";
-import { resolveBackendImageSrc } from "../common/BackendImage";
-import { useTheme } from "antd-style";
+import {AdminResourceInfo, getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage} from "../utils/constants";
+import {BasicUserInfo} from "../type";
+import {tryBlock} from "../utils/helpers";
+import {resolveBackendImageSrc} from "../common/BackendImage";
+import {useTheme} from "antd-style";
 
-const { Text } = Typography;
+const {Text} = Typography;
 
-const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) => {
+const UserInfo = ({data, offline}: { data: BasicUserInfo; offline: boolean }) => {
     const [modal, contextHolder] = Modal.useModal();
     const theme = useTheme();
 
@@ -24,10 +24,10 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
         const base: NonNullable<MenuProps["items"]> = [
             {
                 key: "1",
-                icon: <UserIcon />,
+                icon: <UserIcon/>,
                 label: (
                     <Link
-                        style={{ whiteSpace: "nowrap" }}
+                        style={{whiteSpace: "nowrap"}}
                         to={getRealRouteUrl(USER_ROUTES.profile)}
                         onClick={(e) => tryBlock(e, modal)}
                     >
@@ -37,7 +37,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
             },
             {
                 key: "2",
-                icon: <KeyIcon />,
+                icon: <KeyIcon/>,
                 label: (
                     <Link to={getRealRouteUrl(USER_ROUTES.security)} onClick={(e) => tryBlock(e, modal)}>
                         {res.accountSecurity.title}
@@ -54,7 +54,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                 ...base,
                 {
                     key: "3",
-                    icon: <LogoutIcon />,
+                    icon: <LogoutIcon/>,
                     label: (
                         <a
                             href={getBackendServerUrl() + "admin/logout" + (isStaticPage() ? "?sp=true" : "")}
@@ -74,7 +74,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
     return (
         <>
             {contextHolder}
-            <Dropdown menu={{ items }} placement="bottomRight" styles={{ root: { width: "max-content", minWidth: 0 } }}>
+            <Dropdown menu={{items}} placement="bottomRight" styles={{root: {width: "max-content", minWidth: 0}}}>
                 <div
                     style={{
                         color: theme.colorText,
@@ -89,7 +89,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                         className={"userAvatarImg"}
                         src={resolveBackendImageSrc(data.header)}
                         size={32}
-                        icon={<UserIcon />}
+                        icon={<UserIcon/>}
                     />
                     <Text
                         style={{
@@ -99,7 +99,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                     >
                         {data.userName}
                     </Text>
-                    <ChevronDownIcon />
+                    <ChevronDownIcon/>
                 </div>
             </Dropdown>
         </>

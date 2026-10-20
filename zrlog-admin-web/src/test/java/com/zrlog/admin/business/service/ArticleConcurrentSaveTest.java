@@ -1,19 +1,16 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.support.AccountServicesFixture;
-import static org.junit.Assert.*;
-
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -22,7 +19,46 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.Assert.*;
+
 public class ArticleConcurrentSaveTest {
+
+    private ZrLogConfig applicationConfig;
+
+    private static InMemoryZrLogDatabase open(String backend) throws Exception {
+        return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi()
+                : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
+    }
+
+    private static CreateArticleRequest article(String title) {
+        CreateArticleRequest request = new CreateArticleRequest();
+        fields(request, title);
+        request.setPreserveDraftAiMessages(true);
+        return request;
+    }
+
+    private static UpdateArticleRequest update(int id, Integer version, String title) {
+        UpdateArticleRequest request = new UpdateArticleRequest();
+        fields(request, title);
+        request.setLogId(id);
+        request.setVersion(version);
+        return request;
+    }
+
+    private static void fields(CreateArticleRequest request, String title) {
+        request.setTitle(title);
+        request.setContent(title + " body");
+        request.setTypeId(1L);
+        request.setPrivacy(true);
+        request.setRubbish(true);
+    }
+
+    private static AdminTokenVO token(int userId) {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(userId);
+        token.setSessionId("session-" + userId);
+        return token;
+    }
 
     @Test
     public void revocationWhileAcquiringTheWriteLockStopsEveryArticleMutation() throws Exception {
@@ -43,10 +79,17 @@ public class ArticleConcurrentSaveTest {
                 });
                 assertThrows(operation, PermissionErrorException.class, () -> {
                     switch (operation) {
-                        case "create": writer.create(actor, article("Too late")); break;
-                        case "update": writer.update(actor, update((int) id, 0, "Too late")); break;
-                        case "delete": writer.delete(actor, id); break;
-                        default: throw new AssertionError(operation);
+                        case "create":
+                            writer.create(actor, article("Too late"));
+                            break;
+                        case "update":
+                            writer.update(actor, update((int) id, 0, "Too late"));
+                            break;
+                        case "delete":
+                            writer.delete(actor, id);
+                            break;
+                        default:
+                            throw new AssertionError(operation);
                     }
                 });
                 assertTrue("The revocation must happen during lock acquisition", revoked.get());
@@ -57,8 +100,6 @@ public class ArticleConcurrentSaveTest {
             }
         }
     }
-
-    private ZrLogConfig applicationConfig;
 
     @Test
     public void competingAccountsAllocateDistinctArticleIds() throws Exception {
@@ -143,7 +184,7 @@ public class ArticleConcurrentSaveTest {
     public void versionChangedAfterReadCannotBeOverwrittenOrRecordedInHistory() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             db.loadAdminWebModules();
-                applicationConfig = db.config();
+            applicationConfig = db.config();
             AdminArticleService service =
                     db.component(ContentComponent.class).articles();
             int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), article("Original")).getLogId().intValue();
@@ -190,41 +231,7 @@ public class ArticleConcurrentSaveTest {
                     .update(AccountServicesFixture.component(testDataSource).requestIdentity().account(token), request);
             return true;
         } catch (UpdateArticleExpireException expected) {
-            return false; }
-    }
-
-    private static InMemoryZrLogDatabase open(String backend) throws Exception {
-        return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi()
-                : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
-    }
-
-    private static CreateArticleRequest article(String title) {
-        CreateArticleRequest request = new CreateArticleRequest();
-        fields(request, title);
-        request.setPreserveDraftAiMessages(true);
-        return request;
-    }
-
-    private static UpdateArticleRequest update(int id, Integer version, String title) {
-        UpdateArticleRequest request = new UpdateArticleRequest();
-        fields(request, title);
-        request.setLogId(id);
-        request.setVersion(version);
-        return request;
-    }
-
-    private static void fields(CreateArticleRequest request, String title) {
-        request.setTitle(title);
-        request.setContent(title + " body");
-        request.setTypeId(1L);
-        request.setPrivacy(true);
-        request.setRubbish(true);
-    }
-
-    private static AdminTokenVO token(int userId) {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(userId);
-        token.setSessionId("session-" + userId);
-        return token;
+            return false;
+        }
     }
 }

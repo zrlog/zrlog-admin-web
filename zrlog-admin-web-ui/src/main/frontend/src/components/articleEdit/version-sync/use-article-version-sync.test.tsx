@@ -1,7 +1,7 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { beforeEach, afterEach, describe, expect, it, jest } from "@jest/globals";
-import { ArticleEntry } from "../index.types";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {ArticleEntry} from "../index.types";
 import useArticleVersionSync from "./use-article-version-sync";
 
 const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -27,13 +27,13 @@ describe("article version synchronization decision layer", () => {
     const options = (local: Partial<ArticleEntry>, server: Partial<ArticleEntry> = {}): Options => ({
         conflict: {
             source: "localEdit",
-            localArticle: { ...base, ...local },
+            localArticle: {...base, ...local},
             localVersion: 1,
             serverVersion: 2,
             baseArticle: base,
         },
-        serverArticle: { ...base, version: 2, ...server },
-        axiosInstance: { get: jest.fn() } as never,
+        serverArticle: {...base, version: 2, ...server},
+        axiosInstance: {get: jest.fn()} as never,
         offline: false,
         onResolve: jest.fn(async () => true),
     });
@@ -51,21 +51,21 @@ describe("article version synchronization decision layer", () => {
     });
 
     it("automatically syncs independent changes once from a locally retained base", async () => {
-        const props = options({ title: "Mine" }, { digest: "Theirs" });
+        const props = options({title: "Mine"}, {digest: "Theirs"});
         await render(props);
         expect(props.axiosInstance.get).not.toHaveBeenCalled();
         expect(props.onResolve).toHaveBeenCalledTimes(1);
         expect(props.onResolve).toHaveBeenCalledWith(
-            expect.objectContaining({ title: "Mine", digest: "Theirs", version: 2 })
+            expect.objectContaining({title: "Mine", digest: "Theirs", version: 2})
         );
-        await render({ ...props });
+        await render({...props});
         expect(props.onResolve).toHaveBeenCalledTimes(1);
     });
 
     it("requires every conflict, preserves choices through remount, and invalidates an edited choice", async () => {
         const props = options(
-            { title: "Mine", markdown: "Mine\nMiddle\nLast\n" },
-            { title: "Theirs", markdown: "Theirs\nMiddle\nLast\n" }
+            {title: "Mine", markdown: "Mine\nMiddle\nLast\n"},
+            {title: "Theirs", markdown: "Theirs\nMiddle\nLast\n"}
         );
         await render(props);
         expect(current.remaining).toBe(2);
@@ -86,18 +86,18 @@ describe("article version synchronization decision layer", () => {
             await current.save();
         });
         expect(props.onResolve).toHaveBeenCalledWith(
-            expect.objectContaining({ title: "Mine", markdown: "Combined\nMiddle\nLast\n" })
+            expect.objectContaining({title: "Mine", markdown: "Combined\nMiddle\nLast\n"})
         );
     });
 
     it("invalidates decisions when the remote snapshot changes and never submits an old plan", async () => {
-        const props = options({ title: "Mine" }, { title: "Theirs" });
+        const props = options({title: "Mine"}, {title: "Theirs"});
         await render(props);
         act(() => current.choose("title", "Combined"));
         await render({
             ...props,
-            conflict: { ...props.conflict!, serverVersion: 3 },
-            serverArticle: { ...props.serverArticle, version: 3, title: "New remote" },
+            conflict: {...props.conflict!, serverVersion: 3},
+            serverArticle: {...props.serverArticle, version: 3, title: "New remote"},
         });
         expect(current.remaining).toBe(1);
         expect(current.merged).toBeUndefined();
@@ -105,7 +105,7 @@ describe("article version synchronization decision layer", () => {
     });
 
     it("does not guess a base when history cannot be read", async () => {
-        const props = options({ title: "Mine" });
+        const props = options({title: "Mine"});
         props.conflict!.baseArticle = undefined;
         jest.mocked(props.axiosInstance.get).mockRejectedValue(new Error("history unavailable"));
         await render(props);
@@ -115,11 +115,11 @@ describe("article version synchronization decision layer", () => {
     });
 
     it("does not retry a failed automatic merge in a loop", async () => {
-        const props = options({ title: "Mine" });
+        const props = options({title: "Mine"});
         jest.mocked(props.onResolve).mockResolvedValue(false);
         await render(props);
         expect(current.saveError).toBe(true);
-        await render({ ...props });
+        await render({...props});
         expect(props.onResolve).toHaveBeenCalledTimes(1);
     });
 });

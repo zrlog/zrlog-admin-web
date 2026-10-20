@@ -1,19 +1,27 @@
 package com.zrlog.admin.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+
 public class BackendServerUrlTest {
+
+    private static HttpRequest request(String origin, String scheme) {
+        return (HttpRequest) Proxy.newProxyInstance(BackendServerUrlTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("getScheme")) return scheme;
+                    if (method.getName().equals("getHeader")) return "Origin".equals(args[0]) ? origin : "evil.example";
+                    return null;
+                });
+    }
 
     @Test
     public void browserOriginsSupportHttpHostsAndContextPathsWithoutWeakeningOAuth() throws Exception {
@@ -85,15 +93,6 @@ public class BackendServerUrlTest {
                 backend.requireAdminRequestOrigin(request("http://blog.example", "http"));
             }
         }
-    }
-
-    private static HttpRequest request(String origin, String scheme) {
-        return (HttpRequest) Proxy.newProxyInstance(BackendServerUrlTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("getScheme")) return scheme;
-                    if (method.getName().equals("getHeader")) return "Origin".equals(args[0]) ? origin : "evil.example";
-                    return null;
-                });
     }
 
     @Test

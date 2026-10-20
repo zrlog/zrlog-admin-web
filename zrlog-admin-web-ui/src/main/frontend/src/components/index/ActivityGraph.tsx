@@ -1,6 +1,6 @@
-import { theme } from "antd";
-import React, { useMemo } from "react";
-import { getRes } from "../../utils/constants";
+import {theme} from "antd";
+import React, {useMemo} from "react";
+import {getRes} from "../../utils/constants";
 
 export interface ActivityDay {
     date: string;
@@ -11,8 +11,8 @@ interface ActivityGraphProps {
     data: ActivityDay[];
 }
 
-const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
-    const { token } = theme.useToken();
+const ActivityGraph: React.FC<ActivityGraphProps> = ({data}) => {
+    const {token} = theme.useToken();
     const daysInWeek = 7;
     const res = getRes();
     const cellSize = 10;
@@ -28,7 +28,7 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
         const offsetStart = (firstDayOfWeek + 6) % 7;
 
         for (let i = 0; i < offsetStart; i++) {
-            currentWeek.push({ date: "", count: 0 });
+            currentWeek.push({date: "", count: 0});
         }
 
         data.forEach((day) => {
@@ -41,7 +41,7 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
         });
 
         while (currentWeek.length > 0 && currentWeek.length < daysInWeek) {
-            currentWeek.push({ date: "", count: 0 });
+            currentWeek.push({date: "", count: 0});
         }
         if (currentWeek.length === daysInWeek) {
             grid.push(currentWeek);
@@ -136,19 +136,19 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
             aria-label={res.index.activity}
             className="activity-graph"
             role="img"
-            style={{ width: "100%", overflowX: "auto", paddingBottom: 2 }}
+            style={{width: "100%", overflowX: "auto", paddingBottom: 2}}
         >
-            <div style={{ width: graphWidth + weekdayColumnWidth }}>
+            <div style={{width: graphWidth + weekdayColumnWidth}}>
                 <div style={monthColumnStyle}>
-                    {Array.from({ length: weekCount }).map((_, weekIndex) => (
-                        <span key={weekIndex} style={{ whiteSpace: "nowrap" }}>
+                    {Array.from({length: weekCount}).map((_, weekIndex) => (
+                        <span key={weekIndex} style={{whiteSpace: "nowrap"}}>
                             {monthLabelByWeek.get(weekIndex) || ""}
                         </span>
                     ))}
                 </div>
-                <div style={{ display: "flex", gap: 0, marginTop: 4 }}>
+                <div style={{display: "flex", gap: 0, marginTop: 4}}>
                     <div style={weekdayStyle}>
-                        {Array.from({ length: daysInWeek }).map((_, dayIndex) => (
+                        {Array.from({length: daysInWeek}).map((_, dayIndex) => (
                             <span key={dayIndex}>{weekdayLabels.get(dayIndex) || ""}</span>
                         ))}
                     </div>

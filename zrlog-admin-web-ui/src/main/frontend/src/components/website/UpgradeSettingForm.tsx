@@ -1,37 +1,37 @@
 import Switch from "@zrlog/ui/antd/Switch";
-import { useUiMessage, useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp, useUiMessage} from "@zrlog/ui/feedback";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
 import Button from "antd/es/button";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import {getRealRouteUrl, getRes} from "../../utils/constants";
 import Form from "antd/es/form";
 import Select from "antd/es/select";
 
-import { theme } from "antd";
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Upgrade } from "./index";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { ApiResponse, UpgradeData } from "../../type";
-import axios, { AxiosResponse, CancelTokenSource } from "axios";
+import {theme} from "antd";
+import {useEffect, useRef, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {Upgrade} from "./index";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {ApiResponse, UpgradeData} from "../../type";
+import axios, {AxiosResponse, CancelTokenSource} from "axios";
 import UpgradeContent from "../upgrade-content";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
 import DockerRepositorySetting from "./DockerRepositorySetting";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
-import { hasAction } from "../../utils/account-access";
+import {hasAction} from "../../utils/account-access";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 const UpgradeSettingForm = ({
-    data,
-    offlineData,
-    offline,
-    onSubmit,
-    loading,
-}: {
+                                data,
+                                offlineData,
+                                offline,
+                                onSubmit,
+                                loading,
+                            }: {
     data: Upgrade;
     offlineData: boolean;
     offline: boolean;
@@ -42,9 +42,9 @@ const UpgradeSettingForm = ({
     const canUpgrade = hasAction("system.manage");
     const [repositoryLoading, setRepositoryLoading] = useState(false);
     const [checking, setChecking] = useState<boolean>(false);
-    const { modal } = useUiApp();
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
-    const { token } = theme.useToken();
+    const {modal} = useUiApp();
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
+    const {token} = theme.useToken();
 
     const [state, setState] = useState<Upgrade>(data);
     const [form] = Form.useForm();
@@ -52,8 +52,8 @@ const UpgradeSettingForm = ({
     const navigate = useNavigate();
     const axiosInstance = useAxiosBaseInstance();
     const cancelTokenSource = useRef<CancelTokenSource | null>(null);
-    const { formLayout, narrow, screens } = useResponsiveFormLayout(layout);
-    const formItemStyle = narrow ? { marginBottom: token.marginMD } : undefined;
+    const {formLayout, narrow, screens} = useResponsiveFormLayout(layout);
+    const formItemStyle = narrow ? {marginBottom: token.marginMD} : undefined;
     const cycleSelectWidth = narrow ? "100%" : 120;
     const checkRowStyle = {
         marginBottom: narrow ? token.marginMD : token.margin,
@@ -67,8 +67,8 @@ const UpgradeSettingForm = ({
         try {
             const source = axios.CancelToken.source();
             cancelTokenSource.current = source;
-            const { data }: AxiosResponse<ApiResponse<UpgradeData>> = await axiosInstance.get("/api/admin/upgrade", {
-                params: { fetch: true },
+            const {data}: AxiosResponse<ApiResponse<UpgradeData>> = await axiosInstance.get("/api/admin/upgrade", {
+                params: {fetch: true},
                 cancelToken: source.token,
             });
             if (data.data.upgrade && data.data.version) {
@@ -83,13 +83,13 @@ const UpgradeSettingForm = ({
                                 paddingRight: narrow ? 0 : 4,
                             }}
                         >
-                            <UpgradeContent data={data.data} />
+                            <UpgradeContent data={data.data}/>
                         </div>
                     ),
                     closable: true,
                     okText: getRes().upgrade.doUpgrade,
                     onOk: () => {
-                        navigate(getRealRouteUrl("/upgrade"), { replace: true });
+                        navigate(getRealRouteUrl("/upgrade"), {replace: true});
                     },
                 });
             } else {
@@ -130,7 +130,7 @@ const UpgradeSettingForm = ({
             {...formLayout}
             disabled={offline || offlineData || loading}
             initialValues={data}
-            onValuesChange={(_k, v) => setState({ ...state, ...v })}
+            onValuesChange={(_k, v) => setState({...state, ...v})}
             onFinish={(nv) => {
                 if (offline || offlineData || loading || repositoryLoading) return;
                 onSubmit({
@@ -139,8 +139,8 @@ const UpgradeSettingForm = ({
                     ...(dockerMode
                         ? state.dockerRepository === undefined
                             ? {}
-                            : { dockerRepository: state.dockerRepository }
-                        : { upgradePackageSource: nv.upgradePackageSource }),
+                            : {dockerRepository: state.dockerRepository}
+                        : {upgradePackageSource: nv.upgradePackageSource}),
                 });
             }}
         >
@@ -154,7 +154,7 @@ const UpgradeSettingForm = ({
                             loading={checking}
                             onClick={checkNewVersion}
                             block={narrow}
-                            style={{ float: narrow ? undefined : "right" }}
+                            style={{float: narrow ? undefined : "right"}}
                         >
                             {getRes().upgrade.check}
                         </Button>
@@ -168,7 +168,7 @@ const UpgradeSettingForm = ({
                 style={formItemStyle}
             >
                 <Select
-                    style={{ width: cycleSelectWidth }}
+                    style={{width: cycleSelectWidth}}
                     options={[
                         {
                             label: getRes().websiteUpgrade.cycle.oneDay,
@@ -196,7 +196,7 @@ const UpgradeSettingForm = ({
                 tooltip={getRes().websiteUpgrade.previewVersionCheckTip}
                 style={formItemStyle}
             >
-                <Switch />
+                <Switch/>
             </Form.Item>
 
             {dockerMode ? (
@@ -208,7 +208,7 @@ const UpgradeSettingForm = ({
                     <DockerRepositorySetting
                         data={data}
                         value={state.dockerRepository}
-                        onChange={(dockerRepository) => setState((current) => ({ ...current, dockerRepository }))}
+                        onChange={(dockerRepository) => setState((current) => ({...current, dockerRepository}))}
                         onLoadingChange={setRepositoryLoading}
                         disabled={offline || offlineData || !!loading}
                         preview={!!state.upgradePreview}
@@ -223,13 +223,13 @@ const UpgradeSettingForm = ({
                 >
                     <Select
                         options={[
-                            { value: "dl", label: getRes().websiteUpgrade.dlSource },
-                            { value: "github", label: getRes().websiteUpgrade.githubSource },
+                            {value: "dl", label: getRes().websiteUpgrade.dlSource},
+                            {value: "github", label: getRes().websiteUpgrade.githubSource},
                         ]}
                     />
                 </Form.Item>
             )}
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData || repositoryLoading} />
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData || repositoryLoading}/>
         </Form>
     );
 };

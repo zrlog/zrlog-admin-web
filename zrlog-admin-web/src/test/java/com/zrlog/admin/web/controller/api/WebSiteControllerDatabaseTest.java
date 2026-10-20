@@ -1,11 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -14,28 +8,14 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.ai.service.AIServiceDependencies;
 import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
-import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
-import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
-import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
-import com.zrlog.admin.business.rest.base.ContentProtectorWebSiteInfo;
-import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
-import com.zrlog.admin.business.rest.base.OtherWebSiteInfo;
+import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
-import com.zrlog.admin.business.service.AdminArticleService;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.business.service.FeatureLabService;
-import com.zrlog.admin.business.service.OAuthService;
-import com.zrlog.admin.business.service.PersonalAccessTokenService;
-import com.zrlog.admin.business.service.UpgradeSettingsService;
-import com.zrlog.admin.business.service.WebSiteSettingsService;
-import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -49,7 +29,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.WebSite;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -58,9 +37,64 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class WebSiteControllerDatabaseTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static Object value(InMemoryZrLogDatabase db, String name) throws Exception {
+        Map<String, Object> row = db.queryOne("select value from website where name=?", name);
+        return row == null ? null : row.get("value");
+    }
+
+    private static void setControllerField(Controller controller, String name, Object value) throws Exception {
+        Field field = Controller.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(controller, value);
+    }
+
+    private static HttpRequest request(HttpMethod method, String uri, String body) {
+        return request(method, uri, body, "JUnit");
+    }
+
+    private static HttpRequest request(HttpMethod method, String uri, String body, String userAgent) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                WebSiteControllerDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, invokedMethod, args) -> {
+                    switch (invokedMethod.getName()) {
+                        case "getMethod":
+                            return method;
+                        case "getUri":
+                            return uri;
+                        case "getInputStream":
+                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                        case "getHeader":
+                            return "User-Agent".equals(args[0]) ? userAgent : null;
+                        case "getHeaderMap":
+                            return Map.of("X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getContextPath":
+                            return "/";
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (invokedMethod.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
+    private static HttpResponse response() {
+        return (HttpResponse) Proxy.newProxyInstance(
+                WebSiteControllerDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> null);
+    }
 
     @Test
     public void arrangementVisibilityIsPersistedWithoutChangingArticleDataOrBlockingWrites() throws Exception {
@@ -161,19 +195,19 @@ public class WebSiteControllerDatabaseTest {
             assertEquals("", value(db, "backend_server_url"));
             assertFalse(
                     new OAuthService(
-                                    ApplicationServicesFixture.backend(db.config())::configured,
-                                    ApplicationServicesFixture.available(
-                                            db.config(), McpWebSetup.class),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    tokenResource ->
-                                            new PersonalAccessTokenService(
-                                                    tokenResource,
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .identities(), AccountServicesFixture.component(db.dataSource())
-                                                            .permissions(),
-                                                    AccountServicesFixture.component(db.dataSource()).security()),
-                                    AccountServicesFixture.component(db.dataSource()).backend())
+                            ApplicationServicesFixture.backend(db.config())::configured,
+                            ApplicationServicesFixture.available(
+                                    db.config(), McpWebSetup.class),
+                            AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            tokenResource ->
+                                    new PersonalAccessTokenService(
+                                            tokenResource,
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .identities(), AccountServicesFixture.component(db.dataSource())
+                                            .permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).security()),
+                            AccountServicesFixture.component(db.dataSource()).backend())
                             .issuer()
                             .contains("gateway.example"));
         }
@@ -222,21 +256,21 @@ public class WebSiteControllerDatabaseTest {
                     PermissionErrorException.class,
                     () ->
                             AccountServicesFixture.component(db.dataSource()).routeAuthorizer().checkRoute(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
-                                            method,
-                                            request(
-                                                    HttpMethod.GET,
-                                                    "/api/admin/website/admin",
-                                                    null)));
+                                    method,
+                                    request(
+                                            HttpMethod.GET,
+                                            "/api/admin/website/admin",
+                                            null)));
             AdminTokenThreadLocal.remove();
             assertThrows(
                     PermissionErrorException.class,
                     () ->
                             AccountServicesFixture.component(db.dataSource()).routeAuthorizer().checkRoute(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
-                                            method,
-                                            request(
-                                                    HttpMethod.GET,
-                                                    "/api/admin/website/admin",
-                                                    null)));
+                                    method,
+                                    request(
+                                            HttpMethod.GET,
+                                            "/api/admin/website/admin",
+                                            null)));
         }
     }
 
@@ -494,11 +528,6 @@ public class WebSiteControllerDatabaseTest {
         }
     }
 
-    private static Object value(InMemoryZrLogDatabase db, String name) throws Exception {
-        Map<String, Object> row = db.queryOne("select value from website where name=?", name);
-        return row == null ? null : row.get("value");
-    }
-
     private WebSiteController controller(HttpMethod method, String uri, String body) throws Exception {
         WebSiteController controller = new TestWebSiteController(applicationConfig);
         setControllerField(controller, "request", request(method, uri, body));
@@ -518,7 +547,7 @@ public class WebSiteControllerDatabaseTest {
                                         applicationConfig == null
                                                 ? null
                                                 : applicationConfig.getPlugin(
-                                                        UpdateVersionInfoPlugin.class),
+                                                UpdateVersionInfoPlugin.class),
                                 ApplicationServicesFixture.audit(testDataSource),
                                 ApplicationServicesFixture.websiteKv(testDataSource),
                                 () -> new WebSite(testDataSource)),
@@ -532,54 +561,6 @@ public class WebSiteControllerDatabaseTest {
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
-    }
-
-    private static void setControllerField(Controller controller, String name, Object value) throws Exception {
-        Field field = Controller.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(controller, value);
-    }
-
-    private static HttpRequest request(HttpMethod method, String uri, String body) {
-        return request(method, uri, body, "JUnit");
-    }
-
-    private static HttpRequest request(HttpMethod method, String uri, String body, String userAgent) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                WebSiteControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, invokedMethod, args) -> {
-                    switch (invokedMethod.getName()) {
-                        case "getMethod":
-                            return method;
-                        case "getUri":
-                            return uri;
-                        case "getInputStream":
-                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                        case "getHeader":
-                            return "User-Agent".equals(args[0]) ? userAgent : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getContextPath":
-                            return "/";
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (invokedMethod.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
-    }
-
-    private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                WebSiteControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
     }
 
     private static class TestWebSiteController extends WebSiteController {
@@ -596,22 +577,22 @@ public class WebSiteControllerDatabaseTest {
                             ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
                             () -> new WebSite((DataSourceWrapper) config.getDataSource())),
                     new UpgradeSettingsService(new WebSiteSettingsService(
-                                    new InMemoryZrLogDatabase.TestCacheService(),
-                                    config == null ? null : config.getTokenService(),
-                                    () ->
-                                            config == null
-                                                    ? null
-                                                    : config.getPlugin(
-                                                            UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
-                                    ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
-                                    () -> new WebSite((DataSourceWrapper) config.getDataSource())),
-                        () ->
+                            new InMemoryZrLogDatabase.TestCacheService(),
+                            config == null ? null : config.getTokenService(),
+                            () ->
+                                    config == null
+                                            ? null
+                                            : config.getPlugin(
+                                            UpdateVersionInfoPlugin.class),
+                            ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
+                            ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
+                            () -> new WebSite((DataSourceWrapper) config.getDataSource())),
+                            () ->
                                     UpdaterHosts.dockerControl(
                                             config == null ? null : config.getUpdater()),
-                        AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
-                        AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).identities(),
-                        ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource())),
+                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).identities(),
+                            ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource())),
                     new FeatureLabService(
                             () -> true,
                             new WebhookService(

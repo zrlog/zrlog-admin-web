@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { AxiosInstance } from "axios";
-import { getCsrData } from "../api";
-import { actionForPath, hasAction } from "../utils/account-access";
-import { createAdminDashboardRoutes, getAdminDashboardRouteSearchItems } from "./admin-dashboard-routes";
-import type { BasicUserInfo } from "../type";
-import { setRes } from "../utils/constants";
-import { createSpotlightSearchSources } from "../layout/spotlight-search-sources";
-import type { SpotlightSearchContext } from "../layout/spotlight-search-types";
+import {beforeEach, describe, expect, it, jest} from "@jest/globals";
+import type {AxiosInstance} from "axios";
+import {getCsrData} from "../api";
+import {actionForPath, hasAction} from "../utils/account-access";
+import {createAdminDashboardRoutes, getAdminDashboardRouteSearchItems} from "./admin-dashboard-routes";
+import type {BasicUserInfo} from "../type";
+import {setRes} from "../utils/constants";
+import {createSpotlightSearchSources} from "../layout/spotlight-search-sources";
+import type {SpotlightSearchContext} from "../layout/spotlight-search-types";
 
-jest.mock("../base/AppBase", () => ({ buildUriPaths: (uri: string) => [uri, uri + ".html"] }));
+jest.mock("../base/AppBase", () => ({buildUriPaths: (uri: string) => [uri, uri + ".html"]}));
 jest.mock("./my-loading-component", () => () => null);
 
 describe("developer UI review route", () => {
@@ -17,8 +17,8 @@ describe("developer UI review route", () => {
             key: "review",
             pageBuildId: "test",
             systemNotification: "",
-            resourceInfo: { lang: "zh_CN" },
-            user: { actions: ["system.manage", "site.configure"] } as BasicUserInfo,
+            resourceInfo: {lang: "zh_CN"},
+            user: {actions: ["system.manage", "site.configure"]} as BasicUserInfo,
         };
     });
 
@@ -43,8 +43,8 @@ describe("developer UI review route", () => {
         async (uri) => {
             const get = jest
                 .fn<Promise<any>, any[]>()
-                .mockResolvedValue({ data: { error: 0, data: true, documentTitle: "UI" } });
-            const data = await getCsrData(uri, 0, { get } as unknown as AxiosInstance);
+                .mockResolvedValue({data: {error: 0, data: true, documentTitle: "UI"}});
+            const data = await getCsrData(uri, 0, {get} as unknown as AxiosInstance);
             expect(get).toHaveBeenCalledTimes(1);
             expect(get).toHaveBeenCalledWith("/api/admin/dev/ui");
             expect(data.data).toBe(true);
@@ -55,12 +55,12 @@ describe("developer UI review route", () => {
     it("shows developer tools in search only when the server enables development mode and the user has permission", () => {
         const devVisible = () => getAdminDashboardRouteSearchItems().some((item) => item.path === "/dev");
         expect(devVisible()).toBe(false);
-        setRes({ devMode: true });
+        setRes({devMode: true});
         expect(devVisible()).toBe(true);
         window.__SS_DATA__!.user!.actions = ["site.configure"];
         expect(devVisible()).toBe(false);
         window.__SS_DATA__!.user!.actions = ["system.manage"];
-        setRes({ devMode: false });
+        setRes({devMode: false});
         expect(devVisible()).toBe(false);
     });
 
@@ -75,12 +75,12 @@ describe("developer UI review route", () => {
         const devVisible = async () => (await source.search(context)).some((item) => item.path === "/dev");
 
         expect(await devVisible()).toBe(false);
-        setRes({ devMode: true });
+        setRes({devMode: true});
         expect(await devVisible()).toBe(true);
         window.__SS_DATA__!.user!.actions = ["site.configure"];
         expect(await devVisible()).toBe(false);
         window.__SS_DATA__!.user!.actions = ["system.manage"];
-        setRes({ devMode: false });
+        setRes({devMode: false});
         expect(await devVisible()).toBe(false);
     });
 });

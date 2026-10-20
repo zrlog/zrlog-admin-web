@@ -1,1 +1,1 @@
-export { default } from "../common/SettingsSubmitBar";
+export {default} from "../common/SettingsSubmitBar";

@@ -6,4 +6,4 @@ export {
     supportsDarkMode,
     supportsCustomPrimary,
 } from "@zrlog/ui/themes";
-export type { UiTheme as AdminTheme } from "@zrlog/ui/themes";
+export type {UiTheme as AdminTheme} from "@zrlog/ui/themes";

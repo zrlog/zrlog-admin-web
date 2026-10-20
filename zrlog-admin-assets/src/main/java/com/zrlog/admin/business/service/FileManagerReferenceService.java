@@ -12,7 +12,6 @@ import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
-
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -25,13 +24,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class FileManagerReferenceService {
-    private final Supplier<ArticleResourceService> articles;
-    private final ArticleResourceReferences references;
-    private final jakarta.inject.Provider<Log> logProvider;
-
     private static final Logger LOGGER = LoggerUtil.getLogger(FileManagerReferenceService.class);
     private static final Object REFERENCE_INDEX_CACHE_LOCK = new Object();
     private static final String REFERENCE_INDEX_CACHE_KEY = "file_manager_reference_index";
+    private final Supplier<ArticleResourceService> articles;
+    private final ArticleResourceReferences references;
+    private final jakarta.inject.Provider<Log> logProvider;
     private final WebsiteCacheService cacheService;
     private FileReferenceIndexCacheVO requestReferenceIndex;
 

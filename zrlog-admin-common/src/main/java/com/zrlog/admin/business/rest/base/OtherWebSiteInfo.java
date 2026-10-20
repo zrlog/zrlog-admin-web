@@ -10,31 +10,14 @@ import java.util.regex.Pattern;
 
 public class OtherWebSiteInfo implements Validator {
 
-    private String icp;
-    private String webCm;
-    private String robotRuleContent;
-
-    public String getIcp() {
-        return icp;
-    }
-
-    public void setIcp(String icp) {
-        this.icp = icp;
-    }
-
-    public String getWebCm() {
-        return webCm;
-    }
-
-    public void setWebCm(String webCm) {
-        this.webCm = webCm;
-    }
-
     // 允许的指令
     private static final Pattern VALID_LINE = Pattern.compile(
             "^(User-agent|Disallow|Allow|Sitemap|Crawl-delay|Host):\\s*.+$",
             Pattern.CASE_INSENSITIVE
     );
+    private String icp;
+    private String webCm;
+    private String robotRuleContent;
 
     private static boolean isValidLine(String line) {
         line = line.trim();
@@ -57,6 +40,21 @@ public class OtherWebSiteInfo implements Validator {
         return true;
     }
 
+    public String getIcp() {
+        return icp;
+    }
+
+    public void setIcp(String icp) {
+        this.icp = icp;
+    }
+
+    public String getWebCm() {
+        return webCm;
+    }
+
+    public void setWebCm(String webCm) {
+        this.webCm = webCm;
+    }
 
     @Override
     public void doValid() {

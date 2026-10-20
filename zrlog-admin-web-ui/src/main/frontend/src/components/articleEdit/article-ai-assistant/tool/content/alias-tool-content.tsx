@@ -1,33 +1,33 @@
 import Typography from "@zrlog/ui/antd/Typography";
-import { Button, Space } from "antd";
-import { FunctionComponent } from "react";
-import { getRes } from "../../../../../utils/constants";
-import { AssistantToolPayload } from "../../article-ai-assistant.types";
+import {Button, Space} from "antd";
+import {FunctionComponent} from "react";
+import {getRes} from "../../../../../utils/constants";
+import {AssistantToolPayload} from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
 import ArticleAiAssistantToolResultCard from "../article-ai-assistant-tool-result-card";
-import { SpecificToolContentProps } from "../article-ai-assistant-tool-content.types";
+import {SpecificToolContentProps} from "../article-ai-assistant-tool-content.types";
 
 type AliasToolPayload = Extract<AssistantToolPayload, { tool: "alias" }>;
 
 const AliasToolContent: FunctionComponent<SpecificToolContentProps<AliasToolPayload>> = ({
-    aiProvider,
-    offline,
-    loadingKey,
-    toolPayload,
-    onApplyValues,
-    applyDisabled,
-    onRefine,
-}) => {
+                                                                                             aiProvider,
+                                                                                             offline,
+                                                                                             loadingKey,
+                                                                                             toolPayload,
+                                                                                             onApplyValues,
+                                                                                             applyDisabled,
+                                                                                             onRefine,
+                                                                                         }) => {
     const alias = toolPayload.payload.alias || "";
     return (
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
-            <Space direction="vertical" style={{ width: "100%" }}>
+            <Space direction="vertical" style={{width: "100%"}}>
                 <Typography.Text copyable>{alias}</Typography.Text>
                 <Button
                     size="small"
                     type="primary"
                     disabled={applyDisabled || !alias}
-                    onClick={() => onApplyValues({ alias })}
+                    onClick={() => onApplyValues({alias})}
                 >
                     {getRes().articleEdit.assistant.apply}
                 </Button>

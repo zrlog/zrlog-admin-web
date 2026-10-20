@@ -1,16 +1,16 @@
-import { CSSProperties, FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
-import { Dropdown, Grid, Select, Space, theme, Typography } from "antd";
-import { useTheme } from "antd-style";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
-import { FileManagerData } from "./index";
+import {CSSProperties, FunctionComponent, useCallback, useEffect, useRef, useState} from "react";
+import {Dropdown, Grid, Select, Space, theme, Typography} from "antd";
+import {useTheme} from "antd-style";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getRes, tryAppendBackendServerUrl} from "../../utils/constants";
+import {FileManagerData} from "./index";
 import FileManagerView from "./view";
-import { FileEntry, formatSize, getFileIcon, getShortcutIcon, hasAction, isImage } from "./shared";
+import {FileEntry, formatSize, getFileIcon, getShortcutIcon, hasAction, isImage} from "./shared";
 import BackendImage from "../../common/BackendImage";
-import { addToCache, getCacheByKey } from "../../utils/cache";
+import {addToCache, getCacheByKey} from "../../utils/cache";
 
-const { useBreakpoint } = Grid;
-const { Text } = Typography;
+const {useBreakpoint} = Grid;
+const {Text} = Typography;
 const FILE_MANAGER_API = "/api/admin/file-manager";
 
 type FileManagerPickerProps = {
@@ -38,15 +38,15 @@ const getCachedPickerUiState = (key?: string): FileManagerPickerUiState => {
 };
 
 const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
-    data,
-    onlyImage = false,
-    acceptExtensions,
-    onSelectFile,
-    disabled = false,
-    style,
-    stateCacheKey,
-}) => {
-    const { token } = theme.useToken();
+                                                                          data,
+                                                                          onlyImage = false,
+                                                                          acceptExtensions,
+                                                                          onSelectFile,
+                                                                          disabled = false,
+                                                                          style,
+                                                                          stateCacheKey,
+                                                                      }) => {
+    const {token} = theme.useToken();
     const themeVars = useTheme();
     const screens = useBreakpoint();
     const axiosInstance = useAxiosBaseInstance();
@@ -84,21 +84,21 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     const setCurrentPath = useCallback(
         (path: string) => {
             setCurrentPathState(path);
-            persistUiState({ currentPath: path });
+            persistUiState({currentPath: path});
         },
         [persistUiState]
     );
     const setSearchKey = useCallback(
         (key: string) => {
             setSearchKeyState(key);
-            persistUiState({ searchKey: key });
+            persistUiState({searchKey: key});
         },
         [persistUiState]
     );
     const setViewMode = useCallback(
         (view: "grid" | "list") => {
             setViewModeState(view);
-            persistUiState({ viewMode: view });
+            persistUiState({viewMode: view});
         },
         [persistUiState]
     );
@@ -117,8 +117,8 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
             setLoading(true);
             setEntries([]);
             try {
-                const { data } = await axiosInstance.get(FILE_MANAGER_API, {
-                    params: nextKey ? { key: nextKey } : { path },
+                const {data} = await axiosInstance.get(FILE_MANAGER_API, {
+                    params: nextKey ? {key: nextKey} : {path},
                 });
                 if (seq !== fetchSeqRef.current) {
                     return;
@@ -174,29 +174,29 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
                         ),
                     })),
                 ]}
-                style={{ minWidth: 144, flex: "1 1 144px" }}
+                style={{minWidth: 144, flex: "1 1 144px"}}
             />
         );
     const breadcrumbItems = (() => {
         if (!effectivePath) {
-            return [{ key: "", title: res.title }];
+            return [{key: "", title: res.title}];
         }
         const matchedRoot = getMatchedRoot(effectivePath);
         if (!matchedRoot) {
-            return [{ key: "", title: <a onClick={() => setSearchKey("")}>{res.title}</a> }];
+            return [{key: "", title: <a onClick={() => setSearchKey("")}>{res.title}</a>}];
         }
         const rootKey = matchedRoot.path;
         const rootTitle = matchedRoot.name;
         const relativePath = effectivePath.substring(rootKey.length).replace(/^\/+/, "");
-        const items = [{ key: rootKey, title: <a onClick={() => setCurrentPath(rootKey)}>{rootTitle}</a> }];
+        const items = [{key: rootKey, title: <a onClick={() => setCurrentPath(rootKey)}>{rootTitle}</a>}];
         if (relativePath) {
             const parts = relativePath.split("/").filter(Boolean);
             parts.forEach((part, index) => {
                 const path = `${rootKey}/${parts.slice(0, index + 1).join("/")}`;
-                items.push({ key: path, title: <a onClick={() => setCurrentPath(path)}>{part}</a> });
+                items.push({key: path, title: <a onClick={() => setCurrentPath(path)}>{part}</a>});
             });
         }
-        return [{ key: "", title: <a onClick={() => setSearchKey("")}>{res.title}</a> }, ...items];
+        return [{key: "", title: <a onClick={() => setSearchKey("")}>{res.title}</a>}, ...items];
     })();
 
     const contextMenuItems = () => [] as any[];
@@ -205,7 +205,7 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
         const selectable = !disabled && hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
         const interactive = !disabled && (hasAction(entry, "OPEN") || selectable);
         return (
-            <Dropdown key={entry.path} menu={{ items: contextMenuItems() }} trigger={["contextMenu"]}>
+            <Dropdown key={entry.path} menu={{items: contextMenuItems()}} trigger={["contextMenu"]}>
                 <div>
                     <div
                         role="button"
@@ -260,8 +260,8 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
                             getFileIcon(entry, token, gridIconSize)
                         )}
                         <Text
-                            ellipsis={{ tooltip: entry.name }}
-                            style={{ width: "100%", textAlign: "center", fontSize: compactItems ? 11 : 12 }}
+                            ellipsis={{tooltip: entry.name}}
+                            style={{width: "100%", textAlign: "center", fontSize: compactItems ? 11 : 12}}
                         >
                             {entry.name}
                         </Text>
@@ -276,7 +276,7 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
         const selectable = !disabled && hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
         const interactive = !disabled && (hasAction(entry, "OPEN") || selectable);
         return (
-            <Dropdown key={entry.path} menu={{ items: contextMenuItems() }} trigger={["contextMenu"]}>
+            <Dropdown key={entry.path} menu={{items: contextMenuItems()}} trigger={["contextMenu"]}>
                 <div
                     role="button"
                     aria-label={entry.name}
@@ -308,11 +308,11 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
                     }}
                 >
                     {getFileIcon(entry, token)}
-                    <Text ellipsis style={{ flex: 1, minWidth: 0 }}>
+                    <Text ellipsis style={{flex: 1, minWidth: 0}}>
                         {entry.name}
                     </Text>
                     {!isDir && (
-                        <Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                        <Text type="secondary" style={{fontSize: 12, whiteSpace: "nowrap"}}>
                             {formatSize(entry.size)}
                         </Text>
                     )}

@@ -13,7 +13,6 @@ import com.zrlog.common.exception.NotFindDbEntryException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-
 import jakarta.inject.Inject;
 
 import java.lang.reflect.Type;
@@ -22,11 +21,16 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ArticleVersionService {
+    private static final Gson GSON = new Gson();
+    private static final Type PATCH_TYPE = new TypeToken<Map<String, Object>>() {
+    }.getType();
+    private static final List<String> SNAPSHOT_FIELDS = List.of(
+            "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail", "arrange_plugin",
+            "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
+    );
     private final jakarta.inject.Provider<Log> logProvider;
     private final jakarta.inject.Provider<LogVersion> logVersionProvider;
-
     private final AccountPermissionService permissionService;
-
     @Inject
     public ArticleVersionService(
             AccountPermissionService permissionService,
@@ -38,13 +42,99 @@ public class ArticleVersionService {
         this.permissionService = permissionService;
     }
 
-    private static final Gson GSON = new Gson();
-    private static final Type PATCH_TYPE = new TypeToken<Map<String, Object>>() {
-    }.getType();
-    private static final List<String> SNAPSHOT_FIELDS = List.of(
-            "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail", "arrange_plugin",
-            "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
-    );
+    private static Map<String, Object> getSnapshotValueMap(LoadEditArticleResponse article) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("title", article.getTitle());
+        map.put("content", article.getContent());
+        map.put("markdown", article.getMarkdown());
+        map.put("digest", article.getDigest());
+        map.put("keywords", article.getKeywords());
+        map.put("alias", article.getAlias());
+        map.put("arrange_plugin", Objects.toString(article.getArrange_plugin(), ""));
+        map.put("thumbnail", article.getThumbnail());
+        map.put("typeId", article.getTypeId());
+        map.put("canComment", article.isCanComment());
+        map.put("recommended", article.isRecommended());
+        map.put("privacy", article.isPrivacy());
+        map.put("rubbish", article.isRubbish());
+        map.put("editorType", article.getEditorType());
+        return map;
+    }
+
+    private static Object getSnapshotValue(LoadEditArticleResponse article, String field) {
+        return getSnapshotValueMap(article).get(field);
+    }
+
+    private static String applyTextReversePatch(String current, Map<String, Object> delta) {
+        Integer prefixValue = toInteger(delta.get("prefixLength"));
+        Integer suffixValue = toInteger(delta.get("suffixLength"));
+        int prefix = Objects.requireNonNullElse(prefixValue, 0);
+        int suffix = Objects.requireNonNullElse(suffixValue, 0);
+        String oldMiddle = Objects.toString(delta.get("oldMiddle"), "");
+        if (current == null) {
+            current = "";
+        }
+        if (prefix + suffix > current.length()) {
+            return current;
+        }
+        return current.substring(0, prefix) + oldMiddle + current.substring(current.length() - suffix);
+    }
+
+    private static int commonPrefixLength(String oldStr, String newStr) {
+        int max = Math.min(oldStr.length(), newStr.length());
+        int index = 0;
+        while (index < max && oldStr.charAt(index) == newStr.charAt(index)) {
+            index++;
+        }
+        return index;
+    }
+
+    private static int commonSuffixLength(String oldStr, String newStr, int prefixLength) {
+        int max = Math.min(oldStr.length(), newStr.length()) - prefixLength;
+        int index = 0;
+        while (index < max &&
+                oldStr.charAt(oldStr.length() - 1 - index) == newStr.charAt(newStr.length() - 1 - index)) {
+            index++;
+        }
+        return index;
+    }
+
+    private static Integer toInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return Integer.parseInt(value.toString());
+    }
+
+    private static Boolean toBoolean(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return Boolean.parseBoolean(value.toString());
+    }
+
+    private static String toStringValue(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Object getIgnoreCase(Map<String, Object> row, String key) {
+        Object value = row.get(key);
+        if (value != null) {
+            return value;
+        }
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
 
     public void recordReversePatch(Map<String, Object> oldLog, Map<String, Object> newLog, Integer userId) throws SQLException {
         if (oldLog == null || newLog == null) {
@@ -173,29 +263,6 @@ public class ArticleVersionService {
         return response;
     }
 
-    private static Map<String, Object> getSnapshotValueMap(LoadEditArticleResponse article) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("title", article.getTitle());
-        map.put("content", article.getContent());
-        map.put("markdown", article.getMarkdown());
-        map.put("digest", article.getDigest());
-        map.put("keywords", article.getKeywords());
-        map.put("alias", article.getAlias());
-        map.put("arrange_plugin", Objects.toString(article.getArrange_plugin(), ""));
-        map.put("thumbnail", article.getThumbnail());
-        map.put("typeId", article.getTypeId());
-        map.put("canComment", article.isCanComment());
-        map.put("recommended", article.isRecommended());
-        map.put("privacy", article.isPrivacy());
-        map.put("rubbish", article.isRubbish());
-        map.put("editorType", article.getEditorType());
-        return map;
-    }
-
-    private static Object getSnapshotValue(LoadEditArticleResponse article, String field) {
-        return getSnapshotValueMap(article).get(field);
-    }
-
     private LoadEditArticleResponse cloneArticle(LoadEditArticleResponse current) {
         LoadEditArticleResponse snapshot = BeanUtil.convert(current, LoadEditArticleResponse.class);
         snapshot.setVersion(current.getVersion());
@@ -275,21 +342,6 @@ public class ArticleVersionService {
         }
     }
 
-    private static String applyTextReversePatch(String current, Map<String, Object> delta) {
-        Integer prefixValue = toInteger(delta.get("prefixLength"));
-        Integer suffixValue = toInteger(delta.get("suffixLength"));
-        int prefix = Objects.requireNonNullElse(prefixValue, 0);
-        int suffix = Objects.requireNonNullElse(suffixValue, 0);
-        String oldMiddle = Objects.toString(delta.get("oldMiddle"), "");
-        if (current == null) {
-            current = "";
-        }
-        if (prefix + suffix > current.length()) {
-            return current;
-        }
-        return current.substring(0, prefix) + oldMiddle + current.substring(current.length() - suffix);
-    }
-
     private Map<String, Object> buildReversePatch(Map<String, Object> oldLog, Map<String, Object> newLog) {
         Map<String, Object> patch = new LinkedHashMap<>();
         for (String field : SNAPSHOT_FIELDS) {
@@ -336,61 +388,5 @@ public class ArticleVersionService {
             default:
                 return log.get(field);
         }
-    }
-
-    private static int commonPrefixLength(String oldStr, String newStr) {
-        int max = Math.min(oldStr.length(), newStr.length());
-        int index = 0;
-        while (index < max && oldStr.charAt(index) == newStr.charAt(index)) {
-            index++;
-        }
-        return index;
-    }
-
-    private static int commonSuffixLength(String oldStr, String newStr, int prefixLength) {
-        int max = Math.min(oldStr.length(), newStr.length()) - prefixLength;
-        int index = 0;
-        while (index < max &&
-                oldStr.charAt(oldStr.length() - 1 - index) == newStr.charAt(newStr.length() - 1 - index)) {
-            index++;
-        }
-        return index;
-    }
-
-    private static Integer toInteger(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).intValue();
-        }
-        return Integer.parseInt(value.toString());
-    }
-
-    private static Boolean toBoolean(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        return Boolean.parseBoolean(value.toString());
-    }
-
-    private static String toStringValue(Object value) {
-        return value == null ? null : value.toString();
-    }
-
-    private static Object getIgnoreCase(Map<String, Object> row, String key) {
-        Object value = row.get(key);
-        if (value != null) {
-            return value;
-        }
-        for (Map.Entry<String, Object> entry : row.entrySet()) {
-            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
     }
 }

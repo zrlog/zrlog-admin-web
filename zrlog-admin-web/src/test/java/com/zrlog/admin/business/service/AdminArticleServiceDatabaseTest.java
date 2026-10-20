@@ -1,13 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
-import com.zrlog.admin.support.AccountServicesFixture;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hibegin.common.dao.dto.PageRequestImpl;
@@ -19,14 +11,8 @@ import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
-import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
-import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import com.zrlog.admin.business.rest.response.ArticleActivityData;
-import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
-import com.zrlog.admin.business.rest.response.ArticlePageData;
-import com.zrlog.admin.business.rest.response.ArticleStatusCountResponse;
-import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
-import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
@@ -35,7 +21,6 @@ import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
-
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -44,9 +29,90 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
+import static org.junit.Assert.*;
+
 public class AdminArticleServiceDatabaseTest {
 
     private static final Executor DIRECT_EXECUTOR = Runnable::run;
+
+    private static CreateArticleRequest article(String title, String alias) {
+        return article(title, alias, false, false);
+    }
+
+    private static CreateArticleRequest article(String title, String alias, boolean privacy, boolean rubbish) {
+        CreateArticleRequest request = new CreateArticleRequest();
+        request.setTitle(title);
+        request.setAlias(alias);
+        request.setContent("<p>" + title + " content</p>");
+        request.setMarkdown(title + " markdown");
+        request.setKeywords("java,zrlog");
+        request.setTypeId(1L);
+        request.setCanComment(true);
+        request.setRecommended(false);
+        request.setPrivacy(privacy);
+        request.setRubbish(rubbish);
+        request.setEditorType("markdown");
+        return request;
+    }
+
+    private static UpdateArticleRequest updateArticle(int logId, int version, String title, String alias) {
+        UpdateArticleRequest request = new UpdateArticleRequest();
+        request.setLogId(logId);
+        request.setVersion(version);
+        request.setTitle(title);
+        request.setAlias(alias);
+        request.setContent("<p>" + title + " updated</p>");
+        request.setMarkdown(title + " updated markdown");
+        request.setDigest("Updated digest");
+        request.setKeywords("updated,zrlog");
+        request.setTypeId(1L);
+        request.setCanComment(false);
+        request.setRecommended(true);
+        request.setPrivacy(true);
+        request.setRubbish(false);
+        request.setEditorType("markdown");
+        return request;
+    }
+
+    private static AdminTokenVO token() {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(1);
+        token.setSessionId("session-1");
+        token.setProtocol("http");
+        return token;
+    }
+
+    private static HttpRequest request() {
+        Map<String, Object> attrs = new HashMap<>();
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminArticleServiceDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getHeader":
+                            return "Host".equals(args[0]) ? "localhost:18080" : null;
+                        case "getUri":
+                            return "/admin/article-edit";
+                        case "getContextPath":
+                            return "/";
+                        case "getScheme":
+                            return "http";
+                        case "getAttr":
+                            return attrs;
+                        case "getHeaderMap":
+                        case "getParamMap":
+                        case "decodeParamMap":
+                            return Map.of();
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
 
     @Test
     public void personalEditorSettingsReachEditingPublishingAndDigestGeneration() throws Exception {
@@ -72,7 +138,8 @@ public class AdminArticleServiceDatabaseTest {
             CreateOrUpdateArticleResponse fullDigest = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Full summary", "full-summary"));
             assertEquals("<p>Full summary content</p>", db.scalar("select digest from log where logId=?", fullDigest.getLogId()));
             preferences.updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"editor\":{\"autoDigestLength\":0}}", "writing");
-            CreateArticleRequest custom = article("Custom summary", "custom-summary"); custom.setDigest("Keep my summary");
+            CreateArticleRequest custom = article("Custom summary", "custom-summary");
+            custom.setDigest("Keep my summary");
             CreateOrUpdateArticleResponse customDigest = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), custom);
             assertEquals("Keep my summary", db.scalar("select digest from log where logId=?", customDigest.getLogId()));
         }
@@ -127,20 +194,20 @@ public class AdminArticleServiceDatabaseTest {
             assertEquals(
                     Boolean.TRUE,
                     ((AIArticleGlobalResponse)
-                                    db.component(ContentComponent.class)
-                                            .queries()
-                                            .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
-                                            .getData())
+                            db.component(ContentComponent.class)
+                                    .queries()
+                                    .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
+                                    .getData())
                             .getAiConfigured());
 
             db.putWebsite("ai_base_url", "");
             assertEquals(
                     Boolean.FALSE,
                     ((AIArticleGlobalResponse)
-                                    db.component(ContentComponent.class)
-                                            .queries()
-                                            .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
-                                            .getData())
+                            db.component(ContentComponent.class)
+                                    .queries()
+                                    .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
+                                    .getData())
                             .getAiConfigured());
         }
     }
@@ -502,84 +569,5 @@ public class AdminArticleServiceDatabaseTest {
             service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
             assertEquals(update.getArrange_plugin(), db.scalar("select arrange_plugin from log where logId=?", id));
         }
-    }
-
-    private static CreateArticleRequest article(String title, String alias) {
-        return article(title, alias, false, false);
-    }
-
-    private static CreateArticleRequest article(String title, String alias, boolean privacy, boolean rubbish) {
-        CreateArticleRequest request = new CreateArticleRequest();
-        request.setTitle(title);
-        request.setAlias(alias);
-        request.setContent("<p>" + title + " content</p>");
-        request.setMarkdown(title + " markdown");
-        request.setKeywords("java,zrlog");
-        request.setTypeId(1L);
-        request.setCanComment(true);
-        request.setRecommended(false);
-        request.setPrivacy(privacy);
-        request.setRubbish(rubbish);
-        request.setEditorType("markdown");
-        return request;
-    }
-
-    private static UpdateArticleRequest updateArticle(int logId, int version, String title, String alias) {
-        UpdateArticleRequest request = new UpdateArticleRequest();
-        request.setLogId(logId);
-        request.setVersion(version);
-        request.setTitle(title);
-        request.setAlias(alias);
-        request.setContent("<p>" + title + " updated</p>");
-        request.setMarkdown(title + " updated markdown");
-        request.setDigest("Updated digest");
-        request.setKeywords("updated,zrlog");
-        request.setTypeId(1L);
-        request.setCanComment(false);
-        request.setRecommended(true);
-        request.setPrivacy(true);
-        request.setRubbish(false);
-        request.setEditorType("markdown");
-        return request;
-    }
-
-    private static AdminTokenVO token() {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(1);
-        token.setSessionId("session-1");
-        token.setProtocol("http");
-        return token;
-    }
-
-    private static HttpRequest request() {
-        Map<String, Object> attrs = new HashMap<>();
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminArticleServiceDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getUri":
-                            return "/admin/article-edit";
-                        case "getContextPath":
-                            return "/";
-                        case "getScheme":
-                            return "http";
-                        case "getAttr":
-                            return attrs;
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
     }
 }

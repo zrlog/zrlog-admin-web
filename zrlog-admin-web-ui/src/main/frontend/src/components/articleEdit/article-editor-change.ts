@@ -1,4 +1,4 @@
-import { ChangedContent } from "./index.types";
+import {ChangedContent} from "./index.types";
 
 type EditorContentChange = {
     value: string;
@@ -17,5 +17,5 @@ export const getArticleEditorChange = (
     if (change.value === (currentMarkdown ?? "")) {
         return undefined;
     }
-    return { markdown: change.value, content: change.previewContent };
+    return {markdown: change.value, content: change.previewContent};
 };

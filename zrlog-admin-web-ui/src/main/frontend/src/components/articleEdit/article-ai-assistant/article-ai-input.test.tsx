@@ -1,10 +1,10 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { getRes } from "../../../utils/constants";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {getRes} from "../../../utils/constants";
 import ArticleAiInput from "./article-ai-input";
-import { ChatRun } from "./use-article-chat";
-import { canApplySkillValues, editorContextRevision } from "./article-ai-skill-contract";
+import {ChatRun} from "./use-article-chat";
+import {canApplySkillValues, editorContextRevision} from "./article-ai-skill-contract";
 
 const revision = "0123456789abcdef0123456789abcdef";
 const paused = (): ChatRun => ({
@@ -39,9 +39,11 @@ describe("writing input", () => {
             observe() {
                 return undefined;
             }
+
             unobserve() {
                 return undefined;
             }
+
             disconnect() {
                 return undefined;
             }
@@ -59,7 +61,7 @@ describe("writing input", () => {
     const render = (run = paused(), contextRevision = revision, disabled = false) =>
         act(() =>
             root.render(
-                <ArticleAiInput run={run} contextRevision={contextRevision} disabled={disabled} onRespond={decide} />
+                <ArticleAiInput run={run} contextRevision={contextRevision} disabled={disabled} onRespond={decide}/>
             )
         );
     const button = (label: string) =>
@@ -67,7 +69,7 @@ describe("writing input", () => {
             (node) => node.textContent?.replace(/\s/g, "") === label.replace(/\s/g, "")
         );
     it.each(["zh_CN", "en_US"] as const)("requires an explicit choice and submits it as text in %s", (lang) => {
-        window.__SS_DATA__ = { resourceInfo: { lang } } as NonNullable<typeof window.__SS_DATA__>;
+        window.__SS_DATA__ = {resourceInfo: {lang}} as NonNullable<typeof window.__SS_DATA__>;
         const res = getRes().articleEdit.interaction;
         render();
         expect(button(res.continue)?.disabled).toBe(true);
@@ -137,12 +139,12 @@ describe("writing input", () => {
                 applicableFields: ["title"],
             },
         };
-        expect(canApplySkillValues(message, original, { title: "New" })).toBe(true);
-        expect(canApplySkillValues(message, original, { markdown: "Wrong field" })).toBe(false);
+        expect(canApplySkillValues(message, original, {title: "New"})).toBe(true);
+        expect(canApplySkillValues(message, original, {markdown: "Wrong field"})).toBe(false);
         expect(
-            canApplySkillValues(message, editorContextRevision({ ...context, markdown: "Updated" }), { title: "New" })
+            canApplySkillValues(message, editorContextRevision({...context, markdown: "Updated"}), {title: "New"})
         ).toBe(false);
-        expect(canApplySkillValues({ ...message, skillContract: undefined }, original, { title: "New" })).toBe(false);
-        expect(editorContextRevision({ ...context, selectedText: "selection" })).toBe(original);
+        expect(canApplySkillValues({...message, skillContract: undefined}, original, {title: "New"})).toBe(false);
+        expect(editorContextRevision({...context, selectedText: "selection"})).toBe(original);
     });
 });

@@ -14,59 +14,59 @@ export type ArticleDraftSyncState = {
 
 export type ArticleDraftSyncEvent =
     | {
-          type: "edit";
-          revision: number;
-          syncable: boolean;
-      }
+    type: "edit";
+    revision: number;
+    syncable: boolean;
+}
     | {
-          type: "networkLost";
-      }
+    type: "networkLost";
+}
     | {
-          type: "networkRestored";
-          syncable: boolean;
-      }
+    type: "networkRestored";
+    syncable: boolean;
+}
     | {
-          type: "syncStarted";
-          revision: number;
-      }
+    type: "syncStarted";
+    revision: number;
+}
     | {
-          type: "syncDeferred";
-          revision: number;
-      }
+    type: "syncDeferred";
+    revision: number;
+}
     | {
-          type: "syncFailed";
-          revision: number;
-          error: string;
-          nextRetryAt: number;
-      }
+    type: "syncFailed";
+    revision: number;
+    error: string;
+    nextRetryAt: number;
+}
     | {
-          type: "syncConflict";
-          revision: number;
-          error: string;
-      }
+    type: "syncConflict";
+    revision: number;
+    error: string;
+}
     | {
-          type: "syncBlocked";
-          revision: number;
-          error: string;
-      }
+    type: "syncBlocked";
+    revision: number;
+    error: string;
+}
     | {
-          type: "retryReady";
-      }
+    type: "retryReady";
+}
     | {
-          type: "syncSucceeded";
-          revision: number;
-      }
+    type: "syncSucceeded";
+    revision: number;
+}
     | {
-          type: "commit";
-      }
+    type: "commit";
+}
     | {
-          type: "serverUpdated";
-      }
+    type: "serverUpdated";
+}
     | {
-          type: "resolveConflict";
-          revision: number;
-          syncable: boolean;
-      };
+    type: "resolveConflict";
+    revision: number;
+    syncable: boolean;
+};
 
 export const createArticleDraftSyncState = (offline: boolean): ArticleDraftSyncState => ({
     connectivity: offline ? "offline" : "online",
@@ -164,8 +164,8 @@ export const reduceArticleDraftSyncState = (
                     state.sync === "conflict" || state.sync === "blocked"
                         ? state.sync
                         : state.document === "dirty" && event.syncable
-                        ? "queued"
-                        : "idle",
+                            ? "queued"
+                            : "idle",
                 nextRetryAt: undefined,
             };
         case "syncStarted":
@@ -249,7 +249,7 @@ export const reduceArticleDraftSyncState = (
             };
         case "serverUpdated":
             if (state.document === "clean") return state;
-            return { ...state, sync: "conflict", nextRetryAt: undefined };
+            return {...state, sync: "conflict", nextRetryAt: undefined};
         case "commit":
             return {
                 connectivity: state.connectivity,

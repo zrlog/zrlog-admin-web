@@ -1,4 +1,4 @@
-import { Alert, Button, Empty, Row, Segmented, Select, Space, Typography } from "antd";
+import {Alert, Button, Empty, Row, Segmented, Select, Space, Typography} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import AppsIcon from "@zrlog/ui/icons/apps";
@@ -7,32 +7,32 @@ import SearchIcon from "@zrlog/ui/icons/search";
 import UnorderedListIcon from "@zrlog/ui/icons/unordered-list";
 import UploadIcon from "@zrlog/ui/icons/upload";
 
-import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "antd-style";
+import {useEffect, useMemo, useState} from "react";
+import {useTheme} from "antd-style";
 import styled from "styled-components";
-import { getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../../utils/constants";
-import { Link, useLocation } from "react-router-dom";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getCsrData, getTimeInfoBySearchStr } from "../../api";
-import { addToCache } from "../../utils/cache";
+import {getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage} from "../../utils/constants";
+import {Link, useLocation} from "react-router-dom";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getCsrData, getTimeInfoBySearchStr} from "../../api";
+import {addToCache} from "../../utils/cache";
 import TemplateCard from "./template-card";
 import TemplateList from "./template-list";
 import ThemeUpload from "./theme-upload";
 import TemplateConfigDialog from "./template-config-dialog";
-import { filterTemplates, TemplateEntry, TemplateFilter } from "./template-model";
+import {filterTemplates, TemplateEntry, TemplateFilter} from "./template-model";
 
-export type { TemplateEntry } from "./template-model";
+export type {TemplateEntry} from "./template-model";
 
 // Resolve the width in CSS so the toolbar has its final layout on the first paint.
 const TemplateSearchInput = styled(Input)<{ $screenMD: number }>`
     width: 100%;
 
-    @media (min-width: ${({ $screenMD }) => $screenMD}px) {
+    @media (min-width: ${({$screenMD}) => $screenMD}px) {
         width: 280px;
     }
 `;
 
-const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: boolean }) => {
+const Template = ({data, offline = false}: { data: TemplateEntry[]; offline?: boolean }) => {
     const [templateState, setTemplateState] = useState<TemplateEntry[]>(data);
     const [filter, setFilter] = useState<TemplateFilter>("all");
     const [search, setSearch] = useState("");
@@ -45,7 +45,7 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
     const location = useLocation();
     const res = getRes().websiteTemplate;
     const load = () => {
-        getCsrData("/template", getTimeInfoBySearchStr(location.search), axiosInstance).then(({ data }) => {
+        getCsrData("/template", getTimeInfoBySearchStr(location.search), axiosInstance).then(({data}) => {
             setTemplateState(data);
             addToCache(data, location.pathname);
         });
@@ -64,7 +64,7 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
         <Space
             direction="vertical"
             size="large"
-            style={{ width: "100%", maxWidth: 1440, margin: "0 auto", display: "flex" }}
+            style={{width: "100%", maxWidth: 1440, margin: "0 auto", display: "flex"}}
         >
             <div
                 style={{
@@ -77,7 +77,7 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
             >
                 <Space direction="vertical" size="small">
                     <Space wrap>
-                        <Typography.Title level={4} style={{ margin: 0 }}>
+                        <Typography.Title level={4} style={{margin: 0}}>
                             {res.title}
                         </Typography.Title>
                         <Tag>
@@ -88,14 +88,14 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                 </Space>
                 <Space wrap>
                     <Button
-                        icon={<UploadIcon />}
+                        icon={<UploadIcon/>}
                         aria-expanded={uploadOpen}
                         onClick={() => setUploadOpen(!uploadOpen)}
                     >
                         {res.upload.title}
                     </Button>
                     <Link to={getRealRouteUrl(`/template-center?host=${host}`)}>
-                        <Button type="primary" icon={<CloudDownloadIcon />}>
+                        <Button type="primary" icon={<CloudDownloadIcon/>}>
                             {res.downloadMore}
                         </Button>
                     </Link>
@@ -114,13 +114,13 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                 />
             )}
             {previewTemplate && (
-                <Alert type="info" showIcon message={`${res.previewTheme} · ${previewTemplate.name}`} />
+                <Alert type="info" showIcon message={`${res.previewTheme} · ${previewTemplate.name}`}/>
             )}
-            <div style={{ display: "flex", alignItems: "center", gap: theme.marginSM, flexWrap: "wrap" }}>
+            <div style={{display: "flex", alignItems: "center", gap: theme.marginSM, flexWrap: "wrap"}}>
                 <TemplateSearchInput
                     $screenMD={theme.screenMD}
                     allowClear
-                    prefix={<SearchIcon />}
+                    prefix={<SearchIcon/>}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder={res.searchPlaceholder}
@@ -130,23 +130,23 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                     value={filter}
                     onChange={setFilter}
                     aria-label={res.filterLabel}
-                    style={{ minWidth: 130 }}
+                    style={{minWidth: 130}}
                     options={[
-                        { label: res.allThemes, value: "all" },
-                        { label: getRes().templateConfig.inUse, value: "active" },
-                        { label: getRes().templateConfig.inPreview, value: "preview" },
-                        { label: res.builtInThemes, value: "builtin" },
-                        { label: res.removableThemes, value: "removable" },
+                        {label: res.allThemes, value: "all"},
+                        {label: getRes().templateConfig.inUse, value: "active"},
+                        {label: getRes().templateConfig.inPreview, value: "preview"},
+                        {label: res.builtInThemes, value: "builtin"},
+                        {label: res.removableThemes, value: "removable"},
                     ]}
                 />
                 <Segmented
                     value={view}
                     onChange={(value) => setView(String(value))}
                     aria-label={res.viewLabel}
-                    style={{ marginLeft: "auto" }}
+                    style={{marginLeft: "auto"}}
                     options={[
-                        { label: res.listView, value: "list", icon: <UnorderedListIcon selected={view === "list"} /> },
-                        { label: res.gridView, value: "grid", icon: <AppsIcon selected={view === "grid"} /> },
+                        {label: res.listView, value: "list", icon: <UnorderedListIcon selected={view === "list"}/>},
+                        {label: res.gridView, value: "grid", icon: <AppsIcon selected={view === "grid"}/>},
                     ]}
                 />
             </div>
@@ -185,7 +185,7 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                     )}
                 </Empty>
             )}
-            <div style={{ display: "flex", justifyContent: "space-between", gap: theme.marginSM, flexWrap: "wrap" }}>
+            <div style={{display: "flex", justifyContent: "space-between", gap: theme.marginSM, flexWrap: "wrap"}}>
                 <Typography.Text type="secondary">
                     {res.resultCount
                         .replace("{count}", String(filteredTemplates.length))

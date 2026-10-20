@@ -15,16 +15,28 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class PwaInterceptorTest {
 
+    private final String previousStaticPath = System.getProperty("sws.static.path");
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private final String previousStaticPath = System.getProperty("sws.static.path");
+    private static HttpRequest request(String uri) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                PwaInterceptorTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getUri".equals(method.getName())) {
+                        return uri;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
 
     @After
     public void tearDown() {
@@ -69,21 +81,6 @@ public class PwaInterceptorTest {
         assertTrue(response.headers.get("Content-Type").contains("png"));
         assertTrue(response.written.length > 0);
         assertEquals(Integer.valueOf(200), response.status);
-    }
-
-    private static HttpRequest request(String uri) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                PwaInterceptorTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getUri".equals(method.getName())) {
-                        return uri;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
     }
 
     private static class ResponseRecorder {

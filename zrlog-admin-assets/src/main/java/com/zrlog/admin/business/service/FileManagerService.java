@@ -1,8 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.audit.AdminAuditContext;
-import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
-
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
@@ -10,12 +7,10 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.audit.AdminAuditContext;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest;
-import com.zrlog.admin.business.rest.response.FileEntryVO;
-import com.zrlog.admin.business.rest.response.FileManagerResponse;
-import com.zrlog.admin.business.rest.response.FileReferenceVO;
-import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
-import com.zrlog.admin.business.rest.response.UploadFileResponse;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.FileEntryAccess;
@@ -24,9 +19,7 @@ import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -35,15 +28,16 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
+
 public class FileManagerService {
+    public static final String LIBRARY_ROOT = "";
+    public static final String ATTACHED_ROOT = "/attached";
+    public static final String EXTERNAL_ROOT = "/external";
     private final DbFileService dbFileService;
     private final WebSiteService webSiteService;
     private final AdminAuditService adminAuditService;
     private final MessageCenterOperationService messageCenterOperationService;
-
-    public static final String LIBRARY_ROOT = "";
-    public static final String ATTACHED_ROOT = "/attached";
-    public static final String EXTERNAL_ROOT = "/external";
     private final FileManagerReferenceService referenceService;
     private final UploadService uploadService;
 
@@ -79,8 +73,8 @@ public class FileManagerService {
     }
 
     public ReplaceArticleResourceUrlResponse replaceArticleResourceUrlAndRecord(AccountAccess actor,
-                                                                                 ReplaceArticleResourceUrlRequest body,
-                                                                                 AdminAuditContext audit)
+                                                                                ReplaceArticleResourceUrlRequest body,
+                                                                                AdminAuditContext audit)
             throws SQLException {
         ReplaceArticleResourceUrlResponse response = replaceArticleResourceUrl(actor, body);
         this.adminAuditService.record(audit,

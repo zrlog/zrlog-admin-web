@@ -1,10 +1,5 @@
 package com.zrlog.admin.web.interceptor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -33,7 +28,6 @@ import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -41,9 +35,123 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class AdminInterceptorRoutingTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static HttpRequest request(String uri) {
+        return request(uri, null);
+    }
+
+    private static HttpRequest request(String uri, String userAgent) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminInterceptorRoutingTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getUri".equals(method.getName())) {
+                        return uri;
+                    }
+                    if ("getHeader".equals(method.getName()) && "User-Agent".equals(args[0])) {
+                        return userAgent;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
+
+    private static HttpRequest adminRequest(HttpMethod method, String uri) {
+        ServerConfig serverConfig = new ServerConfig();
+        Router router = serverConfig.getRouter();
+        router.addMapper("/admin/interceptor", InterceptorController.class);
+        RequestConfig requestConfig = new RequestConfig();
+        requestConfig.setRouter(router);
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminInterceptorRoutingTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, calledMethod, args) -> {
+                    switch (calledMethod.getName()) {
+                        case "getUri":
+                            return uri;
+                        case "getMethod":
+                            return method;
+                        case "getContextPath":
+                            return "";
+                        case "getHeader":
+                            return "Host".equals(args[0]) ? "localhost:18080" : null;
+                        case "getHeaderMap":
+                        case "getParamMap":
+                        case "decodeParamMap":
+                            return Map.of();
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getServerConfig":
+                            return serverConfig;
+                        case "getRequestConfig":
+                            return requestConfig;
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (calledMethod.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
+    private static AdminFullTokenVO token() {
+        AdminFullTokenVO token = new AdminFullTokenVO();
+        token.setUserId(1);
+        token.setSessionId("session-1");
+        token.setProtocol("http");
+        token.setSecretKey("secret");
+        return token;
+    }
+
+    private static TokenService tokenService(AdminFullTokenVO token) {
+        return new TokenService() {
+            @Override
+            public void updateSessionTimeout(long sessionTimeoutInMinutes) {
+            }
+
+            @Override
+            public AdminFullTokenVO getAdminTokenVO(HttpRequest request) {
+                return token;
+            }
+
+            @Override
+            public void removeAdminToken(HttpRequest request, HttpResponse response) {
+            }
+
+            @Override
+            public void setAdminToken(
+                    Integer userId,
+                    String secretKey,
+                    String sessionId,
+                    String protocol,
+                    HttpRequest request,
+                    HttpResponse response) {
+                try {
+                    AdminFullTokenVO bound = new AdminFullTokenVO();
+                    bound.setUserId(userId);
+                    bound.setSecretKey(secretKey);
+                    bound.setSessionId(sessionId);
+                    bound.setProtocol(protocol);
+                    Method method =
+                            AdminTokenThreadLocal.class.getDeclaredMethod(
+                                    "setAdminToken", AdminTokenVO.class);
+                    method.setAccessible(true);
+                    method.invoke(null, bound);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+    }
 
     @Test
     public void shouldMatchAdminStaticResourceRoutes() {
@@ -114,30 +222,34 @@ public class AdminInterceptorRoutingTest {
     public void shouldMatchTemporaryDevAndPwaRoutes() {
         assertTrue(
                 new AdminTemporaryResourceInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                () -> false,
-                                AccountServicesFixture.component(null).requestIdentity(),
-                                new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
+                        () -> applicationConfig.getTokenService(),
+                        () -> false,
+                        AccountServicesFixture.component(null).requestIdentity(),
+                        new DbFileService(
+                                ApplicationServicesFixture.websiteKv(null), () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        }))
                         .isHandleAble(
                                 request(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/image.png")));
         assertFalse(
                 new AdminTemporaryResourceInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                () -> false,
-                                AccountServicesFixture.component(null).requestIdentity(),
-                                new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
+                        () -> applicationConfig.getTokenService(),
+                        () -> false,
+                        AccountServicesFixture.component(null).requestIdentity(),
+                        new DbFileService(
+                                ApplicationServicesFixture.websiteKv(null), () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        }))
                         .isHandleAble(request("/attached/tmp/image.png")));
         assertTrue(
                 new AdminDevFileInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                AccountServicesFixture.component(null).requestIdentity())
+                        () -> applicationConfig.getTokenService(),
+                        AccountServicesFixture.component(null).requestIdentity())
                         .isHandleAble(request("/admin/dev/file/tmp/a.txt")));
         assertFalse(
                 new AdminDevFileInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                AccountServicesFixture.component(null).requestIdentity())
+                        () -> applicationConfig.getTokenService(),
+                        AccountServicesFixture.component(null).requestIdentity())
                         .isHandleAble(request("/admin/dev")));
 
         PwaInterceptor pwaInterceptor = new PwaInterceptor();
@@ -155,19 +267,19 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldRedirectMappedAdminRouteWhenAdminTokenIsMissing() throws Exception {
-            ResponseRecorder response = new ResponseRecorder();
+        ResponseRecorder response = new ResponseRecorder();
 
         withConfig(
                 new TestZrLogConfig(tokenService(null), null),
                 () ->
                         new AdminInterceptor(
-                                        () -> applicationConfig.getTokenService(),
-                                        () ->
-                                                ApplicationServicesFixture.dispatcher(
-                                                        null, applicationConfig),
-                                        ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).preferences(),
-                                        AccountServicesFixture.component(null).routeAuthorizer(), AccountServicesFixture.component(null).requestIdentity())
+                                () -> applicationConfig.getTokenService(),
+                                () ->
+                                        ApplicationServicesFixture.dispatcher(
+                                                null, applicationConfig),
+                                ApplicationServicesFixture.installed(applicationConfig),
+                                AccountServicesFixture.component(null).preferences(),
+                                AccountServicesFixture.component(null).routeAuthorizer(), AccountServicesFixture.component(null).requestIdentity())
                                 .doInterceptor(
                                         adminRequest(HttpMethod.GET, "/admin/interceptor/plain"),
                                         response.response()));
@@ -186,13 +298,13 @@ public class AdminInterceptorRoutingTest {
                     new TestZrLogConfig(tokenService(token()), ignored.dataSource()),
                     () ->
                             new AdminInterceptor(
-                                            () -> applicationConfig.getTokenService(),
-                                            () ->
-                                                    ApplicationServicesFixture.dispatcher(
-                                                            null, applicationConfig),
-                                            ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                                            AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
+                                    () -> applicationConfig.getTokenService(),
+                                    () ->
+                                            ApplicationServicesFixture.dispatcher(
+                                                    null, applicationConfig),
+                                    ApplicationServicesFixture.installed(applicationConfig),
+                                    AccountServicesFixture.component(ignored.dataSource()).preferences(),
+                                    AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
                                     .doInterceptor(
                                             adminRequest(
                                                     HttpMethod.GET, "/admin/interceptor/plain"),
@@ -212,13 +324,13 @@ public class AdminInterceptorRoutingTest {
                     new TestZrLogConfig(tokenService(token()), ignored.dataSource()),
                     () ->
                             new AdminInterceptor(
-                                            () -> applicationConfig.getTokenService(),
-                                            () ->
-                                                    ApplicationServicesFixture.dispatcher(
-                                                            null, applicationConfig),
-                                            ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                                            AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
+                                    () -> applicationConfig.getTokenService(),
+                                    () ->
+                                            ApplicationServicesFixture.dispatcher(
+                                                    null, applicationConfig),
+                                    ApplicationServicesFixture.installed(applicationConfig),
+                                    AccountServicesFixture.component(ignored.dataSource()).preferences(),
+                                    AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
                                     .doInterceptor(
                                             adminRequest(
                                                     HttpMethod.POST, "/admin/interceptor/locked"),
@@ -238,13 +350,13 @@ public class AdminInterceptorRoutingTest {
                     new TestZrLogConfig(tokenService(token()), ignored.dataSource()),
                     () ->
                             new AdminInterceptor(
-                                            () -> applicationConfig.getTokenService(),
-                                            () ->
-                                                    ApplicationServicesFixture.dispatcher(
-                                                            null, applicationConfig),
-                                            ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                                            AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
+                                    () -> applicationConfig.getTokenService(),
+                                    () ->
+                                            ApplicationServicesFixture.dispatcher(
+                                                    null, applicationConfig),
+                                    ApplicationServicesFixture.installed(applicationConfig),
+                                    AccountServicesFixture.component(ignored.dataSource()).preferences(),
+                                    AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
                                     .doInterceptor(
                                             adminRequest(
                                                     HttpMethod.GET,
@@ -256,68 +368,6 @@ public class AdminInterceptorRoutingTest {
         }
     }
 
-    private static HttpRequest request(String uri) {
-        return request(uri, null);
-    }
-
-    private static HttpRequest request(String uri, String userAgent) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminInterceptorRoutingTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getUri".equals(method.getName())) {
-                        return uri;
-                    }
-                    if ("getHeader".equals(method.getName()) && "User-Agent".equals(args[0])) {
-                        return userAgent;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
-    }
-
-    private static HttpRequest adminRequest(HttpMethod method, String uri) {
-        ServerConfig serverConfig = new ServerConfig();
-        Router router = serverConfig.getRouter();
-        router.addMapper("/admin/interceptor", InterceptorController.class);
-        RequestConfig requestConfig = new RequestConfig();
-        requestConfig.setRouter(router);
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminInterceptorRoutingTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, calledMethod, args) -> {
-                    switch (calledMethod.getName()) {
-                        case "getUri":
-                            return uri;
-                        case "getMethod":
-                            return method;
-                        case "getContextPath":
-                            return "";
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "getRequestConfig":
-                            return requestConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (calledMethod.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
-    }
-
     private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
         try {
             applicationConfig = config;
@@ -325,54 +375,6 @@ public class AdminInterceptorRoutingTest {
         } finally {
             AdminTokenThreadLocal.remove();
         }
-    }
-
-    private static AdminFullTokenVO token() {
-        AdminFullTokenVO token = new AdminFullTokenVO();
-        token.setUserId(1);
-        token.setSessionId("session-1");
-        token.setProtocol("http");
-        token.setSecretKey("secret");
-        return token;
-    }
-
-    private static TokenService tokenService(AdminFullTokenVO token) {
-        return new TokenService() {
-            @Override
-            public void updateSessionTimeout(long sessionTimeoutInMinutes) {}
-
-            @Override
-            public AdminFullTokenVO getAdminTokenVO(HttpRequest request) {
-                return token;
-            }
-
-            @Override
-            public void removeAdminToken(HttpRequest request, HttpResponse response) {}
-
-            @Override
-            public void setAdminToken(
-                    Integer userId,
-                    String secretKey,
-                    String sessionId,
-                    String protocol,
-                    HttpRequest request,
-                    HttpResponse response) {
-                try {
-                    AdminFullTokenVO bound = new AdminFullTokenVO();
-                    bound.setUserId(userId);
-                    bound.setSecretKey(secretKey);
-                    bound.setSessionId(sessionId);
-                    bound.setProtocol(protocol);
-                    Method method =
-                            AdminTokenThreadLocal.class.getDeclaredMethod(
-                                    "setAdminToken", AdminTokenVO.class);
-                    method.setAccessible(true);
-                    method.invoke(null, bound);
-                } catch (ReflectiveOperationException e) {
-                    throw new IllegalStateException(e);
-                }
-            }
-        };
     }
 
     private interface ThrowingRunnable {

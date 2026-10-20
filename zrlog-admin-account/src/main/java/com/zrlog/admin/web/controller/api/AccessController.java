@@ -10,13 +10,13 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.util.*;
 
 public class AccessController extends BaseController {
     private final AdminRequestIdentity requestIdentity;
+    private final AdminPageDataFactory pages;
 
     @Inject
     public AccessController(
@@ -26,9 +26,8 @@ public class AccessController extends BaseController {
         this.pages = pages;
     }
 
-    private final AdminPageDataFactory pages;
-
-    @ResponseBody @RequestMethod(method = HttpMethod.GET)
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.PERMISSION_READ, descriptionKey = "permission.inspect")
     public AdminPageDataResponse<AccessModels.Page> index() {
         var actor = requestIdentity.current();
@@ -38,7 +37,10 @@ public class AccessController extends BaseController {
         page.actions = new ArrayList<>();
         for (AccountAction action : AccountAction.values()) {
             AccessModels.Action item = new AccessModels.Action();
-            item.id = action.getId(); item.scope = action.getScope(); item.roles = new ArrayList<>(action.getRoles()); item.routes = new ArrayList<>();
+            item.id = action.getId();
+            item.scope = action.getScope();
+            item.roles = new ArrayList<>(action.getRoles());
+            item.routes = new ArrayList<>();
             item.routeDetails = new ArrayList<>();
             request.getRequestConfig().getRouter().getRouterMap().forEach((route, method) -> {
                 RequiresAction binding = method.getAnnotation(RequiresAction.class);

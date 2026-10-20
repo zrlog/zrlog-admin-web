@@ -1,9 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.ArticleNotPinnedException;
@@ -19,7 +15,6 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-
 import org.junit.Test;
 
 import java.util.List;
@@ -30,9 +25,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static org.junit.Assert.*;
+
 public class ArticlePinningServiceDatabaseTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static void assertIds(ArticlePinningResponse response, Long... ids) {
+        assertEquals(List.of(ids), response.getItems().stream()
+                .map(ArticlePinningEntryResponse::getLogId)
+                .collect(Collectors.toList()));
+        long expectedPriority = ids.length;
+        for (ArticlePinningEntryResponse item : response.getItems()) {
+            assertEquals(expectedPriority--, item.getSticky().longValue());
+        }
+    }
+
+    private static AdminTokenVO token() {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(1);
+        token.setSessionId("pinning-test");
+        return token;
+    }
 
     @Test
     public void shouldPinMoveUnpinAndCompressPriorities() throws Exception {
@@ -90,7 +104,7 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                                    () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                             .pin(first);
                                 });
                 Future<ArticlePinningResponse> secondResult =
@@ -99,7 +113,7 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                                    () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                             .pin(second);
                                 });
                 ready.await();
@@ -148,16 +162,6 @@ public class ArticlePinningServiceDatabaseTest {
         }
     }
 
-    private static void assertIds(ArticlePinningResponse response, Long... ids) {
-        assertEquals(List.of(ids), response.getItems().stream()
-                .map(ArticlePinningEntryResponse::getLogId)
-                .collect(Collectors.toList()));
-        long expectedPriority = ids.length;
-        for (ArticlePinningEntryResponse item : response.getItems()) {
-            assertEquals(expectedPriority--, item.getSticky().longValue());
-        }
-    }
-
     private Long createArticle(String title, boolean privacy, boolean rubbish, DataSourceWrapper testDataSource) throws Exception {
         CreateArticleRequest request = new CreateArticleRequest();
         request.setTitle(title);
@@ -171,27 +175,20 @@ public class ArticlePinningServiceDatabaseTest {
         request.setEditorType("markdown");
         CreateOrUpdateArticleResponse response =
                 new AdminArticleService(ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                AccountServicesFixture.component(testDataSource).identities(),
-                                AccountServicesFixture.component(testDataSource).preferences(),
-                                new ArticleVersionService(AccountServicesFixture.component(testDataSource)
-                                                .permissions(),
+                        applicationConfig, ArticleAssistant.class),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
+                        new ArticleVersionService(AccountServicesFixture.component(testDataSource)
+                                .permissions(),
                                 () -> new Log(testDataSource),
                                 () -> new LogVersion(testDataSource)),
-                                new ArticlePinningService(
-                                        () -> new Log(testDataSource),
-                                        ApplicationServicesFixture.locks(testDataSource)),
+                        new ArticlePinningService(
                                 () -> new Log(testDataSource),
-                                ApplicationServicesFixture.locks(testDataSource))
+                                ApplicationServicesFixture.locks(testDataSource)),
+                        () -> new Log(testDataSource),
+                        ApplicationServicesFixture.locks(testDataSource))
                         .create(AccountServicesFixture.component(testDataSource).requestIdentity().account(token()), request);
         return response.getLogId();
-    }
-
-    private static AdminTokenVO token() {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(1);
-        token.setSessionId("pinning-test");
-        return token;
     }
 }

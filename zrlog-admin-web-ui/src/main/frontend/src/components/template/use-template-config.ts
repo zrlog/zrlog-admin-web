@@ -1,9 +1,9 @@
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {useCallback, useEffect, useRef, useState} from "react";
 
-import type { ApiResponse } from "../../type";
-import { getRes } from "../../utils/constants";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
+import type {ApiResponse} from "../../type";
+import {getRes} from "../../utils/constants";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
 import {
     ConfigValues,
     getConfigValues,
@@ -17,7 +17,7 @@ export const useTemplateConfig = (data?: TemplateConfigData, disabled = false) =
     const [savedValues, setSavedValues] = useState(() => getConfigValues(data));
     const [saving, setSaving] = useState(false);
     const savingRef = useRef(false);
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
     const dirty = hasConfigChanges(values, savedValues);
 
     useEffect(() => {
@@ -37,12 +37,12 @@ export const useTemplateConfig = (data?: TemplateConfigData, disabled = false) =
     }, [dirty, saving]);
 
     const changeValues = useCallback((changes: ConfigValues) => {
-        setValues((previous) => ({ ...previous, ...changes }));
+        setValues((previous) => ({...previous, ...changes}));
     }, []);
 
     const save = async () => {
         if (!data || disabled || savingRef.current || !hasConfigFields(data)) return;
-        const submitted = { ...values, template: data.template || values.template };
+        const submitted = {...values, template: data.template || values.template};
         savingRef.current = true;
         setSaving(true);
         try {
@@ -67,5 +67,5 @@ export const useTemplateConfig = (data?: TemplateConfigData, disabled = false) =
         }
     };
 
-    return { values, changeValues, dirty, saving, save, contextHolder };
+    return {values, changeValues, dirty, saving, save, contextHolder};
 };

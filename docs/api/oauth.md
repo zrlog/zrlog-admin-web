@@ -10,41 +10,64 @@ zrlogctl --site https://blog.example/sub article list
 zrlogctl logout --site https://blog.example/sub
 ```
 
-服务按需登记固定 public client `zrlogctl`，无需手动添加站点应用。客户端打开系统浏览器，通过 S256 PKCE、state 和 issuer 校验完成授权码交换；只允许 `http://127.0.0.1:{port}/oauth/callback`，该内置客户端的端口可变，其他客户端仍精确匹配回调。禁用内置客户端后不会自动重新启用。
+服务按需登记固定 public client `zrlogctl`，无需手动添加站点应用。客户端打开系统浏览器，通过 S256 PKCE、state 和 issuer
+校验完成授权码交换；只允许 `http://127.0.0.1:{port}/oauth/callback`，该内置客户端的端口可变，其他客户端仍精确匹配回调。禁用内置客户端后不会自动重新启用。
 
-新 resource 为 `{issuer}/api/admin`，scope 使用现有 AccountAction ID（例如 `article.read taxonomy.read article.create article.publish`），或单独使用 `account:inherit` 显式继承账号当前权限；两者都可附加 `offline_access`。
-请求继承权限时，用户可以在浏览器改为指定权限；受限请求不能选择继承或额外权限。所有后台接口继续以自身的 `@RequiresAction`、条件权限和数据归属检查为准，不新增一套 API 权限清单。该 resource 也可向通知接口发送具有 `notification.create` 权限的请求。
+新 resource 为 `{issuer}/api/admin`，scope 使用现有 AccountAction ID（例如
+`article.read taxonomy.read article.create article.publish`），或单独使用 `account:inherit` 显式继承账号当前权限；两者都可附加
+`offline_access`。
+请求继承权限时，用户可以在浏览器改为指定权限；受限请求不能选择继承或额外权限。所有后台接口继续以自身的 `@RequiresAction`
+、条件权限和数据归属检查为准，不新增一套 API 权限清单。该 resource 也可向通知接口发送具有 `notification.create` 权限的请求。
 
-`zrlogctl login` 默认明确申请 `article.read article.create article.update article.publish taxonomy.read taxonomy.manage asset.upload site.configure notification.create offline_access`，覆盖文章发布、分类同步、附件上传、模板上传和通知。授权页默认勾选请求与账号可用权限的交集，用户可进一步取消；普通作者没有模板管理权限，投稿者没有发布权限。模板上传/覆盖使用 `site.configure`，该权限同时覆盖其他站点配置操作，仅站长和管理员可授予。
+`zrlogctl login` 默认明确申请
+`article.read article.create article.update article.publish taxonomy.read taxonomy.manage asset.upload site.configure notification.create offline_access`
+，覆盖文章发布、分类同步、附件上传、模板上传和通知。授权页默认勾选请求与账号可用权限的交集，用户可进一步取消；普通作者没有模板管理权限，投稿者没有发布权限。模板上传/覆盖使用
+`site.configure`，该权限同时覆盖其他站点配置操作，仅站长和管理员可授予。
 
-客户端可用 `--permissions` 替换默认权限集合，例如发布文章使用 `--permissions article.read,article.create,article.update,article.publish,taxonomy.read,asset.upload`，仅更新模板使用 `--permissions site.configure`；客户端会自动附加 `offline_access`。`--inherit-permissions` 保留原来的继承申请入口，需要在浏览器显式选择继承，不能与 `--permissions` 同时传入。旧只读授权不会自动扩权，需要重新登录确认。
+客户端可用 `--permissions` 替换默认权限集合，例如发布文章使用
+`--permissions article.read,article.create,article.update,article.publish,taxonomy.read,asset.upload`，仅更新模板使用
+`--permissions site.configure`；客户端会自动附加 `offline_access`。`--inherit-permissions` 保留原来的继承申请入口，需要在浏览器显式选择继承，不能与
+`--permissions` 同时传入。旧只读授权不会自动扩权，需要重新登录确认。
 
-MCP 使用自己的 resource，支持文章读取、写入、发布、分类标签读取与附件上传 scope；不提供删除工具。旧授权不自动扩大范围。通用个人令牌遵守账号 Action 权限，旧 MCP 个人令牌保留原只读 scope 限制。详见 [MCP 内容工具](mcp.md)。
+MCP 使用自己的 resource，支持文章读取、写入、发布、分类标签读取与附件上传 scope；不提供删除工具。旧授权不自动扩大范围。通用个人令牌遵守账号
+Action 权限，旧 MCP 个人令牌保留原只读 scope 限制。详见 [MCP 内容工具](mcp.md)。
 
 ## 部署与客户端
 
-OAuth 与 MCP 优先使用“设置 → 管理设置 → 后端服务地址”，保存到 `website.backend_server_url`，修改后立即生效，无需设置环境变量或重启。该配置属于整个站点的服务地址，管理设置仅提供编辑入口。
-填写实际提供 API 的对外入口，例如 `https://xiaochun-admin.zrlog.com`，博客域名保持 `xiaochun.zrlog.com`。完整后端地址可包含 context path，不会重复追加；仅配置 origin 时追加服务 context path。
-该字段通过已有 `SITE_CONFIGURE` 权限接口读取和修改，不加入 `PublicWebSiteInfo`、博客模板数据、未登录资源或静态后台页面；静态生成调用设置 API 时也不返回此字段。OAuth/MCP 发现协议仍需提供客户端可访问的 issuer/resource，因此应填写代理入口，而非内部源站地址。
-未填写时，依次兼容 `ZRLOG_BACKEND_URL`、`DEFAULT_BACKEND_SERVER_URL`，再回退到博客 Host 与服务 context path。如果博客 Host 也为空，本地安装使用 `http://localhost:<监听端口><context path>`（80 端口省略），使应用管理和协议发现可直接使用；对外部署仍需配置实际服务地址或博客 Host。清空字段恢复此行为，旧客户端省略字段不会清除已保存配置。不使用请求 Host、浏览器本地 `backendServerUrl` 或客户端传来的 resource 推导 issuer。
-更改 issuer 后，原地址上的 OAuth 授权和个人令牌需重新建立。校验只接受 HTTPS（本机调试允许 HTTP），拒绝凭据、查询、fragment、无效端口、路径穿越和编码路径分隔符。
+OAuth 与 MCP 优先使用“设置 → 管理设置 → 后端服务地址”，保存到 `website.backend_server_url`
+，修改后立即生效，无需设置环境变量或重启。该配置属于整个站点的服务地址，管理设置仅提供编辑入口。
+填写实际提供 API 的对外入口，例如 `https://xiaochun-admin.zrlog.com`，博客域名保持 `xiaochun.zrlog.com`。完整后端地址可包含
+context path，不会重复追加；仅配置 origin 时追加服务 context path。
+该字段通过已有 `SITE_CONFIGURE` 权限接口读取和修改，不加入 `PublicWebSiteInfo`、博客模板数据、未登录资源或静态后台页面；静态生成调用设置
+API 时也不返回此字段。OAuth/MCP 发现协议仍需提供客户端可访问的 issuer/resource，因此应填写代理入口，而非内部源站地址。
+未填写时，依次兼容 `ZRLOG_BACKEND_URL`、`DEFAULT_BACKEND_SERVER_URL`，再回退到博客 Host 与服务 context path。如果博客 Host
+也为空，本地安装使用 `http://localhost:<监听端口><context path>`（80 端口省略），使应用管理和协议发现可直接使用；对外部署仍需配置实际服务地址或博客
+Host。清空字段恢复此行为，旧客户端省略字段不会清除已保存配置。不使用请求 Host、浏览器本地 `backendServerUrl` 或客户端传来的
+resource 推导 issuer。
+更改 issuer 后，原地址上的 OAuth 授权和个人令牌需重新建立。校验只接受 HTTPS（本机调试允许
+HTTP），拒绝凭据、查询、fragment、无效端口、路径穿越和编码路径分隔符。
 
-静态后台分域部署时，“设置 → 管理设置 → 管理页静态资源 URL”（`admin_static_resource_base_url`）也作为后台操作的可信来源配置。添加/禁用应用、创建/撤销令牌、确认/撤销授权及成员管理允许来自后端 origin 或该 URL 的 origin 的请求。例如配置 `https://admin.example/assets/` 后，允许 `Origin: https://admin.example`；资源路径不参与匹配，协议、域名和有效端口必须一致，不允许子域通配。配置须为有效 HTTPS URL（本机调试允许 HTTP），修改或清空后立即生效；未配置时仅允许后端同源。此配置代表对该 origin 的信任，同一 origin 下的其他路径不构成隔离边界。
-这项设置不改变 OAuth issuer/resource、MCP 接口来源策略，也不替代登录、账号权限及授权确认的会话/CSRF 检查。来源不匹配会返回 `access_denied`，后台当前可能将其显示为“授权请求无效或已失效”。
+静态后台分域部署时，“设置 → 管理设置 → 管理页静态资源 URL”（`admin_static_resource_base_url`
+）也作为后台操作的可信来源配置。添加/禁用应用、创建/撤销令牌、确认/撤销授权及成员管理允许来自后端 origin 或该 URL 的 origin
+的请求。例如配置 `https://admin.example/assets/` 后，允许 `Origin: https://admin.example`
+；资源路径不参与匹配，协议、域名和有效端口必须一致，不允许子域通配。配置须为有效 HTTPS URL（本机调试允许
+HTTP），修改或清空后立即生效；未配置时仅允许后端同源。此配置代表对该 origin 的信任，同一 origin 下的其他路径不构成隔离边界。
+这项设置不改变 OAuth issuer/resource、MCP 接口来源策略，也不替代登录、账号权限及授权确认的会话/CSRF 检查。来源不匹配会返回
+`access_denied`，后台当前可能将其显示为“授权请求无效或已失效”。
 
 生产地址使用 HTTPS；localhost、127.0.0.1 和 IPv6 回环允许 HTTP。
 例如部署在 `https://blog.example/sub`：
 
-| 用途 | 地址与方法 |
-| --- | --- |
-| 授权服务发现 | `GET https://blog.example/.well-known/oauth-authorization-server/sub` |
-| 资源发现 | `GET https://blog.example/.well-known/oauth-protected-resource/sub/api/oauth` |
-| MCP 资源发现 | `GET https://blog.example/.well-known/oauth-protected-resource/sub/mcp` |
-| MCP 工具调用 | `POST https://blog.example/sub/mcp` |
-| 用户授权 | `GET https://blog.example/sub/oauth/authorize` |
-| 换取或刷新令牌 | `POST https://blog.example/sub/oauth/token` |
-| 撤销令牌 | `POST https://blog.example/sub/oauth/revoke` |
-| 验证身份与当前 scope | `GET https://blog.example/sub/api/oauth/me` |
+| 用途            | 地址与方法                                                                         |
+|---------------|-------------------------------------------------------------------------------|
+| 授权服务发现        | `GET https://blog.example/.well-known/oauth-authorization-server/sub`         |
+| 资源发现          | `GET https://blog.example/.well-known/oauth-protected-resource/sub/api/oauth` |
+| MCP 资源发现      | `GET https://blog.example/.well-known/oauth-protected-resource/sub/mcp`       |
+| MCP 工具调用      | `POST https://blog.example/sub/mcp`                                           |
+| 用户授权          | `GET https://blog.example/sub/oauth/authorize`                                |
+| 换取或刷新令牌       | `POST https://blog.example/sub/oauth/token`                                   |
+| 撤销令牌          | `POST https://blog.example/sub/oauth/revoke`                                  |
+| 验证身份与当前 scope | `GET https://blog.example/sub/api/oauth/me`                                   |
 
 除内置 zrlogctl 外，使用管理员预登记的 public client，认证方式为 `none`，无 client secret。
 每个应用最多登记 10 个精确回调地址，不支持通配符、fragment、动态注册和客户端元数据文档。
@@ -74,18 +97,18 @@ access token 不允许出现在 query 或 cookie；`/api/oauth/me` 要求 `Autho
 
 ## Scope 与数据范围
 
-| Scope | 含义 |
-| --- | --- |
-| `articles:read` | 读取公开文章 |
-| `articles:read_drafts` | 在 read 基础上额外读取草稿 |
-| `articles:read_private` | 在 read 基础上额外读取私密文章 |
-| `articles:all` | 从本人范围扩大为该账号允许的全站范围 |
-| `articles:write` | 创建或编辑文章；不包含发布能力 |
-| `articles:publish` | 发布、撤回或修改线上文章；写入仍需 write |
-| `articles:delete` | 删除范围内文章 |
-| `assets:write` | 上传素材 |
-| `taxonomy:read` | 读取分类和标签 |
-| `offline_access` | 允许刷新令牌 |
+| Scope                   | 含义                      |
+|-------------------------|-------------------------|
+| `articles:read`         | 读取公开文章                  |
+| `articles:read_drafts`  | 在 read 基础上额外读取草稿        |
+| `articles:read_private` | 在 read 基础上额外读取私密文章      |
+| `articles:all`          | 从本人范围扩大为该账号允许的全站范围      |
+| `articles:write`        | 创建或编辑文章；不包含发布能力         |
+| `articles:publish`      | 发布、撤回或修改线上文章；写入仍需 write |
+| `articles:delete`       | 删除范围内文章                 |
+| `assets:write`          | 上传素材                    |
+| `taxonomy:read`         | 读取分类和标签                 |
+| `offline_access`        | 允许刷新令牌                  |
 
 最终权限 = 账号当前固定角色允许的 Action ∩ 连接授权的 scope ∩ 资源归属与可见性。
 `articles:all` 不能让作者看到其他作者的后台文章；`read_private` 不能让编辑看到他人的私密文章。
@@ -94,7 +117,9 @@ access token 不允许出现在 query 或 cookie；`/api/oauth/me` 要求 `Autho
 管理员角色变更、停用账号、改密、重置密码和所有权转移会使旧会话/授权失效。
 普通用户只能查看和撤销自己的授权。管理员可以停用应用并撤销该应用的全部授权。
 
-个人设置左侧“外部应用”包含独立的个人令牌、我的授权、站点应用页面。个人令牌使用 7/30/90 天有效期，明文只显示一次，不支持刷新。创建请求显式传入 `permissionMode=custom` 与 AccountAction ID 列表，或 `permissionMode=inherit`；旧请求未传模式时仍创建 MCP-only 令牌。个人令牌权限仍受账号当前权限约束，角色调整或撤销后立即生效。
+个人设置左侧“外部应用”包含独立的个人令牌、我的授权、站点应用页面。个人令牌使用 7/30/90 天有效期，明文只显示一次，不支持刷新。创建请求显式传入
+`permissionMode=custom` 与 AccountAction ID 列表，或 `permissionMode=inherit`；旧请求未传模式时仍创建 MCP-only
+令牌。个人令牌权限仍受账号当前权限约束，角色调整或撤销后立即生效。
 撤销 endpoint 接受 form 字段 `token`、`client_id`；未知 token 返回 200 `{}`，不泄露凭证是否存在。
 
 错误使用标准 HTTP 状态与 `{ "error": "invalid_grant" }` 一类 JSON，和后台业务 envelope 区分。
@@ -106,8 +131,13 @@ Bearer 验证失败返回 401；scope 不足返回 403；响应包含资源元�
 [服务发现](https://www.rfc-editor.org/rfc/rfc8414)、[issuer 响应](https://www.rfc-editor.org/rfc/rfc9207)、
 [资源元数据](https://www.rfc-editor.org/rfc/rfc9728)。这是明确限定的协议实现，不宣称认证或完整覆盖所有 OAuth 扩展。
 
-MCP 资源接受文章读取、写入、发布、分类标签读取、附件上传相关 scope 与 `offline_access`，实际可用范围以 MCP 资源发现文档为准。工具与客户端配置见 [MCP 内容工具](mcp.md)。
+MCP 资源接受文章读取、写入、发布、分类标签读取、附件上传相关 scope 与 `offline_access`，实际可用范围以 MCP
+资源发现文档为准。工具与客户端配置见 [MCP 内容工具](mcp.md)。
 
-连接 ChatGPT 等 MCP 客户端时填写完整的 `{后端地址}/mcp`，授权与 token 请求的 resource 也使用这个地址。客户端应从 MCP 资源发现文档读取可选 scope；授权服务器的通用 scopes_supported 同时包含其他资源支持的写操作，不能全部用于 MCP。错误 `invalid_target` 表示 resource 与服务配置不匹配，`invalid_scope` 表示请求了该资源不支持的权限。
+连接 ChatGPT 等 MCP 客户端时填写完整的 `{后端地址}/mcp`，授权与 token 请求的 resource 也使用这个地址。客户端应从 MCP
+资源发现文档读取可选 scope；授权服务器的通用 scopes_supported 同时包含其他资源支持的写操作，不能全部用于 MCP。错误
+`invalid_target` 表示 resource 与服务配置不匹配，`invalid_scope` 表示请求了该资源不支持的权限。
 
-反向代理需要保留未认证响应的 `401`、JSON body 和 `WWW-Authenticate`。如果 AWS 网关把后者改名为 `x-amzn-remapped-www-authenticate`，应在对外代理恢复为标准 `WWW-Authenticate`，否则客户端可能无法发现 MCP 资源元数据；仅暴露 `Access-Control-Expose-Headers` 不能恢复被改名的响应头。
+反向代理需要保留未认证响应的 `401`、JSON body 和 `WWW-Authenticate`。如果 AWS 网关把后者改名为
+`x-amzn-remapped-www-authenticate`，应在对外代理恢复为标准 `WWW-Authenticate`，否则客户端可能无法发现 MCP 资源元数据；仅暴露
+`Access-Control-Expose-Headers` 不能恢复被改名的响应头。

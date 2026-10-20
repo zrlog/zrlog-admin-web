@@ -1,22 +1,23 @@
 package com.zrlog.admin.web.di.account;
 
-import com.zrlog.admin.web.security.AdminRouteAuthorizer;
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.util.BackendServerUrl;
-import com.zrlog.admin.web.controller.api.*;
+import com.zrlog.admin.web.controller.api.AccessController;
+import com.zrlog.admin.web.controller.api.AccountSessionController;
+import com.zrlog.admin.web.controller.api.AdminUserController;
+import com.zrlog.admin.web.controller.api.MemberController;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.zrlog.business.di.ServiceBindingsModule;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataBindingsModule;
 import com.zrlog.data.di.DataComponent;
-
 import dagger.BindsInstance;
 import dagger.Component;
-
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 

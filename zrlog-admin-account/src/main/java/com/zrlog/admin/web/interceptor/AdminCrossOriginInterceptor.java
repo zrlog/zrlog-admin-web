@@ -18,18 +18,17 @@ import java.util.Objects;
  */
 public class AdminCrossOriginInterceptor implements HandleAbleInterceptor {
 
-    @Override
-    public boolean isHandleAble(HttpRequest request) {
-        return AdminMethodInterceptor.isAdminRequest(request);
-    }
-
     private static final String ADMIN_API_BASE_PATH = "/api" + AdminConstants.ADMIN_URI_BASE_PATH;
     private static final String PUBLIC_PASSKEY_API_PATH_PREFIX = ADMIN_API_BASE_PATH + "/passkey/";
     private static final String ACCOUNT_PASSKEY_API_PATH_PREFIX = ADMIN_API_BASE_PATH + "/account-security/passkey";
     private final PasskeyRequestContext passkeyRequestContext;
-
     public AdminCrossOriginInterceptor(PasskeyRequestContext passkeyRequestContext) {
         this.passkeyRequestContext = Objects.requireNonNull(passkeyRequestContext);
+    }
+
+    @Override
+    public boolean isHandleAble(HttpRequest request) {
+        return AdminMethodInterceptor.isAdminRequest(request);
     }
 
     @Override

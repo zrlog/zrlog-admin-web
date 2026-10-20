@@ -1,36 +1,33 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.BeanUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIProviderType;
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.WebSite;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class AIConfigService {
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
-
-    @Inject
-    public AIConfigService(jakarta.inject.Provider<WebSite> webSiteProvider) {
-        this.webSiteProvider = webSiteProvider;
-    }
-
     public static final String AI_REASONING_ENABLED_KEY = "ai_reasoning_enabled";
     static final List<String> AI_WEBSITE_INFO_KEYS = Arrays.asList("ai_provider", "ai_model", "ai_base_url", "ai_api_key", "ai_prompt",
             "ai_max_completion_tokens", AI_REASONING_ENABLED_KEY, "ai_image_provider", "ai_image_model",
             "ai_image_base_url", "ai_image_api_key");
-    public AIWebSiteInfo ai() {
-        return normalizeAIWebSiteInfo(queryToMap(AI_WEBSITE_INFO_KEYS, AIWebSiteInfo.class));
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    @Inject
+    public AIConfigService(jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.webSiteProvider = webSiteProvider;
     }
 
     static <T extends AIWebSiteInfo> T normalizeAIWebSiteInfo(T info) {
@@ -38,6 +35,10 @@ public class AIConfigService {
             info.setAi_reasoning_enabled(Boolean.TRUE);
         }
         return info;
+    }
+
+    public AIWebSiteInfo ai() {
+        return normalizeAIWebSiteInfo(queryToMap(AI_WEBSITE_INFO_KEYS, AIWebSiteInfo.class));
     }
 
     <T> T queryToMap(List<String> names, Class<T> clazz) {

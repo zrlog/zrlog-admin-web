@@ -26,6 +26,45 @@ public class AIWebSiteInfo implements Validator {
     private String ai_image_base_url;
     private String ai_image_api_key;
 
+    public static String normalizeBaseUrl(String baseUrl) {
+        return normalizeBaseUrl(baseUrl, "ai_base_url");
+    }
+
+    public static String normalizeImageBaseUrl(String baseUrl) {
+        return normalizeBaseUrl(baseUrl, "ai_image_base_url");
+    }
+
+    private static String normalizeBaseUrl(String baseUrl, String fieldName) {
+        if (StringUtils.isEmpty(baseUrl)) {
+            return "";
+        }
+        try {
+            URI uri = URI.create(baseUrl.trim());
+            String scheme = uri.getScheme();
+            if (StringUtils.isEmpty(scheme)
+                    || !(Objects.equals("http", scheme.toLowerCase(Locale.ROOT))
+                    || Objects.equals("https", scheme.toLowerCase(Locale.ROOT)))
+                    || StringUtils.isEmpty(uri.getHost())
+                    || StringUtils.isNotEmpty(uri.getUserInfo())
+                    || StringUtils.isNotEmpty(uri.getFragment())) {
+                throw new ArgsException(fieldName);
+            }
+            return trimTrailingSlashes(uri.toString());
+        } catch (IllegalArgumentException e) {
+            throw new ArgsException(fieldName);
+        }
+    }
+
+    private static String trimTrailingSlashes(String baseUrl) {
+        int queryIndex = baseUrl.indexOf('?');
+        String query = queryIndex >= 0 ? baseUrl.substring(queryIndex) : "";
+        String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path + query;
+    }
+
     public AIProviderType getAi_provider() {
         return ai_provider;
     }
@@ -142,44 +181,5 @@ public class AIWebSiteInfo implements Validator {
                 throw new ArgsException("ai_image_model");
             }
         }
-    }
-
-    public static String normalizeBaseUrl(String baseUrl) {
-        return normalizeBaseUrl(baseUrl, "ai_base_url");
-    }
-
-    public static String normalizeImageBaseUrl(String baseUrl) {
-        return normalizeBaseUrl(baseUrl, "ai_image_base_url");
-    }
-
-    private static String normalizeBaseUrl(String baseUrl, String fieldName) {
-        if (StringUtils.isEmpty(baseUrl)) {
-            return "";
-        }
-        try {
-            URI uri = URI.create(baseUrl.trim());
-            String scheme = uri.getScheme();
-            if (StringUtils.isEmpty(scheme)
-                    || !(Objects.equals("http", scheme.toLowerCase(Locale.ROOT))
-                        || Objects.equals("https", scheme.toLowerCase(Locale.ROOT)))
-                    || StringUtils.isEmpty(uri.getHost())
-                    || StringUtils.isNotEmpty(uri.getUserInfo())
-                    || StringUtils.isNotEmpty(uri.getFragment())) {
-                throw new ArgsException(fieldName);
-            }
-            return trimTrailingSlashes(uri.toString());
-        } catch (IllegalArgumentException e) {
-            throw new ArgsException(fieldName);
-        }
-    }
-
-    private static String trimTrailingSlashes(String baseUrl) {
-        int queryIndex = baseUrl.indexOf('?');
-        String query = queryIndex >= 0 ? baseUrl.substring(queryIndex) : "";
-        String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
-        while (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
-        return path + query;
     }
 }

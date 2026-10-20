@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -15,6 +12,9 @@ import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
@@ -29,7 +29,6 @@ import com.zrlog.data.security.AccountAction;
 import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -161,7 +160,9 @@ public class UpgradeController extends BaseController {
                 throw new IllegalStateException("Updater returned a different upgrade task");
             }
         } catch (DockerControl.RequestException error) {
-            if (error.getStatus() != 404) { throw error; }
+            if (error.getStatus() != 404) {
+                throw error;
+            }
             job = null;
         }
         if (isSseRequest()) {
@@ -186,7 +187,9 @@ public class UpgradeController extends BaseController {
     }
 
     protected DockerControl dockerClient() {
-        if (!ZrLogUtil.isDockerMode()) { throw new IllegalStateException("Docker updater requires Docker mode"); }
+        if (!ZrLogUtil.isDockerMode()) {
+            throw new IllegalStateException("Docker updater requires Docker mode");
+        }
         return docker.get();
     }
 

@@ -1,9 +1,5 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -15,9 +11,11 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
-
 import org.junit.Test;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.Authenticator;
@@ -30,111 +28,180 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
+import static org.junit.Assert.*;
 
 public class AIChatServiceTest {
 
+    private static final Gson GSON = new Gson();
     private ZrLogConfig applicationConfig;
 
-    private static final Gson GSON = new Gson();
+    static HttpResponse<InputStream> streamResponse(String body) {
+        return streamResponse(200, body);
+    }
+
+    private static HttpResponse<InputStream> streamResponse(int statusCode, String body) {
+        return new HttpResponse<>() {
+            @Override
+            public int statusCode() {
+                return statusCode;
+            }
+
+            @Override
+            public HttpRequest request() {
+                return null;
+            }
+
+            @Override
+            public Optional<HttpResponse<InputStream>> previousResponse() {
+                return Optional.empty();
+            }
+
+            @Override
+            public HttpHeaders headers() {
+                return HttpHeaders.of(Map.of("Content-Type", List.of("text/event-stream")), (name, value) -> true);
+            }
+
+            @Override
+            public InputStream body() {
+                return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+            }
+
+            @Override
+            public Optional<SSLSession> sslSession() {
+                return Optional.empty();
+            }
+
+            @Override
+            public URI uri() {
+                return URI.create("http://localhost");
+            }
+
+            @Override
+            public HttpClient.Version version() {
+                return HttpClient.Version.HTTP_1_1;
+            }
+        };
+    }
+
+    private static void seedAiConfig(InMemoryZrLogDatabase db) throws Exception {
+        db.putWebsite("ai_provider", "DEEP_SEEK");
+        db.putWebsite("ai_model", "deepseek-chat");
+        db.putWebsite("ai_api_key", "test-key");
+        db.putWebsite("ai_prompt", "System prompt");
+        for (int id = 33; id <= 39; id++) {
+            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy) values(?,?,?,?,?,?)", id, 1, 1, "Article", false, false);
+        }
+    }
+
+    private static AIWebSiteInfoWithAIMessages providerInfo() {
+        AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
+        info.setAi_provider(AIProviderType.DEEP_SEEK);
+        info.setAi_model("deepseek-chat");
+        info.setAi_api_key("test-key");
+        return info;
+    }
 
     @Test
     public void shouldReplayPersistedOpenAiHistoryAcrossConsecutiveUserTurns() throws Exception {
-        for (boolean enabled : List.of(true, false)) try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            applicationConfig = db.config();
-            seedAiConfig(db);
-            db.putWebsite("ai_provider", "OPEN_AI");
-            db.putWebsite("ai_model", "gpt-6-astra");
-            db.putWebsite("ai_reasoning_enabled", enabled);
-            FakeHttpClient client = new FakeHttpClient(
-                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 1"))),
-                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 2"))),
-                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 3"))));
-            for (int turn = 1; turn <= 3; turn++) {
-                ChatRequest input = new ChatRequest(); input.articleId = 36; input.input = "Question " + turn;
-                // Each browser request creates a new service and restores history from storage.
-                String payload = new String(new NoSleepAIChatService(applicationConfig, client).start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
-                        .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                assertTrue(payload, payload.contains("\"type\":\"done\""));
-                assertFalse(payload, payload.contains("\"type\":\"error\""));
-                assertTrue(payload, payload.contains("Answer " + turn));
-                JsonArray items = client.requestBodies.get(turn - 1).getAsJsonArray("input");
-                int assistants = 0;
-                for (int index = 0; index < items.size(); index++) {
-                    JsonObject item = items.get(index).getAsJsonObject();
-                    JsonObject content = item.getAsJsonArray("content").get(0).getAsJsonObject();
-                    if ("assistant".equals(item.get("role").getAsString())) {
-                        assistants++;
-                        assertEquals("output_text", content.get("type").getAsString());
-                        assertEquals("Answer " + assistants, content.get("text").getAsString());
-                        JsonObject question = items.get(index - 1).getAsJsonObject();
-                        assertEquals("user", question.get("role").getAsString());
-                        assertEquals("Question " + assistants, question.getAsJsonArray("content").get(0)
-                                .getAsJsonObject().get("text").getAsString());
-                    } else {
-                        assertEquals("input_text", content.get("type").getAsString());
+        for (boolean enabled : List.of(true, false))
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                applicationConfig = db.config();
+                seedAiConfig(db);
+                db.putWebsite("ai_provider", "OPEN_AI");
+                db.putWebsite("ai_model", "gpt-6-astra");
+                db.putWebsite("ai_reasoning_enabled", enabled);
+                FakeHttpClient client = new FakeHttpClient(
+                        streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 1"))),
+                        streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 2"))),
+                        streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 3"))));
+                for (int turn = 1; turn <= 3; turn++) {
+                    ChatRequest input = new ChatRequest();
+                    input.articleId = 36;
+                    input.input = "Question " + turn;
+                    // Each browser request creates a new service and restores history from storage.
+                    String payload = new String(new NoSleepAIChatService(applicationConfig, client).start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
+                            .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                    assertTrue(payload, payload.contains("\"type\":\"done\""));
+                    assertFalse(payload, payload.contains("\"type\":\"error\""));
+                    assertTrue(payload, payload.contains("Answer " + turn));
+                    JsonArray items = client.requestBodies.get(turn - 1).getAsJsonArray("input");
+                    int assistants = 0;
+                    for (int index = 0; index < items.size(); index++) {
+                        JsonObject item = items.get(index).getAsJsonObject();
+                        JsonObject content = item.getAsJsonArray("content").get(0).getAsJsonObject();
+                        if ("assistant".equals(item.get("role").getAsString())) {
+                            assistants++;
+                            assertEquals("output_text", content.get("type").getAsString());
+                            assertEquals("Answer " + assistants, content.get("text").getAsString());
+                            JsonObject question = items.get(index - 1).getAsJsonObject();
+                            assertEquals("user", question.get("role").getAsString());
+                            assertEquals("Question " + assistants, question.getAsJsonArray("content").get(0)
+                                    .getAsJsonObject().get("text").getAsString());
+                        } else {
+                            assertEquals("input_text", content.get("type").getAsString());
+                        }
                     }
+                    assertEquals(turn - 1, assistants);
+                    assertEquals(input.input, items.get(items.size() - 1).getAsJsonObject()
+                            .getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString());
                 }
-                assertEquals(turn - 1, assistants);
-                assertEquals(input.input, items.get(items.size() - 1).getAsJsonObject()
-                        .getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString());
+                assertEquals(3, client.requests.size());
+                String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+                for (int turn = 1; turn <= 3; turn++) {
+                    assertTrue(stored.contains("Question " + turn));
+                    assertTrue(stored.contains("Answer " + turn));
+                }
             }
-            assertEquals(3, client.requests.size());
-            String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
-            for (int turn = 1; turn <= 3; turn++) {
-                assertTrue(stored.contains("Question " + turn));
-                assertTrue(stored.contains("Answer " + turn));
-            }
-        }
     }
 
     @Test
     public void shouldStreamAndPersistOpenAiSummariesThroughTheExistingBrowserProtocol() throws Exception {
-        for (boolean enabled : List.of(true, false)) try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            applicationConfig = db.config();
-            seedAiConfig(db);
-            db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "gpt-6-astra");
-            db.putWebsite("ai_base_url", "https://gateway.example/v1/chat/completions?route=test");
-            db.putWebsite("ai_max_completion_tokens", 8192); db.putWebsite("ai_reasoning_enabled", enabled);
-            FakeHttpClient client = new FakeHttpClient(streamResponse(
-                    OpenAIResponsesAdapterTest.frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
-                    + OpenAIResponsesAdapterTest.frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
-                    + OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)));
-            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
-                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
-            assertEquals("https://gateway.example/v1/responses?route=test", client.requests.get(0).uri().toString());
-            JsonObject request = client.requestBodies.get(0);
-            assertEquals(enabled, request.has("reasoning"));
-            assertEquals("gpt-6-astra", request.get("model").getAsString());
-            assertEquals(8192, request.get("max_output_tokens").getAsInt());
-            assertTrue(request.has("input")); assertFalse(request.has("messages"));
-            assertTrue(payload, payload.contains("\"type\":\"delta\""));
-            assertTrue(payload, payload.contains("\"type\":\"answer\""));
-            assertTrue(payload, payload.contains("\"type\":\"done\""));
-            assertEquals(enabled, payload.contains("\"type\":\"reasoning_delta\""));
-            assertEquals(enabled, stored.contains("检查文章🙂"));
-            assertTrue(stored.contains("Answer"));
-            assertFalse(payload.contains("opaque-state")); assertFalse(stored.contains("opaque-state"));
-        }
+        for (boolean enabled : List.of(true, false))
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                applicationConfig = db.config();
+                seedAiConfig(db);
+                db.putWebsite("ai_provider", "OPEN_AI");
+                db.putWebsite("ai_model", "gpt-6-astra");
+                db.putWebsite("ai_base_url", "https://gateway.example/v1/chat/completions?route=test");
+                db.putWebsite("ai_max_completion_tokens", 8192);
+                db.putWebsite("ai_reasoning_enabled", enabled);
+                FakeHttpClient client = new FakeHttpClient(streamResponse(
+                        OpenAIResponsesAdapterTest.frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
+                                + OpenAIResponsesAdapterTest.frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
+                                + OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)));
+                String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
+                        .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+                assertEquals("https://gateway.example/v1/responses?route=test", client.requests.get(0).uri().toString());
+                JsonObject request = client.requestBodies.get(0);
+                assertEquals(enabled, request.has("reasoning"));
+                assertEquals("gpt-6-astra", request.get("model").getAsString());
+                assertEquals(8192, request.get("max_output_tokens").getAsInt());
+                assertTrue(request.has("input"));
+                assertFalse(request.has("messages"));
+                assertTrue(payload, payload.contains("\"type\":\"delta\""));
+                assertTrue(payload, payload.contains("\"type\":\"answer\""));
+                assertTrue(payload, payload.contains("\"type\":\"done\""));
+                assertEquals(enabled, payload.contains("\"type\":\"reasoning_delta\""));
+                assertEquals(enabled, stored.contains("检查文章🙂"));
+                assertTrue(stored.contains("Answer"));
+                assertFalse(payload.contains("opaque-state"));
+                assertFalse(stored.contains("opaque-state"));
+            }
     }
 
     @Test
     public void shouldReplayResponsesContextAcrossBoundedContinuation() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            seedAiConfig(db); db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "gpt-6-astra");
+            seedAiConfig(db);
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-6-astra");
             String partial = OpenAIResponsesAdapterTest.completed(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)
                     .replace("\"status\":\"completed\",\"output\"", "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
             FakeHttpClient client = new FakeHttpClient(streamResponse(OpenAIResponsesAdapterTest.frame("{\"type\":\"response.incomplete\",\"response\":" + partial + "}")),
@@ -330,74 +397,9 @@ public class AIChatServiceTest {
         }
     }
 
-    static HttpResponse<InputStream> streamResponse(String body) {
-        return streamResponse(200, body);
-    }
-
-    private static HttpResponse<InputStream> streamResponse(int statusCode, String body) {
-        return new HttpResponse<>() {
-            @Override
-            public int statusCode() {
-                return statusCode;
-            }
-
-            @Override
-            public HttpRequest request() {
-                return null;
-            }
-
-            @Override
-            public Optional<HttpResponse<InputStream>> previousResponse() {
-                return Optional.empty();
-            }
-
-            @Override
-            public HttpHeaders headers() {
-                return HttpHeaders.of(Map.of("Content-Type", List.of("text/event-stream")), (name, value) -> true);
-            }
-
-            @Override
-            public InputStream body() {
-                return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-            }
-
-            @Override
-            public Optional<SSLSession> sslSession() {
-                return Optional.empty();
-            }
-
-            @Override
-            public URI uri() {
-                return URI.create("http://localhost");
-            }
-
-            @Override
-            public HttpClient.Version version() {
-                return HttpClient.Version.HTTP_1_1;
-            }
-        };
-    }
-
-    private static void seedAiConfig(InMemoryZrLogDatabase db) throws Exception {
-        db.putWebsite("ai_provider", "DEEP_SEEK");
-        db.putWebsite("ai_model", "deepseek-chat");
-        db.putWebsite("ai_api_key", "test-key");
-        db.putWebsite("ai_prompt", "System prompt");
-        for (int id = 33; id <= 39; id++) {
-            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy) values(?,?,?,?,?,?)", id,1,1,"Article",false,false);
-        }
-    }
-
-    private static AIWebSiteInfoWithAIMessages providerInfo() {
-        AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
-        info.setAi_provider(AIProviderType.DEEP_SEEK);
-        info.setAi_model("deepseek-chat");
-        info.setAi_api_key("test-key");
-        return info;
-    }
-
     private static class NoSleepAIChatService extends AIChatService {
         private final com.hibegin.common.dao.DataSourceWrapper actorSource;
+
         private NoSleepAIChatService(ZrLogConfig config, HttpClient client) {
             super(
                     client,
@@ -420,9 +422,9 @@ public class AIChatServiceTest {
     }
 
     static class FakeHttpClient extends HttpClient {
-        private final List<HttpResponse<InputStream>> responses;
         final List<HttpRequest> requests = new ArrayList<>();
         final List<JsonObject> requestBodies = new ArrayList<>();
+        private final List<HttpResponse<InputStream>> responses;
         private int index;
 
         FakeHttpClient(HttpResponse<InputStream>... responses) {
@@ -497,7 +499,8 @@ public class AIChatServiceTest {
                                     throw new AssertionError(error);
                                 }
 
-                                public void onComplete() {}
+                                public void onComplete() {
+                                }
                             });
             requestBodies.add(GSON.fromJson(body.toString(StandardCharsets.UTF_8), JsonObject.class));
             return (HttpResponse<T>) responses.get(index++);

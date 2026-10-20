@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
@@ -12,7 +10,6 @@ import com.zrlog.admin.web.di.assets.AssetsComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.vo.AdminTokenVO;
-
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,16 +24,34 @@ import java.util.Base64;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class UploadActorBoundaryTest {
-    @Parameterized.Parameters(name = "sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
     private final boolean sqlite;
-    public UploadActorBoundaryTest(boolean sqlite) { this.sqlite = sqlite; }
-    @Rule public TemporaryFolder temporary = new TemporaryFolder();
     private final String previousRoot = System.getProperty("sws.root.path");
+    @Rule
+    public TemporaryFolder temporary = new TemporaryFolder();
 
-    @After public void restoreRoot() {
+    public UploadActorBoundaryTest(boolean sqlite) {
+        this.sqlite = sqlite;
+    }
+
+    @Parameterized.Parameters(name = "sqlite={0}")
+    public static Boolean[] databases() {
+        return new Boolean[]{false, true};
+    }
+
+    private static HttpRequest request() {
+        return (HttpRequest) Proxy.newProxyInstance(UploadActorBoundaryTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("getContextPath")) return "/sub";
+                    return null;
+                });
+    }
+
+    @After
+    public void restoreRoot() {
         if (previousRoot == null) System.clearProperty("sws.root.path");
         else System.setProperty("sws.root.path", previousRoot);
     }
@@ -133,13 +148,5 @@ public class UploadActorBoundaryTest {
             db.close();
             throw error;
         }
-    }
-
-    private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(UploadActorBoundaryTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("getContextPath")) return "/sub";
-                    return null;
-                });
     }
 }

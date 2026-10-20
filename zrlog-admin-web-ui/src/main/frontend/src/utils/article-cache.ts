@@ -1,25 +1,25 @@
-import { buildArticleMerge } from "../components/articleEdit/version-sync/article-merge";
-import { ArticleEditInfo, ArticleEditState, ArticleEntry } from "../components/articleEdit/index.types";
+import {buildArticleMerge} from "../components/articleEdit/version-sync/article-merge";
+import {ArticleEditInfo, ArticleEditState, ArticleEntry} from "../components/articleEdit/index.types";
 import type {
     ArticleConnectivity,
     ArticleDocumentStatus,
     ArticleDraftSyncState,
     ArticleSyncActivity,
 } from "../components/articleEdit/draft-sync/article-draft-sync-state-machine";
-import { getCachedData, putCache } from "./cache";
+import {getCachedData, putCache} from "./cache";
 import {
     listTabArticleDrafts,
-    readTabArticleDraft,
-    writeTabArticleDraft,
-    removeTabArticleDraft,
     readStoredArticleDraft,
+    readTabArticleDraft,
     removeStoredArticleDraft,
+    removeTabArticleDraft,
     selectTabArticleDraft,
+    writeTabArticleDraft,
 } from "./article-draft-storage";
 
 const getArticleCachedData = () => {
     const record = getCachedData();
-    for (const { articleKey } of listTabArticleDrafts()) {
+    for (const {articleKey} of listTabArticleDrafts()) {
         const own = readTabArticleDraft(articleKey);
         if (own) {
             record[articleKey] = own.article;
@@ -164,12 +164,12 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
     const article: ArticleEntry = serverArticle
         ? data.article
         : {
-              version: -1,
-              title: "",
-              keywords: "",
-              /*默认创建的为草稿*/
-              rubbish: true,
-          };
+            version: -1,
+            title: "",
+            keywords: "",
+            /*默认创建的为草稿*/
+            rubbish: true,
+        };
     const cacheKey = buildCacheKey(article.logId);
     const record = getArticleCachedData();
     if (removeLegacyEmptyLocalDraft(record)) {
@@ -231,21 +231,21 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
 
     // Older editors cached unsynced edits with the article's published status.
     // Restoring those edits must not turn the automatic retry into a publication.
-    if (contentSource !== "server") realArticle = { ...realArticle, rubbish: true };
+    if (contentSource !== "server") realArticle = {...realArticle, rubbish: true};
 
     const realArticleWithPreferredType =
         preferredTypeId && (!realArticle.logId || realArticle.logId <= 0)
             ? {
-                  ...realArticle,
-                  typeId: preferredTypeId,
-              }
+                ...realArticle,
+                typeId: preferredTypeId,
+            }
             : realArticle;
 
     return {
         typeOptions: data.types
             ? data.types.map((x) => {
-                  return { value: x.id, label: x.typeName };
-              })
+                return {value: x.id, label: x.typeName};
+            })
             : [],
         aiProvider: data.aiProvider,
         aiModel: data.aiModel,
@@ -288,21 +288,21 @@ export const articleSaveToCache = (
             baseArticle?.logId === article.logId && baseArticle?.version === article.version
                 ? baseArticle
                 : isArticleEntry(currentMeta?.baseArticle) &&
-                  currentMeta.baseArticle.logId === article.logId &&
-                  currentMeta.baseArticle.version === article.version
-                ? currentMeta.baseArticle
-                : undefined,
+                currentMeta.baseArticle.logId === article.logId &&
+                currentMeta.baseArticle.version === article.version
+                    ? currentMeta.baseArticle
+                    : undefined,
         ...(syncState
             ? {
-                  syncState,
-              }
+                syncState,
+            }
             : isArticleDraftSyncState(currentMeta?.syncState)
-            ? {
-                  syncState: currentMeta.syncState,
-              }
-            : {}),
+                ? {
+                    syncState: currentMeta.syncState,
+                }
+                : {}),
     };
-    writeTabArticleDraft(key, { article, meta: record[buildCacheMetaKey(key)], source: previous?.source });
+    writeTabArticleDraft(key, {article, meta: record[buildCacheMetaKey(key)], source: previous?.source});
     putCache(record);
 };
 
@@ -324,13 +324,13 @@ export const getLocalArticleCaches = (): LocalArticleCacheEntry[] => {
         putCache(record);
     }
     const tabDrafts = listTabArticleDrafts();
-    tabDrafts.forEach(({ articleKey, entry }) => {
+    tabDrafts.forEach(({articleKey, entry}) => {
         if (JSON.stringify(record[articleKey]) === JSON.stringify(entry.article)) {
             delete record[articleKey];
             delete record[buildCacheMetaKey(articleKey)];
         }
     });
-    tabDrafts.forEach(({ key, entry }) => {
+    tabDrafts.forEach(({key, entry}) => {
         record[key] = entry.article;
         record[buildCacheMetaKey(key)] = entry.meta;
     });
@@ -346,7 +346,7 @@ export const getLocalArticleCaches = (): LocalArticleCacheEntry[] => {
                 article,
                 draft: !article.logId || article.logId <= 0,
                 updatedAt: getArticleCacheUpdatedAt(record, key),
-                ...(syncState ? { syncState } : {}),
+                ...(syncState ? {syncState} : {}),
             };
         })
         .sort((a, b) => {

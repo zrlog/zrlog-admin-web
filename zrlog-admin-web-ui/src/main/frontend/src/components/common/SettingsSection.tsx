@@ -1,6 +1,6 @@
-import { useId } from "react";
-import type { ReactNode } from "react";
-import { theme as antdTheme } from "antd";
+import type {ReactNode} from "react";
+import {useId} from "react";
+import {theme as antdTheme} from "antd";
 
 type SettingsSectionProps = {
     title?: ReactNode;
@@ -9,8 +9,8 @@ type SettingsSectionProps = {
     children: ReactNode;
 };
 
-const SettingsSection = ({ title, extra, divided = false, children }: SettingsSectionProps) => {
-    const { token: theme } = antdTheme.useToken();
+const SettingsSection = ({title, extra, divided = false, children}: SettingsSectionProps) => {
+    const {token: theme} = antdTheme.useToken();
     const titleId = useId();
     return (
         <section

@@ -1,5 +1,5 @@
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { ReactNode } from "react";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {ReactNode} from "react";
 
 export type AssistantTool =
     | "rewrite"
@@ -74,53 +74,53 @@ export type ArticleReaderQuestionsResult = {
 
 export type AssistantToolPayload =
     | {
-          tool: "rewrite";
-          payload: { summary?: string; markdown?: string; discarded?: boolean };
-      }
+    tool: "rewrite";
+    payload: { summary?: string; markdown?: string; discarded?: boolean };
+}
     | {
-          tool: "title";
-          payload: { titles?: string[]; selectedTitle?: string };
-      }
+    tool: "title";
+    payload: { titles?: string[]; selectedTitle?: string };
+}
     | {
-          tool: "alias";
-          payload: { alias?: string };
-      }
+    tool: "alias";
+    payload: { alias?: string };
+}
     | {
-          tool: "digest";
-          payload: { digest?: string };
-      }
+    tool: "digest";
+    payload: { digest?: string };
+}
     | {
-          tool: "tags";
-          payload: { tags?: string[] };
-      }
+    tool: "tags";
+    payload: { tags?: string[] };
+}
     | {
-          tool: "score";
-          payload: Partial<ArticleScoreResult>;
-      }
+    tool: "score";
+    payload: Partial<ArticleScoreResult>;
+}
     | {
-          tool: "publishCheck";
-          payload: Partial<ArticleScoreResult>;
-      }
+    tool: "publishCheck";
+    payload: Partial<ArticleScoreResult>;
+}
     | {
-          tool: "seo";
-          payload: Partial<ArticleSeoResult>;
-      }
+    tool: "seo";
+    payload: Partial<ArticleSeoResult>;
+}
     | {
-          tool: "proofread";
-          payload: Partial<ArticleProofreadResult>;
-      }
+    tool: "proofread";
+    payload: Partial<ArticleProofreadResult>;
+}
     | {
-          tool: "structure";
-          payload: Partial<ArticleStructureResult>;
-      }
+    tool: "structure";
+    payload: Partial<ArticleStructureResult>;
+}
     | {
-          tool: "questions";
-          payload: Partial<ArticleReaderQuestionsResult>;
-      }
+    tool: "questions";
+    payload: Partial<ArticleReaderQuestionsResult>;
+}
     | {
-          tool: "cover";
-          payload: { url?: string };
-      };
+    tool: "cover";
+    payload: { url?: string };
+};
 
 export type ParsedSseResponse = {
     content: string;

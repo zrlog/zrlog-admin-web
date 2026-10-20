@@ -1,5 +1,5 @@
-import { describe, expect, it } from "@jest/globals";
-import { filterTemplates, getTemplateAuthorUrl, getTemplatePreviewUrl, TemplateEntry } from "./template-model";
+import {describe, expect, it} from "@jest/globals";
+import {filterTemplates, getTemplateAuthorUrl, getTemplatePreviewUrl, TemplateEntry} from "./template-model";
 
 const entry = (overrides: Partial<TemplateEntry>): TemplateEntry => ({
     template: "/include/templates/local",
@@ -19,9 +19,9 @@ const entry = (overrides: Partial<TemplateEntry>): TemplateEntry => ({
 });
 
 describe("theme source and filters", () => {
-    const bundled = entry({ shortTemplate: "default", builtIn: true, deleteAble: false });
-    const activeLocal = entry({ shortTemplate: "active-local", use: true, deleteAble: false });
-    const removable = entry({ shortTemplate: "fluid", name: "Fluid", author: "Fluid Team", tags: ["polyglot"] });
+    const bundled = entry({shortTemplate: "default", builtIn: true, deleteAble: false});
+    const activeLocal = entry({shortTemplate: "active-local", use: true, deleteAble: false});
+    const removable = entry({shortTemplate: "fluid", name: "Fluid", author: "Fluid Team", tags: ["polyglot"]});
     const themes = [bundled, removable, activeLocal];
 
     it("uses the SPI origin flag independently from active and deletion states", () => {

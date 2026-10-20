@@ -6,25 +6,8 @@ import com.zrlog.admin.business.ai.prompt.AIPromptVO;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
-import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.business.rest.request.CreateTypeRequest;
-import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
-import com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest;
-import com.zrlog.admin.business.rest.request.TagManageRequest;
-import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
-import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
-import com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest;
-import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
-import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
-import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import com.zrlog.admin.business.rest.response.AdminStaticSiteSyncResponse;
-import com.zrlog.admin.business.rest.response.ErrorPageResponse;
-import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
-import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
-import com.zrlog.admin.business.rest.response.PluginInfoResponse;
-import com.zrlog.admin.business.rest.response.TemplateValuePreviewResponse;
-import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
-import com.zrlog.admin.business.rest.response.WebhookMessageNoticeEntry;
+import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.util.WebSiteUtils;
@@ -40,24 +23,207 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class AdminDtoContractTest {
+
+    private static List<Class<?>> classesUnder(String relativeDir, String packageName) throws Exception {
+        List<Class<?>> classes = new ArrayList<>();
+        try (Stream<Path> modules = Files.list(Paths.get(".."))) {
+            for (Path module : modules.filter(path -> path.getFileName().toString().startsWith("zrlog-admin-"))
+                    .collect(Collectors.toList())) {
+                Path root = module.resolve(relativeDir);
+                if (!Files.isDirectory(root)) continue;
+                classes.addAll(classesInDirectory(root, packageName));
+            }
+        }
+        return classes;
+    }
+
+    private static List<Class<?>> classesInDirectory(Path root, String packageName) throws Exception {
+        List<Class<?>> classes = new ArrayList<>();
+        try (Stream<Path> stream = Files.walk(root)) {
+            for (Path path : stream.filter(p -> p.toString().endsWith(".java")).collect(Collectors.toList())) {
+                String relative = root.relativize(path).toString();
+                String className = packageName + "." + relative
+                        .replace(File.separatorChar, '.')
+                        .replaceAll("\\.java$", "");
+                Class<?> type = Class.forName(className);
+                if (!type.isAnnotation()) {
+                    classes.add(type);
+                }
+            }
+        }
+        return classes;
+    }
+
+    private static List<Class<?>> expandDeclaredClasses(List<Class<?>> classes) {
+        List<Class<?>> expanded = new ArrayList<>();
+        for (Class<?> type : classes) {
+            expanded.add(type);
+            Collections.addAll(expanded, type.getDeclaredClasses());
+        }
+        return expanded;
+    }
+
+    private static boolean exerciseType(Class<?> type) throws Exception {
+        if (type.isInterface() || Modifier.isAbstract(type.getModifiers()) || type.isAnnotation()) {
+            return false;
+        }
+        if (type.isEnum()) {
+            Object[] constants = type.getEnumConstants();
+            for (Object constant : constants) {
+                invokeGetters(type, constant);
+            }
+            return constants.length > 0;
+        }
+        Object bean = newInstance(type);
+        if (bean == null) {
+            return false;
+        }
+        int touched = 0;
+        for (Method setter : type.getMethods()) {
+            if (!isSetter(setter)) {
+                continue;
+            }
+            Object value = sampleValue(setter.getParameterTypes()[0]);
+            if (value == UnsupportedValue.INSTANCE) {
+                continue;
+            }
+            setter.invoke(bean, value);
+            Method getter = getterFor(type, setter);
+            if (getter != null) {
+                assertEquals(value, getter.invoke(bean));
+            }
+            touched++;
+        }
+        invokeGetters(type, bean);
+        return touched > 0 || type.getDeclaredConstructors().length > 0;
+    }
+
+    private static void invokeGetters(Class<?> type, Object bean) throws Exception {
+        for (Method getter : type.getMethods()) {
+            if (isGetter(getter)) {
+                getter.invoke(bean);
+            }
+        }
+    }
+
+    private static boolean isSetter(Method method) {
+        return Modifier.isPublic(method.getModifiers())
+                && method.getName().startsWith("set")
+                && method.getParameterCount() == 1
+                && method.getDeclaringClass() != Object.class;
+    }
+
+    private static boolean isGetter(Method method) {
+        return Modifier.isPublic(method.getModifiers())
+                && method.getParameterCount() == 0
+                && method.getDeclaringClass() != Object.class
+                && (method.getName().startsWith("get") || method.getName().startsWith("is"));
+    }
+
+    private static Method getterFor(Class<?> type, Method setter) {
+        String suffix = setter.getName().substring(3);
+        try {
+            return type.getMethod("get" + suffix);
+        } catch (NoSuchMethodException ignored) {
+            try {
+                return type.getMethod("is" + suffix);
+            } catch (NoSuchMethodException ignoredAgain) {
+                return null;
+            }
+        }
+    }
+
+    private static Object newInstance(Class<?> type) throws Exception {
+        Constructor<?> noArg = noArgConstructor(type);
+        if (noArg != null) {
+            noArg.setAccessible(true);
+            return noArg.newInstance();
+        }
+        for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+            Object[] args = sampleArgs(constructor.getParameterTypes());
+            if (args != null) {
+                constructor.setAccessible(true);
+                return constructor.newInstance(args);
+            }
+        }
+        return null;
+    }
+
+    private static Constructor<?> noArgConstructor(Class<?> type) {
+        try {
+            return type.getDeclaredConstructor();
+        } catch (NoSuchMethodException ignored) {
+            return null;
+        }
+    }
+
+    private static Object[] sampleArgs(Class<?>[] parameterTypes) throws Exception {
+        Object[] args = new Object[parameterTypes.length];
+        for (int i = 0; i < parameterTypes.length; i++) {
+            Object value = sampleValue(parameterTypes[i]);
+            if (value == UnsupportedValue.INSTANCE) {
+                return null;
+            }
+            args[i] = value;
+        }
+        return args;
+    }
+
+    private static Object sampleValue(Class<?> type) throws Exception {
+        if (type == String.class) {
+            return "value";
+        }
+        if (type == Long.class || type == long.class) {
+            return 7L;
+        }
+        if (type == Integer.class || type == int.class) {
+            return 3;
+        }
+        if (type == Boolean.class || type == boolean.class) {
+            return true;
+        }
+        if (type == Date.class) {
+            return new Date(1_000);
+        }
+        if (type == List.class) {
+            return Collections.singletonList("value");
+        }
+        if (type == Set.class) {
+            return Collections.singleton("value");
+        }
+        if (type == Map.class) {
+            Map<String, Object> value = new LinkedHashMap<>();
+            value.put("key", "value");
+            return value;
+        }
+        if (type == Object.class) {
+            return "object-value";
+        }
+        if (type == InputStream.class) {
+            return new ByteArrayInputStream("body".getBytes(StandardCharsets.UTF_8));
+        }
+        if (type.isEnum()) {
+            Object[] constants = type.getEnumConstants();
+            return constants.length == 0 ? UnsupportedValue.INSTANCE : constants[0];
+        }
+        Object nested = newInstance(type);
+        return nested == null ? UnsupportedValue.INSTANCE : nested;
+    }
+
+    private static String repeat(String value, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(value);
+        }
+        return sb.toString();
+    }
 
     //TODO: Add service/controller fixtures for admin workflows that require DAO records,
     // uploaded files, plugin runtime, SSE, or HTTP controller state.
@@ -390,200 +556,6 @@ public class AdminDtoContractTest {
         assertThrows(ArgsException.class, password::doValid);
         password.setNewPassword("new");
         password.doValid();
-    }
-
-    private static List<Class<?>> classesUnder(String relativeDir, String packageName) throws Exception {
-        List<Class<?>> classes = new ArrayList<>();
-        try (Stream<Path> modules = Files.list(Paths.get(".."))) {
-            for (Path module : modules.filter(path -> path.getFileName().toString().startsWith("zrlog-admin-"))
-                    .collect(Collectors.toList())) {
-                Path root = module.resolve(relativeDir);
-                if (!Files.isDirectory(root)) continue;
-                classes.addAll(classesInDirectory(root, packageName));
-            }
-        }
-        return classes;
-    }
-
-    private static List<Class<?>> classesInDirectory(Path root, String packageName) throws Exception {
-        List<Class<?>> classes = new ArrayList<>();
-        try (Stream<Path> stream = Files.walk(root)) {
-            for (Path path : stream.filter(p -> p.toString().endsWith(".java")).collect(Collectors.toList())) {
-                String relative = root.relativize(path).toString();
-                String className = packageName + "." + relative
-                        .replace(File.separatorChar, '.')
-                        .replaceAll("\\.java$", "");
-                Class<?> type = Class.forName(className);
-                if (!type.isAnnotation()) {
-                    classes.add(type);
-                }
-            }
-        }
-        return classes;
-    }
-
-    private static List<Class<?>> expandDeclaredClasses(List<Class<?>> classes) {
-        List<Class<?>> expanded = new ArrayList<>();
-        for (Class<?> type : classes) {
-            expanded.add(type);
-            Collections.addAll(expanded, type.getDeclaredClasses());
-        }
-        return expanded;
-    }
-
-    private static boolean exerciseType(Class<?> type) throws Exception {
-        if (type.isInterface() || Modifier.isAbstract(type.getModifiers()) || type.isAnnotation()) {
-            return false;
-        }
-        if (type.isEnum()) {
-            Object[] constants = type.getEnumConstants();
-            for (Object constant : constants) {
-                invokeGetters(type, constant);
-            }
-            return constants.length > 0;
-        }
-        Object bean = newInstance(type);
-        if (bean == null) {
-            return false;
-        }
-        int touched = 0;
-        for (Method setter : type.getMethods()) {
-            if (!isSetter(setter)) {
-                continue;
-            }
-            Object value = sampleValue(setter.getParameterTypes()[0]);
-            if (value == UnsupportedValue.INSTANCE) {
-                continue;
-            }
-            setter.invoke(bean, value);
-            Method getter = getterFor(type, setter);
-            if (getter != null) {
-                assertEquals(value, getter.invoke(bean));
-            }
-            touched++;
-        }
-        invokeGetters(type, bean);
-        return touched > 0 || type.getDeclaredConstructors().length > 0;
-    }
-
-    private static void invokeGetters(Class<?> type, Object bean) throws Exception {
-        for (Method getter : type.getMethods()) {
-            if (isGetter(getter)) {
-                getter.invoke(bean);
-            }
-        }
-    }
-
-    private static boolean isSetter(Method method) {
-        return Modifier.isPublic(method.getModifiers())
-                && method.getName().startsWith("set")
-                && method.getParameterCount() == 1
-                && method.getDeclaringClass() != Object.class;
-    }
-
-    private static boolean isGetter(Method method) {
-        return Modifier.isPublic(method.getModifiers())
-                && method.getParameterCount() == 0
-                && method.getDeclaringClass() != Object.class
-                && (method.getName().startsWith("get") || method.getName().startsWith("is"));
-    }
-
-    private static Method getterFor(Class<?> type, Method setter) {
-        String suffix = setter.getName().substring(3);
-        try {
-            return type.getMethod("get" + suffix);
-        } catch (NoSuchMethodException ignored) {
-            try {
-                return type.getMethod("is" + suffix);
-            } catch (NoSuchMethodException ignoredAgain) {
-                return null;
-            }
-        }
-    }
-
-    private static Object newInstance(Class<?> type) throws Exception {
-        Constructor<?> noArg = noArgConstructor(type);
-        if (noArg != null) {
-            noArg.setAccessible(true);
-            return noArg.newInstance();
-        }
-        for (Constructor<?> constructor : type.getDeclaredConstructors()) {
-            Object[] args = sampleArgs(constructor.getParameterTypes());
-            if (args != null) {
-                constructor.setAccessible(true);
-                return constructor.newInstance(args);
-            }
-        }
-        return null;
-    }
-
-    private static Constructor<?> noArgConstructor(Class<?> type) {
-        try {
-            return type.getDeclaredConstructor();
-        } catch (NoSuchMethodException ignored) {
-            return null;
-        }
-    }
-
-    private static Object[] sampleArgs(Class<?>[] parameterTypes) throws Exception {
-        Object[] args = new Object[parameterTypes.length];
-        for (int i = 0; i < parameterTypes.length; i++) {
-            Object value = sampleValue(parameterTypes[i]);
-            if (value == UnsupportedValue.INSTANCE) {
-                return null;
-            }
-            args[i] = value;
-        }
-        return args;
-    }
-
-    private static Object sampleValue(Class<?> type) throws Exception {
-        if (type == String.class) {
-            return "value";
-        }
-        if (type == Long.class || type == long.class) {
-            return 7L;
-        }
-        if (type == Integer.class || type == int.class) {
-            return 3;
-        }
-        if (type == Boolean.class || type == boolean.class) {
-            return true;
-        }
-        if (type == Date.class) {
-            return new Date(1_000);
-        }
-        if (type == List.class) {
-            return Collections.singletonList("value");
-        }
-        if (type == Set.class) {
-            return Collections.singleton("value");
-        }
-        if (type == Map.class) {
-            Map<String, Object> value = new LinkedHashMap<>();
-            value.put("key", "value");
-            return value;
-        }
-        if (type == Object.class) {
-            return "object-value";
-        }
-        if (type == InputStream.class) {
-            return new ByteArrayInputStream("body".getBytes(StandardCharsets.UTF_8));
-        }
-        if (type.isEnum()) {
-            Object[] constants = type.getEnumConstants();
-            return constants.length == 0 ? UnsupportedValue.INSTANCE : constants[0];
-        }
-        Object nested = newInstance(type);
-        return nested == null ? UnsupportedValue.INSTANCE : nested;
-    }
-
-    private static String repeat(String value, int count) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < count; i++) {
-            sb.append(value);
-        }
-        return sb.toString();
     }
 
     private enum UnsupportedValue {

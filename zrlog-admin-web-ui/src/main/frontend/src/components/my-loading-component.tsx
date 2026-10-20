@@ -1,12 +1,12 @@
-import { CSSProperties, FunctionComponent, useEffect, useState } from "react";
-import { getAppState } from "../base/ConfigProviderApp";
+import {CSSProperties, FunctionComponent, useEffect, useState} from "react";
+import {getAppState} from "../base/ConfigProviderApp";
 
 type MyLoadingComponentProps = {
     delayMs?: number;
     mode?: "immediate" | "delayed";
 };
 
-const MyLoadingComponent: FunctionComponent<MyLoadingComponentProps> = ({ delayMs = 200, mode = "immediate" }) => {
+const MyLoadingComponent: FunctionComponent<MyLoadingComponentProps> = ({delayMs = 200, mode = "immediate"}) => {
     const delayed = mode === "delayed";
     const [visible, setVisible] = useState(!delayed || delayMs <= 0);
     const colorPrimary = getAppState().colorPrimary;
@@ -54,7 +54,7 @@ const MyLoadingComponent: FunctionComponent<MyLoadingComponentProps> = ({ delayM
                 `}
             </style>
             <div style={topBarShellStyle}>
-                <div style={topBarIndicatorStyle} />
+                <div style={topBarIndicatorStyle}/>
             </div>
         </>
     );

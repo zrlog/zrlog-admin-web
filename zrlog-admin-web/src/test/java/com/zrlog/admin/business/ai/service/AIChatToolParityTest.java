@@ -1,16 +1,15 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.*;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.ai.model.AIChatModels;
+import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.content.AttachmentStorage;
-import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
+import com.zrlog.admin.business.knowledge.McpContentService;
+import com.zrlog.admin.business.knowledge.McpService;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthModels.Identity;
@@ -23,7 +22,6 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.web.WebSetup;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -34,15 +32,69 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class AIChatToolParityTest {
 
+    private static final String ANSWER = "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Done\"}}";
+    private final String database;
     private ZrLogConfig applicationConfig;
 
+    public AIChatToolParityTest(String database) {
+        this.database = database;
+    }
+
     @Parameterized.Parameters(name = "database={0}")
-    public static String[] databases() { return new String[]{"h2", "sqlite"}; }
-    private final String database;
-    public AIChatToolParityTest(String database) { this.database = database; }
+    public static String[] databases() {
+        return new String[]{"h2", "sqlite"};
+    }
+
+    private static List<JsonObject> articleUpdates(String wire) {
+        return wire.lines()
+                .filter(line -> line.startsWith("data: "))
+                .map(line -> JsonParser.parseString(line.substring(6)).getAsJsonObject())
+                .filter(event -> event.get("type").getAsString().equals("article-updated"))
+                .collect(Collectors.toList());
+    }
+
+    private static Identity identity(DataSourceWrapper testDataSource) {
+        Identity identity = new Identity();
+        identity.userId = 1;
+        identity.authVersion = AdminTokenThreadLocal.getUser().getAuthVersion();
+        identity.permissionMode = "inherit";
+        identity.permissions =
+                Arrays.stream(AccountAction.values())
+                        .map(AccountAction::getId)
+                        .collect(Collectors.toList());
+        identity.scopes =
+                new ArrayList<>(
+                        AccountServicesFixture.component(testDataSource).requestIdentity().current().scopes());
+        return identity;
+    }
+
+    private static HttpRequest request() {
+        return (HttpRequest) Proxy.newProxyInstance(AIChatToolParityTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+            switch (method.getName()) {
+                case "getUri":
+                    return "/api/admin/article/ai";
+                case "getContextPath":
+                    return "";
+                case "getRemoteHost":
+                    return "127.0.0.1";
+                case "getHeaderMap":
+                case "getParamMap":
+                    return Map.of();
+                default:
+                    return method.getReturnType().isPrimitive() ? 0 : null;
+            }
+        });
+    }
+
+    private static String tool(String name, String arguments) {
+        return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""
+                + name + "\",\"arguments\":" + new Gson().toJson(arguments) + "}}]}}";
+    }
 
     private InMemoryZrLogDatabase open() throws Exception {
         InMemoryZrLogDatabase db = database.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
@@ -53,7 +105,8 @@ public class AIChatToolParityTest {
         return db;
     }
 
-    @Test public void modelAndMcpExposeIdenticalNamesDescriptionsAndSchemasForEachRoleAndModuleState() throws Exception {
+    @Test
+    public void modelAndMcpExposeIdenticalNamesDescriptionsAndSchemasForEachRoleAndModuleState() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
@@ -72,11 +125,11 @@ public class AIChatToolParityTest {
                                     "en_US",
                                     this::tools,
                                     ApplicationServicesFixture.backend(db.config())::configured,
-                AccountServicesFixture.component(db.dataSource()).identities());
+                                    AccountServicesFixture.component(db.dataSource()).identities());
                     JsonArray expected =
                             new McpService(
-                                            ApplicationServicesFixture.siteTitle(db.config()),
-                                            "en_US")
+                                    ApplicationServicesFixture.siteTitle(db.config()),
+                                    "en_US")
                                     .handle(
                                             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}",
                                             provider)
@@ -97,7 +150,8 @@ public class AIChatToolParityTest {
         }
     }
 
-    @Test public void asynchronousModelCreatesReadsUpdatesAndPublishesUsingTheSharedWriteChain() throws Exception {
+    @Test
+    public void asynchronousModelCreatesReadsUpdatesAndPublishesUsingTheSharedWriteChain() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
@@ -135,11 +189,12 @@ public class AIChatToolParityTest {
         }
     }
 
-    @Test public void conflictsAreReturnedToTheModelWithoutOverwritingTheArticle() throws Exception {
+    @Test
+    public void conflictsAreReturnedToTheModelWithoutOverwritingTheArticle() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
+            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1, 1, 1, "Current", true, false, 2);
             Model model = new Model(db.dataSource(), tools(), tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Stale\"}"), ANSWER);
             String wire = model.chat();
             assertTrue(wire.contains("\"type\":\"done\""));
@@ -149,7 +204,8 @@ public class AIChatToolParityTest {
         }
     }
 
-    @Test public void capturedDelegationHidesAndRejectsWritesOnTheWorker() throws Exception {
+    @Test
+    public void capturedDelegationHidesAndRejectsWritesOnTheWorker() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
@@ -165,11 +221,12 @@ public class AIChatToolParityTest {
         }
     }
 
-    @Test public void savedUpdateIsEmittedEvenWhenTheNextModelTurnFails() throws Exception {
+    @Test
+    public void savedUpdateIsEmittedEvenWhenTheNextModelTurnFails() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
+            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1, 1, 1, "Current", true, false, 2);
             Model model = new Model(db.dataSource(), tools(), tool("get_article", "{\"id\":1}"), tool("update_article", "{\"id\":1,\"version\":2,\"title\":\"Revised\"}"), "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"\"}}");
             String wire = model.chat(1);
             assertEquals("Revised", db.scalar("select title from log where logId=1"));
@@ -190,22 +247,18 @@ public class AIChatToolParityTest {
         }
     }
 
-    private static List<JsonObject> articleUpdates(String wire) {
-        return wire.lines()
-                .filter(line -> line.startsWith("data: "))
-                .map(line -> JsonParser.parseString(line.substring(6)).getAsJsonObject())
-                .filter(event -> event.get("type").getAsString().equals("article-updated"))
-                .collect(Collectors.toList());
-    }
-
-    @Test public void revokingTheAccountAfterModelCompletionPreventsWrites() throws Exception {
+    @Test
+    public void revokingTheAccountAfterModelCompletionPreventsWrites() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
             Model model = new Model(db.dataSource(), tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"));
             model.afterRequest = () -> {
-                try { db.execute("update user set enabled=? where userId=1", false); }
-                catch (Exception e) { throw new RuntimeException(e); }
+                try {
+                    db.execute("update user set enabled=? where userId=1", false);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             };
             String wire = model.chat();
             assertTrue(wire, wire.contains("\"error\":\"permission\""));
@@ -214,7 +267,8 @@ public class AIChatToolParityTest {
         }
     }
 
-    @Test public void uploadsAttachmentsThroughTheEnabledStorageWithTheAccountAndRequest() throws Exception {
+    @Test
+    public void uploadsAttachmentsThroughTheEnabledStorageWithTheAccountAndRequest() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
@@ -223,21 +277,6 @@ public class AIChatToolParityTest {
             assertTrue(model.chat().contains("\"type\":\"done\""));
             assertTrue(model.requests.get(1).toString().contains("/attachment/note.txt"));
         }
-    }
-
-    private static Identity identity(DataSourceWrapper testDataSource) {
-        Identity identity = new Identity();
-        identity.userId = 1;
-        identity.authVersion = AdminTokenThreadLocal.getUser().getAuthVersion();
-        identity.permissionMode = "inherit";
-        identity.permissions =
-                Arrays.stream(AccountAction.values())
-                        .map(AccountAction::getId)
-                        .collect(Collectors.toList());
-        identity.scopes =
-                new ArrayList<>(
-                        AccountServicesFixture.component(testDataSource).requestIdentity().current().scopes());
-        return identity;
     }
 
     @SuppressWarnings("unchecked")
@@ -250,7 +289,8 @@ public class AIChatToolParityTest {
             setups.add(
                     new AttachmentStorage() {
                         @Override
-                        public void setup() {}
+                        public void setup() {
+                        }
 
                         @Override
                         public String saveAttachment(
@@ -274,29 +314,12 @@ public class AIChatToolParityTest {
                 .get(ContentToolFactory.class);
     }
 
-    private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(AIChatToolParityTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-            switch (method.getName()) {
-                case "getUri": return "/api/admin/article/ai";
-                case "getContextPath": return "";
-                case "getRemoteHost": return "127.0.0.1";
-                case "getHeaderMap": case "getParamMap": return Map.of();
-                default: return method.getReturnType().isPrimitive() ? 0 : null;
-            }
-        });
-    }
-
-    private static final String ANSWER = "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Done\"}}";
-    private static String tool(String name, String arguments) {
-        return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""
-                + name + "\",\"arguments\":" + new Gson().toJson(arguments) + "}}]}}";
-    }
-
     private static class Model extends AIChatService {
-        private final com.hibegin.common.dao.DataSourceWrapper actorSource;
         final List<String> responses;
         final List<JsonObject> requests = new ArrayList<>();
-        Runnable afterRequest = () -> {};
+        private final com.hibegin.common.dao.DataSourceWrapper actorSource;
+        Runnable afterRequest = () -> {
+        };
 
         Model(DataSourceWrapper testDataSource, ContentToolFactory tools, String... responses) {
             super(
@@ -317,8 +340,10 @@ public class AIChatToolParityTest {
         String chat() throws Exception {
             return chat(0);
         }
+
         String chat(long articleId) throws Exception {
-            ChatRequest input = new ChatRequest(); input.input = "Save and publish the article as requested";
+            ChatRequest input = new ChatRequest();
+            input.input = "Save and publish the article as requested";
             input.articleId = articleId;
             String chunk = new String(start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             StringBuilder wire = new StringBuilder(chunk);
@@ -329,14 +354,18 @@ public class AIChatToolParityTest {
                 if (paused.isEmpty()) break;
                 var view = paused.get().getAsJsonObject("run");
                 var confirmation = new AIChatModels.ApprovalRequest();
-                confirmation.articleId = articleId; confirmation.runId = view.get("runId").getAsString();
-                confirmation.approvalId = view.getAsJsonObject("approval").get("id").getAsString(); confirmation.decision = "approve";
+                confirmation.articleId = articleId;
+                confirmation.runId = view.get("runId").getAsString();
+                confirmation.approvalId = view.getAsJsonObject("approval").get("id").getAsString();
+                confirmation.decision = "approve";
                 chunk = new String(resume(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), confirmation, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 wire.append(chunk);
             }
             return wire.toString();
         }
-        @Override protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
+
+        @Override
+        protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
             return new Gson().fromJson(responses.get(requests.size() - 1), AIProviderResponses.Choice.class);

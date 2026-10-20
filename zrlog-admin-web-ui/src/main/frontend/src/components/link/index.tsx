@@ -1,16 +1,16 @@
 import EditIcon from "@zrlog/ui/icons/edit";
-import BaseTable, { PageDataSource } from "../../common/BaseTable";
-import { getLabelValueSeparator, getRes } from "../../utils/constants";
-import { Button, Grid, Space, Typography, theme } from "antd";
+import BaseTable, {PageDataSource} from "../../common/BaseTable";
+import {getLabelValueSeparator, getRes} from "../../utils/constants";
+import {Button, Grid, Space, theme, Typography} from "antd";
 
 import CreateOrEditLink from "./create_or_edit_link";
 
-const { Text } = Typography;
+const {Text} = Typography;
 
-const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) => {
+const BLink = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
     const screens = Grid.useBreakpoint();
     const compactLinkTable = screens.md !== true;
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const surface = {
         linkText: {
             wordBreak: "break-all" as const,
@@ -53,7 +53,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                         <Text>
                             {getRes().link.name}
                             {getLabelValueSeparator()}
-                            <span dangerouslySetInnerHTML={{ __html: record.linkName }} />
+                            <span dangerouslySetInnerHTML={{__html: record.linkName}}/>
                         </Text>
                     ) : null}
                     {record.alt ? (
@@ -107,7 +107,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                 dataIndex: "linkName",
                 width: 140,
                 render: (e: string) => {
-                    return <span dangerouslySetInnerHTML={{ __html: e }} />;
+                    return <span dangerouslySetInnerHTML={{__html: e}}/>;
                 },
             },
             {
@@ -142,7 +142,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                 addBtnRender={(addSuccessCall) => {
                     return (
                         <CreateOrEditLink
-                            record={{ id: 0, url: "", linkName: "" }}
+                            record={{id: 0, url: "", linkName: ""}}
                             offline={offline}
                             editSuccessCall={addSuccessCall}
                         >
@@ -159,7 +159,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                             type="text"
                             size="small"
                             title={getRes().edit}
-                            icon={<EditIcon style={surface.editIcon} />}
+                            icon={<EditIcon style={surface.editIcon}/>}
                         />
                     </CreateOrEditLink>
                 )}

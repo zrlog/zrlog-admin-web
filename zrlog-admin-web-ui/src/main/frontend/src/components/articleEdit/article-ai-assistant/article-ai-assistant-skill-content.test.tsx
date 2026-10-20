@@ -1,23 +1,23 @@
-import { act, ComponentProps } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { Simulate } from "react-dom/test-utils";
-import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
-import { ConfigProvider, theme } from "antd";
+import {act, ComponentProps} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {Simulate} from "react-dom/test-utils";
+import {afterEach, beforeEach, expect, it, jest} from "@jest/globals";
+import {ConfigProvider, theme} from "antd";
 import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content";
 import ArticleAiReasoning from "./article-ai-reasoning";
-import { getRes } from "../../../utils/constants";
+import {getRes} from "../../../utils/constants";
 
-jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({__esModule: true, default: () => null}));
 jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
     __esModule: true,
-    default: ({ htmlContent }: { htmlContent: string }) => <div>{htmlContent}</div>,
+    default: ({htmlContent}: { htmlContent: string }) => <div>{htmlContent}</div>,
 }));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
 }));
-jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
+jest.mock("../../../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false})}));
 jest.mock("@zrlog/editor/dist/editor/lang/editor-lang", () => ({
-    getEditorRes: () => ({ contentTips: "Check AI output" }),
+    getEditorRes: () => ({contentTips: "Check AI output"}),
 }));
 
 let root: Root;
@@ -30,7 +30,7 @@ const res = () => getRes().articleEdit.assistant;
 
 beforeEach(() => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-    window.matchMedia = jest.fn(() => ({ matches: false, addListener: jest.fn(), removeListener: jest.fn() })) as any;
+    window.matchMedia = jest.fn(() => ({matches: false, addListener: jest.fn(), removeListener: jest.fn()})) as any;
     global.ResizeObserver = class {
         observe = jest.fn();
         unobserve = jest.fn();
@@ -53,7 +53,7 @@ afterEach(() => {
 const render = (props: Partial<ComponentProps<typeof ArticleAiAssistantSkillContent>> = {}) =>
     act(() =>
         root.render(
-            <ConfigProvider theme={{ token: { motion: false } }}>
+            <ConfigProvider theme={{token: {motion: false}}}>
                 <ArticleAiAssistantSkillContent
                     aiProvider="OPEN_AI"
                     disabled={false}
@@ -85,7 +85,7 @@ const enter = (options: { shiftKey?: boolean; composing?: boolean; keyCode?: num
             key: "Enter",
             keyCode: options.keyCode || 13,
             shiftKey: options.shiftKey,
-            nativeEvent: { isComposing: options.composing },
+            nativeEvent: {isComposing: options.composing},
         } as any);
     });
 const click = (label: string) =>
@@ -117,19 +117,19 @@ it("keeps typing and queueing available during generation, with stop in the send
 it("preserves Chinese composition, Shift+Enter, rejected input and disabled drafts", () => {
     render();
     type("输入中的中文");
-    enter({ composing: true });
-    enter({ keyCode: 229 });
-    enter({ shiftKey: true });
+    enter({composing: true});
+    enter({keyCode: 229});
+    enter({shiftKey: true});
     expect(submit).not.toHaveBeenCalled();
     expect(input().value).toBe("输入中的中文");
     submit.mockReturnValue(false);
     enter();
     expect(input().value).toBe("输入中的中文");
-    render({ disabled: true });
+    render({disabled: true});
     submit.mockClear();
     enter();
     expect(submit).not.toHaveBeenCalled();
-    render({ busy: false, onStop: undefined });
+    render({busy: false, onStop: undefined});
     submit.mockReturnValue(true);
     click(res().send);
     expect(submit).toHaveBeenCalledWith("输入中的中文");
@@ -140,7 +140,7 @@ it("exposes removal and explicit resume for paused queued messages", () => {
         busy: false,
         onStop: undefined,
         queuePaused: true,
-        queuedMessages: [{ id: 1, input: "Keep this draft" }],
+        queuedMessages: [{id: 1, input: "Keep this draft"}],
     });
     expect(container.textContent).toContain(res().queuePaused);
     expect(container.textContent).toContain("Keep this draft");
@@ -151,9 +151,9 @@ it("exposes removal and explicit resume for paused queued messages", () => {
 });
 
 it("opens reasoning as it arrives after an initial status and even after answer text starts", () => {
-    act(() => root.render(<ArticleAiReasoning status="Thinking" />));
+    act(() => root.render(<ArticleAiReasoning status="Thinking"/>));
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
-    act(() => root.render(<ArticleAiReasoning status="Generating" content="Provider reasoning text" />));
+    act(() => root.render(<ArticleAiReasoning status="Generating" content="Provider reasoning text"/>));
     expect(container.textContent).toContain("Provider reasoning text");
     expect(container.querySelector('[aria-expanded="true"]')).not.toBeNull();
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
@@ -166,10 +166,10 @@ const fileInput = {
     maxTotalBytes: 8 * 1024 * 1024,
 };
 const attach = (...files: File[]) =>
-    act(() => Simulate.change(container.querySelector('input[type="file"]')!, { target: { files, value: "" } } as any));
+    act(() => Simulate.change(container.querySelector('input[type="file"]')!, {target: {files, value: ""}} as any));
 
 it("queues selected document bytes with a prompt and clears files only after acceptance", () => {
-    render({ busy: false, fileInput });
+    render({busy: false, fileInput});
     const file = new File(["region,revenue\nShanghai,1537"], "sales.csv");
     attach(file);
     expect(container.textContent).toContain("sales.csv");
@@ -185,7 +185,7 @@ it("queues selected document bytes with a prompt and clears files only after acc
 });
 
 it("accepts a file-only turn and lets a selected attachment be removed", () => {
-    render({ busy: false, fileInput });
+    render({busy: false, fileInput});
     const file = new File(["notes"], "notes.txt");
     attach(file);
     click(`${getRes().articleEdit.files.remove} notes.txt`);
@@ -196,7 +196,7 @@ it("accepts a file-only turn and lets a selected attachment be removed", () => {
 });
 
 it("rejects unsupported formats and excessive attachments without losing valid selections", () => {
-    render({ busy: false, fileInput });
+    render({busy: false, fileInput});
     const file = new File(["data"], "notes.txt");
     attach(file);
     attach(new File(["pixels"], "photo.png"));
@@ -208,11 +208,11 @@ it("rejects unsupported formats and excessive attachments without losing valid s
 });
 
 it("encodes the actual UTF-8 contents of a selected file", async () => {
-    const { encodeAiFiles, validateAiFiles } = await import("./article-ai-files");
+    const {encodeAiFiles, validateAiFiles} = await import("./article-ai-files");
     const contents = "城市,营收\n上海,1537\n";
-    const file = new File([contents], "sales.csv", { type: "text/csv" });
+    const file = new File([contents], "sales.csv", {type: "text/csv"});
     const result = await encodeAiFiles([file]);
-    expect(result).toEqual([{ name: "sales.csv", data: Buffer.from(contents, "utf8").toString("base64") }]);
+    expect(result).toEqual([{name: "sales.csv", data: Buffer.from(contents, "utf8").toString("base64")}]);
     expect(validateAiFiles([new File([], "empty.txt")], fileInput)).toBe(getRes().articleEdit.files.sizeLimit);
     expect(validateAiFiles([new File(["x".repeat(fileInput.maxFileBytes + 1)], "large.txt")], fileInput)).toBe(
         getRes().articleEdit.files.sizeLimit
@@ -220,15 +220,15 @@ it("encodes the actual UTF-8 contents of a selected file", async () => {
 });
 
 it("selects attachment references with the keyboard without sending, and ignores email addresses", () => {
-    render({ busy: false, fileInput });
+    render({busy: false, fileInput});
     const file = new File(["notes"], "notes.txt");
     attach(file);
     type("person@example.com");
     expect(container.querySelector('[role="listbox"]')).toBeNull();
     type("Summarize @notes");
     expect(container.querySelectorAll('[role="option"]')).toHaveLength(1);
-    enter({ composing: true });
-    enter({ keyCode: 229 });
+    enter({composing: true});
+    enter({keyCode: 229});
     expect(container.querySelector('[role="listbox"]')).not.toBeNull();
     enter();
     expect(submit).not.toHaveBeenCalled();
@@ -240,7 +240,7 @@ it("selects attachment references with the keyboard without sending, and ignores
         expect.stringContaining("@notes.txt"),
         undefined,
         [file],
-        [{ type: "file", fileIndex: 0 }]
+        [{type: "file", fileIndex: 0}]
     );
     expect(container.textContent).toContain("@notes.txt");
     enter();
@@ -248,13 +248,13 @@ it("selects attachment references with the keyboard without sending, and ignores
 });
 
 it("keeps same-name attachments distinct and reindexes a reference after another attachment is removed", () => {
-    render({ busy: false, fileInput });
+    render({busy: false, fileInput});
     const first = new File(["first"], "notes.txt");
     const second = new File(["second"], "notes.txt");
     attach(first, second);
     type("Compare @");
-    act(() => Simulate.keyDown(input(), { key: "ArrowDown" }));
-    act(() => Simulate.keyDown(input(), { key: "Tab" }));
+    act(() => Simulate.keyDown(input(), {key: "ArrowDown"}));
+    act(() => Simulate.keyDown(input(), {key: "Tab"}));
     expect(submit).not.toHaveBeenCalled();
     click(`${getRes().articleEdit.files.remove} notes.txt`);
     enter();
@@ -262,16 +262,16 @@ it("keeps same-name attachments distinct and reindexes a reference after another
         expect.stringContaining("@notes.txt"),
         undefined,
         [second],
-        [{ type: "file", fileIndex: 0 }]
+        [{type: "file", fileIndex: 0}]
     );
 });
 
 it("removes a reference when its attachment is removed, and supports Escape and the visible @ button", () => {
-    render({ busy: false, fileInput });
+    render({busy: false, fileInput});
     const file = new File(["notes"], "notes.txt");
     attach(file);
     type("@");
-    act(() => Simulate.keyDown(input(), { key: "Escape" }));
+    act(() => Simulate.keyDown(input(), {key: "Escape"}));
     expect(container.querySelector('[role="listbox"]')).toBeNull();
     type("");
     click(res().mentions.choose);
@@ -298,10 +298,10 @@ it("searches articles, ignores stale replies, and submits the selected article I
             .mockResolvedValueOnce({
                 data: {
                     error: 0,
-                    data: { articles: [{ id: 42, title: "Deployment", url: "https://blog.example/42" }] },
+                    data: {articles: [{id: 42, title: "Deployment", url: "https://blog.example/42"}]},
                 },
             });
-        render({ busy: false, api: { get } as any });
+        render({busy: false, api: {get} as any});
         type("Compare @old");
         await act(async () => {
             jest.advanceTimersByTime(200);
@@ -312,7 +312,7 @@ it("searches articles, ignores stale replies, and submits the selected article I
         });
         await act(async () =>
             resolveOld({
-                data: { error: 0, data: { articles: [{ id: 99, title: "Stale", url: "https://blog.example/99" }] } },
+                data: {error: 0, data: {articles: [{id: 99, title: "Stale", url: "https://blog.example/99"}]}},
             })
         );
         expect(get.mock.calls[0][1].signal.aborted).toBe(true);
@@ -326,7 +326,7 @@ it("searches articles, ignores stale replies, and submits the selected article I
             expect.stringContaining("[@Deployment](<https://blog.example/42>)"),
             undefined,
             [],
-            [{ type: "article", articleId: 42 }]
+            [{type: "article", articleId: 42}]
         );
     } finally {
         jest.useRealTimers();
@@ -339,8 +339,8 @@ it("keeps the prompt while article search fails and supports retry without sendi
         const get = jest
             .fn<any, any[]>()
             .mockRejectedValueOnce(new Error("private server detail"))
-            .mockResolvedValueOnce({ data: { error: 0, data: { articles: [] } } });
-        render({ busy: false, api: { get } as any });
+            .mockResolvedValueOnce({data: {error: 0, data: {articles: []}}});
+        render({busy: false, api: {get} as any});
         type("Read @missing");
         enter();
         expect(submit).not.toHaveBeenCalled();

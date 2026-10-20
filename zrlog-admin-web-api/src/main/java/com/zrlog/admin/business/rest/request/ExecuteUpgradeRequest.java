@@ -7,8 +7,14 @@ public class ExecuteUpgradeRequest implements Validator {
 
     private Boolean upgradeRiskAccepted;
     private com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest docker;
-    public com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest getDocker() { return docker; }
-    public void setDocker(com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest value) { docker = value; }
+
+    public com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest getDocker() {
+        return docker;
+    }
+
+    public void setDocker(com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest value) {
+        docker = value;
+    }
 
     @Override
     public void doValid() {

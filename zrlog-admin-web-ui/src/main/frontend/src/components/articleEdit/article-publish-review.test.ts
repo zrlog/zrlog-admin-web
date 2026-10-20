@@ -1,6 +1,6 @@
-import { describe, expect, it } from "@jest/globals";
-import { ArticleEntry } from "./index.types";
-import { buildArticlePublishReview } from "./article-publish-review";
+import {describe, expect, it} from "@jest/globals";
+import {ArticleEntry} from "./index.types";
+import {buildArticlePublishReview} from "./article-publish-review";
 
 const completeArticle: ArticleEntry = {
     title: "Release notes",
@@ -16,8 +16,8 @@ const completeArticle: ArticleEntry = {
 };
 
 const typeOptions = [
-    { value: 1, label: "Life" },
-    { value: 2, label: "Engineering" },
+    {value: 1, label: "Life"},
+    {value: 2, label: "Engineering"},
 ];
 
 describe("buildArticlePublishReview", () => {

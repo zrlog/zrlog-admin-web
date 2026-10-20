@@ -1,26 +1,26 @@
-import { act } from "react";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { createRoot, Root } from "react-dom/client";
-import { AxiosInstance } from "axios";
-import { getRes } from "../../../utils/constants";
-import { BasicUserInfo } from "../../../type";
-import { ChatMessage, ChatRun, parseChatEvents, renderChatMessage, useArticleChat } from "./use-article-chat";
+import {act} from "react";
+import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
+import {createRoot, Root} from "react-dom/client";
+import {AxiosInstance} from "axios";
+import {getRes} from "../../../utils/constants";
+import {BasicUserInfo} from "../../../type";
+import {ChatMessage, ChatRun, parseChatEvents, renderChatMessage, useArticleChat} from "./use-article-chat";
 
 jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
     __esModule: true,
-    default: ({ htmlContent }: { htmlContent: string }) => <div>{htmlContent}</div>,
+    default: ({htmlContent}: { htmlContent: string }) => <div>{htmlContent}</div>,
 }));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
 }));
-jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
+jest.mock("../../../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false})}));
 
 describe("knowledge assistant", () => {
     let root: Root;
     let container: HTMLDivElement;
     const post = jest.fn<Promise<{ data: string }>, any[]>();
     const get = jest.fn<Promise<{ data: { error: number; data?: ChatRun } }>, any[]>();
-    const api = { post, get } as unknown as AxiosInstance;
+    const api = {post, get} as unknown as AxiosInstance;
     const onMessagesChange = jest.fn();
     const onArticleUpdated = jest.fn();
     const completed = (
@@ -34,7 +34,7 @@ describe("knowledge assistant", () => {
             content,
             sources,
             messages: [
-                { role: "user", content: question, messageType: "knowledge", messageId: "question-id" },
+                {role: "user", content: question, messageType: "knowledge", messageId: "question-id"},
                 {
                     role: "assistant",
                     content,
@@ -46,12 +46,13 @@ describe("knowledge assistant", () => {
             ],
         })}\n\ndata: {"type":"done"}\n\n`;
     let chat: ReturnType<typeof useArticleChat>;
+
     function Harness({
-        scope = "1",
-        restore = false,
-        history = [],
-        articleId = 7,
-    }: {
+                         scope = "1",
+                         restore = false,
+                         history = [],
+                         articleId = 7,
+                     }: {
         scope?: string;
         restore?: boolean;
         history?: ChatMessage[];
@@ -63,18 +64,19 @@ describe("knowledge assistant", () => {
             scope,
             onMessagesChange,
             onArticleUpdated,
-            restore ? { articleId, messages: history } : undefined
+            restore ? {articleId, messages: history} : undefined
         );
         return (
             <>
                 {chat.messages.map((m, index) => (
-                    <div key={index}>{renderChatMessage({ content: m, index, defaultNode: <p>{m.content}</p> })}</div>
+                    <div key={index}>{renderChatMessage({content: m, index, defaultNode: <p>{m.content}</p>})}</div>
                 ))}
             </>
         );
     }
+
     it("sends document bytes while rendering only safe attachment metadata", async () => {
-        const files = [{ name: "sales.csv", data: "YSxiXG4xLDI=" }];
+        const files = [{name: "sales.csv", data: "YSxiXG4xLDI="}];
         post.mockImplementationOnce(async (_url, body) => {
             expect(body.files).toEqual(files);
             return {
@@ -85,7 +87,7 @@ describe("knowledge assistant", () => {
                             role: "user",
                             content: "Read files",
                             messageId: "files:user",
-                            attachments: [{ id: "file-id", name: "sales.csv", size: 8 }],
+                            attachments: [{id: "file-id", name: "sales.csv", size: 8}],
                             messageType: "knowledge",
                         },
                         {
@@ -98,7 +100,7 @@ describe("knowledge assistant", () => {
                 })}\n\ndata: {"type":"done"}\n\n`,
             };
         });
-        await act(async () => root.render(<Harness />));
+        await act(async () => root.render(<Harness/>));
         await act(async () => chat.send("Read files", [], 7, undefined, undefined, files));
         expect(post.mock.calls[0][1].files).toEqual(files);
         expect(container.textContent).toContain("sales.csv");
@@ -107,8 +109,8 @@ describe("knowledge assistant", () => {
     });
 
     it("shows file validation failures returned before the stream starts", async () => {
-        post.mockResolvedValueOnce({ data: JSON.stringify({ error: 9039, errorCode: "ADMIN_AI_FILE_UNSUPPORTED" }) });
-        await act(async () => root.render(<Harness />));
+        post.mockResolvedValueOnce({data: JSON.stringify({error: 9039, errorCode: "ADMIN_AI_FILE_UNSUPPORTED"})});
+        await act(async () => root.render(<Harness/>));
         await act(async () => chat.send("Read files", [], 7));
         expect(container.textContent).toContain(getRes().articleEdit.files.unsupported);
         expect(chat.outcome.current).toBe(false);
@@ -124,8 +126,8 @@ describe("knowledge assistant", () => {
             messageId: "run:skill:1",
             messageType: "writingSkill",
             tool: "title",
-            payload: { titles: ["First", "Second"] },
-            skillContract: { version: 1, contextRevision: revision, applicableFields: ["title"] },
+            payload: {titles: ["First", "Second"]},
+            skillContract: {version: 1, contextRevision: revision, applicableFields: ["title"]},
         };
         const view: ChatRun = {
             runId: "run",
@@ -143,13 +145,13 @@ describe("knowledge assistant", () => {
             },
         };
         const progress =
-            frame({ type: "run-start", runId: "run" }) + frame({ type: "skill-result", messages: [skill] });
+            frame({type: "run-start", runId: "run"}) + frame({type: "skill-result", messages: [skill]});
         post.mockImplementationOnce(async (_url: unknown, _body: unknown, config: any) => {
-            config.onDownloadProgress({ event: { target: { responseText: progress } } });
-            config.onDownloadProgress({ event: { target: { responseText: progress } } });
-            return { data: progress + frame({ type: "interaction-required", run: view }) };
+            config.onDownloadProgress({event: {target: {responseText: progress}}});
+            config.onDownloadProgress({event: {target: {responseText: progress}}});
+            return {data: progress + frame({type: "interaction-required", run: view})};
         });
-        await act(async () => root.render(<Harness />));
+        await act(async () => root.render(<Harness/>));
         await act(async () =>
             chat.send(view.input, [], 7, undefined, {
                 editorContext: {
@@ -167,27 +169,27 @@ describe("knowledge assistant", () => {
         expect(chat.messages.filter((entry) => entry.messageType === "writingSkill")).toHaveLength(1);
         expect(chat.messages[chat.messages.length - 1].run?.status).toBe("awaiting_input");
         expect(post.mock.calls[0][1]).toMatchObject({
-            editorContext: { markdown: "Unsaved body" },
+            editorContext: {markdown: "Unsaved body"},
             contextRevision: revision,
         });
         const digest: ChatMessage = {
             ...skill,
             messageId: "run:skill:2",
             tool: "digest",
-            payload: { digest: "Summary" },
-            skillContract: { version: 1, contextRevision: revision, applicableFields: ["digest"] },
+            payload: {digest: "Summary"},
+            skillContract: {version: 1, contextRevision: revision, applicableFields: ["digest"]},
         };
         post.mockResolvedValueOnce({
             data:
                 frame({
                     type: "answer",
                     messages: [
-                        { role: "user", content: view.input, messageId: "run:user", messageType: "knowledge" },
+                        {role: "user", content: view.input, messageId: "run:user", messageType: "knowledge"},
                         skill,
                         digest,
-                        { role: "assistant", content: "Done", messageId: "run:assistant", messageType: "knowledge" },
+                        {role: "assistant", content: "Done", messageId: "run:assistant", messageType: "knowledge"},
                     ],
-                }) + frame({ type: "done" }),
+                }) + frame({type: "done"}),
         });
         await act(async () => chat.respond(view, "submit", "Second", revision, chat.messages));
         expect(post.mock.calls[1][0]).toBe("/api/admin/article/ai/input");
@@ -208,9 +210,11 @@ describe("knowledge assistant", () => {
             observe() {
                 return undefined;
             }
+
             unobserve() {
                 return undefined;
             }
+
             disconnect() {
                 return undefined;
             }
@@ -250,18 +254,20 @@ describe("knowledge assistant", () => {
         get.mockReset();
         onMessagesChange.mockClear();
         onArticleUpdated.mockClear();
-        act(() => root.render(<Harness />));
+        act(() => root.render(<Harness/>));
     });
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
     });
+
     async function send() {
         await act(async () => {
             await chat.send("Find deployment articles", chat.messages, 0);
         });
     }
+
     const pausedRun = (): ChatRun => ({
         runId: "run-1",
         articleId: 7,
@@ -275,12 +281,12 @@ describe("knowledge assistant", () => {
             version: 2,
             expiresAt: Date.now() + 60000,
             publicImpact: false,
-            changes: [{ field: "title", before: "Before", after: "After", truncated: false }],
+            changes: [{field: "title", before: "Before", after: "After", truncated: false}],
         },
     });
     it("accepts a paused SSE and continues the same question through a new POST", async () => {
         const view = pausedRun();
-        post.mockResolvedValueOnce({ data: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` });
+        post.mockResolvedValueOnce({data: `data: ${JSON.stringify({type: "approval-required", run: view})}\n\n`});
         await act(async () => {
             await chat.send(view.input, [], 7);
         });
@@ -305,7 +311,7 @@ describe("knowledge assistant", () => {
         expect(chat.messages).toHaveLength(2);
         expect(chat.messages[0].content).toBe(view.input);
         expect(chat.messages[1].content).toBe("Saved");
-        expect(onArticleUpdated).toHaveBeenCalledWith({ articleId: 7, version: 3 });
+        expect(onArticleUpdated).toHaveBeenCalledWith({articleId: 7, version: 3});
         expect(get).not.toHaveBeenCalled();
     });
     it("keeps a received approval card if the first connection closes with a transport error", async () => {
@@ -313,7 +319,7 @@ describe("knowledge assistant", () => {
         post.mockImplementationOnce(async (_url, _body, config) => {
             config.onDownloadProgress({
                 event: {
-                    target: { responseText: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` },
+                    target: {responseText: `data: ${JSON.stringify({type: "approval-required", run: view})}\n\n`},
                 },
             });
             throw new Error("connection closed");
@@ -332,12 +338,12 @@ describe("knowledge assistant", () => {
                 resolve = done;
             })
         );
-        await act(async () => root.render(<Harness scope="restore" restore />));
+        await act(async () => root.render(<Harness scope="restore" restore/>));
         expect(get).toHaveBeenCalledTimes(1);
-        await act(async () => root.render(<Harness scope="restore" restore />));
+        await act(async () => root.render(<Harness scope="restore" restore/>));
         expect(get).toHaveBeenCalledTimes(1);
         await act(async () => {
-            resolve({ data: { error: 0, data: pausedRun() } });
+            resolve({data: {error: 0, data: pausedRun()}});
         });
         expect(chat.messages[1].run?.approval?.id).toBe("approval-1");
         get.mockReturnValueOnce(
@@ -349,9 +355,9 @@ describe("knowledge assistant", () => {
         act(() => {
             refreshing = chat.refreshRun(7);
         });
-        act(() => root.render(<Harness scope="another" />));
+        act(() => root.render(<Harness scope="another"/>));
         await act(async () => {
-            resolve({ data: { error: 0, data: pausedRun() } });
+            resolve({data: {error: 0, data: pausedRun()}});
             await refreshing;
         });
         expect(chat.messages).toHaveLength(0);
@@ -359,7 +365,7 @@ describe("knowledge assistant", () => {
     it("reconciles a disconnected confirmation once and keeps the persisted task state", async () => {
         const view = pausedRun();
         post.mockRejectedValue(new Error("connection lost"));
-        get.mockResolvedValue({ data: { error: 0, data: { ...view, status: "uncertain" } } });
+        get.mockResolvedValue({data: {error: 0, data: {...view, status: "uncertain"}}});
         await act(async () => {
             await chat.decide(view, "approve", []);
         });
@@ -371,14 +377,14 @@ describe("knowledge assistant", () => {
     it("keeps a recovered completed turn in its original place and removes cancelled cards", async () => {
         const view = pausedRun();
         const pair: ChatMessage[] = [
-            { role: "user", thinking: false, content: view.input, messageId: `${view.runId}:user` },
-            { role: "assistant", thinking: false, content: "Saved", messageId: `${view.runId}:assistant` },
+            {role: "user", thinking: false, content: view.input, messageId: `${view.runId}:user`},
+            {role: "assistant", thinking: false, content: "Saved", messageId: `${view.runId}:assistant`},
         ];
-        const later: ChatMessage = { role: "assistant", thinking: false, content: "Later answer", messageId: "later" };
+        const later: ChatMessage = {role: "assistant", thinking: false, content: "Later answer", messageId: "later"};
         get.mockResolvedValue({
-            data: { error: 0, data: { ...view, status: "completed", answer: { type: "answer", messages: pair } } },
+            data: {error: 0, data: {...view, status: "completed", answer: {type: "answer", messages: pair}}},
         });
-        await act(async () => root.render(<Harness restore history={[...pair, later]} />));
+        await act(async () => root.render(<Harness restore history={[...pair, later]}/>));
         expect(chat.messages.map((message) => message.messageId)).toEqual([
             `${view.runId}:user`,
             `${view.runId}:assistant`,
@@ -386,29 +392,29 @@ describe("knowledge assistant", () => {
         ]);
         const pending: ChatMessage[] = [
             later,
-            { role: "user", thinking: false, content: view.input, runId: view.runId },
-            { role: "assistant", thinking: false, content: "", runId: view.runId, run: view },
+            {role: "user", thinking: false, content: view.input, runId: view.runId},
+            {role: "assistant", thinking: false, content: "", runId: view.runId, run: view},
         ];
-        get.mockResolvedValue({ data: { error: 0, data: { ...view, status: "cancelled" } } });
-        await act(async () => root.render(<Harness scope="cancelled" restore history={pending} />));
+        get.mockResolvedValue({data: {error: 0, data: {...view, status: "cancelled"}}});
+        await act(async () => root.render(<Harness scope="cancelled" restore history={pending}/>));
         expect(chat.messages).toEqual([later]);
     });
     it("replaces an unfinished question after losing the initial run-start event", async () => {
         const view = pausedRun();
         const unfinished: ChatMessage[] = [
-            { role: "user", thinking: false, content: view.input },
-            { role: "assistant", thinking: false, content: "Connection lost", failed: true },
+            {role: "user", thinking: false, content: view.input},
+            {role: "assistant", thinking: false, content: "Connection lost", failed: true},
         ];
-        get.mockResolvedValue({ data: { error: 0, data: view } });
-        await act(async () => root.render(<Harness restore history={unfinished} />));
+        get.mockResolvedValue({data: {error: 0, data: view}});
+        await act(async () => root.render(<Harness restore history={unfinished}/>));
         expect(chat.messages).toHaveLength(2);
         expect(chat.messages[1].run).toEqual(view);
     });
     it("publishes saved messages with stable IDs and sources to the article cache", async () => {
         const sources = [
-            { id: 1, title: "Deploy guide", url: "https://example.com/1", draft: false, privateArticle: false },
+            {id: 1, title: "Deploy guide", url: "https://example.com/1", draft: false, privateArticle: false},
         ];
-        post.mockResolvedValue({ data: completed("Deployment answer", undefined, undefined, sources) });
+        post.mockResolvedValue({data: completed("Deployment answer", undefined, undefined, sources)});
         await send();
         expect(post.mock.calls[0][1]).toEqual({
             input: "Find deployment articles",
@@ -419,18 +425,18 @@ describe("knowledge assistant", () => {
         expect(onMessagesChange).toHaveBeenLastCalledWith(chat.messages, 0);
         expect(chat.messages[1].messageId).toBe("answer-id");
         const calls = onMessagesChange.mock.calls.length;
-        act(() => root.render(<Harness scope="2" />));
+        act(() => root.render(<Harness scope="2"/>));
         expect(container.textContent).not.toContain("Deployment answer");
         // Leaving a completed conversation must not clear its saved article cache.
         expect(onMessagesChange).toHaveBeenCalledTimes(calls);
     });
     it("preserves existing messages when stopping an unfinished answer", async () => {
-        const saved = [{ role: "assistant" as const, content: "Saved answer", thinking: false }];
+        const saved = [{role: "assistant" as const, content: "Saved answer", thinking: false}];
         post.mockReturnValue(new Promise(() => undefined));
         act(() => {
             void chat.send("Next question", saved, 7);
         });
-        expect(post.mock.calls[0][1]).toEqual({ input: "Next question", articleId: 7 });
+        expect(post.mock.calls[0][1]).toEqual({input: "Next question", articleId: 7});
         act(() => chat.stop());
         expect(chat.messages).toEqual(saved);
         expect(onMessagesChange).toHaveBeenLastCalledWith(saved, 7);
@@ -452,19 +458,19 @@ describe("knowledge assistant", () => {
         const first =
             reasoning +
             'data: {"type":"reasoning","reasoningContent":"Think first"}\n\ndata: {"type":"delta","content":"你"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: first } } }));
+        act(() => post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: first}}}));
         expect(chat.busy).toBe(true);
         expect(chat.messages[1].content).toBe("你");
         expect(chat.messages[1].reasoningContent).toBe("Think first");
         expect(chat.messages[1].messageId).toBeUndefined();
         const second = first + 'data: {"type":"delta","content":"好🙂"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: second } } }));
+        act(() => post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: second}}}));
         // XHR progress carries the accumulated response, so repeated callbacks must not duplicate text.
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: second } } }));
+        act(() => post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: second}}}));
         expect(container.textContent).toContain("你好🙂");
         expect(chat.messages[1].content).toBe("你好🙂");
         await act(async () => {
-            resolve({ data: second + completed("你好🙂", "Hello", "Think first") });
+            resolve({data: second + completed("你好🙂", "Hello", "Think first")});
             await pending;
         });
         expect(chat.messages[1].messageId).toBe("answer-id");
@@ -486,14 +492,14 @@ describe("knowledge assistant", () => {
         const progress = (text: string) =>
             act(() =>
                 post.mock.calls[0][2].onDownloadProgress({
-                    event: { target: { responseText: text } },
+                    event: {target: {responseText: text}},
                 })
             );
         progress(first.slice(0, -1));
         expect(onArticleUpdated).not.toHaveBeenCalled();
         progress(first);
         progress(first);
-        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 7, version: 4 }]]);
+        expect(onArticleUpdated.mock.calls).toEqual([[{articleId: 7, version: 4}]]);
         expect(chat.busy).toBe(true);
         const final =
             first +
@@ -503,10 +509,10 @@ describe("knowledge assistant", () => {
             'data: {"type":"article-updated","articleId":7}\n\n' +
             'data: {"type":"error","error":"saveFailed"}\n\n';
         await act(async () => {
-            resolve({ data: final });
+            resolve({data: final});
             await pending;
         });
-        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 7, version: 4 }], [{ articleId: 7, version: 5 }]]);
+        expect(onArticleUpdated.mock.calls).toEqual([[{articleId: 7, version: 4}], [{articleId: 7, version: 5}]]);
         expect(chat.messages[1].failed).toBe(true);
     });
 
@@ -522,7 +528,7 @@ describe("knowledge assistant", () => {
             pending = chat.send("Write a draft", [], 0);
         });
         const wire = 'data: {"type":"article-updated","articleId":18,"version":0,"created":true}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: wire } } }));
+        act(() => post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: wire}}}));
         expect(onArticleUpdated).not.toHaveBeenCalled();
         expect(chat.busy).toBe(true);
         await act(async () => {
@@ -534,7 +540,7 @@ describe("knowledge assistant", () => {
             });
             await pending;
         });
-        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 18, version: 0, created: true }]]);
+        expect(onArticleUpdated.mock.calls).toEqual([[{articleId: 18, version: 0, created: true}]]);
         expect(chat.messages[1].content).toBe("Draft saved");
         expect(chat.busy).toBe(false);
         expect(
@@ -546,9 +552,9 @@ describe("knowledge assistant", () => {
         const view: ChatRun = {
             ...pausedRun(),
             articleId: 0,
-            articleUpdates: [{ articleId: 18, version: 0, created: true }],
+            articleUpdates: [{articleId: 18, version: 0, created: true}],
         };
-        post.mockResolvedValueOnce({ data: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` });
+        post.mockResolvedValueOnce({data: `data: ${JSON.stringify({type: "approval-required", run: view})}\n\n`});
         await act(async () => {
             await chat.send("Write and refine", [], 0);
         });
@@ -560,7 +566,7 @@ describe("knowledge assistant", () => {
             await chat.decide(view, "approve", chat.messages);
         });
         expect(post.mock.calls[1][1].articleId).toBe(0);
-        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 18, version: 1, created: true }]]);
+        expect(onArticleUpdated.mock.calls).toEqual([[{articleId: 18, version: 1, created: true}]]);
     });
 
     it("does not bind unrelated writes, but still loads a created draft if the model later fails", async () => {
@@ -575,7 +581,7 @@ describe("knowledge assistant", () => {
                 'data: {"type":"error","error":"providerRequestFailed"}\n\n',
         });
         await send();
-        expect(onArticleUpdated).toHaveBeenCalledWith({ articleId: 18, version: 0, created: true });
+        expect(onArticleUpdated).toHaveBeenCalledWith({articleId: 18, version: 0, created: true});
     });
 
     it("does not reopen a completed created article on a fresh draft page, but recovers an interrupted turn", async () => {
@@ -583,10 +589,10 @@ describe("knowledge assistant", () => {
             ...pausedRun(),
             articleId: 0,
             status: "completed",
-            articleUpdates: [{ articleId: 18, version: 0, created: true }],
+            articleUpdates: [{articleId: 18, version: 0, created: true}],
         };
-        get.mockResolvedValue({ data: { error: 0, data: view } });
-        await act(async () => root.render(<Harness restore articleId={0} />));
+        get.mockResolvedValue({data: {error: 0, data: view}});
+        await act(async () => root.render(<Harness restore articleId={0}/>));
         expect(onArticleUpdated).not.toHaveBeenCalled();
         expect(chat.messages).toEqual([]);
         await act(async () =>
@@ -595,11 +601,11 @@ describe("knowledge assistant", () => {
                     scope="recover"
                     restore
                     articleId={0}
-                    history={[{ role: "user", content: view.input, runId: view.runId, thinking: false }]}
+                    history={[{role: "user", content: view.input, runId: view.runId, thinking: false}]}
                 />
             )
         );
-        expect(onArticleUpdated).toHaveBeenCalledWith({ articleId: 18, version: 0, created: true });
+        expect(onArticleUpdated).toHaveBeenCalledWith({articleId: 18, version: 0, created: true});
     });
 
     it("discards partial streamed text when saving fails", async () => {
@@ -614,10 +620,10 @@ describe("knowledge assistant", () => {
             pending = chat.send("Hello", [], 7);
         });
         const partial = 'data: {"type":"delta","content":"Unfinished answer"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: partial } } }));
+        act(() => post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: partial}}}));
         expect(container.textContent).toContain("Unfinished answer");
         await act(async () => {
-            resolve({ data: partial + 'data: {"type":"error","error":"saveFailed"}\n\n' });
+            resolve({data: partial + 'data: {"type":"error","error":"saveFailed"}\n\n'});
             await pending;
         });
         expect(container.textContent).not.toContain("Unfinished answer");
@@ -643,7 +649,7 @@ describe("knowledge assistant", () => {
         act(() => {
             pending = chat.send("Private question", [], 7);
         });
-        act(() => root.render(<Harness scope="2" />));
+        act(() => root.render(<Harness scope="2"/>));
         await act(async () => {
             resolve({
                 data:
@@ -670,12 +676,12 @@ describe("knowledge assistant", () => {
         expect(chat.status).not.toBe(getRes().articleEdit.knowledge.searching);
         act(() =>
             post.mock.calls[0][2].onDownloadProgress({
-                event: { target: { responseText: 'data: {"type":"thinking"}\n\n' } },
+                event: {target: {responseText: 'data: {"type":"thinking"}\n\n'}},
             })
         );
         expect(chat.status).toBe(getRes().articleEdit.knowledge.waitingForResponse);
         await act(async () => {
-            resolve({ data: completed("Hello", "Hello") });
+            resolve({data: completed("Hello", "Hello")});
             await pending;
         });
         expect(chat.messages[1].sources).toEqual([]);
@@ -695,7 +701,7 @@ describe("knowledge assistant", () => {
         const firstRound =
             'data: {"type":"reasoning","reasoningContent":"Find relevant sources first."}\n\ndata: {"type":"tool","tool":"search_articles"}\n\n';
         act(() => {
-            post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: firstRound } } });
+            post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: firstRound}}});
         });
         expect(container.textContent).toContain(getRes().articleEdit.assistant.reasoningProcess);
         expect(container.textContent).toContain("Find relevant sources first.");
@@ -705,7 +711,7 @@ describe("knowledge assistant", () => {
             'data: {"type":"reasoning","reasoningContent":"Summarize the findings."}\n\n' +
             completed("Answer", "Find sources", "Find relevant sources first.\n\nSummarize the findings.");
         await act(async () => {
-            resolve({ data: final });
+            resolve({data: final});
             await pending;
         });
         expect(chat.messages[1].reasoningContent).toBe("Find relevant sources first.\n\nSummarize the findings.");
@@ -729,17 +735,17 @@ describe("knowledge assistant", () => {
         });
         expect(container.textContent).not.toContain(getRes().articleEdit.assistant.reasoningProcess);
         const reasoning = 'data: {"type":"reasoning","reasoningContent":"Partial thinking"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: reasoning } } }));
+        act(() => post.mock.calls[0][2].onDownloadProgress({event: {target: {responseText: reasoning}}}));
         expect(container.textContent).toContain("Partial thinking");
         await act(async () => {
-            resolve({ data: reasoning + 'data: {"type":"error","error":"permission"}\n\n' });
+            resolve({data: reasoning + 'data: {"type":"error","error":"permission"}\n\n'});
             await pending;
         });
         expect(container.textContent).not.toContain("Partial thinking");
         expect(container.textContent).toContain(getRes().articleEdit.knowledge.permission);
     });
     it("does not present an incomplete or failed response as an answer", async () => {
-        post.mockResolvedValue({ data: 'data: {"type":"answer","content":"partial private response"}\n\n' });
+        post.mockResolvedValue({data: 'data: {"type":"answer","content":"partial private response"}\n\n'});
         await send();
         expect(container.textContent).not.toContain("partial private response");
         expect(container.textContent).toContain(getRes().articleEdit.knowledge.responseIncomplete);
@@ -747,7 +753,7 @@ describe("knowledge assistant", () => {
     it.each(["zh_CN", "en_US"])(
         "distinguishes timeout and provider failures in %s without showing raw details",
         async (lang) => {
-            window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+            window.__SS_DATA__!.resourceInfo = {lang: lang as "zh_CN" | "en_US"};
             const res = getRes().articleEdit.knowledge;
             for (const [code, message] of Object.entries({
                 requestTimeout: res.requestTimeout,
@@ -774,6 +780,6 @@ describe("knowledge assistant", () => {
         }
     );
     it("ignores unfinished SSE frames", () => {
-        expect(parseChatEvents('data: {"type":"thinking"}\n\ndata: {"type":"ans')).toEqual([{ type: "thinking" }]);
+        expect(parseChatEvents('data: {"type":"thinking"}\n\ndata: {"type":"ans')).toEqual([{type: "thinking"}]);
     });
 });

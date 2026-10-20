@@ -1,4 +1,4 @@
-import type { ThemeAppearance, UiThemeOptions } from "@zrlog/ui";
+import type {ThemeAppearance, UiThemeOptions} from "@zrlog/ui";
 import type {
     AuthenticationResponseJSON,
     PublicKeyCredentialCreationOptionsJSON,
@@ -24,8 +24,8 @@ export type AppState = AppCompactModeState &
     AppDarkState &
     AppLangState &
     AppThemeState & {
-        offline: boolean;
-    };
+    offline: boolean;
+};
 
 export type UpgradeData = {
     upgrade: boolean;
@@ -179,8 +179,8 @@ export type MessageCenterNotice =
     | WebhookMessageNotice
     | OperationTaskNotice
     | (MessageCenterNoticeBase & {
-          payload?: Record<string, unknown>;
-      });
+    payload?: Record<string, unknown>;
+});
 
 export type BasicUserInfo = import("./utils/user-appearance").UserAppearance & {
     userId?: number;

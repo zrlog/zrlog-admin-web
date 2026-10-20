@@ -35,35 +35,49 @@ public class AIResponseEntry {
 
     public static class AIContentEntry {
 
-        public AIContentEntry() {
-        }
-
-        public AIContentEntry(String role, String content) {
-            this.role = role;
-            this.content = content;
-        }
-
         private String role;
         private String content;
         private String reasoningContent;
         private String messageId;
         private List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources;
-
-        public List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> getSources() { return sources; }
-        public void setSources(List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources) { this.sources = sources; }
         private java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> attachments;
-        public java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> getAttachments() { return attachments; }
-        public void setAttachments(java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> value) { attachments = value; }
         private String messageType;
         private ArticleContextMeta contextMeta;
         private String tool;
         private Object payload;
         private com.zrlog.admin.business.ai.model.AIChatModels.SkillContract skillContract;
-
-        public com.zrlog.admin.business.ai.model.AIChatModels.SkillContract getSkillContract() { return skillContract; }
-        public void setSkillContract(com.zrlog.admin.business.ai.model.AIChatModels.SkillContract value) { skillContract = value; }
         private String provider;
         private String model;
+        public AIContentEntry() {
+        }
+        public AIContentEntry(String role, String content) {
+            this.role = role;
+            this.content = content;
+        }
+
+        public List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> getSources() {
+            return sources;
+        }
+
+        public void setSources(List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources) {
+            this.sources = sources;
+        }
+
+        public java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> getAttachments() {
+            return attachments;
+        }
+
+        public void setAttachments(java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> value) {
+            attachments = value;
+        }
+
+        public com.zrlog.admin.business.ai.model.AIChatModels.SkillContract getSkillContract() {
+            return skillContract;
+        }
+
+        public void setSkillContract(com.zrlog.admin.business.ai.model.AIChatModels.SkillContract value) {
+            skillContract = value;
+        }
 
         public String getRole() {
             return role;

@@ -1,13 +1,13 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import Switch from "@zrlog/ui/antd/Switch";
 import Table from "@zrlog/ui/antd/Table";
-import { useUiMessage } from "@zrlog/ui/feedback";
-import { FunctionComponent, useState } from "react";
-import { AdminCommonProps } from "../type";
-import { Button, Empty, Flex, Grid, Space, TableColumnsType, Typography, theme } from "antd";
-import { useNavigate } from "react-router-dom";
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getLabelValueSeparator, getRealRouteUrl, getRes, setRes } from "../utils/constants";
+import {useUiMessage} from "@zrlog/ui/feedback";
+import {FunctionComponent, useState} from "react";
+import {AdminCommonProps} from "../type";
+import {Button, Empty, Flex, Grid, Space, TableColumnsType, theme, Typography} from "antd";
+import {useNavigate} from "react-router-dom";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getLabelValueSeparator, getRealRouteUrl, getRes, setRes} from "../utils/constants";
 import SettingsSection from "./common/SettingsSection";
 import AdminSettingsLayout from "./common/AdminSettingsLayout";
 
@@ -28,11 +28,11 @@ type DevResponse = {
     devMode: boolean;
 };
 
-const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
+const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({data}) => {
     const axiosInstance = useAxiosBaseInstance();
     const navigate = useNavigate();
     const screens = Grid.useBreakpoint();
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const res = getRes().dev;
     const [devMode, setDevMode] = useState(data.devMode);
     const [devModeUpdating, setDevModeUpdating] = useState(false);
@@ -47,12 +47,12 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
     const updateDevMode = async (checked: boolean) => {
         setDevModeUpdating(true);
         try {
-            const { data } = await axiosInstance.get(`/api/admin/dev/mode?enabled=${checked ? "true" : "false"}`);
+            const {data} = await axiosInstance.get(`/api/admin/dev/mode?enabled=${checked ? "true" : "false"}`);
             if (data.error) {
                 messageApi.error(data.message);
                 return;
             }
-            setRes({ ...getRes(), devMode: data.data });
+            setRes({...getRes(), devMode: data.data});
             setDevMode(data.data);
             messageApi.success(data.data ? res.enableDevModeSuccess : res.disableDevModeSuccess);
         } finally {
@@ -61,7 +61,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
     };
 
     const releaseLocks = async () => {
-        const { data } = await axiosInstance.get("/api/admin/dev/releaseLocks");
+        const {data} = await axiosInstance.get("/api/admin/dev/releaseLocks");
         if (data.error) {
             messageApi.error(data.message);
         } else {
@@ -72,112 +72,112 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
 
     const cacheColumns: TableColumnsType<CacheEntry> = screens.md
         ? [
-              {
-                  title: res.cacheKey,
-                  dataIndex: "key",
-                  key: "key",
-                  width: 260,
-                  render: (value: string) => (
-                      <Typography.Text ellipsis={{ tooltip: value }} style={{ width: "100%" }}>
-                          {value}
-                      </Typography.Text>
-                  ),
-              },
-              {
-                  title: res.size,
-                  dataIndex: "size",
-                  key: "size",
-                  width: 100,
-              },
-              {
-                  title: getRes().value,
-                  dataIndex: "value",
-                  key: "value",
-                  render: (value: string) => (
-                      <pre
-                          style={{
-                              margin: 0,
-                              maxHeight: 160,
-                              overflow: "auto",
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-all",
-                          }}
-                      >
+            {
+                title: res.cacheKey,
+                dataIndex: "key",
+                key: "key",
+                width: 260,
+                render: (value: string) => (
+                    <Typography.Text ellipsis={{tooltip: value}} style={{width: "100%"}}>
+                        {value}
+                    </Typography.Text>
+                ),
+            },
+            {
+                title: res.size,
+                dataIndex: "size",
+                key: "size",
+                width: 100,
+            },
+            {
+                title: getRes().value,
+                dataIndex: "value",
+                key: "value",
+                render: (value: string) => (
+                    <pre
+                        style={{
+                            margin: 0,
+                            maxHeight: 160,
+                            overflow: "auto",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                        }}
+                    >
                           {value}
                       </pre>
-                  ),
-              },
-          ]
+                ),
+            },
+        ]
         : [
-              {
-                  title: res.cacheEntries,
-                  key: "cacheEntry",
-                  render: (_, record) => (
-                      <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                          <Typography.Text strong ellipsis={{ tooltip: record.key }}>
-                              {record.key}
-                          </Typography.Text>
-                          <Typography.Text type="secondary">
-                              {res.size}
-                              {getLabelValueSeparator()}
-                              {record.size}
-                          </Typography.Text>
-                          <pre
-                              style={{
-                                  margin: 0,
-                                  maxHeight: 160,
-                                  overflow: "auto",
-                                  whiteSpace: "pre-wrap",
-                                  wordBreak: "break-all",
-                              }}
-                          >
+            {
+                title: res.cacheEntries,
+                key: "cacheEntry",
+                render: (_, record) => (
+                    <Space direction="vertical" size={4} style={{width: "100%"}}>
+                        <Typography.Text strong ellipsis={{tooltip: record.key}}>
+                            {record.key}
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
+                            {res.size}
+                            {getLabelValueSeparator()}
+                            {record.size}
+                        </Typography.Text>
+                        <pre
+                            style={{
+                                margin: 0,
+                                maxHeight: 160,
+                                overflow: "auto",
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-all",
+                            }}
+                        >
                               {record.value}
                           </pre>
-                      </Space>
-                  ),
-              },
-          ];
+                    </Space>
+                ),
+            },
+        ];
 
     const lockColumns: TableColumnsType<Lock> = screens.md
         ? [
-              {
-                  title: getRes().key,
-                  dataIndex: "name",
-                  key: "name",
-              },
-              {
-                  title: getRes().value,
-                  dataIndex: "remark",
-                  key: "remark",
-              },
-          ]
+            {
+                title: getRes().key,
+                dataIndex: "name",
+                key: "name",
+            },
+            {
+                title: getRes().value,
+                dataIndex: "remark",
+                key: "remark",
+            },
+        ]
         : [
-              {
-                  title: res.locks,
-                  key: "lock",
-                  render: (_, record) => (
-                      <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                          <Typography.Text strong>{record.name}</Typography.Text>
-                          <Typography.Text type="secondary">{record.remark}</Typography.Text>
-                      </Space>
-                  ),
-              },
-          ];
+            {
+                title: res.locks,
+                key: "lock",
+                render: (_, record) => (
+                    <Space direction="vertical" size={4} style={{width: "100%"}}>
+                        <Typography.Text strong>{record.name}</Typography.Text>
+                        <Typography.Text type="secondary">{record.remark}</Typography.Text>
+                    </Space>
+                ),
+            },
+        ];
 
     return (
         <AdminSettingsLayout activeKey="dev">
             {messageContextHolder}
-            <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG }}>
+            <Flex vertical gap={token.marginLG} style={{paddingBottom: token.paddingLG}}>
                 <SettingsSection
                     title={res.devMode}
                     extra={<Tag color={devMode ? "success" : "default"}>{devMode ? res.enabled : res.disabled}</Tag>}
                 >
-                    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                    <Space direction="vertical" size="middle" style={{width: "100%"}}>
                         <Space direction={screens.sm ? "horizontal" : "vertical"} size="middle" wrap>
-                            <Switch checked={devMode} loading={devModeUpdating} onChange={updateDevMode} />
+                            <Switch checked={devMode} loading={devModeUpdating} onChange={updateDevMode}/>
                             <Typography.Text type="secondary">{res.devModeTip}</Typography.Text>
                         </Space>
-                        <Space direction={screens.sm ? "horizontal" : "vertical"} wrap style={{ width: "100%" }}>
+                        <Space direction={screens.sm ? "horizontal" : "vertical"} wrap style={{width: "100%"}}>
                             <Button
                                 block={!screens.sm}
                                 disabled={!devMode}
@@ -200,7 +200,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                         tableLayout="fixed"
                         pagination={screens.md ? undefined : false}
                         locale={{
-                            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.cacheEmpty} />,
+                            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.cacheEmpty}/>,
                         }}
                     />
                 </SettingsSection>
@@ -209,8 +209,8 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                     title={res.lockTitle}
                     extra={<Typography.Text type="secondary">{renderEntryCount(locks.length)}</Typography.Text>}
                 >
-                    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                        <Space direction={screens.sm ? "horizontal" : "vertical"} wrap style={{ width: "100%" }}>
+                    <Space direction="vertical" size="middle" style={{width: "100%"}}>
+                        <Space direction={screens.sm ? "horizontal" : "vertical"} wrap style={{width: "100%"}}>
                             <Button
                                 type="primary"
                                 block={!screens.sm}
@@ -227,7 +227,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                             tableLayout="fixed"
                             pagination={screens.md ? undefined : false}
                             locale={{
-                                emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.lockEmpty} />,
+                                emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.lockEmpty}/>,
                             }}
                         />
                     </Space>

@@ -1,4 +1,4 @@
-import { getRes } from "./constants";
+import {getRes} from "./constants";
 
 // Resolve the active language on each render so preference previews take effect immediately.
 export const formatDateTime = (value: number | Date): string =>

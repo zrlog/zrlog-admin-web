@@ -11,7 +11,6 @@ import com.zrlog.common.Constants;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.StaticFileCacheUtils;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.ByteArrayInputStream;

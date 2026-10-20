@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.Gson;
 import com.hibegin.common.dao.DAO;
 import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
@@ -10,24 +8,37 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.model.UserPasskey;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.junit.Assert.*;
+
 @RunWith(Parameterized.class)
 public class AccountProfileServiceDatabaseTest {
+    private final String database;
+
+    public AccountProfileServiceDatabaseTest(String database) {
+        this.database = database;
+    }
+
     @Parameterized.Parameters(name = "{0}")
     public static List<String> databases() {
         return List.of("h2", "sqlite");
     }
 
-    private final String database;
+    private static void addPasskey(InMemoryZrLogDatabase db, int userId, String name) throws Exception {
+        assertTrue(new UserPasskey(db.dataSource()).save(userId, "hash-" + userId,
+                "credential-" + userId, "public-key", 0, "internal", name, "aaguid", true, false,
+                "https://example.com", "example.com", 1_700_000_000_000L));
+    }
 
-    public AccountProfileServiceDatabaseTest(String database) {
-        this.database = database;
+    private static void assertPasskey(UserBasicInfoResponse profile, String name) {
+        assertEquals(1, profile.getPasskeys().size());
+        assertEquals(name, profile.getPasskeys().get(0).getName());
+        assertEquals(List.of("internal"), profile.getPasskeys().get(0).getTransports());
     }
 
     @Test
@@ -92,17 +103,5 @@ public class AccountProfileServiceDatabaseTest {
 
     private InMemoryZrLogDatabase open() throws Exception {
         return "sqlite".equals(database) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
-    }
-
-    private static void addPasskey(InMemoryZrLogDatabase db, int userId, String name) throws Exception {
-        assertTrue(new UserPasskey(db.dataSource()).save(userId, "hash-" + userId,
-                "credential-" + userId, "public-key", 0, "internal", name, "aaguid", true, false,
-                "https://example.com", "example.com", 1_700_000_000_000L));
-    }
-
-    private static void assertPasskey(UserBasicInfoResponse profile, String name) {
-        assertEquals(1, profile.getPasskeys().size());
-        assertEquals(name, profile.getPasskeys().get(0).getName());
-        assertEquals(List.of("internal"), profile.getPasskeys().get(0).getTransports());
     }
 }

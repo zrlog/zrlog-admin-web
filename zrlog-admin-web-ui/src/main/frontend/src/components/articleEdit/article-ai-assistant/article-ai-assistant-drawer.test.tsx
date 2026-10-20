@@ -1,23 +1,23 @@
-import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
-import { App, ConfigProvider } from "antd";
+import {act} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, expect, it, jest} from "@jest/globals";
+import {App, ConfigProvider} from "antd";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 
-jest.mock("@zrlog/editor/core/ai/AIContentItem", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/ai/AIContentItem", () => ({__esModule: true, default: () => null}));
+jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({__esModule: true, default: () => null}));
 jest.mock("@zrlog/editor/dist/ai/AIStateCache", () => ({
     getAIStateCacheKey: (cache: { key: string }, name: string) => `${cache.key}/${name}`,
 }));
-jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
-jest.mock("../../../utils/helpers", () => ({ getEditorUser: () => ({}) }));
-jest.mock("../use-article-editor-screens", () => ({ __esModule: true, default: () => ({ sm: true }) }));
+jest.mock("../../../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false})}));
+jest.mock("../../../utils/helpers", () => ({getEditorUser: () => ({})}));
+jest.mock("../use-article-editor-screens", () => ({__esModule: true, default: () => ({sm: true})}));
 jest.mock("antd-style", () => ({
-    useTheme: () => ({ marginXS: 8, lineWidth: 1, lineType: "solid", colorBorderSecondary: "#ddd" }),
+    useTheme: () => ({marginXS: 8, lineWidth: 1, lineType: "solid", colorBorderSecondary: "#ddd"}),
 }));
 jest.mock("../../../utils/constants", () => ({
     getRes: () => ({
-        websiteAi: { label: "AI assistant" },
+        websiteAi: {label: "AI assistant"},
         cancel: "Cancel",
         articleEdit: {
             assistant: {
@@ -40,7 +40,7 @@ const onClose = jest.fn();
 
 beforeEach(() => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-    window.matchMedia = jest.fn(() => ({ matches: false, addListener: jest.fn(), removeListener: jest.fn() })) as any;
+    window.matchMedia = jest.fn(() => ({matches: false, addListener: jest.fn(), removeListener: jest.fn()})) as any;
     global.ResizeObserver = class {
         observe = jest.fn();
         unobserve = jest.fn();
@@ -52,7 +52,7 @@ beforeEach(() => {
     container = document.createElement("div");
     container.style.overflow = "hidden";
     document.body.appendChild(container);
-    Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
+    Object.defineProperty(document, "fullscreenElement", {configurable: true, value: null});
     root = createRoot(container);
 });
 afterEach(() => {
@@ -69,21 +69,21 @@ afterEach(() => {
 const render = async (disabled = false) => {
     await act(async () =>
         root.render(
-            <ConfigProvider theme={{ token: { motion: false } }}>
+            <ConfigProvider theme={{token: {motion: false}}}>
                 <App>
                     <ArticleAiAssistantDrawer
                         open
                         onClose={onClose}
                         getContainer={() => container}
-                        data={{ article: { title: "Article" } } as never}
-                        stateCache={{ key: "test", read: () => undefined, write: jest.fn() }}
+                        data={{article: {title: "Article"}} as never}
+                        stateCache={{key: "test", read: () => undefined, write: jest.fn()}}
                         config={
                             {
                                 messages: [],
                                 renderMessage: () => null,
-                                renderFooter: () => <textarea aria-label="Message" />,
+                                renderFooter: () => <textarea aria-label="Message"/>,
                                 contentMaxWidth: 768,
-                                conversationActions: { disabled, exporting: false, clearing: false, onExport, onClear },
+                                conversationActions: {disabled, exporting: false, clearing: false, onExport, onClear},
                             } as never
                         }
                     />
@@ -94,14 +94,14 @@ const render = async (disabled = false) => {
 };
 const click = async (element: Element | null) => {
     expect(element).not.toBeNull();
-    await act(async () => element!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () => element!.dispatchEvent(new MouseEvent("click", {bubbles: true})));
 };
 const byText = (selector: string, text: string) =>
     Array.from(document.querySelectorAll(selector)).find((element) => element.textContent?.trim() === text) || null;
 
 it.each([false, true])("opens conversation actions and confirms clearing (fullscreen: %s)", async (fullscreen) => {
     if (fullscreen) {
-        Object.defineProperty(document, "fullscreenElement", { configurable: true, value: container });
+        Object.defineProperty(document, "fullscreenElement", {configurable: true, value: container});
     }
     await render();
     const more = document.querySelector('button[aria-label="AI assistant"]');

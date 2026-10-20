@@ -10,17 +10,7 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardCardRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
-import com.zrlog.admin.business.rest.response.AdminDashboardAuditTrailDataResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardDataInsightsResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardQuickActionDataResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardWelcomeDataResponse;
-import com.zrlog.admin.business.rest.response.ArticleActivityData;
-import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
-import com.zrlog.admin.business.rest.response.IndexResponse;
-import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.exception.ArgsException;
@@ -28,7 +18,6 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -37,11 +26,7 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -49,9 +34,6 @@ import java.util.regex.Pattern;
 
 @Singleton
 public class AdminDashboardService {
-    private final UserPreferenceService userPreferenceService;
-    private final AccountIdentityService identities;
-
     public static final String DASHBOARD_CONFIG_KEY = "admin_dashboard_config";
     public static final String FIRST_USE_CHECKLIST_KEY = "admin_first_use_v4";
     public static final int FIRST_USE_CHECKLIST_VERSION = 1;
@@ -74,7 +56,8 @@ public class AdminDashboardService {
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {
     }.getType();
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminDashboardService.class);
-
+    private final UserPreferenceService userPreferenceService;
+    private final AccountIdentityService identities;
     private final WebsiteKvService kvService;
     private final long surfacePreloadTimeoutMillis;
     private final AdminStatisticsService statisticsService;
@@ -116,6 +99,138 @@ public class AdminDashboardService {
         this.articleService = articleService;
         this.surfacePreloadTimeoutMillis = surfacePreloadTimeoutMillis <= 0
                 ? DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS : surfacePreloadTimeoutMillis;
+    }
+
+    private static String adminMessage(String key) {
+        return I18nUtil.getAdminBackendStringFromRes(key);
+    }
+
+    static AdminDashboardCardResponse normalizePanel(AdminDashboardCardResponse panel) {
+        if (panel == null) {
+            return null;
+        }
+        panel.setId(trimToNull(panel.getId()));
+        panel.setPluginName(normalizePluginName(panel.getPluginName()));
+        panel.setSurfaceUrl(normalizePluginContextPath(panel.getSurfaceUrl()));
+        panel.setActionUrl(normalizePluginContextPath(panel.getActionUrl()));
+        panel.setViewUrl(normalizePluginViewUrl(panel.getViewUrl()));
+
+        String type = StringUtils.isEmpty(panel.getType()) ? PANEL_TYPE_SURFACE : panel.getType().trim();
+        if (!PANEL_TYPE_SURFACE.equals(type) && !PANEL_TYPE_VIEW.equals(type)) {
+            return null;
+        }
+        panel.setType(type);
+        if (Objects.isNull(panel.getEnabled())) {
+            panel.setEnabled(true);
+        }
+        if (Objects.isNull(panel.getMaxItems()) || panel.getMaxItems() <= 0) {
+            panel.setMaxItems(5);
+        }
+        if (Objects.isNull(panel.getSort())) {
+            panel.setSort(panel.getOrder());
+        }
+        if (PANEL_TYPE_VIEW.equals(type) && (Objects.isNull(panel.getHeight()) || panel.getHeight() <= 0)) {
+            panel.setHeight(360);
+        }
+        if (StringUtils.isEmpty(panel.getId())) {
+            if (StringUtils.isNotEmpty(panel.getPluginName())) {
+                panel.setId(panel.getPluginName());
+            } else if (StringUtils.isNotEmpty(panel.getSurfaceUrl())) {
+                panel.setId(panel.getSurfaceUrl());
+            } else if (StringUtils.isNotEmpty(panel.getViewUrl())) {
+                panel.setId(panel.getViewUrl());
+            }
+        }
+        if (StringUtils.isEmpty(panel.getId())) {
+            return null;
+        }
+        if (PANEL_TYPE_SURFACE.equals(type)) {
+            if (StringUtils.isNotEmpty(panel.getPluginName())) {
+                if (StringUtils.isEmpty(panel.getSurfaceUrl())) {
+                    panel.setSurfaceUrl(pluginUrl(panel.getPluginName(), "surface"));
+                }
+                if (StringUtils.isEmpty(panel.getActionUrl())) {
+                    panel.setActionUrl(pluginUrl(panel.getPluginName(), "surfaceAction"));
+                }
+            }
+            if (StringUtils.isEmpty(panel.getSurfaceUrl()) || StringUtils.isEmpty(panel.getActionUrl())) {
+                return null;
+            }
+        }
+        if (PANEL_TYPE_VIEW.equals(type) && StringUtils.isNotEmpty(panel.getPluginName()) && StringUtils.isEmpty(panel.getViewUrl())) {
+            panel.setViewUrl("index");
+        }
+        return panel;
+    }
+
+    private static String trimToNull(String value) {
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    static String normalizePluginName(String pluginName) {
+        String value = trimToNull(pluginName);
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+        return PLUGIN_NAME_PATTERN.matcher(value).matches() ? value : null;
+    }
+
+    static String normalizePluginContextPath(String value) {
+        String path = trimToNull(value);
+        if (StringUtils.isEmpty(path) || !path.startsWith("/") || path.startsWith("//")) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(path);
+            if (StringUtils.isNotEmpty(uri.getScheme()) || StringUtils.isNotEmpty(uri.getHost())) {
+                return null;
+            }
+            return uri.toString();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    static String normalizePluginViewUrl(String value) {
+        String viewUrl = trimToNull(value);
+        if (StringUtils.isEmpty(viewUrl) || viewUrl.startsWith("//")) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(viewUrl);
+            String scheme = uri.getScheme();
+            if (StringUtils.isNotEmpty(scheme)) {
+                if (("http".equals(scheme) || "https".equals(scheme)) && StringUtils.isNotEmpty(uri.getHost())) {
+                    return uri.toString();
+                }
+                return null;
+            }
+            String path = Objects.requireNonNullElse(uri.getPath(), "").replaceFirst("^/+", "");
+            if (StringUtils.isEmpty(path) || hasParentPathSegment(path)) {
+                return null;
+            }
+            String query = uri.getQuery();
+            return StringUtils.isEmpty(query) ? path : path + "?" + query;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    static boolean hasParentPathSegment(String path) {
+        for (String segment : path.split("/")) {
+            if (Objects.equals(segment, "..")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static String pluginUrl(String pluginName, String action) {
+        return "/admin/plugins/" + pluginName + "/" + action;
     }
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO) {
@@ -550,40 +665,6 @@ public class AdminDashboardService {
         }
     }
 
-    private static String adminMessage(String key) {
-        return I18nUtil.getAdminBackendStringFromRes(key);
-    }
-
-    private static class SurfaceLoadResult {
-        private final Object data;
-        private final String error;
-        private final boolean loaded;
-
-        private SurfaceLoadResult(Object data, String error, boolean loaded) {
-            this.data = data;
-            this.error = error;
-            this.loaded = loaded;
-        }
-
-        private static SurfaceLoadResult data(Object data) {
-            return new SurfaceLoadResult(data, null, true);
-        }
-
-        private static SurfaceLoadResult error(String error) {
-            return new SurfaceLoadResult(null, error, false);
-        }
-    }
-
-    private static class SurfacePanelLoadResult {
-        private final SurfaceLoadResult result;
-        private final String title;
-
-        private SurfacePanelLoadResult(SurfaceLoadResult result, String title) {
-            this.result = result;
-            this.title = title;
-        }
-    }
-
     private void fillMissingPanelFields(AdminDashboardCardResponse target, AdminDashboardCardResponse source) {
         if (StringUtils.isEmpty(target.getType())) {
             target.setType(source.getType());
@@ -603,130 +684,6 @@ public class AdminDashboardService {
         if (StringUtils.isEmpty(target.getViewUrl())) {
             target.setViewUrl(source.getViewUrl());
         }
-    }
-
-    static AdminDashboardCardResponse normalizePanel(AdminDashboardCardResponse panel) {
-        if (panel == null) {
-            return null;
-        }
-        panel.setId(trimToNull(panel.getId()));
-        panel.setPluginName(normalizePluginName(panel.getPluginName()));
-        panel.setSurfaceUrl(normalizePluginContextPath(panel.getSurfaceUrl()));
-        panel.setActionUrl(normalizePluginContextPath(panel.getActionUrl()));
-        panel.setViewUrl(normalizePluginViewUrl(panel.getViewUrl()));
-
-        String type = StringUtils.isEmpty(panel.getType()) ? PANEL_TYPE_SURFACE : panel.getType().trim();
-        if (!PANEL_TYPE_SURFACE.equals(type) && !PANEL_TYPE_VIEW.equals(type)) {
-            return null;
-        }
-        panel.setType(type);
-        if (Objects.isNull(panel.getEnabled())) {
-            panel.setEnabled(true);
-        }
-        if (Objects.isNull(panel.getMaxItems()) || panel.getMaxItems() <= 0) {
-            panel.setMaxItems(5);
-        }
-        if (Objects.isNull(panel.getSort())) {
-            panel.setSort(panel.getOrder());
-        }
-        if (PANEL_TYPE_VIEW.equals(type) && (Objects.isNull(panel.getHeight()) || panel.getHeight() <= 0)) {
-            panel.setHeight(360);
-        }
-        if (StringUtils.isEmpty(panel.getId())) {
-            if (StringUtils.isNotEmpty(panel.getPluginName())) {
-                panel.setId(panel.getPluginName());
-            } else if (StringUtils.isNotEmpty(panel.getSurfaceUrl())) {
-                panel.setId(panel.getSurfaceUrl());
-            } else if (StringUtils.isNotEmpty(panel.getViewUrl())) {
-                panel.setId(panel.getViewUrl());
-            }
-        }
-        if (StringUtils.isEmpty(panel.getId())) {
-            return null;
-        }
-        if (PANEL_TYPE_SURFACE.equals(type)) {
-            if (StringUtils.isNotEmpty(panel.getPluginName())) {
-                if (StringUtils.isEmpty(panel.getSurfaceUrl())) {
-                    panel.setSurfaceUrl(pluginUrl(panel.getPluginName(), "surface"));
-                }
-                if (StringUtils.isEmpty(panel.getActionUrl())) {
-                    panel.setActionUrl(pluginUrl(panel.getPluginName(), "surfaceAction"));
-                }
-            }
-            if (StringUtils.isEmpty(panel.getSurfaceUrl()) || StringUtils.isEmpty(panel.getActionUrl())) {
-                return null;
-            }
-        }
-        if (PANEL_TYPE_VIEW.equals(type) && StringUtils.isNotEmpty(panel.getPluginName()) && StringUtils.isEmpty(panel.getViewUrl())) {
-            panel.setViewUrl("index");
-        }
-        return panel;
-    }
-
-    private static String trimToNull(String value) {
-        if (StringUtils.isEmpty(value)) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    static String normalizePluginName(String pluginName) {
-        String value = trimToNull(pluginName);
-        if (StringUtils.isEmpty(value)) {
-            return null;
-        }
-        return PLUGIN_NAME_PATTERN.matcher(value).matches() ? value : null;
-    }
-
-    static String normalizePluginContextPath(String value) {
-        String path = trimToNull(value);
-        if (StringUtils.isEmpty(path) || !path.startsWith("/") || path.startsWith("//")) {
-            return null;
-        }
-        try {
-            URI uri = URI.create(path);
-            if (StringUtils.isNotEmpty(uri.getScheme()) || StringUtils.isNotEmpty(uri.getHost())) {
-                return null;
-            }
-            return uri.toString();
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    static String normalizePluginViewUrl(String value) {
-        String viewUrl = trimToNull(value);
-        if (StringUtils.isEmpty(viewUrl) || viewUrl.startsWith("//")) {
-            return null;
-        }
-        try {
-            URI uri = URI.create(viewUrl);
-            String scheme = uri.getScheme();
-            if (StringUtils.isNotEmpty(scheme)) {
-                if (("http".equals(scheme) || "https".equals(scheme)) && StringUtils.isNotEmpty(uri.getHost())) {
-                    return uri.toString();
-                }
-                return null;
-            }
-            String path = Objects.requireNonNullElse(uri.getPath(), "").replaceFirst("^/+", "");
-            if (StringUtils.isEmpty(path) || hasParentPathSegment(path)) {
-                return null;
-            }
-            String query = uri.getQuery();
-            return StringUtils.isEmpty(query) ? path : path + "?" + query;
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    static boolean hasParentPathSegment(String path) {
-        for (String segment : path.split("/")) {
-            if (Objects.equals(segment, "..")) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private List<AdminDashboardCardResponse> loadStandardPluginPanels(HttpRequest request, AdminTokenVO adminTokenVO) {
@@ -801,7 +758,33 @@ public class AdminDashboardService {
         }
     }
 
-    static String pluginUrl(String pluginName, String action) {
-        return "/admin/plugins/" + pluginName + "/" + action;
+    private static class SurfaceLoadResult {
+        private final Object data;
+        private final String error;
+        private final boolean loaded;
+
+        private SurfaceLoadResult(Object data, String error, boolean loaded) {
+            this.data = data;
+            this.error = error;
+            this.loaded = loaded;
+        }
+
+        private static SurfaceLoadResult data(Object data) {
+            return new SurfaceLoadResult(data, null, true);
+        }
+
+        private static SurfaceLoadResult error(String error) {
+            return new SurfaceLoadResult(null, error, false);
+        }
+    }
+
+    private static class SurfacePanelLoadResult {
+        private final SurfaceLoadResult result;
+        private final String title;
+
+        private SurfacePanelLoadResult(SurfaceLoadResult result, String title) {
+            this.result = result;
+            this.title = title;
+        }
     }
 }

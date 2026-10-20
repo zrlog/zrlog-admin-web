@@ -1,6 +1,6 @@
-import { MessageCenterNotice } from "../type";
-import { getRes } from "./constants";
-import { getBackgroundTasks, removeBackgroundTaskByKey, upsertBackgroundTaskByKey } from "./background-task-store";
+import {MessageCenterNotice} from "../type";
+import {getRes} from "./constants";
+import {getBackgroundTasks, removeBackgroundTaskByKey, upsertBackgroundTaskByKey} from "./background-task-store";
 
 const SERVER_TASK_KEY_PREFIX = "server.";
 
@@ -81,7 +81,7 @@ export const syncMessageCenterNotices = (notices: MessageCenterNotice[]) => {
                     timeLabel: notice.payload.source || getRes().backgroundTask.updatedAt,
                     closable: notice.payload.closable !== false,
                     dismissPath: "/api/admin/message-center/read",
-                    dismissPayload: { taskKey: notice.taskKey },
+                    dismissPayload: {taskKey: notice.taskKey},
                     status: notice.status,
                     updatedAt: notice.updatedAt,
                 });

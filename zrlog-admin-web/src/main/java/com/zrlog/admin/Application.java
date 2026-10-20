@@ -3,7 +3,6 @@ package com.zrlog.admin;
 import com.hibegin.http.server.WebServerBuilder;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.MethodInterceptor;
-import com.zrlog.common.Constants;
 import com.zrlog.common.Updater;
 import com.zrlog.common.UpdaterTypeEnum;
 import com.zrlog.common.ZrLogConfig;

@@ -1,24 +1,24 @@
 import Typography from "@zrlog/ui/antd/Typography";
 import Progress from "@zrlog/ui/antd/Progress";
-import { Empty } from "antd";
-import { useTheme } from "antd-style";
-import { Children, ReactNode } from "react";
-import { getRes } from "../../../../utils/constants";
-import { getScoreStrokeColor } from "./article-ai-assistant-score-color";
+import {Empty} from "antd";
+import {useTheme} from "antd-style";
+import {Children, ReactNode} from "react";
+import {getRes} from "../../../../utils/constants";
+import {getScoreStrokeColor} from "./article-ai-assistant-score-color";
 
-export const ToolReportSummary = ({ score, summary }: { score?: number; summary?: string }) => {
+export const ToolReportSummary = ({score, summary}: { score?: number; summary?: string }) => {
     const theme = useTheme();
     return (
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: theme.margin }}>
+        <div style={{display: "flex", flexWrap: "wrap", alignItems: "center", gap: theme.margin}}>
             {score !== undefined && (
-                <div style={{ flex: "0 0 auto", minWidth: 104 }}>
-                    <Typography.Text type="secondary" style={{ display: "block", fontSize: theme.fontSizeSM }}>
+                <div style={{flex: "0 0 auto", minWidth: 104}}>
+                    <Typography.Text type="secondary" style={{display: "block", fontSize: theme.fontSizeSM}}>
                         {getRes().articleEdit.assistant.overallScore}
                     </Typography.Text>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: theme.marginXXS }}>
+                    <div style={{display: "flex", alignItems: "baseline", gap: theme.marginXXS}}>
                         <Typography.Text
                             strong
-                            style={{ fontSize: theme.fontSizeHeading2, lineHeight: theme.lineHeightHeading2 }}
+                            style={{fontSize: theme.fontSizeHeading2, lineHeight: theme.lineHeightHeading2}}
                         >
                             {score}
                         </Typography.Text>
@@ -34,7 +34,7 @@ export const ToolReportSummary = ({ score, summary }: { score?: number; summary?
                 </div>
             )}
             {summary && (
-                <Typography.Paragraph style={{ flex: "1 1 200px", minWidth: 0, margin: 0, whiteSpace: "pre-wrap" }}>
+                <Typography.Paragraph style={{flex: "1 1 200px", minWidth: 0, margin: 0, whiteSpace: "pre-wrap"}}>
                     {summary}
                 </Typography.Paragraph>
             )}
@@ -42,21 +42,21 @@ export const ToolReportSummary = ({ score, summary }: { score?: number; summary?
     );
 };
 
-export const ToolReportList = ({ children }: { children: ReactNode }) => {
+export const ToolReportList = ({children}: { children: ReactNode }) => {
     const theme = useTheme();
-    if (Children.count(children) === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+    if (Children.count(children) === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}/>;
     return (
-        <ul role="list" style={{ listStyle: "none", padding: 0, margin: 0, marginTop: theme.marginSM }}>
+        <ul role="list" style={{listStyle: "none", padding: 0, margin: 0, marginTop: theme.marginSM}}>
             {children}
         </ul>
     );
 };
 
 export const ToolReportItem = ({
-    title,
-    extra,
-    children,
-}: {
+                                   title,
+                                   extra,
+                                   children,
+                               }: {
     title: string;
     extra?: ReactNode;
     children: ReactNode;
@@ -80,7 +80,7 @@ export const ToolReportItem = ({
             >
                 <Typography.Title
                     level={4}
-                    style={{ flex: "1 1 160px", minWidth: 0, margin: 0, fontSize: theme.fontSizeLG }}
+                    style={{flex: "1 1 160px", minWidth: 0, margin: 0, fontSize: theme.fontSizeLG}}
                 >
                     {title}
                 </Typography.Title>
@@ -92,11 +92,11 @@ export const ToolReportItem = ({
 };
 
 export const ToolReportDetail = ({
-    label,
-    children,
-    secondary = false,
-    copyable = false,
-}: {
+                                     label,
+                                     children,
+                                     secondary = false,
+                                     copyable = false,
+                                 }: {
     label?: string;
     children: string;
     secondary?: boolean;
@@ -104,9 +104,9 @@ export const ToolReportDetail = ({
 }) => {
     const theme = useTheme();
     return (
-        <div style={{ marginTop: theme.marginXXS, whiteSpace: "pre-wrap" }}>
+        <div style={{marginTop: theme.marginXXS, whiteSpace: "pre-wrap"}}>
             {label && (
-                <Typography.Text type="secondary" style={{ marginInlineEnd: theme.marginXS }}>
+                <Typography.Text type="secondary" style={{marginInlineEnd: theme.marginXS}}>
                     {label}
                 </Typography.Text>
             )}

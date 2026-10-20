@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.zrlog.admin.business.rest.request.TagManageRequest;
@@ -11,17 +9,30 @@ import com.zrlog.admin.business.rest.response.TagManagementPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.Log;
 import com.zrlog.model.Tag;
-
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+
 public class TagManagementServiceTest {
+
+    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title, String keywords) throws Exception {
+        db.execute("insert into log(logId,alias,title,content,plain_content,markdown,keywords,typeId,userId,"
+                        + "rubbish,privacy,canComment,recommended,releaseTime,last_update_date,version) "
+                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)",
+                id, "article-" + id, title, title + " content", title + " content", title + " markdown",
+                keywords, 1, 1, false, false, true, false, 0);
+    }
 
     @Test
     public void shouldParseTagsWithTrimAndStableDeduplication() throws Exception {
-        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+        TagManagementService service = new TagManagementService(() -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        }, () -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        });
 
         assertEquals(List.of(), service.parseTags(null));
         assertEquals(List.of("java", "zrlog", "blog"), service.parseTags(" java, zrlog,java,, blog "));
@@ -29,7 +40,11 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldReplaceMergeOrRemoveTagsWithoutDuplicates() throws Exception {
-        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+        TagManagementService service = new TagManagementService(() -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        }, () -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        });
 
         List<String> merged = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "blog", false);
         List<String> renamed = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "server", false);
@@ -43,7 +58,11 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldBuildArticleImpactResponseFromRawRow() throws Exception {
-        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+        TagManagementService service = new TagManagementService(() -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        }, () -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        });
 
         TagManagementArticleImpactResponse response = service.toImpact(
                 Map.of("logId", 7L, "title", "Article"), "java,zrlog", "blog,zrlog");
@@ -59,7 +78,11 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldNormalizeTagValues() throws Exception {
-        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+        TagManagementService service = new TagManagementService(() -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        }, () -> {
+            throw new IllegalStateException("Database is unavailable in this test");
+        });
 
         assertEquals("", service.normalizeTag(null));
         assertEquals("java", service.normalizeTag(" java "));
@@ -117,14 +140,6 @@ public class TagManagementServiceTest {
             assertEquals(4L, ((Number) db.scalar("select count(1) from tag")).longValue());
             assertEquals(2, ((Number) db.scalar("select count from tag where text=?", "server")).intValue());
         }
-    }
-
-    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title, String keywords) throws Exception {
-        db.execute("insert into log(logId,alias,title,content,plain_content,markdown,keywords,typeId,userId,"
-                        + "rubbish,privacy,canComment,recommended,releaseTime,last_update_date,version) "
-                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)",
-                id, "article-" + id, title, title + " content", title + " content", title + " markdown",
-                keywords, 1, 1, false, false, true, false, 0);
     }
 
 }

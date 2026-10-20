@@ -7,9 +7,12 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.model.WebSite;
 
-/** Explicit collaborators for focused AI tests; request/client doubles remain supplied by each test. */
+/**
+ * Explicit collaborators for focused AI tests; request/client doubles remain supplied by each test.
+ */
 public final class AIServiceDependencies {
-    private AIServiceDependencies() {}
+    private AIServiceDependencies() {
+    }
 
     public static com.zrlog.data.security.AccountAccess actor(DataSourceWrapper source) {
         if (source == null) return com.zrlog.data.security.AccountAccess.from(java.util.Map.of(
@@ -53,13 +56,13 @@ public final class AIServiceDependencies {
                 config(source),
                 dbFiles(source),
                 conversations(source),
-                        AccountServicesFixture.component(source).identities());
+                AccountServicesFixture.component(source).identities());
     }
 
     public static AIWritingSkillService.Factory writing(DataSourceWrapper source) {
         return (actor, store) -> new AIWritingSkillService(actor, store, tools(source), images(source),
-                        com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
+                com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
+                com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
     }
 
     public static AIPublishCheckService publishing(DataSourceWrapper source) {
@@ -68,8 +71,8 @@ public final class AIServiceDependencies {
                 ApplicationServicesFixture.operations(source),
                 writing(source),
                 conversations(source),
-                        com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
+                com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
+                com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
     }
 
     public static AIWritingToolProvider.Factory writingTools(DataSourceWrapper source) {
@@ -78,7 +81,7 @@ public final class AIServiceDependencies {
 
     public static AIReferenceService references(ContentToolFactory tools, DataSourceWrapper source) {
         return new AIReferenceService(tools,
-                                AccountServicesFixture.component(source).identities(),
-                                AccountServicesFixture.component(source).preferences());
+                AccountServicesFixture.component(source).identities(),
+                AccountServicesFixture.component(source).preferences());
     }
 }

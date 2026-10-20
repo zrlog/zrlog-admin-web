@@ -1,23 +1,23 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import LockIcon from "@zrlog/ui/icons/lock";
 import StarIcon from "@zrlog/ui/icons/star";
-import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
-import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
-import { InputRef } from "antd";
+import {ApplyAiValues, SkillContextRevision} from "./use-article-field-ai";
+import {ArticleUpdatedEvent} from "./article-ai-assistant/article-ai-assistant.types";
+import {InputRef} from "antd";
 import Select from "antd/es/select";
 
-import { FunctionComponent, RefObject } from "react";
+import {FunctionComponent, RefObject} from "react";
 import BaseInput from "../../common/BaseInput";
-import { getRes } from "../../utils/constants";
+import {getRes} from "../../utils/constants";
 import ArticleEditActionBar from "./article-edit-action-bar";
 import ArticleEditMoreActions from "./article-edit-more-actions";
 import ArticleEditSettingButton from "./article-edit-setting-button";
-import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
-import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
-import { useTheme } from "antd-style";
-import { MarkdownImportApplyOptions } from "./markdown-import-modal";
-import { DraftAiSaveGate } from "./draft-ai-save-gate";
+import {ArticleChangeableValue, ArticleEditState, ArticleEntry} from "./index.types";
+import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import {AIStateCache} from "@zrlog/editor/dist/ai/AIStateCache";
+import {useTheme} from "antd-style";
+import {MarkdownImportApplyOptions} from "./markdown-import-modal";
+import {DraftAiSaveGate} from "./draft-ai-save-gate";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;
@@ -70,54 +70,54 @@ type ArticleEditHeaderProps = {
 };
 
 const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
-    articleVersion,
-    articleStatusText,
-    dataDigest,
-    state,
-    draftAiPending,
-    draftAiSaveGate,
-    fullScreen,
-    offline,
-    shortcutsDisabled,
-    screens,
-    editorActionGroupGap,
-    editCardRef,
-    getFullScreenElement,
-    titleRef,
-    aliasRef,
-    digestRef,
-    titleInputRevision,
-    aliasInputRevision,
-    settingsOpen,
-    versionDrawerOpen,
-    axiosInstance,
-    aiDrawerWidth,
-    aiStateCache,
-    articleAssistantOpen,
-    onArticleAssistantOpenChange,
-    stateCacheKey,
-    saving,
-    onValuesChange,
-    onApplyAiValues,
-    getSkillContextRevision,
-    onApplyGeneratedCover,
-    onSettingsOpenChange,
-    onVersionOpenChange,
-    onRollback,
-    onSubmit,
-    onRequestPublish,
-    onPreview,
-    onAiMessagesChange,
-    onArticleUpdated,
-    onAiDrawerSizeChange,
-    onInsertMarkdownFromAsset,
-    getCurrentMarkdown,
-    onImportMarkdown,
-    importMarkdownIntent,
-    onExitFullScreen,
-    onFullScreen,
-    getSelectStyle,
-}) => {
+                                                                          articleVersion,
+                                                                          articleStatusText,
+                                                                          dataDigest,
+                                                                          state,
+                                                                          draftAiPending,
+                                                                          draftAiSaveGate,
+                                                                          fullScreen,
+                                                                          offline,
+                                                                          shortcutsDisabled,
+                                                                          screens,
+                                                                          editorActionGroupGap,
+                                                                          editCardRef,
+                                                                          getFullScreenElement,
+                                                                          titleRef,
+                                                                          aliasRef,
+                                                                          digestRef,
+                                                                          titleInputRevision,
+                                                                          aliasInputRevision,
+                                                                          settingsOpen,
+                                                                          versionDrawerOpen,
+                                                                          axiosInstance,
+                                                                          aiDrawerWidth,
+                                                                          aiStateCache,
+                                                                          articleAssistantOpen,
+                                                                          onArticleAssistantOpenChange,
+                                                                          stateCacheKey,
+                                                                          saving,
+                                                                          onValuesChange,
+                                                                          onApplyAiValues,
+                                                                          getSkillContextRevision,
+                                                                          onApplyGeneratedCover,
+                                                                          onSettingsOpenChange,
+                                                                          onVersionOpenChange,
+                                                                          onRollback,
+                                                                          onSubmit,
+                                                                          onRequestPublish,
+                                                                          onPreview,
+                                                                          onAiMessagesChange,
+                                                                          onArticleUpdated,
+                                                                          onAiDrawerSizeChange,
+                                                                          onInsertMarkdownFromAsset,
+                                                                          getCurrentMarkdown,
+                                                                          onImportMarkdown,
+                                                                          importMarkdownIntent,
+                                                                          onExitFullScreen,
+                                                                          onFullScreen,
+                                                                          getSelectStyle,
+                                                                      }) => {
     const theme = useTheme();
     const getContainer = () => editCardRef.current as HTMLElement;
     const contentSourceText = (() => {
@@ -149,7 +149,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                 filterSort: (optionA, optionB) =>
                     (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase()),
             }}
-            onChange={(value) => onValuesChange({ typeId: value })}
+            onChange={(value) => onValuesChange({typeId: value})}
             options={state.typeOptions}
             placeholder={getRes().pleaseChoose + getRes().articleType.title}
         />
@@ -177,29 +177,29 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                     minWidth: 0,
                 }}
             >
-                <div style={{ flex: "1 1 0", minWidth: 0 }}>
+                <div style={{flex: "1 1 0", minWidth: 0}}>
                     <BaseInput
                         ref={titleRef}
                         suffix={
-                            <div style={{ display: "flex", gap: 4, height: 32, alignItems: "center" }}>
-                                <Tag bordered={false} style={{ marginInlineEnd: 0 }}>
+                            <div style={{display: "flex", gap: 4, height: 32, alignItems: "center"}}>
+                                <Tag bordered={false} style={{marginInlineEnd: 0}}>
                                     {articleStatusText}
                                 </Tag>
                                 {state.article.privacy && (
-                                    <LockIcon style={{ color: theme.colorTextTertiary, fontSize: 16 }} />
+                                    <LockIcon style={{color: theme.colorTextTertiary, fontSize: 16}}/>
                                 )}
                                 {state.article.recommended && (
                                     <Tag
                                         color="gold"
                                         bordered={false}
-                                        icon={<StarIcon selected />}
-                                        style={{ marginInlineEnd: 0 }}
+                                        icon={<StarIcon selected/>}
+                                        style={{marginInlineEnd: 0}}
                                     >
                                         {getRes().articleEdit.recommended}
                                     </Tag>
                                 )}
                                 {state.contentSource !== "server" && (
-                                    <Tag color={contentSourceColor} bordered={false} style={{ marginInlineEnd: 0 }}>
+                                    <Tag color={contentSourceColor} bordered={false} style={{marginInlineEnd: 0}}>
                                         {contentSourceText}
                                     </Tag>
                                 )}
@@ -211,7 +211,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         key={`${articleVersion}-${titleInputRevision}`}
                         placeholder={getRes().articleEdit.inputTitle}
                         defaultValue={state.article.title ? state.article.title : undefined}
-                        onChange={(e) => onValuesChange({ title: e })}
+                        onChange={(e) => onValuesChange({title: e})}
                         style={{
                             fontSize: 22,
                             fontWeight: 500,

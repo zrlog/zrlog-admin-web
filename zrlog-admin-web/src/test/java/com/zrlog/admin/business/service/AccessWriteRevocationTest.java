@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.PersonalTokenModels;
@@ -9,11 +7,12 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.access.AccessComponent;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-
 import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.*;
 
 public class AccessWriteRevocationTest {
     @Test
@@ -41,12 +40,23 @@ public class AccessWriteRevocationTest {
                     input.permissions = List.of("article.read");
                     String prefix;
                     switch (operation) {
-                        case "personal-token": prefix = "insert into user_access_token"; break;
-                        case "client": prefix = "insert into oauth_client"; break;
-                        case "consent": prefix = "update oauth_credential set payload=?"; break;
-                        case "decision": prefix = "update oauth_credential set used=?"; break;
-                        case "grant": prefix = "insert into oauth_grant"; break;
-                        default: throw new AssertionError(operation);
+                        case "personal-token":
+                            prefix = "insert into user_access_token";
+                            break;
+                        case "client":
+                            prefix = "insert into oauth_client";
+                            break;
+                        case "consent":
+                            prefix = "update oauth_credential set payload=?";
+                            break;
+                        case "decision":
+                            prefix = "update oauth_credential set used=?";
+                            break;
+                        case "grant":
+                            prefix = "insert into oauth_grant";
+                            break;
+                        default:
+                            throw new AssertionError(operation);
                     }
                     var revoked = new AtomicBoolean();
                     db.beforeWebApiUpdate((sql, params) -> {
@@ -56,12 +66,21 @@ public class AccessWriteRevocationTest {
                     });
                     assertThrows(operation + ": " + revocation, AbstractAdminBusinessException.class, () -> {
                         switch (operation) {
-                            case "personal-token": personalTokens.create(authority, input); break;
-                            case "client": oauth.register(actor, AccessActorBoundaryTest.client()); break;
-                            case "consent": oauth.consent(authority, "session", pending); break;
+                            case "personal-token":
+                                personalTokens.create(authority, input);
+                                break;
+                            case "client":
+                                oauth.register(actor, AccessActorBoundaryTest.client());
+                                break;
+                            case "consent":
+                                oauth.consent(authority, "session", pending);
+                                break;
                             case "decision":
-                            case "grant": oauth.decide(authority, "session", AccessActorBoundaryTest.decision(consent)); break;
-                            default: throw new AssertionError(operation);
+                            case "grant":
+                                oauth.decide(authority, "session", AccessActorBoundaryTest.decision(consent));
+                                break;
+                            default:
+                                throw new AssertionError(operation);
                         }
                     });
                     assertTrue(revoked.get());

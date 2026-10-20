@@ -1,6 +1,6 @@
-import { SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addToCache, getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
-import { PublishStatusPopoverState } from "./index.types";
+import {SetStateAction, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {addToCache, getCacheByKey, removeCacheDataByKey} from "../../utils/cache";
+import {PublishStatusPopoverState} from "./index.types";
 
 type ArticleEditUiState = {
     settingsOpen?: boolean;
@@ -155,21 +155,21 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
     const updateSettingsOpen = useCallback(
         (open: boolean) => {
             setSettingsOpenState(open);
-            persistState({ settingsOpen: open });
+            persistState({settingsOpen: open});
         },
         [persistState]
     );
     const updateVersionDrawerOpen = useCallback(
         (open: boolean) => {
             setVersionDrawerOpenState(open);
-            persistState({ versionDrawerOpen: open });
+            persistState({versionDrawerOpen: open});
         },
         [persistState]
     );
     const updateArticleAssistantOpen = useCallback(
         (open: boolean) => {
             setArticleAssistantOpenState(open);
-            persistState({ articleAssistantOpen: open });
+            persistState({articleAssistantOpen: open});
         },
         [persistState]
     );
@@ -177,7 +177,7 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
         (action: SetStateAction<PublishStatusPopoverState>) => {
             const nextState = typeof action === "function" ? action(publishStatusRef.current) : action;
             publishStatusRef.current = nextState;
-            persistState({ publishStatus: nextState });
+            persistState({publishStatus: nextState});
         },
         [persistState]
     );

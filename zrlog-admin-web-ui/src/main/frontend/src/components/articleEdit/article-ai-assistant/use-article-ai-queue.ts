@@ -1,6 +1,6 @@
-import { useEffect, useReducer, useRef } from "react";
-import { AssistantTool } from "./article-ai-assistant.types";
-import type { AiMentionInput } from "./article-ai-mentions";
+import {useEffect, useReducer, useRef} from "react";
+import {AssistantTool} from "./article-ai-assistant.types";
+import type {AiMentionInput} from "./article-ai-mentions";
 
 export type QueuedAiMessage = {
     id: number;
@@ -21,10 +21,10 @@ export const useArticleAiQueue = (
     const nextId = useRef(0);
     const migration = useRef<string>();
     const mounted = useRef(true);
-    const state = useRef({ scope, key: scope, items: [] as QueuedAiMessage[], paused: false, running: false });
+    const state = useRef({scope, key: scope, items: [] as QueuedAiMessage[], paused: false, running: false});
     if (state.current.scope !== scope) {
         if (migration.current === scope) state.current.scope = scope;
-        else state.current = { scope, key: scope, items: [], paused: false, running: false };
+        else state.current = {scope, key: scope, items: [], paused: false, running: false};
         migration.current = undefined;
     }
     const current = state.current;
@@ -84,8 +84,8 @@ export const useArticleAiQueue = (
                     input,
                     tool,
                     selectedText,
-                    ...(files?.length ? { files: [...files] } : {}),
-                    ...(references?.length ? { references: references.map((reference) => ({ ...reference })) } : {}),
+                    ...(files?.length ? {files: [...files]} : {}),
+                    ...(references?.length ? {references: references.map((reference) => ({...reference}))} : {}),
                 },
             ];
             redraw();

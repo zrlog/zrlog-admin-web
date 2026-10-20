@@ -1,9 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -12,15 +8,37 @@ import com.zrlog.common.cache.dto.TagDTO;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
 import com.zrlog.test.support.TestLogCapture;
-
 import org.junit.Test;
 
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
 
+import static org.junit.Assert.*;
+
 public class AdminStatisticsServiceDatabaseTest {
 
     private static final Executor DIRECT_EXECUTOR = Runnable::run;
+
+    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title,
+                                      boolean rubbish, boolean privacy, int click) throws Exception {
+        db.execute("insert into log(logId,alias,title,content,plain_content,markdown,keywords,typeId,userId,"
+                        + "rubbish,privacy,canComment,recommended,click,releaseTime,last_update_date,version) "
+                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)",
+                id, "article-" + id, title, title + " content", title + " content", title + " markdown",
+                title.toLowerCase(), 1, 1, rubbish, privacy, true, false, click, 0);
+    }
+
+    private static void insertComment(InMemoryZrLogDatabase db, int id, String commTimeExpression) throws Exception {
+        db.execute("insert into comment(commentId,commTime,hide,have_read,userComment,userMail,userName,logId) "
+                + "values(" + id + "," + commTimeExpression + ",false,false,'comment','user@example.com','user',1)");
+    }
+
+    private static TagDTO tag(String text, long count) {
+        TagDTO tag = new TagDTO();
+        tag.setText(text);
+        tag.setCount(count);
+        return tag;
+    }
 
     @Test
     public void shouldAggregateArticleAndCommentCountsAgainstRealTables() throws Exception {
@@ -35,11 +53,11 @@ public class AdminStatisticsServiceDatabaseTest {
 
             StatisticsInfoResponse response =
                     new AdminStatisticsService(
-                                    db.unitCacheService(),
-                                    RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(db.dataSource()),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new Comment(db.dataSource()))
+                            db.unitCacheService(),
+                            RuntimeInfoFixture.from(db.config()),
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                            () -> new Log(db.dataSource()),
+                            () -> new Comment(db.dataSource()))
                             .statisticsInfo(DIRECT_EXECUTOR, false)
                             .get();
 
@@ -69,11 +87,11 @@ public class AdminStatisticsServiceDatabaseTest {
             try (TestLogCapture logs = TestLogCapture.forClass(AdminStatisticsService.class)) {
                 response =
                         new AdminStatisticsService(
-                                        db.unitCacheService(),
-                                        RuntimeInfoFixture.from(db.config()),
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new Log(db.dataSource()),
-                                        () -> new Comment(db.dataSource()))
+                                db.unitCacheService(),
+                                RuntimeInfoFixture.from(db.config()),
+                                ApplicationServicesFixture.audit(db.dataSource()),
+                                () -> new Log(db.dataSource()),
+                                () -> new Comment(db.dataSource()))
                                 .statisticsInfo(DIRECT_EXECUTOR, false)
                                 .get();
 
@@ -89,26 +107,5 @@ public class AdminStatisticsServiceDatabaseTest {
             assertEquals(Long.valueOf(-1L), response.getCommCount());
             assertEquals(Long.valueOf(-1L), response.getToDayCommCount());
         }
-    }
-
-    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title,
-                                      boolean rubbish, boolean privacy, int click) throws Exception {
-        db.execute("insert into log(logId,alias,title,content,plain_content,markdown,keywords,typeId,userId,"
-                        + "rubbish,privacy,canComment,recommended,click,releaseTime,last_update_date,version) "
-                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)",
-                id, "article-" + id, title, title + " content", title + " content", title + " markdown",
-                title.toLowerCase(), 1, 1, rubbish, privacy, true, false, click, 0);
-    }
-
-    private static void insertComment(InMemoryZrLogDatabase db, int id, String commTimeExpression) throws Exception {
-        db.execute("insert into comment(commentId,commTime,hide,have_read,userComment,userMail,userName,logId) "
-                + "values(" + id + "," + commTimeExpression + ",false,false,'comment','user@example.com','user',1)");
-    }
-
-    private static TagDTO tag(String text, long count) {
-        TagDTO tag = new TagDTO();
-        tag.setText(text);
-        tag.setCount(count);
-        return tag;
     }
 }

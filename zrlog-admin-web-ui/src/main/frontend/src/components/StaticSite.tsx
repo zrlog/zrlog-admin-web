@@ -1,14 +1,14 @@
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import LoadingIcon from "@zrlog/ui/icons/loading";
 import SyncIcon from "@zrlog/ui/icons/sync";
-import { FunctionComponent, useState } from "react";
-import { AdminCommonProps } from "../type";
-import { FloatButton } from "antd";
+import {FunctionComponent, useState} from "react";
+import {AdminCommonProps} from "../type";
+import {FloatButton} from "antd";
 
-import { getRes } from "../utils/constants";
-import { postRefreshCacheSse } from "../utils/sse-utils";
-import { refreshLocationForce } from "../utils/helpers";
-import { buildBackgroundTaskResult } from "../utils/background-task-result";
+import {getRes} from "../utils/constants";
+import {postRefreshCacheSse} from "../utils/sse-utils";
+import {refreshLocationForce} from "../utils/helpers";
+import {buildBackgroundTaskResult} from "../utils/background-task-result";
 
 type StaticSiteData = {
     synced: boolean;
@@ -19,7 +19,7 @@ type StaticSiteState = {
     syncing: boolean;
 };
 
-const StaticSite: FunctionComponent<AdminCommonProps<StaticSiteData>> = ({ data }) => {
+const StaticSite: FunctionComponent<AdminCommonProps<StaticSiteData>> = ({data}) => {
     const [state, setState] = useState<StaticSiteState>({
         synced: data.synced,
         syncing: false,
@@ -99,7 +99,7 @@ const StaticSite: FunctionComponent<AdminCommonProps<StaticSiteData>> = ({ data 
                         });
                     }
                 }}
-                icon={state.syncing ? <LoadingIcon /> : <SyncIcon />}
+                icon={state.syncing ? <LoadingIcon/> : <SyncIcon/>}
             />
         </>
     );

@@ -1,18 +1,18 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import SearchIcon from "@zrlog/ui/icons/search";
-import { Avatar, Grid, List, Modal, Space, Spin } from "antd";
-import { useTheme } from "antd-style";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAxiosBaseInstance } from "../base/AppBase";
-import { getRealRouteUrl, getRes } from "../utils/constants";
+import {Avatar, Grid, List, Modal, Space, Spin} from "antd";
+import {useTheme} from "antd-style";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {useAxiosBaseInstance} from "../base/AppBase";
+import {getRealRouteUrl, getRes} from "../utils/constants";
 import {
     applySpotlightSourceId,
     createSpotlightCommandSource,
     createSpotlightSearchSources,
 } from "./spotlight-search-sources";
-import { readSpotlightRecentItems, saveSpotlightRecentItem, spotlightItemStorageKey } from "./spotlight-search-recent";
+import {readSpotlightRecentItems, saveSpotlightRecentItem, spotlightItemStorageKey} from "./spotlight-search-recent";
 import HighlightText from "../common/HighlightText";
 import type {
     SpotlightCommand,
@@ -22,7 +22,7 @@ import type {
     SpotlightSource,
 } from "./spotlight-search-types";
 
-export { createSpotlightCommandSource };
+export {createSpotlightCommandSource};
 export type {
     SpotlightCommand,
     SpotlightItem,
@@ -46,26 +46,26 @@ type SpotlightTagMeta = {
 const EMPTY_COMMANDS: SpotlightCommand[] = [];
 const EMPTY_SOURCES: SpotlightSource[] = [];
 
-const { useBreakpoint } = Grid;
+const {useBreakpoint} = Grid;
 
 const tagMeta = (type: SpotlightItemType): SpotlightTagMeta | undefined => {
     switch (type) {
         case "action":
-            return { label: getRes().command, color: "magenta" };
+            return {label: getRes().command, color: "magenta"};
         case "article":
-            return { label: getRes().article.label, color: "processing" };
+            return {label: getRes().article.label, color: "processing"};
         case "file":
-            return { label: getRes().fileManager.title, color: "green" };
+            return {label: getRes().fileManager.title, color: "green"};
         case "template":
-            return { label: getRes().websiteTemplate.title, color: "purple" };
+            return {label: getRes().websiteTemplate.title, color: "purple"};
         case "plugin":
-            return { label: getRes().plugin.title, color: "geekblue" };
+            return {label: getRes().plugin.title, color: "geekblue"};
         default:
             return undefined;
     }
 };
 
-const ResultTag = ({ label, color }: SpotlightTagMeta) => (
+const ResultTag = ({label, color}: SpotlightTagMeta) => (
     <Tag
         bordered={false}
         color={color}
@@ -81,7 +81,7 @@ const ResultTag = ({ label, color }: SpotlightTagMeta) => (
     </Tag>
 );
 
-const ShortcutTag = ({ children, border }: { children: React.ReactNode; border: string }) => {
+const ShortcutTag = ({children, border}: { children: React.ReactNode; border: string }) => {
     const theme = useTheme();
     return (
         <Tag
@@ -98,11 +98,11 @@ const ShortcutTag = ({ children, border }: { children: React.ReactNode; border: 
 };
 
 const SpotlightSearch = ({
-    compact = false,
-    iconOnly = false,
-    commands = EMPTY_COMMANDS,
-    extraSources = EMPTY_SOURCES,
-}: SpotlightSearchProps) => {
+                             compact = false,
+                             iconOnly = false,
+                             commands = EMPTY_COMMANDS,
+                             extraSources = EMPTY_SOURCES,
+                         }: SpotlightSearchProps) => {
     const [open, setOpen] = useState(false);
     const [keyword, setKeyword] = useState("");
     const [activeIndex, setActiveIndex] = useState(0);
@@ -133,7 +133,7 @@ const SpotlightSearch = ({
                     icon={fallback}
                     alt={title}
                     size={28}
-                    style={{ borderRadius: theme.borderRadiusSM }}
+                    style={{borderRadius: theme.borderRadiusSM}}
                 />
             );
         },
@@ -286,7 +286,7 @@ const SpotlightSearch = ({
             const close = () => setOpen(false);
             const navigateTo = (path: string) => navigate(getRealRouteUrl(path));
             if (item.onSelect) {
-                await item.onSelect({ keyword, close, navigate: navigateTo });
+                await item.onSelect({keyword, close, navigate: navigateTo});
             } else if (item.path) {
                 navigateTo(item.path);
             }
@@ -317,7 +317,7 @@ const SpotlightSearch = ({
         if (open) {
             const el = document.getElementById(`spotlight-item-${activeIndex}`);
             if (el) {
-                el.scrollIntoView({ block: "nearest" });
+                el.scrollIntoView({block: "nearest"});
             }
         }
     }, [activeIndex, open]);
@@ -345,13 +345,13 @@ const SpotlightSearch = ({
                         color: theme.colorTextSecondary,
                     }}
                 >
-                    <SearchIcon style={{ fontSize: 18 }} />
+                    <SearchIcon style={{fontSize: 18}}/>
                 </div>
             ) : (
                 <Input
                     onClick={() => setOpen(true)}
                     onMouseDown={(e) => e.preventDefault()}
-                    prefix={<SearchIcon style={{ color: theme.colorTextTertiary }} />}
+                    prefix={<SearchIcon style={{color: theme.colorTextTertiary}}/>}
                     suffix={
                         <div
                             style={{
@@ -385,7 +385,7 @@ const SpotlightSearch = ({
                 footer={null}
                 closable={false}
                 width={compactModal ? "calc(100vw - 32px)" : 600}
-                style={{ top: isMobile ? 20 : 100 }}
+                style={{top: isMobile ? 20 : 100}}
                 styles={{
                     mask: {
                         backdropFilter: "blur(4px)",
@@ -415,17 +415,17 @@ const SpotlightSearch = ({
                             ref={inputRef}
                             variant="borderless"
                             prefix={
-                                <SearchIcon style={{ fontSize: 20, color: theme.colorPrimary, marginRight: 8 }} />
+                                <SearchIcon style={{fontSize: 20, color: theme.colorPrimary, marginRight: 8}}/>
                             }
                             placeholder={getRes().searchTip}
                             value={keyword}
                             onChange={(e) => setKeyword(e.target.value)}
                             onKeyDown={handleInputKeyDown}
-                            style={{ fontSize: 18, padding: 0 }}
+                            style={{fontSize: 18, padding: 0}}
                         />
                     </div>
 
-                    <div style={{ maxHeight: isMobile ? "70vh" : "60vh", overflowY: "auto", padding: "8px 0" }}>
+                    <div style={{maxHeight: isMobile ? "70vh" : "60vh", overflowY: "auto", padding: "8px 0"}}>
                         {displayResults.length === 0 && !displayLoading ? (
                             <div
                                 style={{
@@ -457,7 +457,7 @@ const SpotlightSearch = ({
                                                 transition: "background-color 0.1s",
                                             }}
                                         >
-                                            <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                                            <div style={{display: "flex", alignItems: "center", width: "100%"}}>
                                                 <div
                                                     style={{
                                                         display: "flex",
@@ -506,10 +506,10 @@ const SpotlightSearch = ({
                                                                 textOverflow: "ellipsis",
                                                             }}
                                                         >
-                                                            <HighlightText text={item.title} keyword={keyword} />
+                                                            <HighlightText text={item.title} keyword={keyword}/>
                                                         </span>
                                                         {item.recent && (
-                                                            <ResultTag label={getRes().recent} color="default" />
+                                                            <ResultTag label={getRes().recent} color="default"/>
                                                         )}
                                                         {typeTag && <ResultTag {...typeTag} />}
                                                     </div>
@@ -522,7 +522,7 @@ const SpotlightSearch = ({
                                                                 lineHeight: 1.2,
                                                             }}
                                                         >
-                                                            <HighlightText text={item.subTitle} keyword={keyword} />
+                                                            <HighlightText text={item.subTitle} keyword={keyword}/>
                                                         </div>
                                                     )}
                                                 </div>
@@ -548,8 +548,8 @@ const SpotlightSearch = ({
                             />
                         )}
                         {displayLoading && (
-                            <div style={{ padding: 16, textAlign: "center" }}>
-                                <Spin size="small" />
+                            <div style={{padding: 16, textAlign: "center"}}>
+                                <Spin size="small"/>
                             </div>
                         )}
                     </div>
@@ -573,7 +573,7 @@ const SpotlightSearch = ({
                             </Space>
                             <Space size={4}>
                                 <ShortcutTag border={border}>Esc</ShortcutTag>
-                                <span style={{ fontSize: 12, color: theme.colorTextTertiary }}>{getRes().close}</span>
+                                <span style={{fontSize: 12, color: theme.colorTextTertiary}}>{getRes().close}</span>
                             </Space>
                         </div>
                     )}

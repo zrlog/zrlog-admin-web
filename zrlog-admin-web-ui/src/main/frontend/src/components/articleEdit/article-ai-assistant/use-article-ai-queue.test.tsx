@@ -1,21 +1,23 @@
-import { act, StrictMode } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
-import { useArticleAiQueue } from "./use-article-ai-queue";
+import {act, StrictMode} from "react";
+import {createRoot, Root} from "react-dom/client";
+import {afterEach, beforeEach, expect, it, jest} from "@jest/globals";
+import {useArticleAiQueue} from "./use-article-ai-queue";
 
 let root: Root;
 let container: HTMLDivElement;
 let queue: ReturnType<typeof useArticleAiQueue>;
 const send = jest.fn<Promise<boolean | undefined>, any[]>();
-function Harness({ scope, blocked = false }: { scope: string; blocked?: boolean }) {
+
+function Harness({scope, blocked = false}: { scope: string; blocked?: boolean }) {
     queue = useArticleAiQueue(scope, blocked, send);
     return null;
 }
+
 const render = (scope: string, blocked = false) =>
     act(() =>
         root.render(
             <StrictMode>
-                <Harness scope={scope} blocked={blocked} />
+                <Harness scope={scope} blocked={blocked}/>
             </StrictMode>
         )
     );
@@ -98,16 +100,16 @@ it("preserves reference IDs and attachment indexes through queueing and explicit
     send.mockResolvedValueOnce(false).mockResolvedValue(true);
     const file = new File(["report"], "report.txt");
     const references = [
-        { type: "article" as const, articleId: 42 },
-        { type: "file" as const, fileIndex: 0 },
+        {type: "article" as const, articleId: 42},
+        {type: "file" as const, fileIndex: 0},
     ];
     render("user/7", true);
     act(() => queue.add("Compare", undefined, undefined, [file], references));
     references[0].articleId = 99;
     await act(async () => render("user/7"));
     expect(queue.messages[0].references).toEqual([
-        { type: "article", articleId: 42 },
-        { type: "file", fileIndex: 0 },
+        {type: "article", articleId: 42},
+        {type: "file", fileIndex: 0},
     ]);
     await act(async () => queue.resume());
     expect(send.mock.calls[1][0].references).toEqual(send.mock.calls[0][0].references);

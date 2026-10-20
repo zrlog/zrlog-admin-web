@@ -1,22 +1,22 @@
 import LoadingIcon from "@zrlog/ui/icons/loading";
-import { useEffect, useState } from "react";
-import { Collapse, Space, Typography, theme } from "antd";
+import {useEffect, useState} from "react";
+import {Collapse, Space, theme, Typography} from "antd";
 
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import { getAppState } from "../../../base/ConfigProviderApp";
-import { getRes } from "../../../utils/constants";
+import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
+import {getAppState} from "../../../base/ConfigProviderApp";
+import {getRes} from "../../../utils/constants";
 
 const ArticleAiReasoning = ({
-    content,
-    thinking = false,
-    status,
-}: {
+                                content,
+                                thinking = false,
+                                status,
+                            }: {
     content?: string;
     thinking?: boolean;
     status?: string;
 }) => {
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const [html, setHtml] = useState("");
 
     useEffect(() => {
@@ -30,7 +30,7 @@ const ArticleAiReasoning = ({
             (nextHtml) => {
                 if (active) setHtml(nextHtml);
             },
-            { linkPreview: false }
+            {linkPreview: false}
         );
         setHtml(initialHtml);
         return () => {
@@ -41,13 +41,13 @@ const ArticleAiReasoning = ({
     if (!content && !status) return null;
     const progress = status ? (
         <Space role="status">
-            <LoadingIcon />
+            <LoadingIcon/>
             <Typography.Text type="secondary">{status}</Typography.Text>
         </Space>
     ) : null;
-    if (!content) return <div style={{ marginBottom: token.marginXS }}>{progress}</div>;
+    if (!content) return <div style={{marginBottom: token.marginXS}}>{progress}</div>;
     return (
-        <div style={{ marginBottom: token.marginXS }}>
+        <div style={{marginBottom: token.marginXS}}>
             <Collapse
                 size="small"
                 ghost
@@ -65,7 +65,7 @@ const ArticleAiReasoning = ({
                             <HtmlPreviewPanel
                                 htmlContent={html}
                                 dark={getAppState().dark}
-                                style={{ color: token.colorTextSecondary }}
+                                style={{color: token.colorTextSecondary}}
                             />
                         ),
                     },

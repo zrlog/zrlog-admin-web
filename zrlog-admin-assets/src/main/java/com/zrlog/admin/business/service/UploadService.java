@@ -1,12 +1,12 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.admin.util.UploadFileUtils;
@@ -14,7 +14,6 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -25,11 +24,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,10 +32,9 @@ import java.util.logging.Logger;
 @Singleton
 public class UploadService {
 
+    private static final Logger LOGGER = LoggerUtil.getLogger(UploadService.class);
     private final AccountIdentityService identities;
     private final AccountPermissionService permissions;
-
-    private static final Logger LOGGER = LoggerUtil.getLogger(UploadService.class);
     private final DbFileService dbFileService;
     private final Supplier<PluginCorePlugin> pluginCore;
 
@@ -123,7 +117,7 @@ public class UploadService {
     }
 
     public UploadFileResponse saveAvatarBytes(AccountAccess actor, byte[] bytes, String extension, HttpRequest request,
-                                        AdminTokenVO adminTokenVO) {
+                                              AdminTokenVO adminTokenVO) {
         authorize(actor, adminTokenVO, AccountAction.ACCOUNT_SELF);
         String dir = actor.isAdministrator() ? "image" : "users/" + actor.getUserId();
         String uri = UploadFileUtils.generatorUri(dir, "upload." + normalizeExtension(extension));

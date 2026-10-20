@@ -6,8 +6,10 @@ import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.PasskeyService;
 import com.zrlog.admin.business.service.UserService;
-import com.zrlog.admin.web.controller.api.*;
 import com.zrlog.admin.web.controller.api.AccessController;
+import com.zrlog.admin.web.controller.api.AccountSessionController;
+import com.zrlog.admin.web.controller.api.AdminUserController;
+import com.zrlog.admin.web.controller.api.MemberController;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.web.WebSetup;
 
@@ -19,7 +21,9 @@ public class AccountWebSetup implements WebSetup {
         this.router = config.getRouter();
         this.bindings = config.getBindings();
     }
-    @Override public void setup() {
+
+    @Override
+    public void setup() {
         bindings.singleton(UserService.class, r -> r.get(AccountComponent.class).users())
                 .singleton(PasskeyService.class, r -> r.get(AccountComponent.class).passkeys())
                 .controller(

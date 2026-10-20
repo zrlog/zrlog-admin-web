@@ -1,9 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
@@ -11,13 +7,29 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.Comment;
-
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class AdminCommentServiceTest {
+
+    private static void seedComments(InMemoryZrLogDatabase db) throws Exception {
+        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+                        + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                1, "2026-06-29 09:00:00", false, "First", "first@example.com", "",
+                "127.0.0.1", "First Reader", false, 1, "/first.png");
+        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+                        + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                2, "2026-06-29 10:00:00", false, "Second", "second@example.com", "",
+                "127.0.0.2", "Second Reader", false, 1, "/second.png");
+        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+                        + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                3, "2026-06-29 11:00:00", true, "Third", "third@example.com", "",
+                "127.0.0.3", "Third Reader", false, 1, "/third.png");
+    }
 
     @Test
     public void shouldParseCommentIdsWithTrimAndStableDeduplication() throws Exception {
@@ -25,7 +37,9 @@ public class AdminCommentServiceTest {
                 new AdminCommentService(AccountServicesFixture.component(null).permissions(),
                         AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         List<Integer> ids = service.parseCommentIds(new String[]{" 3 ", "", "3", null, "2"});
         List<Integer> empty = service.parseCommentIds(new String[]{null, " "});
@@ -40,7 +54,9 @@ public class AdminCommentServiceTest {
                 new AdminCommentService(AccountServicesFixture.component(null).permissions(),
                         AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         assertEquals("", service.placeholders(0));
         assertEquals("?", service.placeholders(1));
@@ -53,7 +69,9 @@ public class AdminCommentServiceTest {
                 new AdminCommentService(AccountServicesFixture.component(null).permissions(),
                         AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); })
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        })
                         .read(null, null);
 
         assertEquals(1, response.getError());
@@ -65,9 +83,9 @@ public class AdminCommentServiceTest {
             seedComments(db);
             AdminCommentService service =
                     new AdminCommentService(AccountServicesFixture.component(db.dataSource()).permissions(),
-                        AccountServicesFixture.component(db.dataSource()).identities(),
-                        ApplicationServicesFixture.messages(db.dataSource()),
-                        () -> new Comment(db.dataSource()));
+                            AccountServicesFixture.component(db.dataSource()).identities(),
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            () -> new Comment(db.dataSource()));
             var actor = AccountServicesFixture.component(db.dataSource()).identities().account(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             ReadCommentRequest readRequest = new ReadCommentRequest();
             readRequest.setId(1L);
@@ -92,20 +110,5 @@ public class AdminCommentServiceTest {
             assertNotNull(status);
             assertNotNull(status.get("value"));
         }
-    }
-
-    private static void seedComments(InMemoryZrLogDatabase db) throws Exception {
-        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
-                        + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                1, "2026-06-29 09:00:00", false, "First", "first@example.com", "",
-                "127.0.0.1", "First Reader", false, 1, "/first.png");
-        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
-                        + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                2, "2026-06-29 10:00:00", false, "Second", "second@example.com", "",
-                "127.0.0.2", "Second Reader", false, 1, "/second.png");
-        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
-                        + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                3, "2026-06-29 11:00:00", true, "Third", "third@example.com", "",
-                "127.0.0.3", "Third Reader", false, 1, "/third.png");
     }
 }

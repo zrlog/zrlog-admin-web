@@ -1,48 +1,48 @@
-import { useUiMessage, useUiApp } from "@zrlog/ui/feedback";
-import { isModuleEnabled } from "../../utils/module-capabilities";
-import { FunctionComponent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { InputRef } from "antd";
+import {useUiApp, useUiMessage} from "@zrlog/ui/feedback";
+import {isModuleEnabled} from "../../utils/module-capabilities";
+import {FunctionComponent, useEffect, useMemo, useRef, useState, useSyncExternalStore} from "react";
+import {InputRef} from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
-import { getRealRouteUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { ArticleEditProps, PublishCheckTarget } from "./index.types";
+import {getRealRouteUrl, getRes, tryAppendBackendServerUrl} from "../../utils/constants";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {ArticleEditProps, PublishCheckTarget} from "./index.types";
 import ArticleEditHeader from "./article-edit-header";
 import useArticleFieldAi from "./use-article-field-ai";
-import { getEditorUser } from "../../utils/helpers";
-import { useLocation } from "react-router";
-import { addToCache, getCacheByKey } from "../../utils/cache";
-import { getAppState } from "../../base/ConfigProviderApp";
-import Editor, { insertTextAtCursor } from "../editor/AdminEditor";
+import {getEditorUser} from "../../utils/helpers";
+import {useLocation} from "react-router";
+import {addToCache, getCacheByKey} from "../../utils/cache";
+import {getAppState} from "../../base/ConfigProviderApp";
+import Editor, {insertTextAtCursor} from "../editor/AdminEditor";
 import EditorStatusBar from "@zrlog/editor/dist/editor/editor-statistics-info";
-import { toStatisticsByMarkdown } from "@zrlog/editor/dist/editor/utils/editor-utils";
-import { EditorView } from "@uiw/react-codemirror";
-import { Locale } from "@zrlog/editor/dist/editor/lang/editor-lang";
-import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
-import { useNavigate } from "react-router-dom";
+import {toStatisticsByMarkdown} from "@zrlog/editor/dist/editor/utils/editor-utils";
+import {EditorView} from "@uiw/react-codemirror";
+import {Locale} from "@zrlog/editor/dist/editor/lang/editor-lang";
+import {AIStateCache} from "@zrlog/editor/dist/ai/AIStateCache";
+import {useNavigate} from "react-router-dom";
 import PublishStatusBar from "./publish-status-bar";
-import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
+import {useArticleAiAssistantConfig} from "./article-ai-assistant/article-ai-assistant-button";
 import useArticleEditUiState from "./use-article-edit-ui-state";
 import ArticleVersionConflict from "./version-sync/article-version-conflict";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
-import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import { buildMarkdownImportedArticle, buildMarkdownImportedPatch } from "./markdown-import";
-import { MarkdownImportApplyOptions } from "./markdown-import-modal";
+import {markdownToHtml} from "@zrlog/editor/dist/editor/utils/marked-utils";
+import {buildMarkdownImportedArticle, buildMarkdownImportedPatch} from "./markdown-import";
+import {MarkdownImportApplyOptions} from "./markdown-import-modal";
 import ArticlePublishReviewModal from "./article-publish-review-modal";
-import { ArticlePublishReviewTarget } from "./article-publish-review";
-import { createDraftAiSaveGate } from "./draft-ai-save-gate";
+import {ArticlePublishReviewTarget} from "./article-publish-review";
+import {createDraftAiSaveGate} from "./draft-ai-save-gate";
 import useArticleEditorDocument from "./use-article-editor-document";
 import useArticleEditorScreens from "./use-article-editor-screens";
 import useArticleEditorHeight from "./use-article-editor-height";
 
 const Index: FunctionComponent<ArticleEditProps> = ({
-    offline,
-    data,
-    onExitFullScreen,
-    onFullScreen,
-    fullScreen,
-    updateCache,
-}) => {
+                                                        offline,
+                                                        data,
+                                                        onExitFullScreen,
+                                                        onFullScreen,
+                                                        fullScreen,
+                                                        updateCache,
+                                                    }) => {
     const location = useLocation();
     const editCardRef = useRef<HTMLDivElement>(null);
     const suppressedEditorMarkdownRef = useRef<string>();
@@ -77,7 +77,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         maxCount: 3,
         getContainer: () => editCardRef.current as HTMLElement,
     });
-    const { modal } = useUiApp();
+    const {modal} = useUiApp();
     const axiosInstance = useAxiosBaseInstance(() => editCardRef.current as HTMLElement);
     const navigate = useNavigate();
     const draftAiSaveGate = useMemo(createDraftAiSaveGate, []);
@@ -132,16 +132,16 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const articleStatusText = isNewArticle
         ? getRes().articleEdit.new
         : state.rubbish
-        ? getRes().articleEdit.status.draft
-        : state.article.privacy
-        ? getRes().articleEdit.status.private
-        : getRes().articleEdit.status.published;
+            ? getRes().articleEdit.status.draft
+            : state.article.privacy
+                ? getRes().articleEdit.status.private
+                : getRes().articleEdit.status.published;
     const statusBarLastUpdateDate =
         state.contentSource !== "server" && state.contentSourceUpdatedAt
             ? state.contentSourceUpdatedAt
             : state.article.lastUpdateDate
-            ? state.article.lastUpdateDate
-            : 0;
+                ? state.article.lastUpdateDate
+                : 0;
 
     const updatePublishStatusOpen = (open: boolean) => {
         updatePublishStatus((previousState) => ({
@@ -165,13 +165,13 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         closePublishStatus();
         if (target === "markdown") {
             updateSettingsOpen(false);
-            editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            editCardRef.current?.scrollIntoView({behavior: "smooth", block: "center"});
             window.setTimeout(() => editorViewRef.current?.focus(), 160);
             return;
         }
         if (target === "title") {
             updateSettingsOpen(false);
-            editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            editCardRef.current?.scrollIntoView({behavior: "smooth", block: "start"});
             focusInputRef(titleRef);
             return;
         }
@@ -190,7 +190,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         setPublishReviewOpen(false);
         if (target === "category") {
             updateSettingsOpen(false);
-            editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            editCardRef.current?.scrollIntoView({behavior: "smooth", block: "start"});
             return;
         }
         locatePublishCheckTarget(target);
@@ -218,12 +218,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const getCurrentMarkdown = () => editorViewRef.current?.state.doc.toString() ?? state.article.markdown ?? "";
 
     const importMarkdown = async ({
-        preview,
-        selectedFields,
-        selectedTypeId,
-        target,
-        expectedCurrentMarkdown,
-    }: MarkdownImportApplyOptions): Promise<boolean> => {
+                                      preview,
+                                      selectedFields,
+                                      selectedTypeId,
+                                      target,
+                                      expectedCurrentMarkdown,
+                                  }: MarkdownImportApplyOptions): Promise<boolean> => {
         try {
             const html = await markdownToHtml(preview.markdown, {
                 linkPreview: false,
@@ -300,7 +300,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         const currentMarkdown = state.article.markdown || "";
         const needLeadingBreak = currentMarkdown.length > 0 && !currentMarkdown.endsWith("\n");
         const nextMarkdown = `${currentMarkdown}${needLeadingBreak ? "\n\n" : ""}${insertMarkdown}`;
-        handleValuesChange({ markdown: nextMarkdown });
+        handleValuesChange({markdown: nextMarkdown});
     };
 
     const assistantConfig = useArticleAiAssistantConfig({
@@ -360,7 +360,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 overflow: "hidden",
             };
         }
-        return { overflow: "hidden" };
+        return {overflow: "hidden"};
     };
 
     const getSelectStyle = () => {
@@ -369,7 +369,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             getAppState().theme === "shadcn" ||
             getAppState().theme === "default"
         ) {
-            return { border: "none" };
+            return {border: "none"};
         }
         return {};
     };
@@ -406,7 +406,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         onRetry={retryConflictRead}
                     />
                 )}
-                <div {...(state.contentConflict ? { inert: "" } : {})} style={{ flex: "none" }}>
+                <div {...(state.contentConflict ? {inert: ""} : {})} style={{flex: "none"}}>
                     <ArticleEditHeader
                         articleVersion={state.article.version}
                         articleStatusText={articleStatusText}
@@ -461,11 +461,11 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         getSelectStyle={getSelectStyle}
                     />
                 </div>
-                <Divider style={{ padding: 0, margin: 0, flex: "none" }} />
+                <Divider style={{padding: 0, margin: 0, flex: "none"}}/>
                 <div
-                    {...(state.contentConflict ? { inert: "" } : {})}
+                    {...(state.contentConflict ? {inert: ""} : {})}
                     ref={editorLayout.slotRef}
-                    style={{ flex: "1 1 0", minHeight: 120 }}
+                    style={{flex: "1 1 0", minHeight: 120}}
                 >
                     <div ref={editorLayout.contentRef}>
                         <Editor
@@ -488,24 +488,24 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                                     },
                                     aiConfig: isModuleEnabled("ai")
                                         ? {
-                                              aiApiUri: "/api/admin/article/ai",
-                                              configUrl: getRealRouteUrl("/website/ai"),
-                                              subject: state.article.title,
-                                              aiProvider: state.aiConfigured === true ? state.aiProvider : undefined,
-                                              aiMessages: state.aiMessages ? state.aiMessages : [],
-                                              messages: assistantConfig.messages,
-                                              contentMaxWidth: assistantConfig.contentMaxWidth,
-                                              renderMessage: assistantConfig.renderMessage,
-                                              renderFooter: ({ selectedText }: { selectedText?: string }) =>
-                                                  assistantConfig.renderFooter(selectedText),
-                                              overlays: assistantConfig.overlays,
-                                              onAiMessagesChange: updateAiMessageCache,
-                                              drawerWidth: getDefaultAiDrawerWidth(),
-                                              stateCache: articleAiStateCache,
-                                              user: getEditorUser(),
-                                              onSizeChange: updateAiDrawerWidth,
-                                              sessionId: state.article.logId ? state.article.logId : 0,
-                                          }
+                                            aiApiUri: "/api/admin/article/ai",
+                                            configUrl: getRealRouteUrl("/website/ai"),
+                                            subject: state.article.title,
+                                            aiProvider: state.aiConfigured === true ? state.aiProvider : undefined,
+                                            aiMessages: state.aiMessages ? state.aiMessages : [],
+                                            messages: assistantConfig.messages,
+                                            contentMaxWidth: assistantConfig.contentMaxWidth,
+                                            renderMessage: assistantConfig.renderMessage,
+                                            renderFooter: ({selectedText}: { selectedText?: string }) =>
+                                                assistantConfig.renderFooter(selectedText),
+                                            overlays: assistantConfig.overlays,
+                                            onAiMessagesChange: updateAiMessageCache,
+                                            drawerWidth: getDefaultAiDrawerWidth(),
+                                            stateCache: articleAiStateCache,
+                                            user: getEditorUser(),
+                                            onSizeChange: updateAiDrawerWidth,
+                                            sessionId: state.article.logId ? state.article.logId : 0,
+                                        }
                                         : undefined,
                                     linkPreview: {
                                         enabled: state.linkPreviewEnabled,
@@ -539,7 +539,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         />
                     </div>
                 </div>
-                <div style={{ flex: "none" }}>
+                <div style={{flex: "none"}}>
                     <EditorStatusBar
                         rubbish={state.article.rubbish}
                         offline={offline}

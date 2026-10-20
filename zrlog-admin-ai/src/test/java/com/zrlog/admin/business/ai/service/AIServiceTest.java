@@ -13,13 +13,31 @@ import org.junit.Test;
 import java.net.http.HttpRequest;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 public class AIServiceTest {
 
     private static final Gson GSON = new Gson();
+
+    private static AIWebSiteInfo info(AIProviderType provider) {
+        AIWebSiteInfo info = new AIWebSiteInfo();
+        info.setAi_provider(provider);
+        info.setAi_model(provider == AIProviderType.QWEN ? "qwen-test" : "gpt-test");
+        info.setAi_api_key("key");
+        return info;
+    }
+
+    private static AIResponseEntry.AIContentEntry message(String role, String content) {
+        return new AIResponseEntry.AIContentEntry(role, content);
+    }
+
+    private static String repeat(String value, int count) {
+        StringBuilder sb = new StringBuilder(value.length() * count);
+        for (int i = 0; i < count; i++) {
+            sb.append(value);
+        }
+        return sb.toString();
+    }
 
     @Test
     public void shouldBuildProviderRequestBodyWithTokenParameterByProvider() {
@@ -114,7 +132,8 @@ public class AIServiceTest {
         info.setAi_base_url("https://gateway.example/v1/responses?api-version=1");
         assertEquals("https://gateway.example/v1/responses?api-version=1", info.getAi_base_url());
         for (String url : List.of("javascript:alert(1)", "https://gateway.example/v1/responses#secret", "//gateway.example/v1")) {
-            info.setAi_base_url(url); assertThrows(ArgsException.class, info::doValid);
+            info.setAi_base_url(url);
+            assertThrows(ArgsException.class, info::doValid);
         }
     }
 
@@ -158,26 +177,6 @@ public class AIServiceTest {
                 service.selected("prompt", " text "));
         assertThrows(AIPromptResourceException.class,
                 () -> service.prompt("/missing/prefix-", "/missing/fallback.md"));
-    }
-
-    private static AIWebSiteInfo info(AIProviderType provider) {
-        AIWebSiteInfo info = new AIWebSiteInfo();
-        info.setAi_provider(provider);
-        info.setAi_model(provider == AIProviderType.QWEN ? "qwen-test" : "gpt-test");
-        info.setAi_api_key("key");
-        return info;
-    }
-
-    private static AIResponseEntry.AIContentEntry message(String role, String content) {
-        return new AIResponseEntry.AIContentEntry(role, content);
-    }
-
-    private static String repeat(String value, int count) {
-        StringBuilder sb = new StringBuilder(value.length() * count);
-        for (int i = 0; i < count; i++) {
-            sb.append(value);
-        }
-        return sb.toString();
     }
 
     private static class TestAIService extends AIService {

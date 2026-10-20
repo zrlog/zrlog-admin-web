@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.common.dao.dto.Direction;
 import com.hibegin.common.dao.dto.OrderBy;
 import com.hibegin.common.dao.dto.PageRequest;
@@ -12,29 +11,32 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
-import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -47,7 +49,8 @@ public class AdminArticleController extends BaseController {
 
     private final ArticleQueryService articleService;
     private final Supplier<ArticleAssistant> assistant;
-
+    private final ArticlePublishingService publishingService;
+    private final AdminStaticSiteSsePublisher staticSitePublisher;
     @Inject
     public AdminArticleController(
             ArticleQueryService articleService,
@@ -66,8 +69,6 @@ public class AdminArticleController extends BaseController {
         this.staticSitePublisher = staticSitePublisher;
         this.publishingService = publishingService;
     }
-    private final ArticlePublishingService publishingService;
-    private final AdminStaticSiteSsePublisher staticSitePublisher;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
@@ -177,18 +178,6 @@ public class AdminArticleController extends BaseController {
         );
     }
 
-    @FunctionalInterface
-    private interface ArticleSaveTask {
-
-        CreateOrUpdateArticleResponse save() throws Exception;
-    }
-
-    @FunctionalInterface
-    private interface PublishStartWriter {
-
-        AdminPageDataResponse<ArticleGlobalResponse> write(AdminSseEmitter emitter) throws Exception;
-    }
-
     @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_READ, descriptionKey = "article.list")
     @RequestMethod(method = HttpMethod.GET)
@@ -233,6 +222,18 @@ public class AdminArticleController extends BaseController {
     public AdminPageDataResponse<LoadEditArticleResponse> detail() throws SQLException {
         var actor = requestIdentity.current();
         return pages.response(actor, articleService.loadDetail(actor, getParamWithEmptyCheck("id"), request));
+    }
+
+    @FunctionalInterface
+    private interface ArticleSaveTask {
+
+        CreateOrUpdateArticleResponse save() throws Exception;
+    }
+
+    @FunctionalInterface
+    private interface PublishStartWriter {
+
+        AdminPageDataResponse<ArticleGlobalResponse> write(AdminSseEmitter emitter) throws Exception;
     }
 
 }

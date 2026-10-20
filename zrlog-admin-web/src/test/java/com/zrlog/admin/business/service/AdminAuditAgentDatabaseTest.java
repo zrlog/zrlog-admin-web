@@ -1,15 +1,12 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.web.audit.AdminAuditContexts;
-import static org.junit.Assert.*;
-
 import com.google.gson.JsonParser;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -18,7 +15,27 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 public class AdminAuditAgentDatabaseTest {
+    private static HttpRequest request(String userAgent) {
+        return request(Map.of("User-Agent", userAgent, "uri", "/api/admin/cache", "ip", "127.0.0.1"));
+    }
+
+    private static HttpRequest request(Map<String, String> source) {
+        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(), new Class<?>[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("getHeader")) return source.get(args[0]);
+                    if (method.getName().equals("getUri")) return source.get("uri");
+                    if (method.getName().equals("getRemoteHost")) return source.get("ip");
+                    if (method.getReturnType().equals(boolean.class)) return false;
+                    if (method.getReturnType().equals(int.class)) return 0;
+                    if (method.getReturnType().equals(long.class)) return 0L;
+                    return null;
+                });
+    }
+
     @Test
     public void capturedAuditSourceSurvivesRequestChangesAndWorkerDispatch() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -56,7 +73,8 @@ public class AdminAuditAgentDatabaseTest {
         }
     }
 
-    @Test public void persistsCallerIdentityAndPreservesItAcrossLaterWrites() throws Exception {
+    @Test
+    public void persistsCallerIdentityAndPreservesItAcrossLaterWrites() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminAuditService service =
                     new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
@@ -76,22 +94,5 @@ public class AdminAuditAgentDatabaseTest {
             assertEquals("ZrLogCtl 0.1.42", logs.get(2).getBrowser());
             assertEquals(Integer.valueOf(1), logs.get(2).getActorUserId());
         }
-    }
-
-    private static HttpRequest request(String userAgent) {
-        return request(Map.of("User-Agent", userAgent, "uri", "/api/admin/cache", "ip", "127.0.0.1"));
-    }
-
-    private static HttpRequest request(Map<String, String> source) {
-        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(), new Class<?>[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("getHeader")) return source.get(args[0]);
-                    if (method.getName().equals("getUri")) return source.get("uri");
-                    if (method.getName().equals("getRemoteHost")) return source.get("ip");
-                    if (method.getReturnType().equals(boolean.class)) return false;
-                    if (method.getReturnType().equals(int.class)) return 0;
-                    if (method.getReturnType().equals(long.class)) return 0L;
-                    return null;
-                });
     }
 }

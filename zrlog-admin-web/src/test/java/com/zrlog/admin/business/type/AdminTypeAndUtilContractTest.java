@@ -23,11 +23,71 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class AdminTypeAndUtilContractTest {
+
+    private static HttpRequest requestWithFile(File file) {
+        return requestWithFiles(file == null ? Map.of() : Map.of("file", file));
+    }
+
+    private static HttpRequest requestWithFiles(Map<String, File> files) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminTypeAndUtilContractTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getFile".equals(method.getName())) {
+                        return files.get(args[0]);
+                    }
+                    if ("getParaToStr".equals(method.getName())) {
+                        return "dir".equals(args[0]) ? "request-dir" : null;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
+
+    private static HttpRequest request(String uri, String contextPath, String queryString) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                AdminTypeAndUtilContractTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    if ("getUri".equals(method.getName())) {
+                        return uri;
+                    }
+                    if ("getContextPath".equals(method.getName())) {
+                        return contextPath;
+                    }
+                    if ("getQueryStr".equals(method.getName())) {
+                        return queryString;
+                    }
+                    if ("getHeader".equals(method.getName())) {
+                        return null;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpRequestProxy";
+                    }
+                    return null;
+                });
+    }
+
+    private static HttpResponse response(AtomicReference<String> redirect) {
+        return (HttpResponse) Proxy.newProxyInstance(
+                AdminTypeAndUtilContractTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> {
+                    if ("redirect".equals(method.getName())) {
+                        redirect.set(args[0].toString());
+                        return null;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "HttpResponseProxy";
+                    }
+                    return null;
+                });
+    }
 
     @Test
     public void shouldExposeAdminAuditActionMetadata() {
@@ -191,67 +251,5 @@ public class AdminTypeAndUtilContractTest {
         assertEquals("1.00K", ServerInfoUtils.formatFileSize(1024L));
         assertEquals("1.00M", ServerInfoUtils.formatFileSize(1024L * 1024));
         assertEquals("1.00G", ServerInfoUtils.formatFileSize(1024L * 1024 * 1024));
-    }
-
-    private static HttpRequest requestWithFile(File file) {
-        return requestWithFiles(file == null ? Map.of() : Map.of("file", file));
-    }
-
-    private static HttpRequest requestWithFiles(Map<String, File> files) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminTypeAndUtilContractTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getFile".equals(method.getName())) {
-                        return files.get(args[0]);
-                    }
-                    if ("getParaToStr".equals(method.getName())) {
-                        return "dir".equals(args[0]) ? "request-dir" : null;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
-    }
-
-    private static HttpRequest request(String uri, String contextPath, String queryString) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminTypeAndUtilContractTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getUri".equals(method.getName())) {
-                        return uri;
-                    }
-                    if ("getContextPath".equals(method.getName())) {
-                        return contextPath;
-                    }
-                    if ("getQueryStr".equals(method.getName())) {
-                        return queryString;
-                    }
-                    if ("getHeader".equals(method.getName())) {
-                        return null;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
-    }
-
-    private static HttpResponse response(AtomicReference<String> redirect) {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminTypeAndUtilContractTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> {
-                    if ("redirect".equals(method.getName())) {
-                        redirect.set(args[0].toString());
-                        return null;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpResponseProxy";
-                    }
-                    return null;
-                });
     }
 }

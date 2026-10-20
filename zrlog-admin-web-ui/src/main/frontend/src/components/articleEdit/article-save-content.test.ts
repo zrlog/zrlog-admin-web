@@ -1,6 +1,6 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { ArticleEntry } from "./index.types";
-import { renderMissingMarkdownContent } from "./article-save-content";
+import {describe, expect, it, jest} from "@jest/globals";
+import {ArticleEntry} from "./index.types";
+import {renderMissingMarkdownContent} from "./article-save-content";
 
 const article = (overrides: Partial<ArticleEntry> = {}): ArticleEntry => ({
     title: "Article",
@@ -20,12 +20,12 @@ describe("renderMissingMarkdownContent", () => {
         const result = await renderMissingMarkdownContent(article(), renderMarkdown);
 
         expect(result.content).toBe("<h1>Article</h1>\n");
-        expect(renderMarkdown).toHaveBeenCalledWith("# Article", { linkPreview: false });
+        expect(renderMarkdown).toHaveBeenCalledWith("# Article", {linkPreview: false});
     });
 
     it("preserves content already produced by the editor", async () => {
         const renderMarkdown = jest.fn(async () => "");
-        const original = article({ content: "<p>Existing</p>" });
+        const original = article({content: "<p>Existing</p>"});
 
         const result = await renderMissingMarkdownContent(original, renderMarkdown);
 
@@ -35,7 +35,7 @@ describe("renderMissingMarkdownContent", () => {
 
     it("does not render non-Markdown articles", async () => {
         const renderMarkdown = jest.fn(async () => "");
-        const original = article({ editorType: "html", content: "" });
+        const original = article({editorType: "html", content: ""});
 
         const result = await renderMissingMarkdownContent(original, renderMarkdown);
 

@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { colorToRgba } from "./slider";
+import {colorToRgba} from "./slider";
 
 type StyledIndexLayoutProps = {
     compactMode: boolean;

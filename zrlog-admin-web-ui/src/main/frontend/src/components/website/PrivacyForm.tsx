@@ -1,20 +1,20 @@
 import Typography from "@zrlog/ui/antd/Typography";
-import { Alert, Button, Descriptions, Form, Space, theme } from "antd";
+import {Alert, Button, Descriptions, Form, Space, theme} from "antd";
 import Input from "@zrlog/ui/antd/Input";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import DownloadIcon from "@zrlog/ui/icons/download";
 import SearchIcon from "@zrlog/ui/icons/search";
 
-import { useEffect, useState } from "react";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import type { ApiResponse } from "../../type";
-import { getRes } from "../../utils/constants";
-import { useResponsiveFormLayout } from "../../utils/responsive-form";
-import type { PersonalDataPreview } from "./index";
+import {useEffect, useState} from "react";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import type {ApiResponse} from "../../type";
+import {getRes} from "../../utils/constants";
+import {useResponsiveFormLayout} from "../../utils/responsive-form";
+import type {PersonalDataPreview} from "./index";
 
 const layout = {
-    labelCol: { span: 8 },
-    wrapperCol: { span: 16 },
+    labelCol: {span: 8},
+    wrapperCol: {span: 16},
 };
 
 type PrivacyPreviewFormValues = {
@@ -38,33 +38,33 @@ type PersonalDataCommentExport = {
 };
 
 const PrivacyForm = ({
-    data,
-    offline,
-    offlineData,
-}: {
+                         data,
+                         offline,
+                         offlineData,
+                     }: {
     data: PersonalDataPreview;
     offline: boolean;
     offlineData: boolean;
 }) => {
-    const { token } = theme.useToken();
+    const {token} = theme.useToken();
     const [form] = Form.useForm<PrivacyPreviewFormValues>();
     const [preview, setPreview] = useState<PersonalDataPreview>(data);
     const [previewing, setPreviewing] = useState(false);
     const [exportingComments, setExportingComments] = useState(false);
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
     const axiosInstance = useAxiosBaseInstance();
-    const { formLayout } = useResponsiveFormLayout(layout);
+    const {formLayout} = useResponsiveFormLayout(layout);
     const disabled = offline || offlineData;
 
     useEffect(() => {
         setPreview(data);
-        form.setFieldsValue({ query: data.query || "" });
+        form.setFieldsValue({query: data.query || ""});
     }, [data, form]);
 
     const previewPersonalData = async (values: PrivacyPreviewFormValues) => {
         try {
             setPreviewing(true);
-            const { data: response } = await axiosInstance.post<ApiResponse<PersonalDataPreview>>(
+            const {data: response} = await axiosInstance.post<ApiResponse<PersonalDataPreview>>(
                 "/api/admin/personal-data/preview",
                 values
             );
@@ -81,7 +81,7 @@ const PrivacyForm = ({
     };
 
     const downloadJson = (data: PersonalDataCommentExport) => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json;charset=utf-8"});
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -99,9 +99,9 @@ const PrivacyForm = ({
         }
         try {
             setExportingComments(true);
-            const { data: response } = await axiosInstance.post<ApiResponse<PersonalDataCommentExport>>(
+            const {data: response} = await axiosInstance.post<ApiResponse<PersonalDataCommentExport>>(
                 "/api/admin/personal-data/comments/export",
-                { query }
+                {query}
             );
             if (response.error) {
                 await messageApi.error(response.message);
@@ -135,7 +135,7 @@ const PrivacyForm = ({
                 showIcon
                 message={getRes().websitePrivacy.noticeTitle}
                 description={getRes().websitePrivacy.noticeDesc}
-                style={{ marginBottom: token.margin }}
+                style={{marginBottom: token.margin}}
             />
             <Form
                 {...formLayout}
@@ -147,23 +147,23 @@ const PrivacyForm = ({
                         setPreview({});
                     }
                 }}
-                initialValues={{ query: preview.query || "" }}
+                initialValues={{query: preview.query || ""}}
             >
                 <Form.Item
                     name="query"
                     label={getRes().websitePrivacy.query}
                     tooltip={getRes().websitePrivacy.queryTip}
                     rules={[
-                        { required: true, message: getRes().websitePrivacy.queryRequired },
-                        { max: 160, message: getRes().websitePrivacy.queryTooLong },
+                        {required: true, message: getRes().websitePrivacy.queryRequired},
+                        {max: 160, message: getRes().websitePrivacy.queryTooLong},
                     ]}
                 >
-                    <Input allowClear maxLength={160} placeholder={getRes().websitePrivacy.queryPlaceholder} />
+                    <Input allowClear maxLength={160} placeholder={getRes().websitePrivacy.queryPlaceholder}/>
                 </Form.Item>
                 <Form.Item>
                     <Button
                         enterKeyHint="enter"
-                        icon={<SearchIcon />}
+                        icon={<SearchIcon/>}
                         loading={previewing}
                         disabled={disabled}
                         type="primary"
@@ -174,11 +174,11 @@ const PrivacyForm = ({
                 </Form.Item>
             </Form>
             {hasPreview ? (
-                <Space direction="vertical" size={token.marginSM} style={{ width: "100%" }}>
-                    <Space wrap align="center" style={{ justifyContent: "space-between", width: "100%" }}>
+                <Space direction="vertical" size={token.marginSM} style={{width: "100%"}}>
+                    <Space wrap align="center" style={{justifyContent: "space-between", width: "100%"}}>
                         <Typography.Text strong>{getRes().websitePrivacy.result}</Typography.Text>
                         <Button
-                            icon={<DownloadIcon />}
+                            icon={<DownloadIcon/>}
                             loading={exportingComments}
                             disabled={disabled}
                             onClick={exportComments}
@@ -188,7 +188,7 @@ const PrivacyForm = ({
                     </Space>
                     <Descriptions column={1} size="small" bordered>
                         <Descriptions.Item label={getRes().websitePrivacy.matchedQuery}>
-                            <Typography.Text copyable={{ text: preview.query }}>{preview.query}</Typography.Text>
+                            <Typography.Text copyable={{text: preview.query}}>{preview.query}</Typography.Text>
                         </Descriptions.Item>
                         <Descriptions.Item label={getRes().websitePrivacy.commentCount}>
                             {preview.commentCount ?? 0}

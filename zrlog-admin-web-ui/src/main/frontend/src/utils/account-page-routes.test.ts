@@ -1,17 +1,17 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { AxiosInstance } from "axios";
-import { getCsrData } from "../api";
-import { createAdminDashboardRoutes } from "../components/admin-dashboard-routes";
-import { getRes } from "./constants";
+import {beforeEach, describe, expect, it, jest} from "@jest/globals";
+import type {AxiosInstance} from "axios";
+import {getCsrData} from "../api";
+import {createAdminDashboardRoutes} from "../components/admin-dashboard-routes";
+import {getRes} from "./constants";
 import {
+    getAccountPage,
+    USER_APPLICATION_PAGES,
+    USER_PREFERENCE_PAGES,
     USER_ROUTES,
     WEBSITE_ROUTES,
-    USER_PREFERENCE_PAGES,
-    USER_APPLICATION_PAGES,
-    getAccountPage,
 } from "./account-page-routes";
 
-jest.mock("../base/AppBase", () => ({ buildUriPaths: (uri: string) => [uri, uri + ".html"] }));
+jest.mock("../base/AppBase", () => ({buildUriPaths: (uri: string) => [uri, uri + ".html"]}));
 jest.mock("../components/my-loading-component", () => () => null);
 
 describe("account page routing", () => {
@@ -21,13 +21,13 @@ describe("account page routing", () => {
             pageBuildId: "test",
             systemNotification: "",
             user: null,
-            resourceInfo: { lang: "zh_CN" },
+            resourceInfo: {lang: "zh_CN"},
         };
     });
 
     it("loads nested pages from existing APIs and preserves authorization query parameters", async () => {
-        const get = jest.fn<Promise<any>, any[]>().mockImplementation(async () => ({ data: { error: 0, data: {} } }));
-        const api = { get } as unknown as AxiosInstance;
+        const get = jest.fn<Promise<any>, any[]>().mockImplementation(async () => ({data: {error: 0, data: {}}}));
+        const api = {get} as unknown as AxiosInstance;
         await getCsrData("/user/applications/authorize.html?request_id=a%2Bb&v=1", 0, api);
         expect(get).toHaveBeenLastCalledWith("/api/admin/oauth/authorize?request_id=a%2Bb&v=1");
         await getCsrData("/website/members", 0, api);
@@ -84,7 +84,7 @@ describe("account page routing", () => {
             const redirect = routes.find((route) => route.paths.includes(`website/${page}`));
             expect(redirect?.paths).toContain(`website/${page}.html`);
             expect(redirect?.search).toBeUndefined();
-            expect(redirect?.props).toEqual({ page });
+            expect(redirect?.props).toEqual({page});
             expect(redirect?.lazy).not.toBe(routes.find((route) => route.paths.includes(`system/${page}`))?.lazy);
         }
     });

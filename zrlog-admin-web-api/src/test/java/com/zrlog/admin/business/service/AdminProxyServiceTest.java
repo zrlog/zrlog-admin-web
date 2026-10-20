@@ -19,7 +19,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
 public class AdminProxyServiceTest {
-    @Rule public TemporaryFolder temporary = new TemporaryFolder();
+    @Rule
+    public TemporaryFolder temporary = new TemporaryFolder();
 
     @Test
     public void connectionTestUsesSuppliedProxyAndKeepsDiskAndGlobalPolicyUnchanged() throws Exception {
@@ -35,10 +36,13 @@ public class AdminProxyServiceTest {
                     var reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.US_ASCII));
                     String first = reader.readLine();
                     String line;
-                    while ((line = reader.readLine()) != null && !line.isEmpty()) { }
+                    while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                    }
                     received.complete(first);
                     connection.getOutputStream().write("HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
-                } catch (Exception error) { received.completeExceptionally(error); }
+                } catch (Exception error) {
+                    received.completeExceptionally(error);
+                }
             });
             worker.setDaemon(true);
             worker.start();
@@ -53,7 +57,8 @@ public class AdminProxyServiceTest {
             assertEquals(previousHost, System.getProperty("https.proxyHost"));
             worker.join(3000);
         } finally {
-            if (previousRoot == null) System.clearProperty("sws.root.path"); else System.setProperty("sws.root.path", previousRoot);
+            if (previousRoot == null) System.clearProperty("sws.root.path");
+            else System.setProperty("sws.root.path", previousRoot);
         }
     }
 }

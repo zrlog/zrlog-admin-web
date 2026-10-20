@@ -1,10 +1,10 @@
-import React, { PropsWithChildren, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { getLastOpenedPage, saveLastOpenedPage } from "../utils/cache";
-import { getFullPath } from "../utils/helpers";
-import { isPWA } from "../utils/env-utils";
+import React, {PropsWithChildren, useEffect, useState} from "react";
+import {useLocation, useNavigate} from "react-router-dom";
+import {getLastOpenedPage, saveLastOpenedPage} from "../utils/cache";
+import {getFullPath} from "../utils/helpers";
+import {isPWA} from "../utils/env-utils";
 
-const PWAHandler: React.FC<PropsWithChildren> = ({ children }) => {
+const PWAHandler: React.FC<PropsWithChildren> = ({children}) => {
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -19,7 +19,7 @@ const PWAHandler: React.FC<PropsWithChildren> = ({ children }) => {
         const lastOpenedPage = getLastOpenedPage();
         sessionStorage.setItem("loaded", "true");
         if (lastOpenedPage && lastOpenedPage !== getFullPath(location)) {
-            navigate(lastOpenedPage, { replace: true });
+            navigate(lastOpenedPage, {replace: true});
             return;
         }
     }, []); // Empty dependency array to run only on mount

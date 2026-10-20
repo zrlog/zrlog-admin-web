@@ -1,4 +1,4 @@
-import { ArticleEntry } from "./index.types";
+import {ArticleEntry} from "./index.types";
 
 export type ArticlePublishReviewTarget = "title" | "category" | "markdown" | "alias" | "digest" | "tags" | "cover";
 

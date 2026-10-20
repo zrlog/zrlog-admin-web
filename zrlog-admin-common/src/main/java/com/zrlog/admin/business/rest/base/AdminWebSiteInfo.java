@@ -125,16 +125,16 @@ public class AdminWebSiteInfo implements Validator {
         return admin_static_resource_base_url;
     }
 
+    public void setAdmin_static_resource_base_url(String admin_static_resource_base_url) {
+        this.admin_static_resource_base_url = admin_static_resource_base_url;
+    }
+
     public String getBackend_server_url() {
         return backend_server_url;
     }
 
     public void setBackend_server_url(String backend_server_url) {
         this.backend_server_url = backend_server_url;
-    }
-
-    public void setAdmin_static_resource_base_url(String admin_static_resource_base_url) {
-        this.admin_static_resource_base_url = admin_static_resource_base_url;
     }
 
     public Boolean getAdmin_compactMode() {

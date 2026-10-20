@@ -1,7 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -9,10 +7,11 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.I18nUtil;
-
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.Assert.*;
 
 public class AdminPageDataFactoryTest {
     @Test

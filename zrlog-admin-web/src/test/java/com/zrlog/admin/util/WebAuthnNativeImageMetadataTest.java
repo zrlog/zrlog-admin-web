@@ -11,12 +11,7 @@ import com.webauthn4j.converter.AuthenticationExtensionsClientOutputsConverter;
 import com.webauthn4j.converter.CollectedClientDataConverter;
 import com.webauthn4j.converter.util.ObjectConverter;
 import com.webauthn4j.data.attestation.AttestationObject;
-import com.webauthn4j.data.attestation.authenticator.AAGUID;
-import com.webauthn4j.data.attestation.authenticator.AttestedCredentialData;
-import com.webauthn4j.data.attestation.authenticator.AuthenticatorData;
-import com.webauthn4j.data.attestation.authenticator.COSEKey;
-import com.webauthn4j.data.attestation.authenticator.Curve;
-import com.webauthn4j.data.attestation.authenticator.EC2COSEKey;
+import com.webauthn4j.data.attestation.authenticator.*;
 import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
 import com.webauthn4j.data.attestation.statement.COSEKeyOperation;
 import com.webauthn4j.data.attestation.statement.COSEKeyType;
@@ -38,119 +33,12 @@ import java.security.KeyPairGenerator;
 import java.security.spec.ECGenParameterSpec;
 import java.util.Collections;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class WebAuthnNativeImageMetadataTest {
 
     private static final String REFLECT_CONFIG =
             "META-INF/native-image/com.hibegin/zrlog-admin-web/reflect-config.json";
-
-    @Test
-    public void shouldKeepWebAuthnReflectionMetadataNarrowAndResolvable() throws Exception {
-        JsonArray entries = loadReflectConfig();
-
-        assertEquals(11, entries.size());
-        for (JsonElement element : entries) {
-            JsonObject entry = element.getAsJsonObject();
-            assertFalse(entry.has("allDeclaredConstructors"));
-            assertFalse(entry.has("allDeclaredFields"));
-            assertFalse(entry.has("allDeclaredMethods"));
-            assertFalse(entry.has("allPublicConstructors"));
-            assertFalse(entry.has("allPublicFields"));
-            assertFalse(entry.has("allPublicMethods"));
-            resolveConfiguredMembers(entry);
-        }
-
-        assertConfiguredMethod(entries, "com.webauthn4j.data.client.CollectedClientData", "<init>",
-                "com.webauthn4j.data.client.ClientDataType",
-                "com.webauthn4j.data.client.challenge.Challenge",
-                "com.webauthn4j.data.client.Origin", "java.lang.Boolean",
-                "com.webauthn4j.data.client.Origin", "com.webauthn4j.data.client.TokenBinding");
-        assertConfiguredMethod(entries, "com.webauthn4j.data.client.ClientDataType", "create",
-                "java.lang.String");
-        assertConfiguredMethod(entries, "com.webauthn4j.data.client.Origin", "deserialize",
-                "java.lang.String");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.extension.client.AuthenticationExtensionsClientOutputs", "<init>");
-        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.AttestationObject", "<init>",
-                "com.webauthn4j.data.attestation.authenticator.AuthenticatorData",
-                "com.webauthn4j.data.attestation.statement.AttestationStatement");
-        assertConfiguredField(entries, "com.webauthn4j.data.attestation.AttestationObject",
-                "authenticatorData");
-        assertConfiguredField(entries, "com.webauthn4j.data.attestation.AttestationObject",
-                "attestationStatement");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.NoneAttestationStatement", "<init>");
-        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.authenticator.EC2COSEKey", "<init>",
-                "byte[]", "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier", "java.util.List",
-                "com.webauthn4j.data.attestation.authenticator.Curve", "byte[]", "byte[]", "byte[]");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier", "deserialize", "long");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier", "getValue");
-        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.authenticator.Curve",
-                "deserialize", "int");
-        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.authenticator.Curve", "getValue");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.COSEKeyOperation", "deserialize", "int");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.COSEKeyOperation", "getValue");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.COSEKeyType", "deserialize", "int");
-        assertConfiguredMethod(entries,
-                "com.webauthn4j.data.attestation.statement.COSEKeyType", "getValue");
-    }
-
-    @Test
-    public void shouldConvertPasskeyPayloadsCoveredByNativeMetadata() throws Exception {
-        ObjectConverter objectConverter = new ObjectConverter();
-        CollectedClientDataConverter clientDataConverter = new CollectedClientDataConverter(objectConverter);
-
-        CollectedClientData createData = clientDataConverter.convert(clientDataJson("webauthn.create"));
-        CollectedClientData getData = clientDataConverter.convert(clientDataJson("webauthn.get"));
-        assertEquals(ClientDataType.WEBAUTHN_CREATE, createData.getType());
-        assertEquals(ClientDataType.WEBAUTHN_GET, getData.getType());
-        assertEquals("https://admin.example.com", createData.getOrigin().toString());
-        assertArrayEquals(new byte[]{1, 2, 3, 4}, createData.getChallenge().getValue());
-
-        AuthenticationExtensionsClientOutputs<?> extensions =
-                new AuthenticationExtensionsClientOutputsConverter(objectConverter).convert("{}");
-        assertTrue(extensions.getKeys().isEmpty());
-
-        EC2COSEKey coseKey = createEs256Key();
-        byte[] coseBytes = objectConverter.getCborConverter().writeValueAsBytes(coseKey);
-        COSEKey restoredCoseKey = objectConverter.getCborConverter().readValue(coseBytes, COSEKey.class);
-        assertTrue(restoredCoseKey instanceof EC2COSEKey);
-        EC2COSEKey restoredEc2Key = (EC2COSEKey) restoredCoseKey;
-        assertEquals(COSEAlgorithmIdentifier.ES256, restoredEc2Key.getAlgorithm());
-        assertEquals(COSEKeyType.EC2, restoredEc2Key.getKeyType());
-        assertEquals(Curve.SECP256R1, restoredEc2Key.getCurve());
-        assertEquals(Collections.singletonList(COSEKeyOperation.VERIFY), restoredEc2Key.getKeyOps());
-        assertArrayEquals(coseKey.getX(), restoredEc2Key.getX());
-        assertArrayEquals(coseKey.getY(), restoredEc2Key.getY());
-
-        byte[] credentialId = new byte[]{9, 8, 7, 6};
-        AttestedCredentialData credentialData = new AttestedCredentialData(AAGUID.ZERO, credentialId, coseKey);
-        AuthenticatorData<RegistrationExtensionAuthenticatorOutput> authenticatorData =
-                new AuthenticatorData<>(new byte[32],
-                        (byte) (AuthenticatorData.BIT_UP | AuthenticatorData.BIT_AT), 0, credentialData);
-        AttestationObject attestationObject =
-                new AttestationObject(authenticatorData, new NoneAttestationStatement());
-        AttestationObjectConverter attestationConverter = new AttestationObjectConverter(objectConverter);
-        AttestationObject restoredAttestation =
-                attestationConverter.convert(attestationConverter.convertToBytes(attestationObject));
-
-        assertEquals("none", restoredAttestation.getFormat());
-        assertTrue(restoredAttestation.getAttestationStatement() instanceof NoneAttestationStatement);
-        assertArrayEquals(credentialId,
-                restoredAttestation.getAuthenticatorData().getAttestedCredentialData().getCredentialId());
-        assertTrue(restoredAttestation.getAuthenticatorData().getAttestedCredentialData().getCOSEKey()
-                instanceof EC2COSEKey);
-    }
 
     private static EC2COSEKey createEs256Key() throws Exception {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
@@ -271,5 +159,108 @@ public class WebAuthnNativeImageMetadataTest {
             array.add(value);
         }
         return array;
+    }
+
+    @Test
+    public void shouldKeepWebAuthnReflectionMetadataNarrowAndResolvable() throws Exception {
+        JsonArray entries = loadReflectConfig();
+
+        assertEquals(11, entries.size());
+        for (JsonElement element : entries) {
+            JsonObject entry = element.getAsJsonObject();
+            assertFalse(entry.has("allDeclaredConstructors"));
+            assertFalse(entry.has("allDeclaredFields"));
+            assertFalse(entry.has("allDeclaredMethods"));
+            assertFalse(entry.has("allPublicConstructors"));
+            assertFalse(entry.has("allPublicFields"));
+            assertFalse(entry.has("allPublicMethods"));
+            resolveConfiguredMembers(entry);
+        }
+
+        assertConfiguredMethod(entries, "com.webauthn4j.data.client.CollectedClientData", "<init>",
+                "com.webauthn4j.data.client.ClientDataType",
+                "com.webauthn4j.data.client.challenge.Challenge",
+                "com.webauthn4j.data.client.Origin", "java.lang.Boolean",
+                "com.webauthn4j.data.client.Origin", "com.webauthn4j.data.client.TokenBinding");
+        assertConfiguredMethod(entries, "com.webauthn4j.data.client.ClientDataType", "create",
+                "java.lang.String");
+        assertConfiguredMethod(entries, "com.webauthn4j.data.client.Origin", "deserialize",
+                "java.lang.String");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.extension.client.AuthenticationExtensionsClientOutputs", "<init>");
+        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.AttestationObject", "<init>",
+                "com.webauthn4j.data.attestation.authenticator.AuthenticatorData",
+                "com.webauthn4j.data.attestation.statement.AttestationStatement");
+        assertConfiguredField(entries, "com.webauthn4j.data.attestation.AttestationObject",
+                "authenticatorData");
+        assertConfiguredField(entries, "com.webauthn4j.data.attestation.AttestationObject",
+                "attestationStatement");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.NoneAttestationStatement", "<init>");
+        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.authenticator.EC2COSEKey", "<init>",
+                "byte[]", "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier", "java.util.List",
+                "com.webauthn4j.data.attestation.authenticator.Curve", "byte[]", "byte[]", "byte[]");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier", "deserialize", "long");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier", "getValue");
+        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.authenticator.Curve",
+                "deserialize", "int");
+        assertConfiguredMethod(entries, "com.webauthn4j.data.attestation.authenticator.Curve", "getValue");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.COSEKeyOperation", "deserialize", "int");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.COSEKeyOperation", "getValue");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.COSEKeyType", "deserialize", "int");
+        assertConfiguredMethod(entries,
+                "com.webauthn4j.data.attestation.statement.COSEKeyType", "getValue");
+    }
+
+    @Test
+    public void shouldConvertPasskeyPayloadsCoveredByNativeMetadata() throws Exception {
+        ObjectConverter objectConverter = new ObjectConverter();
+        CollectedClientDataConverter clientDataConverter = new CollectedClientDataConverter(objectConverter);
+
+        CollectedClientData createData = clientDataConverter.convert(clientDataJson("webauthn.create"));
+        CollectedClientData getData = clientDataConverter.convert(clientDataJson("webauthn.get"));
+        assertEquals(ClientDataType.WEBAUTHN_CREATE, createData.getType());
+        assertEquals(ClientDataType.WEBAUTHN_GET, getData.getType());
+        assertEquals("https://admin.example.com", createData.getOrigin().toString());
+        assertArrayEquals(new byte[]{1, 2, 3, 4}, createData.getChallenge().getValue());
+
+        AuthenticationExtensionsClientOutputs<?> extensions =
+                new AuthenticationExtensionsClientOutputsConverter(objectConverter).convert("{}");
+        assertTrue(extensions.getKeys().isEmpty());
+
+        EC2COSEKey coseKey = createEs256Key();
+        byte[] coseBytes = objectConverter.getCborConverter().writeValueAsBytes(coseKey);
+        COSEKey restoredCoseKey = objectConverter.getCborConverter().readValue(coseBytes, COSEKey.class);
+        assertTrue(restoredCoseKey instanceof EC2COSEKey);
+        EC2COSEKey restoredEc2Key = (EC2COSEKey) restoredCoseKey;
+        assertEquals(COSEAlgorithmIdentifier.ES256, restoredEc2Key.getAlgorithm());
+        assertEquals(COSEKeyType.EC2, restoredEc2Key.getKeyType());
+        assertEquals(Curve.SECP256R1, restoredEc2Key.getCurve());
+        assertEquals(Collections.singletonList(COSEKeyOperation.VERIFY), restoredEc2Key.getKeyOps());
+        assertArrayEquals(coseKey.getX(), restoredEc2Key.getX());
+        assertArrayEquals(coseKey.getY(), restoredEc2Key.getY());
+
+        byte[] credentialId = new byte[]{9, 8, 7, 6};
+        AttestedCredentialData credentialData = new AttestedCredentialData(AAGUID.ZERO, credentialId, coseKey);
+        AuthenticatorData<RegistrationExtensionAuthenticatorOutput> authenticatorData =
+                new AuthenticatorData<>(new byte[32],
+                        (byte) (AuthenticatorData.BIT_UP | AuthenticatorData.BIT_AT), 0, credentialData);
+        AttestationObject attestationObject =
+                new AttestationObject(authenticatorData, new NoneAttestationStatement());
+        AttestationObjectConverter attestationConverter = new AttestationObjectConverter(objectConverter);
+        AttestationObject restoredAttestation =
+                attestationConverter.convert(attestationConverter.convertToBytes(attestationObject));
+
+        assertEquals("none", restoredAttestation.getFormat());
+        assertTrue(restoredAttestation.getAttestationStatement() instanceof NoneAttestationStatement);
+        assertArrayEquals(credentialId,
+                restoredAttestation.getAuthenticatorData().getAttestedCredentialData().getCredentialId());
+        assertTrue(restoredAttestation.getAuthenticatorData().getAttestedCredentialData().getCOSEKey()
+                instanceof EC2COSEKey);
     }
 }

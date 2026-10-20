@@ -3,12 +3,12 @@ import Popconfirm from "@zrlog/ui/antd/Popconfirm";
 import ClearIcon from "@zrlog/ui/icons/clear";
 import EditIcon from "@zrlog/ui/icons/edit";
 import HistoryIcon from "@zrlog/ui/icons/history";
-import { Button, Card, Space, theme, Typography } from "antd";
+import {Button, Card, Space, theme, Typography} from "antd";
 
-import { Link } from "react-router-dom";
-import { FunctionComponent } from "react";
-import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
-import { LocalArticleCacheEntry, removeLocalArticleCacheByKey } from "../../utils/article-cache";
+import {Link} from "react-router-dom";
+import {FunctionComponent} from "react";
+import {getLabelValueSeparator, getRealRouteUrl, getRes} from "../../utils/constants";
+import {LocalArticleCacheEntry, removeLocalArticleCacheByKey} from "../../utils/article-cache";
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 
 type LocalDraftCardProps = {
@@ -16,8 +16,8 @@ type LocalDraftCardProps = {
     onClear: () => void;
 };
 
-const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, onClear }) => {
-    const { token } = theme.useToken();
+const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({localDrafts, onClear}) => {
+    const {token} = theme.useToken();
     const localDraft = localDrafts[0];
     const article = localDraft?.article;
     const localEdit = localDraft ? !localDraft.draft : false;
@@ -59,8 +59,8 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
     return (
         <Card
             title={
-                <div style={{ display: "flex", alignItems: "center", gap: token.marginXS }}>
-                    <HistoryIcon />
+                <div style={{display: "flex", alignItems: "center", gap: token.marginXS}}>
+                    <HistoryIcon/>
                     <span>
                         {localEdit ? getRes().index.quickAction.localEdit : getRes().index.quickAction.localDraft}
                     </span>
@@ -73,21 +73,21 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
             }
             bordered={false}
             className="dashboard-card"
-            styles={{ body: { padding: token.paddingLG } }}
+            styles={{body: {padding: token.paddingLG}}}
         >
             {localDraft && article ? (
-                <div style={{ display: "grid", gap: token.marginSM }}>
-                    <Typography.Text strong ellipsis={{ tooltip: localDraftTitle }}>
+                <div style={{display: "grid", gap: token.marginSM}}>
+                    <Typography.Text strong ellipsis={{tooltip: localDraftTitle}}>
                         {localDraftTitle}
                     </Typography.Text>
                     <Typography.Text type="secondary">
                         {localEdit ? getRes().index.quickAction.localEditTip : getRes().index.quickAction.localDraftTip}
                     </Typography.Text>
                     {localDraft.updatedAt > 0 && (
-                        <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                        <Typography.Text type="secondary" style={{fontSize: token.fontSizeSM}}>
                             {getRes().index.quickAction.localCacheUpdatedAt}
                             {getLabelValueSeparator()}
-                            <TimeAgo timestamp={localDraft.updatedAt} />
+                            <TimeAgo timestamp={localDraft.updatedAt}/>
                         </Typography.Text>
                     )}
                     {localDrafts.length > 1 && (
@@ -95,10 +95,10 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                             {getRes().index.quickAction.localCacheCount.replace("{count}", `${localDrafts.length}`)}
                         </Typography.Text>
                     )}
-                    <div style={{ display: "flex", gap: token.marginXS, flexWrap: "wrap" }}>
+                    <div style={{display: "flex", gap: token.marginXS, flexWrap: "wrap"}}>
                         <Link
                             to={getRealRouteUrl(getEditPath(localDraft))}
-                            style={{ display: "inline-flex", width: "fit-content" }}
+                            style={{display: "inline-flex", width: "fit-content"}}
                         >
                             <Button type="primary" size="small">
                                 {getRes().index.quickAction.continueWriting}
@@ -111,13 +111,13 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                             cancelText={getRes().cancel}
                             onConfirm={() => clearLocalDraft(localDraft)}
                         >
-                            <Button icon={<ClearIcon />} size="small">
+                            <Button icon={<ClearIcon/>} size="small">
                                 {getClearTitle(localDraft)}
                             </Button>
                         </Popconfirm>
                     </div>
                     {otherDrafts.length > 0 && (
-                        <div style={{ display: "grid", gap: token.marginXS }}>
+                        <div style={{display: "grid", gap: token.marginXS}}>
                             {otherDrafts.map((entry) => (
                                 <div
                                     key={entry.key}
@@ -128,15 +128,15 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                                         gap: token.marginSM,
                                     }}
                                 >
-                                    <Space direction="vertical" size={0} style={{ minWidth: 0, flex: 1 }}>
+                                    <Space direction="vertical" size={0} style={{minWidth: 0, flex: 1}}>
                                         <Link to={getRealRouteUrl(getEditPath(entry))}>
-                                            <Typography.Text ellipsis={{ tooltip: getCacheTitle(entry) }}>
+                                            <Typography.Text ellipsis={{tooltip: getCacheTitle(entry)}}>
                                                 {getCacheTitle(entry)}
                                             </Typography.Text>
                                         </Link>
                                         {entry.updatedAt > 0 && (
-                                            <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                                                <TimeAgo timestamp={entry.updatedAt} />
+                                            <Typography.Text type="secondary" style={{fontSize: token.fontSizeSM}}>
+                                                <TimeAgo timestamp={entry.updatedAt}/>
                                             </Typography.Text>
                                         )}
                                     </Space>
@@ -147,7 +147,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                                         cancelText={getRes().cancel}
                                         onConfirm={() => clearLocalDraft(entry)}
                                     >
-                                        <Button icon={<ClearIcon />} size="small" title={getClearTitle(entry)} />
+                                        <Button icon={<ClearIcon/>} size="small" title={getClearTitle(entry)}/>
                                     </Popconfirm>
                                 </div>
                             ))}
@@ -155,13 +155,13 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                     )}
                 </div>
             ) : (
-                <div style={{ display: "grid", gap: token.marginSM }}>
+                <div style={{display: "grid", gap: token.marginSM}}>
                     <Typography.Text type="secondary">{getRes().index.quickAction.localDraftEmpty}</Typography.Text>
                     <Link
                         to={getRealRouteUrl("/article-edit")}
-                        style={{ display: "inline-flex", width: "fit-content" }}
+                        style={{display: "inline-flex", width: "fit-content"}}
                     >
-                        <Button icon={<EditIcon />} size="small">
+                        <Button icon={<EditIcon/>} size="small">
                             {getRes().index.quickAction.writeArticle}
                         </Button>
                     </Link>

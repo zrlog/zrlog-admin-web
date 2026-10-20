@@ -1,15 +1,11 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.DeleteResponse;
-import com.zrlog.admin.business.rest.response.TemplateDownloadResponse;
-import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
-import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
-import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
+import com.zrlog.admin.business.audit.AdminAuditContext;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.controller.api.TemplateController;
 import com.zrlog.blog.web.plugin.TemplateDownloadPlugin;
@@ -24,30 +20,15 @@ import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
 import com.zrlog.theme.spi.BundledThemes;
-import com.zrlog.util.BlogBuildInfoUtil;
-import com.zrlog.util.I18nUtil;
-import com.zrlog.util.StaticFileCacheUtils;
-import com.zrlog.util.TemplateHelper;
-import com.zrlog.util.ZrLogUtil;
-
+import com.zrlog.util.*;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UncheckedIOException;
+import java.io.*;
 import java.net.URISyntaxException;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Supplier;
@@ -60,13 +41,13 @@ import java.util.zip.ZipInputStream;
 
 @Singleton
 public class TemplateService {
-    private final AdminAuditService adminAuditService;
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
-
     private static final Logger LOGGER = LoggerUtil.getLogger(TemplateController.class);
     private static final int MAX_TEMPLATE_FILE_COUNT = 5000;
     private static final long MAX_TEMPLATE_UNCOMPRESSED_SIZE = 100L * 1024 * 1024;
     private static final int COPY_BUFFER_SIZE = 16 * 1024;
+    private static final String SHORT_TEMPLATE_PATTERN = "[A-Za-z0-9][A-Za-z0-9._-]{0,127}";
+    private final AdminAuditService adminAuditService;
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
     private final CacheService cacheService;
     private final Supplier<PluginCorePlugin> pluginCore;
     private final Supplier<TemplateDownloadPlugin> templateDownload;
@@ -86,11 +67,27 @@ public class TemplateService {
         this.templateDownload = templateDownload;
     }
 
+    private static List<File> getAllTemplatesFiles() {
+        List<File> list = new ArrayList<>();
+        File[] templatesFile = PathUtil.getStaticFile(Constants.TEMPLATE_BASE_PATH).listFiles();
+        if (Objects.nonNull(templatesFile)) {
+            list.addAll(Arrays.asList(templatesFile));
+        }
+        if (EnvKit.isFaaSMode()) {
+            File file = PathUtil.safeAppendFilePath(ZrLogUtil.getFaaSRoot() + "/static/", Constants.TEMPLATE_BASE_PATH);
+            if (file.exists()) {
+                File[] files = file.listFiles();
+                if (Objects.nonNull(files)) {
+                    list.addAll(Arrays.asList(files));
+                }
+            }
+        }
+        return list;
+    }
+
     public String getTemplatePath(HttpRequest request) {
         return TemplateHelper.getTemplatePath(request, cacheService.getPublicWebSiteInfo().getTemplate(), templateDownload.get());
     }
-
-    private static final String SHORT_TEMPLATE_PATTERN = "[A-Za-z0-9][A-Za-z0-9._-]{0,127}";
 
     public boolean apply(String template, AdminAuditContext audit) throws SQLException {
         boolean updated = this.webSiteProvider.get().updateByKV("template", template);
@@ -393,42 +390,6 @@ public class TemplateService {
         }
     }
 
-    private static class InvalidTemplatePackageException extends IOException {
-
-        private final String i18nKey;
-
-        private InvalidTemplatePackageException(String i18nKey) {
-            this.i18nKey = i18nKey;
-        }
-
-        private InvalidTemplatePackageException(String i18nKey, Throwable cause) {
-            super(cause);
-            this.i18nKey = i18nKey;
-        }
-
-        private String getI18nKey() {
-            return i18nKey;
-        }
-    }
-
-    private static List<File> getAllTemplatesFiles() {
-        List<File> list = new ArrayList<>();
-        File[] templatesFile = PathUtil.getStaticFile(Constants.TEMPLATE_BASE_PATH).listFiles();
-        if (Objects.nonNull(templatesFile)) {
-            list.addAll(Arrays.asList(templatesFile));
-        }
-        if (EnvKit.isFaaSMode()) {
-            File file = PathUtil.safeAppendFilePath(ZrLogUtil.getFaaSRoot() + "/static/", Constants.TEMPLATE_BASE_PATH);
-            if (file.exists()) {
-                File[] files = file.listFiles();
-                if (Objects.nonNull(files)) {
-                    list.addAll(Arrays.asList(files));
-                }
-            }
-        }
-        return list;
-    }
-
     public List<TemplateEntryResponse> getAllTemplates(String previewTemplate) throws IOException {
         String currentTemplate = cacheService.getPublicWebSiteInfo().getTemplate();
         if (!TemplateInfoHelper.isDefaultTemplate(currentTemplate)) {
@@ -525,6 +486,24 @@ public class TemplateService {
             value.setLabel(messages.getProperty(prefix + ".label", value.getLabel()));
             value.setPlaceholder(messages.getProperty(prefix + ".placeholder", value.getPlaceholder()));
         });
+    }
+
+    private static class InvalidTemplatePackageException extends IOException {
+
+        private final String i18nKey;
+
+        private InvalidTemplatePackageException(String i18nKey) {
+            this.i18nKey = i18nKey;
+        }
+
+        private InvalidTemplatePackageException(String i18nKey, Throwable cause) {
+            super(cause);
+            this.i18nKey = i18nKey;
+        }
+
+        private String getI18nKey() {
+            return i18nKey;
+        }
     }
 
 

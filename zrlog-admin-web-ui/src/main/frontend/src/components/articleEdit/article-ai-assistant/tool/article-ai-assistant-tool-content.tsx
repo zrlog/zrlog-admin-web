@@ -1,5 +1,5 @@
-import { FunctionComponent } from "react";
-import { AssistantToolPayload } from "../article-ai-assistant.types";
+import {FunctionComponent} from "react";
+import {AssistantToolPayload} from "../article-ai-assistant.types";
 import AliasToolContent from "./content/alias-tool-content";
 import CoverToolContent from "./content/cover-tool-content";
 import DigestToolContent from "./content/digest-tool-content";
@@ -11,7 +11,7 @@ import SeoToolContent from "./content/seo-tool-content";
 import StructureToolContent from "./content/structure-tool-content";
 import TagsToolContent from "./content/tags-tool-content";
 import TitleToolContent from "./content/title-tool-content";
-import { ArticleAiAssistantToolContentCommonProps } from "./article-ai-assistant-tool-content.types";
+import {ArticleAiAssistantToolContentCommonProps} from "./article-ai-assistant-tool-content.types";
 
 type ArticleAiAssistantToolContentProps = ArticleAiAssistantToolContentCommonProps & {
     toolPayload: AssistantToolPayload;
@@ -20,29 +20,29 @@ type ArticleAiAssistantToolContentProps = ArticleAiAssistantToolContentCommonPro
 const ArticleAiAssistantToolContent: FunctionComponent<ArticleAiAssistantToolContentProps> = (props) => {
     switch (props.toolPayload.tool) {
         case "rewrite":
-            return <RewriteToolContent {...props} toolPayload={props.toolPayload} />;
+            return <RewriteToolContent {...props} toolPayload={props.toolPayload}/>;
         case "title":
-            return <TitleToolContent {...props} toolPayload={props.toolPayload} />;
+            return <TitleToolContent {...props} toolPayload={props.toolPayload}/>;
         case "alias":
-            return <AliasToolContent {...props} toolPayload={props.toolPayload} />;
+            return <AliasToolContent {...props} toolPayload={props.toolPayload}/>;
         case "digest":
-            return <DigestToolContent {...props} toolPayload={props.toolPayload} />;
+            return <DigestToolContent {...props} toolPayload={props.toolPayload}/>;
         case "tags":
-            return <TagsToolContent {...props} toolPayload={props.toolPayload} />;
+            return <TagsToolContent {...props} toolPayload={props.toolPayload}/>;
         case "cover":
-            return <CoverToolContent {...props} toolPayload={props.toolPayload} />;
+            return <CoverToolContent {...props} toolPayload={props.toolPayload}/>;
         case "seo":
-            return <SeoToolContent {...props} toolPayload={props.toolPayload} />;
+            return <SeoToolContent {...props} toolPayload={props.toolPayload}/>;
         case "proofread":
-            return <ProofreadToolContent {...props} toolPayload={props.toolPayload} />;
+            return <ProofreadToolContent {...props} toolPayload={props.toolPayload}/>;
         case "structure":
-            return <StructureToolContent {...props} toolPayload={props.toolPayload} />;
+            return <StructureToolContent {...props} toolPayload={props.toolPayload}/>;
         case "questions":
-            return <QuestionsToolContent {...props} toolPayload={props.toolPayload} />;
+            return <QuestionsToolContent {...props} toolPayload={props.toolPayload}/>;
         case "publishCheck":
-            return <ScoreToolContent {...props} toolPayload={props.toolPayload} />;
+            return <ScoreToolContent {...props} toolPayload={props.toolPayload}/>;
         default:
-            return <ScoreToolContent {...props} toolPayload={props.toolPayload} />;
+            return <ScoreToolContent {...props} toolPayload={props.toolPayload}/>;
     }
 };
 

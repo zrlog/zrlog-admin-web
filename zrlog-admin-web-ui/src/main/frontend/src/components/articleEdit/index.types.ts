@@ -13,15 +13,15 @@ export type ArticleEntry = ChangedContent &
     PrivacyChanged &
     CanCommentChanged &
     TypeChanged & {
-        rubbish: boolean;
-        logId?: number;
-        lastUpdateDate?: number;
-        version: number;
-        previewUrl?: string;
-        socialPreview?: SocialPreview;
-        transparentPublish?: boolean;
-        editorType?: string;
-    };
+    rubbish: boolean;
+    logId?: number;
+    lastUpdateDate?: number;
+    version: number;
+    previewUrl?: string;
+    socialPreview?: SocialPreview;
+    transparentPublish?: boolean;
+    editorType?: string;
+};
 
 export type SocialPreview = {
     type: string;

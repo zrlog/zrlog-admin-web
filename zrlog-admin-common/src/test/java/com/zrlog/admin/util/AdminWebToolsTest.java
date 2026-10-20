@@ -19,38 +19,6 @@ import static org.junit.Assert.assertThrows;
 public class AdminWebToolsTest {
 
 
-
-    @Test
-    public void shouldRejectApiRequestWhenSiteIsMissingInstall() throws Exception {
-        assertThrows(MissingInstallException.class,
-                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response(), false));
-    }
-
-    @Test
-    public void shouldRejectApiRequestWhenAdminTokenIsMissing() throws Exception {
-        assertThrows(AdminAuthException.class,
-                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response(), true));
-    }
-
-    @Test
-    public void shouldFrameAdminPageRedirectAsEmptyResponse() {
-        HttpRequest request = request("/admin", "/blog", null);
-        HttpResponse response = new SimpleHttpResponse(request, new ResponseConfig());
-
-        AdminWebTools.blockUnLoginRequestHandler(request, response, true);
-
-        assertEquals("0", response.getHeader().get("Content-Length"));
-    }
-
-    @Test
-    public void shouldUseContextPathForStaticPluginAdminAssets() throws Exception {
-        String baseUrl = AdminWebTools.getAdminStaticResourceBaseUrl(
-                request("/admin/assets/app.js", "/blog", BaseStaticSitePlugin.STATIC_USER_AGENT),
-                () -> { throw new AssertionError("Static export must use local assets"); });
-
-        assertEquals("/blog", baseUrl);
-    }
-
     private static HttpRequest request(String uri, String contextPath, String userAgent) {
         ServerConfig serverConfig = new ServerConfig();
         return (HttpRequest) Proxy.newProxyInstance(
@@ -84,5 +52,38 @@ public class AdminWebToolsTest {
                 AdminWebToolsTest.class.getClassLoader(),
                 new Class[]{HttpResponse.class},
                 (proxy, method, args) -> null);
+    }
+
+    @Test
+    public void shouldRejectApiRequestWhenSiteIsMissingInstall() throws Exception {
+        assertThrows(MissingInstallException.class,
+                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response(), false));
+    }
+
+    @Test
+    public void shouldRejectApiRequestWhenAdminTokenIsMissing() throws Exception {
+        assertThrows(AdminAuthException.class,
+                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response(), true));
+    }
+
+    @Test
+    public void shouldFrameAdminPageRedirectAsEmptyResponse() {
+        HttpRequest request = request("/admin", "/blog", null);
+        HttpResponse response = new SimpleHttpResponse(request, new ResponseConfig());
+
+        AdminWebTools.blockUnLoginRequestHandler(request, response, true);
+
+        assertEquals("0", response.getHeader().get("Content-Length"));
+    }
+
+    @Test
+    public void shouldUseContextPathForStaticPluginAdminAssets() throws Exception {
+        String baseUrl = AdminWebTools.getAdminStaticResourceBaseUrl(
+                request("/admin/assets/app.js", "/blog", BaseStaticSitePlugin.STATIC_USER_AGENT),
+                () -> {
+                    throw new AssertionError("Static export must use local assets");
+                });
+
+        assertEquals("/blog", baseUrl);
     }
 }

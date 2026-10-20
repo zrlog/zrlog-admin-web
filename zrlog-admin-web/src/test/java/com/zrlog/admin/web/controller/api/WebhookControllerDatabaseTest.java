@@ -1,10 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -29,7 +24,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -38,9 +32,61 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class WebhookControllerDatabaseTest {
 
     private ZrLogConfig applicationConfig;
+
+    private static HttpRequest request(HttpMethod httpMethod, Map<String, String> headers,
+                                       Map<String, String> params, String body) {
+        return (HttpRequest) Proxy.newProxyInstance(
+                WebhookControllerDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpRequest.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getMethod":
+                            return httpMethod;
+                        case "getInputStream":
+                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                        case "getParaToStr":
+                            if (args.length == 2) {
+                                return params.getOrDefault(args[0].toString(), args[1].toString());
+                            }
+                            return params.get(args[0].toString());
+                        case "getHeader":
+                            if (headers.containsKey(args[0].toString())) {
+                                return headers.get(args[0].toString());
+                            }
+                            if ("Host".equals(args[0])) {
+                                return "localhost:18080";
+                            }
+                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
+                        case "getHeaderMap":
+                            return Map.of("X-Real-IP", "127.0.0.1");
+                        case "getRemoteHost":
+                            return "127.0.0.1";
+                        case "getContextPath":
+                            return "/";
+                        case "getUri":
+                            return "/api/admin/webhook";
+                        case "toString":
+                            return "HttpRequestProxy";
+                        default:
+                            if (method.getReturnType().isPrimitive()) {
+                                return 0;
+                            }
+                            return null;
+                    }
+                });
+    }
+
+    private static HttpResponse response() {
+        return (HttpResponse) Proxy.newProxyInstance(
+                WebhookControllerDatabaseTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> null);
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -111,17 +157,19 @@ public class WebhookControllerDatabaseTest {
         }
     }
 
-    @Test public void personalNotificationsRequireTheSharedPermissionAndTheActualReceivingSwitch() throws Exception {
+    @Test
+    public void personalNotificationsRequireTheSharedPermissionAndTheActualReceivingSwitch() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             var config = new WebhookConfigRequest();
             config.setEnabled(true);
             new WebhookService(
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            ApplicationServicesFixture.websiteCache(db.dataSource()))
+                    ApplicationServicesFixture.messages(db.dataSource()),
+                    ApplicationServicesFixture.websiteCache(db.dataSource()))
                     .updateConfig(config);
             var identity = new OAuthModels.Identity();
-            identity.permissionMode = "custom"; identity.permissions = java.util.List.of("notification.create");
+            identity.permissionMode = "custom";
+            identity.permissions = java.util.List.of("notification.create");
             DelegatedAccess.withPermissions(
                     java.util.Set.copyOf(identity.permissions),
                     "inherit".equals(identity.permissionMode),
@@ -129,42 +177,42 @@ public class WebhookControllerDatabaseTest {
                         assertEquals(
                                 "server.webhook.message.deployed",
                                 controller(
-                                                HttpMethod.POST,
-                                                Map.of(),
-                                                Map.of(),
-                                                "{\"title\":\"Deployed\",\"taskKey\":\"deployed\"}", db.dataSource())
+                                        HttpMethod.POST,
+                                        Map.of(),
+                                        Map.of(),
+                                        "{\"title\":\"Deployed\",\"taskKey\":\"deployed\"}", db.dataSource())
                                         .messageCenterNotice()
                                         .getData()
                                         .getTaskKey());
                         config.setEnabled(false);
                         new WebhookService(
-                                        ApplicationServicesFixture.messages(db.dataSource()),
-                                        ApplicationServicesFixture.websiteCache(db.dataSource()))
+                                ApplicationServicesFixture.messages(db.dataSource()),
+                                ApplicationServicesFixture.websiteCache(db.dataSource()))
                                 .updateConfig(config);
                         assertThrows(
                                 PermissionErrorException.class,
                                 () ->
                                         controller(
-                                                        HttpMethod.POST,
-                                                        Map.of(),
-                                                        Map.of(),
-                                                        "{\"title\":\"Blocked\"}", db.dataSource())
+                                                HttpMethod.POST,
+                                                Map.of(),
+                                                Map.of(),
+                                                "{\"title\":\"Blocked\"}", db.dataSource())
                                                 .messageCenterNotice());
                         return null;
                     });
             assertFalse(
                     new FeatureLabService(
-                                    () -> true,
-                                    new WebhookService(
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    () -> new WebSite(db.dataSource()))
+                            () -> true,
+                            new WebhookService(
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    ApplicationServicesFixture.websiteCache(db.dataSource())),
+                            () -> new WebSite(db.dataSource()))
                             .featureLab()
                             .getFeature_webhook_enabled());
             config.setEnabled(true);
             new WebhookService(
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            ApplicationServicesFixture.websiteCache(db.dataSource()))
+                    ApplicationServicesFixture.messages(db.dataSource()),
+                    ApplicationServicesFixture.websiteCache(db.dataSource()))
                     .updateConfig(config);
             identity.permissions = java.util.List.of("article.read");
             DelegatedAccess.withPermissions(
@@ -175,10 +223,10 @@ public class WebhookControllerDatabaseTest {
                                 PermissionErrorException.class,
                                 () ->
                                         controller(
-                                                        HttpMethod.POST,
-                                                        Map.of(),
-                                                        Map.of(),
-                                                        "{\"title\":\"Blocked\"}", db.dataSource())
+                                                HttpMethod.POST,
+                                                Map.of(),
+                                                Map.of(),
+                                                "{\"title\":\"Blocked\"}", db.dataSource())
                                                 .messageCenterNotice());
                         return null;
                     });
@@ -186,7 +234,7 @@ public class WebhookControllerDatabaseTest {
     }
 
     private WebhookController controller(HttpMethod method, Map<String, String> headers,
-                                                Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
+                                         Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         WebhookController controller =
                 new WebhookController(
                         new AdminPageDataFactory(
@@ -205,55 +253,5 @@ public class WebhookControllerDatabaseTest {
         responseField.setAccessible(true);
         responseField.set(controller, response());
         return controller;
-    }
-
-    private static HttpRequest request(HttpMethod httpMethod, Map<String, String> headers,
-                                       Map<String, String> params, String body) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                WebhookControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getMethod":
-                            return httpMethod;
-                        case "getInputStream":
-                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                        case "getParaToStr":
-                            if (args.length == 2) {
-                                return params.getOrDefault(args[0].toString(), args[1].toString());
-                            }
-                            return params.get(args[0].toString());
-                        case "getHeader":
-                            if (headers.containsKey(args[0].toString())) {
-                                return headers.get(args[0].toString());
-                            }
-                            if ("Host".equals(args[0])) {
-                                return "localhost:18080";
-                            }
-                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getContextPath":
-                            return "/";
-                        case "getUri":
-                            return "/api/admin/webhook";
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
-    }
-
-    private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                WebhookControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
     }
 }

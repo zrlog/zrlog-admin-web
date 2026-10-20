@@ -1,14 +1,21 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.JsonObject;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 public final class KnowledgeModels {
-    private KnowledgeModels() { }
+    private KnowledgeModels() {
+    }
+
     public static class Options {
         public boolean allArticles;
         public boolean drafts;
         public boolean privateArticles;
+
         public Set<String> scopes() {
             Set<String> result = new LinkedHashSet<>(Set.of("articles:read"));
             if (allArticles) result.add("articles:all");
@@ -17,6 +24,7 @@ public final class KnowledgeModels {
             return result;
         }
     }
+
     public static class Source {
         public long id;
         public String title;
@@ -25,11 +33,16 @@ public final class KnowledgeModels {
         public boolean privateArticle;
         public String updatedAt;
     }
-    public static class SearchHit extends Source { public String excerpt; }
+
+    public static class SearchHit extends Source {
+        public String excerpt;
+    }
+
     public static class SearchResult {
         public List<SearchHit> articles = new ArrayList<>();
         public Integer nextOffset;
     }
+
     public static class ArticleResult {
         public Source source;
         public String content;
@@ -37,12 +50,14 @@ public final class KnowledgeModels {
         public int offset;
         public Integer nextOffset;
     }
+
     public static class Tool {
         public String name;
         public String description;
         public JsonObject inputSchema;
         public Annotations annotations = new Annotations();
     }
+
     public static class Annotations {
         public String title;
         public boolean readOnlyHint = true;
@@ -50,11 +65,19 @@ public final class KnowledgeModels {
         public boolean idempotentHint = true;
         public boolean openWorldHint = false;
     }
+
     public static class ToolError {
         public String error;
         public String code;
-        public ToolError(String error) { this.error = error; }
-        public ToolError(String error, String code) { this.error = error; this.code = code; }
+
+        public ToolError(String error) {
+            this.error = error;
+        }
+
+        public ToolError(String error, String code) {
+            this.error = error;
+            this.code = code;
+        }
     }
 
 }

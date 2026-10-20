@@ -1,13 +1,13 @@
-import { useUiApp } from "@zrlog/ui/feedback";
-import { Card, Empty } from "antd";
-import { AxiosInstance } from "axios";
-import { FunctionComponent, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { InteractiveSurfaceView } from "../../common/plugin-surface";
-import { InteractiveSurface } from "../../common/plugin-surface/types";
+import {useUiApp} from "@zrlog/ui/feedback";
+import {Card, Empty} from "antd";
+import {AxiosInstance} from "axios";
+import {FunctionComponent, useMemo} from "react";
+import {useNavigate} from "react-router-dom";
+import {InteractiveSurfaceView} from "../../common/plugin-surface";
+import {InteractiveSurface} from "../../common/plugin-surface/types";
 import PluginFrame from "../../common/PluginFrame";
-import { getBackendServerUrl, getRealRouteUrl, getRes } from "../../utils/constants";
-import { AdminDashboardPluginPanelConfig } from "../../type";
+import {getBackendServerUrl, getRealRouteUrl, getRes} from "../../utils/constants";
+import {AdminDashboardPluginPanelConfig} from "../../type";
 
 const normalizePath = (path: string) => path.replace(/^\/+/, "");
 
@@ -49,8 +49,8 @@ const surfaceLoadStatus = (panel: AdminDashboardPluginPanelConfig) => {
 const PluginSurfacePanels: FunctionComponent<{
     axiosInstance: AxiosInstance;
     panels: AdminDashboardPluginPanelConfig[];
-}> = ({ axiosInstance, panels }) => {
-    const { message } = useUiApp();
+}> = ({axiosInstance, panels}) => {
+    const {message} = useUiApp();
     const navigate = useNavigate();
     const res = getRes().index.pluginPanels;
 
@@ -97,7 +97,7 @@ const PluginSurfacePanels: FunctionComponent<{
                     style={{
                         overflow: "hidden",
                     }}
-                    styles={{ body: { padding: panel.type === "view" ? 0 : 20 } }}
+                    styles={{body: {padding: panel.type === "view" ? 0 : 20}}}
                 >
                     {panel.type === "view" ? (
                         panel.pluginName || panel.viewUrl ? (
@@ -114,7 +114,7 @@ const PluginSurfacePanels: FunctionComponent<{
                                 enableAdminRouteBridge={enablePanelRouteBridge(panel)}
                             />
                         ) : (
-                            <Empty description={res.empty} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                            <Empty description={res.empty} image={Empty.PRESENTED_IMAGE_SIMPLE}/>
                         )
                     ) : panel.surfaceUrl && panel.actionUrl ? (
                         <InteractiveSurfaceView
@@ -132,7 +132,7 @@ const PluginSurfacePanels: FunctionComponent<{
                             onOpenView={(view, url) => openPluginView(panel, view, url)}
                         />
                     ) : (
-                        <Empty description={res.empty} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        <Empty description={res.empty} image={Empty.PRESENTED_IMAGE_SIMPLE}/>
                     )}
                 </Card>
             ))}

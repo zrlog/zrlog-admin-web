@@ -1,19 +1,20 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+
 public class OAuthAdminOriginTest {
     private static final String SETTING = "admin_static_resource_base_url";
+
     private static OAuthService service(DataSourceWrapper source) {
         var accounts = AccountServicesFixture.component(source);
         return new OAuthService(
@@ -26,7 +27,8 @@ public class OAuthAdminOriginTest {
                 accounts.backend());
     }
 
-    @Test public void onlyBackendOriginIsTrustedWithoutAConfiguredFrontend() throws Exception {
+    @Test
+    public void onlyBackendOriginIsTrustedWithoutAConfiguredFrontend() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             service.requireAdminOrigin("https://api.example");
@@ -37,7 +39,8 @@ public class OAuthAdminOriginTest {
         }
     }
 
-    @Test public void configuredFrontendPathsAndDefaultPortsDoNotChangeItsOrigin() throws Exception {
+    @Test
+    public void configuredFrontendPathsAndDefaultPortsDoNotChangeItsOrigin() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, " HTTPS://Admin.Example:443/assets/sub/ ");
@@ -52,7 +55,8 @@ public class OAuthAdminOriginTest {
         }
     }
 
-    @Test public void changedOrClearedConfigurationTakesEffectImmediately() throws Exception {
+    @Test
+    public void changedOrClearedConfigurationTakesEffectImmediately() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "https://admin.example");
@@ -66,7 +70,8 @@ public class OAuthAdminOriginTest {
         }
     }
 
-    @Test public void rejectsOtherOriginsAndMalformedBrowserHeaders() throws Exception {
+    @Test
+    public void rejectsOtherOriginsAndMalformedBrowserHeaders() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "https://admin.example/assets");
@@ -81,7 +86,8 @@ public class OAuthAdminOriginTest {
         }
     }
 
-    @Test public void malformedConfigurationNeverGrantsAdditionalTrust() throws Exception {
+    @Test
+    public void malformedConfigurationNeverGrantsAdditionalTrust() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             for (String url : List.of("/admin", "//admin.example", "http://admin.example",
@@ -95,7 +101,8 @@ public class OAuthAdminOriginTest {
         }
     }
 
-    @Test public void localDevelopmentStillRequiresTheConfiguredHostAndPort() throws Exception {
+    @Test
+    public void localDevelopmentStillRequiresTheConfiguredHostAndPort() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "http://localhost:3000/admin");

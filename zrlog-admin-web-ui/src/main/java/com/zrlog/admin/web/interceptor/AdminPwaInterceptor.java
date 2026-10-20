@@ -8,7 +8,6 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.business.service.TemplateInfoHelper;
-
 import jakarta.inject.Inject;
 
 import java.io.ByteArrayInputStream;

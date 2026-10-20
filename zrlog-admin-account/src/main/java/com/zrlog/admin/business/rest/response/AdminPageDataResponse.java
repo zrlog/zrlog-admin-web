@@ -13,10 +13,10 @@ import com.zrlog.common.rest.response.StandardResponse;
  */
 public class AdminPageDataResponse<T> extends StandardResponse {
     protected final String pageBuildId;
-    protected String documentTitle;
     protected final T data;
     protected final String systemNotification;
     protected final MessageCenterStatusResponse messageCenter;
+    protected String documentTitle;
 
     public AdminPageDataResponse(T data, String message, AdminPageMetadata metadata) {
         this.data = data;

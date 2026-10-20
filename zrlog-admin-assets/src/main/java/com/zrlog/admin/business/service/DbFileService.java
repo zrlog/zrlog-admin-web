@@ -9,13 +9,13 @@ import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.exception.NotImplementException;
 import com.zrlog.model.WebSite;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.*;
 
 public class DbFileService {
+    private static final String DB_FILE_PREFIX = "db_file";
     private final WebsiteKvService websiteKvService;
     private final jakarta.inject.Provider<WebSite> webSiteProvider;
 
@@ -25,8 +25,6 @@ public class DbFileService {
         this.websiteKvService = websiteKvService;
         this.webSiteProvider = webSiteProvider;
     }
-
-    private static final String DB_FILE_PREFIX = "db_file";
 
     public UploadFileResponse toDbFile(String key, byte[] bytes) throws SQLException {
         // DB 存储

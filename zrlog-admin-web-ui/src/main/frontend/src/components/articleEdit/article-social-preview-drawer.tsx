@@ -1,11 +1,11 @@
 import Tag from "@zrlog/ui/antd/Tag";
-import { Drawer, Empty, Grid, Space, theme, Typography } from "antd";
-import { FunctionComponent, RefObject } from "react";
-import { getRes } from "../../utils/constants";
-import { SocialPreview } from "./index.types";
+import {Drawer, Empty, Grid, Space, theme, Typography} from "antd";
+import {FunctionComponent, RefObject} from "react";
+import {getRes} from "../../utils/constants";
+import {SocialPreview} from "./index.types";
 import BackendImage from "../../common/BackendImage";
 
-const { Text, Title, Paragraph } = Typography;
+const {Text, Title, Paragraph} = Typography;
 
 type ArticleSocialPreviewDrawerProps = {
     preview?: SocialPreview;
@@ -26,12 +26,12 @@ const getHostText = (url?: string) => {
 };
 
 const ArticleSocialPreviewDrawer: FunctionComponent<ArticleSocialPreviewDrawerProps> = ({
-    preview,
-    containerRef,
-    open,
-    onOpenChange,
-}) => {
-    const { token } = theme.useToken();
+                                                                                            preview,
+                                                                                            containerRef,
+                                                                                            open,
+                                                                                            onOpenChange,
+                                                                                        }) => {
+    const {token} = theme.useToken();
     const screens = Grid.useBreakpoint();
     const res = getRes().articleEdit.socialPreview;
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
@@ -46,7 +46,7 @@ const ArticleSocialPreviewDrawer: FunctionComponent<ArticleSocialPreviewDrawerPr
             getContainer={() => containerRef.current ?? document.body}
         >
             {preview ? (
-                <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                <Space direction="vertical" size={16} style={{width: "100%"}}>
                     <div
                         style={{
                             border,
@@ -60,7 +60,7 @@ const ArticleSocialPreviewDrawer: FunctionComponent<ArticleSocialPreviewDrawerPr
                                 src={preview.image}
                                 alt={res.imageAlt}
                                 preview={false}
-                                style={{ width: "100%", aspectRatio: "1.91 / 1", objectFit: "cover", display: "block" }}
+                                style={{width: "100%", aspectRatio: "1.91 / 1", objectFit: "cover", display: "block"}}
                             />
                         ) : (
                             <div
@@ -77,22 +77,22 @@ const ArticleSocialPreviewDrawer: FunctionComponent<ArticleSocialPreviewDrawerPr
                                 {res.noImage}
                             </div>
                         )}
-                        <div style={{ padding: token.paddingLG }}>
+                        <div style={{padding: token.paddingLG}}>
                             <Text
                                 type="secondary"
-                                style={{ display: "block", marginBottom: 8, textTransform: "uppercase" }}
+                                style={{display: "block", marginBottom: 8, textTransform: "uppercase"}}
                             >
                                 {getHostText(preview.url)}
                             </Text>
-                            <Title level={4} style={{ marginTop: 0, marginBottom: 8 }}>
+                            <Title level={4} style={{marginTop: 0, marginBottom: 8}}>
                                 {preview.title || res.untitled}
                             </Title>
-                            <Paragraph type="secondary" ellipsis={{ rows: 3 }} style={{ marginBottom: 0 }}>
+                            <Paragraph type="secondary" ellipsis={{rows: 3}} style={{marginBottom: 0}}>
                                 {preview.description || res.autoDescription}
                             </Paragraph>
                         </div>
                     </div>
-                    <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                    <Space direction="vertical" size={8} style={{width: "100%"}}>
                         <Space wrap>
                             <Tag color={preview.image ? "success" : "warning"}>
                                 {preview.image ? res.coverReady : res.coverMissing}
@@ -108,7 +108,7 @@ const ArticleSocialPreviewDrawer: FunctionComponent<ArticleSocialPreviewDrawerPr
                                 background: token.colorFillAlter,
                             }}
                         >
-                            <Space direction="vertical" size={6} style={{ width: "100%" }}>
+                            <Space direction="vertical" size={6} style={{width: "100%"}}>
                                 <Text>
                                     <Text type="secondary">og:title: </Text>
                                     {preview.title}
@@ -130,7 +130,7 @@ const ArticleSocialPreviewDrawer: FunctionComponent<ArticleSocialPreviewDrawerPr
                     </Space>
                 </Space>
             ) : (
-                <Empty description={res.empty} />
+                <Empty description={res.empty}/>
             )}
         </Drawer>
     );

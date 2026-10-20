@@ -2,22 +2,22 @@ import Tag from "@zrlog/ui/antd/Tag";
 import SuccessIcon from "@zrlog/ui/icons/success";
 import EyeIcon from "@zrlog/ui/icons/eye";
 import AppearanceIcon from "@zrlog/ui/icons/appearance";
-import { Card, Col, Space, Typography } from "antd";
+import {Card, Col, Space, Typography} from "antd";
 
-import { useState } from "react";
-import { useTheme } from "antd-style";
-import { getBackendServerUrl, getRes } from "../../utils/constants";
-import { getTemplatePreviewUrl } from "./template-model";
+import {useState} from "react";
+import {useTheme} from "antd-style";
+import {getBackendServerUrl, getRes} from "../../utils/constants";
+import type {TemplateEntry} from "./template-model";
+import {getTemplatePreviewUrl} from "./template-model";
 import TemplateActions from "./template-actions";
-import { TemplateAuthor, TemplateBadges } from "./template-details";
-import type { TemplateEntry } from "./template-model";
+import {TemplateAuthor, TemplateBadges} from "./template-details";
 
 const TemplateCard = ({
-    template,
-    onUpdate,
-    onConfigure,
-    selected = false,
-}: {
+                          template,
+                          onUpdate,
+                          onConfigure,
+                          selected = false,
+                      }: {
     template: TemplateEntry;
     onUpdate: () => void;
     onConfigure: (template: TemplateEntry) => void;
@@ -26,7 +26,7 @@ const TemplateCard = ({
     const theme = useTheme();
     const [imageFailed, setImageFailed] = useState(false);
     return (
-        <Col xs={24} md={12} xl={8} style={{ display: "flex" }}>
+        <Col xs={24} md={12} xl={8} style={{display: "flex"}}>
             <Card
                 style={{
                     width: "100%",
@@ -35,7 +35,7 @@ const TemplateCard = ({
                     flexDirection: "column",
                     borderColor: template.use || selected ? theme.colorPrimary : undefined,
                 }}
-                styles={{ body: { display: "flex", flexDirection: "column", flex: 1 } }}
+                styles={{body: {display: "flex", flexDirection: "column", flex: 1}}}
                 cover={
                     <div
                         style={{
@@ -59,7 +59,7 @@ const TemplateCard = ({
                                     color: theme.colorTextSecondary,
                                 }}
                             >
-                                <AppearanceIcon style={{ fontSize: theme.fontSizeHeading1 }} />
+                                <AppearanceIcon style={{fontSize: theme.fontSizeHeading1}}/>
                                 <Typography.Text type="secondary">{template.name}</Typography.Text>
                             </div>
                         ) : (
@@ -67,14 +67,14 @@ const TemplateCard = ({
                                 src={getTemplatePreviewUrl(template.adminPreviewImage, getBackendServerUrl())}
                                 alt={template.name}
                                 onError={() => setImageFailed(true)}
-                                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                                style={{width: "100%", height: "100%", objectFit: "contain", display: "block"}}
                             />
                         )}
                         {(template.use || template.preview) && (
                             <Tag
                                 color={template.use ? "success" : "processing"}
-                                icon={template.use ? <SuccessIcon /> : <EyeIcon />}
-                                style={{ position: "absolute", top: theme.paddingSM, left: theme.paddingSM }}
+                                icon={template.use ? <SuccessIcon/> : <EyeIcon/>}
+                                style={{position: "absolute", top: theme.paddingSM, left: theme.paddingSM}}
                             >
                                 {template.use ? getRes().templateConfig.inUse : getRes().templateConfig.inPreview}
                             </Tag>
@@ -82,7 +82,7 @@ const TemplateCard = ({
                     </div>
                 }
             >
-                <Space direction="vertical" size="middle" style={{ width: "100%", flex: 1 }}>
+                <Space direction="vertical" size="middle" style={{width: "100%", flex: 1}}>
                     <div
                         style={{
                             display: "flex",
@@ -91,25 +91,25 @@ const TemplateCard = ({
                             gap: theme.marginXS,
                         }}
                     >
-                        <Space wrap size="small" style={{ minWidth: 0 }}>
-                            <Typography.Title level={5} style={{ margin: 0, overflowWrap: "anywhere" }}>
+                        <Space wrap size="small" style={{minWidth: 0}}>
+                            <Typography.Title level={5} style={{margin: 0, overflowWrap: "anywhere"}}>
                                 {template.name}
                             </Typography.Title>
-                            <TemplateBadges template={template} status={false} />
+                            <TemplateBadges template={template} status={false}/>
                         </Space>
-                        <Typography.Text type="secondary" style={{ whiteSpace: "nowrap" }}>
+                        <Typography.Text type="secondary" style={{whiteSpace: "nowrap"}}>
                             v{template.version}
                         </Typography.Text>
                     </div>
                     <Typography.Paragraph
                         type="secondary"
-                        ellipsis={{ rows: 2, tooltip: template.digest }}
-                        style={{ margin: 0, minHeight: theme.fontSize * theme.lineHeight * 2 }}
+                        ellipsis={{rows: 2, tooltip: template.digest}}
+                        style={{margin: 0, minHeight: theme.fontSize * theme.lineHeight * 2}}
                     >
                         {template.digest}
                     </Typography.Paragraph>
                     <Space wrap size="small">
-                        <TemplateAuthor template={template} />
+                        <TemplateAuthor template={template}/>
                         {template.tags?.map((tag) => (
                             <Tag key={tag}>{tag}</Tag>
                         ))}
@@ -122,7 +122,7 @@ const TemplateCard = ({
                         borderTop: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
                     }}
                 >
-                    <TemplateActions template={template} onUpdate={onUpdate} onConfigure={onConfigure} />
+                    <TemplateActions template={template} onUpdate={onUpdate} onConfigure={onConfigure}/>
                 </div>
             </Card>
         </Col>

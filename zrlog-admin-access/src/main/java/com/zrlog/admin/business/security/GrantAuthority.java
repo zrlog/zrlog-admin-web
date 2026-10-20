@@ -4,7 +4,9 @@ import com.zrlog.data.security.AccountAccess;
 
 import java.util.Objects;
 
-/** Per-operation account and delegation ceiling supplied by the authenticated protocol boundary. */
+/**
+ * Per-operation account and delegation ceiling supplied by the authenticated protocol boundary.
+ */
 public final class GrantAuthority {
     private final AccountAccess actor;
     private final boolean permitsInheritance;
@@ -14,7 +16,11 @@ public final class GrantAuthority {
         this.permitsInheritance = permitsInheritance;
     }
 
-    public AccountAccess actor() { return actor; }
+    public AccountAccess actor() {
+        return actor;
+    }
 
-    public boolean permitsInheritance() { return permitsInheritance; }
+    public boolean permitsInheritance() {
+        return permitsInheritance;
+    }
 }

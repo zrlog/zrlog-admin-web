@@ -1,14 +1,14 @@
-import { Alert, Button, Descriptions, Space, Tooltip, Typography } from "antd";
+import {Alert, Button, Descriptions, Space, Tooltip, Typography} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import DatabaseIcon from "@zrlog/ui/icons/database";
 import RefreshIcon from "@zrlog/ui/icons/refresh";
 import SecurityIcon from "@zrlog/ui/icons/security";
-import { formatDateTime } from "../utils/date-time";
+import {formatDateTime} from "../utils/date-time";
 
-import { useTheme } from "antd-style";
-import { Link } from "react-router-dom";
-import { BackupProtectionStatus, UpgradeData } from "../type";
-import { getRealRouteUrl, getRes } from "../utils/constants";
+import {useTheme} from "antd-style";
+import {Link} from "react-router-dom";
+import {BackupProtectionStatus, UpgradeData} from "../type";
+import {getRealRouteUrl, getRes} from "../utils/constants";
 import {
     resolveBackupProtectionStatus,
     resolveUpgradeRuntimeModes,
@@ -26,14 +26,14 @@ type UpgradeReadinessProps = {
 };
 
 const UpgradeReadiness = ({
-    data,
-    onRefresh,
-    refreshing = false,
-    refreshDisabled = false,
-    refreshError,
-    checkedAt,
-    offline = false,
-}: UpgradeReadinessProps) => {
+                              data,
+                              onRefresh,
+                              refreshing = false,
+                              refreshDisabled = false,
+                              refreshError,
+                              checkedAt,
+                              offline = false,
+                          }: UpgradeReadinessProps) => {
     const theme = useTheme();
     const res = getRes().upgrade.maintenance;
     const backupRes = getRes().upgrade.backupProtection;
@@ -51,16 +51,16 @@ const UpgradeReadiness = ({
         verificationSuccess?: boolean,
         verificationMessage?: string
     ) => (
-        <Space direction="vertical" size={0} style={{ maxWidth: "100%", minWidth: 0 }}>
+        <Space direction="vertical" size={0} style={{maxWidth: "100%", minWidth: 0}}>
             <Typography.Text type="secondary">
                 {backupRes.time}: {formatEvidenceTime(timestamp)}
             </Typography.Text>
-            <Typography.Text style={{ wordBreak: "break-word" }}>
+            <Typography.Text style={{wordBreak: "break-word"}}>
                 {backupRes.file}: {file || backupRes.notAvailable}
             </Typography.Text>
-            <Typography.Text type="secondary" style={{ wordBreak: "break-all" }}>
+            <Typography.Text type="secondary" style={{wordBreak: "break-all"}}>
                 {backupRes.sha256}:{" "}
-                <span style={{ fontFamily: "monospace", fontSize: theme.fontSizeSM }}>
+                <span style={{fontFamily: "monospace", fontSize: theme.fontSizeSM}}>
                     {sha256 || backupRes.notAvailable}
                 </span>
             </Typography.Text>
@@ -73,7 +73,7 @@ const UpgradeReadiness = ({
                 </Space>
             )}
             {verificationMessage && (
-                <Typography.Text type="secondary" style={{ wordBreak: "break-word" }}>
+                <Typography.Text type="secondary" style={{wordBreak: "break-word"}}>
                     {backupRes.verificationDetail}: {verificationMessage}
                 </Typography.Text>
             )}
@@ -93,7 +93,7 @@ const UpgradeReadiness = ({
                     </Space>
                 }
                 description={
-                    <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                    <Space direction="vertical" size="small" style={{width: "100%"}}>
                         <Typography.Text>{backupRes.status[statusKey]}</Typography.Text>
                         <Typography.Text type="secondary">
                             {backupRes.recommendationLabel}: {backupRes.recommendation[statusKey]}
@@ -101,12 +101,12 @@ const UpgradeReadiness = ({
                         {offline ? (
                             <Tooltip title={res.offlineUnavailable}>
                                 <Typography.Text disabled role="link" aria-disabled="true" tabIndex={-1}>
-                                    <DatabaseIcon /> {res.manageBackups}
+                                    <DatabaseIcon/> {res.manageBackups}
                                 </Typography.Text>
                             </Tooltip>
                         ) : (
                             <Link to={getRealRouteUrl("/plugin?page=backup-sql-file/files")}>
-                                <DatabaseIcon /> {res.manageBackups}
+                                <DatabaseIcon/> {res.manageBackups}
                             </Link>
                         )}
                         <Descriptions size="small" column={1}>
@@ -130,7 +130,7 @@ const UpgradeReadiness = ({
     };
 
     return (
-        <section aria-label={res.title} aria-busy={refreshing} style={{ marginTop: theme.marginLG }}>
+        <section aria-label={res.title} aria-busy={refreshing} style={{marginTop: theme.marginLG}}>
             <div
                 style={{
                     alignItems: "center",
@@ -140,14 +140,14 @@ const UpgradeReadiness = ({
                     marginBottom: theme.marginSM,
                 }}
             >
-                <SecurityIcon />
+                <SecurityIcon/>
                 <Typography.Text strong>{res.title}</Typography.Text>
                 <Tooltip title={offline ? res.offlineUnavailable : res.refresh}>
                     <span>
                         <Button
                             type="text"
                             size="small"
-                            icon={<RefreshIcon />}
+                            icon={<RefreshIcon/>}
                             aria-label={res.refresh}
                             loading={refreshing}
                             disabled={refreshUnavailable}
@@ -159,7 +159,7 @@ const UpgradeReadiness = ({
             {hasCheckedDate && (
                 <Typography.Paragraph
                     type="secondary"
-                    style={{ fontSize: theme.fontSizeSM, marginBottom: theme.marginSM }}
+                    style={{fontSize: theme.fontSizeSM, marginBottom: theme.marginSM}}
                 >
                     {res.lastChecked}: <time dateTime={checkedDate.toISOString()}>{formatDateTime(checkedDate)}</time>
                 </Typography.Paragraph>
@@ -170,19 +170,19 @@ const UpgradeReadiness = ({
                     role="alert"
                     showIcon
                     message={refreshError}
-                    style={{ marginBottom: theme.marginSM, overflowWrap: "anywhere" }}
+                    style={{marginBottom: theme.marginSM, overflowWrap: "anywhere"}}
                 />
             )}
             <Descriptions
                 size="small"
                 layout="vertical"
-                column={{ xs: 1, sm: 2 }}
-                style={{ marginBottom: theme.marginSM }}
+                column={{xs: 1, sm: 2}}
+                style={{marginBottom: theme.marginSM}}
             >
                 <Descriptions.Item label={res.runtime}>
-                    <Space size={theme.marginXS} wrap style={{ width: "max-content", maxWidth: "100%" }}>
+                    <Space size={theme.marginXS} wrap style={{width: "max-content", maxWidth: "100%"}}>
                         {resolveUpgradeRuntimeModes(data).map((mode) => (
-                            <Tag key={mode} style={{ marginInlineEnd: 0 }}>
+                            <Tag key={mode} style={{marginInlineEnd: 0}}>
                                 {runtimeModeLabels[mode]}
                             </Tag>
                         ))}

@@ -8,14 +8,6 @@ public class UserInfoResponse {
     private Integer userId;
     private String role;
     private java.util.List<String> actions;
-    public java.util.List<String> getActions() { return actions; }
-    public Integer getUserId() { return userId; }
-    public void setUserId(Integer userId) { this.userId = userId; }
-    public String getRole() { return role; }
-    public void setRole(String role) {
-        this.role = role;
-        this.actions = java.util.Arrays.stream(com.zrlog.data.security.AccountAction.values()).filter(a -> a.getRoles().contains(role)).map(com.zrlog.data.security.AccountAction::getId).collect(java.util.stream.Collectors.toList());
-    }
     private String userName;
     private String header;
     private String key;
@@ -23,25 +15,54 @@ public class UserInfoResponse {
     private boolean mfaEnabled;
     private String language;
     private UserPreferences.Appearance appearance;
-
-    public String getLanguage() { return language; }
-    public void setLanguage(String language) { this.language = language; }
-    public UserPreferences.Appearance getAppearance() { return appearance; }
-    public void setAppearance(UserPreferences.Appearance appearance) { this.appearance = appearance; }
-
     public UserInfoResponse() {
     }
-
     public UserInfoResponse(String userName, String header, String key, CheckVersionResponse lastVersion) {
         this(userName, header, key, lastVersion, false);
     }
-
     public UserInfoResponse(String userName, String header, String key, CheckVersionResponse lastVersion, boolean mfaEnabled) {
         this.userName = userName;
         this.header = header;
         this.key = key;
         this.lastVersion = lastVersion;
         this.mfaEnabled = mfaEnabled;
+    }
+
+    public java.util.List<String> getActions() {
+        return actions;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+        this.actions = java.util.Arrays.stream(com.zrlog.data.security.AccountAction.values()).filter(a -> a.getRoles().contains(role)).map(com.zrlog.data.security.AccountAction::getId).collect(java.util.stream.Collectors.toList());
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public UserPreferences.Appearance getAppearance() {
+        return appearance;
+    }
+
+    public void setAppearance(UserPreferences.Appearance appearance) {
+        this.appearance = appearance;
     }
 
     public String getUserName() {

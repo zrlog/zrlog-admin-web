@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -15,11 +14,11 @@ import com.zrlog.admin.business.service.BlogNavService;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
-
 import jakarta.inject.Inject;
 
 import java.io.IOException;
@@ -27,20 +26,17 @@ import java.sql.SQLException;
 
 public class BlogNavController extends BaseController {
     private final AdminRequestIdentity requestIdentity;
-
+    private final AdminPageDataFactory pages;
+    private final BlogNavService blogNavService;
 
     @Inject
     public BlogNavController(AdminPageDataFactory pages, BlogNavService blogNavService,
-            AdminRequestIdentity requestIdentity) {
+                             AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.blogNavService = blogNavService;
 
         this.pages = pages;
     }
-
-    private final AdminPageDataFactory pages;
-
-    private final BlogNavService blogNavService;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

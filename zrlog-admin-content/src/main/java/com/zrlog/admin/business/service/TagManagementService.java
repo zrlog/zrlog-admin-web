@@ -12,22 +12,14 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.TagDTO;
 import com.zrlog.model.Log;
 import com.zrlog.model.Tag;
-
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class TagManagementService {
+    private static final int PREVIEW_LIMIT = 10;
     private final jakarta.inject.Provider<Log> logProvider;
     private final jakarta.inject.Provider<Tag> tagProvider;
 
@@ -38,8 +30,6 @@ public class TagManagementService {
         this.tagProvider = tagProvider;
     }
 
-    private static final int PREVIEW_LIMIT = 10;
-
     public PageData<TagManagementEntryResponse> find(String homeUrl, PageRequest pageRequest, String key, boolean staticHtml) throws SQLException {
         List<TagManagementEntryResponse> allTags =
                 this.tagProvider.get().findAll().stream()
@@ -47,8 +37,8 @@ public class TagManagementService {
                                 tag ->
                                         StringUtils.isEmpty(key)
                                                 || tag.getText()
-                                                        .toLowerCase(Locale.ROOT)
-                                                        .contains(key.toLowerCase(Locale.ROOT)))
+                                                .toLowerCase(Locale.ROOT)
+                                                .contains(key.toLowerCase(Locale.ROOT)))
                         .sorted(
                                 Comparator.comparing(
                                                 (TagDTO tag) ->

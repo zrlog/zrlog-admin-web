@@ -1,10 +1,10 @@
-import { theme as antdTheme } from "antd";
-import { FunctionComponent } from "react";
+import {theme as antdTheme} from "antd";
+import {FunctionComponent} from "react";
 
 // Mounted only by the default theme. Shell overrides use a dedicated scope so
 // switching to Desk / Ant Design also removes all Material presentation.
 const DefaultGlobalStyle: FunctionComponent = () => {
-    const { token: t } = antdTheme.useToken();
+    const {token: t} = antdTheme.useToken();
     return (
         <>
             <style data-admin-material-style>

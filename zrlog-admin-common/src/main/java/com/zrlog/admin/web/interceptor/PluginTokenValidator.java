@@ -10,7 +10,9 @@ import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/** Shared authentication for requests from the running plugin-core process. */
+/**
+ * Shared authentication for requests from the running plugin-core process.
+ */
 public final class PluginTokenValidator {
     private final Supplier<PluginCorePlugin> pluginCore;
 

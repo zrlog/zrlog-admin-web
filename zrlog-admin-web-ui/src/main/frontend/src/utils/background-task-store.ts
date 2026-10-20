@@ -164,7 +164,7 @@ export const getBackgroundTasks = () => {
 export const createBackgroundTask = (title: string, description?: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const now = Date.now();
-    tasks = [{ id, title, description, status: "running", createdAt: now, updatedAt: now }, ...tasks];
+    tasks = [{id, title, description, status: "running", createdAt: now, updatedAt: now}, ...tasks];
     trimTasks();
     emit();
     return id;

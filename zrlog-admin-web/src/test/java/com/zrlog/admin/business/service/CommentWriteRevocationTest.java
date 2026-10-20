@@ -1,17 +1,16 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.*;
-
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-
 import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.*;
 
 public class CommentWriteRevocationTest {
     @Test
@@ -32,10 +31,17 @@ public class CommentWriteRevocationTest {
                     });
                     assertThrows(operation + ": " + revocation, PermissionErrorException.class, () -> {
                         switch (operation) {
-                            case "read": service.read(actor, CommentActorBoundaryTest.read(1)); break;
-                            case "readAll": service.readAll(actor); break;
-                            case "delete": service.delete(actor, new String[]{"1", "3"}); break;
-                            default: throw new AssertionError(operation);
+                            case "read":
+                                service.read(actor, CommentActorBoundaryTest.read(1));
+                                break;
+                            case "readAll":
+                                service.readAll(actor);
+                                break;
+                            case "delete":
+                                service.delete(actor, new String[]{"1", "3"});
+                                break;
+                            default:
+                                throw new AssertionError(operation);
                         }
                     });
                     assertTrue(revoked.get());

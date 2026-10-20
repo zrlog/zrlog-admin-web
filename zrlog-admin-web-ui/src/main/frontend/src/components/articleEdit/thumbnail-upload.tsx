@@ -1,15 +1,15 @@
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import CameraIcon from "@zrlog/ui/icons/camera";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import LoadingIcon from "@zrlog/ui/icons/loading";
-import { FunctionComponent, ReactNode, useState } from "react";
-import { getRes } from "../../utils/constants";
-import { Typography } from "antd";
+import {FunctionComponent, ReactNode, useState} from "react";
+import {getRes} from "../../utils/constants";
+import {Typography} from "antd";
 import ResourceDragger from "../../common/ResourceDragger";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { useTheme } from "antd-style";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {useTheme} from "antd-style";
 import BackendImage from "../../common/BackendImage";
-import { colorToRgba } from "../../layout/slider";
+import {colorToRgba} from "../../layout/slider";
 
 type ThumbnailUploadProps = {
     onChange?: (e: string) => void;
@@ -20,15 +20,15 @@ type ThumbnailUploadProps = {
 };
 
 const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
-    onChange,
-    thumbnail,
-    getContainer,
-    aspectRatio,
-    title,
-}) => {
+                                                                      onChange,
+                                                                      thumbnail,
+                                                                      getContainer,
+                                                                      aspectRatio,
+                                                                      title,
+                                                                  }) => {
     const [uploading, setUploading] = useState<boolean>(false);
 
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
 
     const axiosInstance = useAxiosBaseInstance(getContainer);
 
@@ -37,7 +37,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
     return (
         <ResourceDragger
             axiosInstance={axiosInstance}
-            onSuccess={({ data }) => {
+            onSuccess={({data}) => {
                 setUploading(false);
                 if (onChange) {
                     onChange(data.url);
@@ -53,10 +53,10 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
             }}
             getContainer={getContainer}
             accept={"image/*"}
-            style={{ overflow: "hidden", height: "100%" }}
+            style={{overflow: "hidden", height: "100%"}}
             bodyAspectRatio={aspectRatio}
             cardSize="default"
-            cardStyle={{ width: "100%" }}
+            cardStyle={{width: "100%"}}
             type={"thumbnail"}
             title={title}
             resourcePicker={{
@@ -80,7 +80,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             alignItems: "center",
                         }}
                     >
-                        <CameraIcon style={{ fontSize: 28, color: theme.colorTextSecondary }} />
+                        <CameraIcon style={{fontSize: 28, color: theme.colorTextSecondary}}/>
                     </p>
                     <Typography
                         style={{
@@ -88,14 +88,14 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             fontSize: "var(--ant-font-size-lg)",
                         }}
                     >
-                        {uploading && <LoadingIcon />} {getRes().articleEdit.upload.tips}
+                        {uploading && <LoadingIcon/>} {getRes().articleEdit.upload.tips}
                     </Typography>
                 </>
             )}
             {thumbnail != null && thumbnail !== "" && (
-                <div style={{ position: "relative" }}>
+                <div style={{position: "relative"}}>
                     <BackendImage
-                        style={{ borderRadius: 0, position: "relative", aspectRatio, objectFit: "cover" }}
+                        style={{borderRadius: 0, position: "relative", aspectRatio, objectFit: "cover"}}
                         width="100%"
                         preview={false}
                         id="thumbnail"
@@ -119,7 +119,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             e.stopPropagation();
                         }}
                     >
-                        <DeleteIcon selected />
+                        <DeleteIcon selected/>
                     </div>
                 </div>
             )}

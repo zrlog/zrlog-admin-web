@@ -1,22 +1,11 @@
 package com.zrlog.admin.business.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
-import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
-import com.zrlog.admin.business.rest.response.WebhookConfigEntry;
-import com.zrlog.admin.business.rest.response.WebhookConfigResponse;
-import com.zrlog.admin.business.rest.response.WebhookMessageNoticeCreateResponse;
-import com.zrlog.admin.business.rest.response.WebhookMessageNoticeEntry;
-import com.zrlog.admin.business.rest.response.WebhookTokenResponse;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.model.WebSite;
-
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -26,7 +15,68 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.*;
+
 public class WebhookServiceTest {
+
+    private static List<WebhookMessageNoticeEntry> notices(int count) {
+        List<WebhookMessageNoticeEntry> notices = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            WebhookMessageNoticeEntry notice = new WebhookMessageNoticeEntry();
+            notice.setTaskKey("task-" + i);
+            notice.setUpdatedAt((long) i);
+            notices.add(notice);
+        }
+        return notices;
+    }
+
+    private static WebhookService newService() throws Exception {
+        return allocate(WebhookService.class);
+    }
+
+    private static WebhookService newService(FakeWebsiteCacheService cacheService,
+                                             FakeMessageCenterStateService stateService) throws Exception {
+        WebhookService service = newService();
+        setField(service, "cacheService", cacheService);
+        setField(service, "messageCenterStateService", stateService);
+        return service;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T allocate(Class<T> type) throws Exception {
+        return (T) unsafe().allocateInstance(type);
+    }
+
+    private static sun.misc.Unsafe unsafe() throws Exception {
+        Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        field.setAccessible(true);
+        return (sun.misc.Unsafe) field.get(null);
+    }
+
+    private static void setField(Object target, String name, Object value) throws Exception {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            try {
+                Field field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                field.set(target, value);
+                return;
+            } catch (NoSuchFieldException e) {
+                type = type.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException(name);
+    }
+
+    private static FakeWebsiteCacheService fakeCache() throws Exception {
+        FakeWebsiteCacheService cache = allocate(FakeWebsiteCacheService.class);
+        setField(cache, "values", new HashMap<String, Object>());
+        return cache;
+    }
+
+    private static FakeMessageCenterStateService fakeState() throws Exception {
+        return allocate(FakeMessageCenterStateService.class);
+    }
 
     @Test
     public void shouldNormalizeWebhookTaskKeys() throws Exception {
@@ -161,65 +211,6 @@ public class WebhookServiceTest {
         assertFalse(service.markMessageCenterNoticeRead("missing"));
     }
 
-    private static List<WebhookMessageNoticeEntry> notices(int count) {
-        List<WebhookMessageNoticeEntry> notices = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            WebhookMessageNoticeEntry notice = new WebhookMessageNoticeEntry();
-            notice.setTaskKey("task-" + i);
-            notice.setUpdatedAt((long) i);
-            notices.add(notice);
-        }
-        return notices;
-    }
-
-    private static WebhookService newService() throws Exception {
-        return allocate(WebhookService.class);
-    }
-
-    private static WebhookService newService(FakeWebsiteCacheService cacheService,
-                                             FakeMessageCenterStateService stateService) throws Exception {
-        WebhookService service = newService();
-        setField(service, "cacheService", cacheService);
-        setField(service, "messageCenterStateService", stateService);
-        return service;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T allocate(Class<T> type) throws Exception {
-        return (T) unsafe().allocateInstance(type);
-    }
-
-    private static sun.misc.Unsafe unsafe() throws Exception {
-        Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-        field.setAccessible(true);
-        return (sun.misc.Unsafe) field.get(null);
-    }
-
-    private static void setField(Object target, String name, Object value) throws Exception {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Field field = type.getDeclaredField(name);
-                field.setAccessible(true);
-                field.set(target, value);
-                return;
-            } catch (NoSuchFieldException e) {
-                type = type.getSuperclass();
-            }
-        }
-        throw new NoSuchFieldException(name);
-    }
-
-    private static FakeWebsiteCacheService fakeCache() throws Exception {
-        FakeWebsiteCacheService cache = allocate(FakeWebsiteCacheService.class);
-        setField(cache, "values", new HashMap<String, Object>());
-        return cache;
-    }
-
-    private static FakeMessageCenterStateService fakeState() throws Exception {
-        return allocate(FakeMessageCenterStateService.class);
-    }
-
     private static class FakeWebsiteCacheService extends WebsiteCacheService {
 
         private Map<String, Object> values;
@@ -253,12 +244,11 @@ public class WebhookServiceTest {
 
     private static class FakeMessageCenterStateService extends MessageCenterStateService {
 
+        private boolean changed;
+        private boolean mayHaveUnread;
         FakeMessageCenterStateService(DataSourceWrapper testDataSource) {
             super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSite(testDataSource));
         }
-
-        private boolean changed;
-        private boolean mayHaveUnread;
 
         @Override
         public void markChanged() {

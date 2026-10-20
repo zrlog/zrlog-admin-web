@@ -1,5 +1,5 @@
-import { parseJsonSseEvent, readJsonSseStream } from "@zrlog/utils";
-import type { SseEvent as SharedSseEvent } from "@zrlog/utils";
+import type {SseEvent as SharedSseEvent} from "@zrlog/utils";
+import {parseJsonSseEvent, readJsonSseStream} from "@zrlog/utils";
 import {MessageInstance} from "antd/es/message/interface";
 import {formatLabelValue, getBackendServerUrl, getRes, isStaticPage} from "./constants";
 import {
@@ -8,7 +8,7 @@ import {
     removeBackgroundTask,
     updateBackgroundTask,
 } from "./background-task-store";
-import {buildBackgroundTaskResult, type BackgroundTaskResult} from "./background-task-result";
+import {type BackgroundTaskResult, buildBackgroundTaskResult} from "./background-task-result";
 
 export type StaticProgress = {
     total?: number;
@@ -185,7 +185,10 @@ const requestRefreshCacheSse = async <T>(uri: string, method: "GET" | "POST", op
         return data;
     }
     if (options.resolveWhenStarted) {
-        consumeRefreshCacheSse(response, { ...options, backgroundTaskTitle: undefined }, undefined, undefined, backgroundTaskId).catch(
+        consumeRefreshCacheSse(response, {
+            ...options,
+            backgroundTaskTitle: undefined
+        }, undefined, undefined, backgroundTaskId).catch(
             () => {
                 // background consume errors are already surfaced through UI.
             }

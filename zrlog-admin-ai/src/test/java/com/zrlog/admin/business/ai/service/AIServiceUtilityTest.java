@@ -1,17 +1,22 @@
 package com.zrlog.admin.business.ai.service;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.common.exception.ArgsException;
-
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
 
+import static org.junit.Assert.*;
+
 public class AIServiceUtilityTest {
+
+    private static String repeat(String value, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(value);
+        }
+        return sb.toString();
+    }
 
     @Test
     public void shouldResolveImageSizeExtensionMimeAndDataUrl() {
@@ -81,13 +86,5 @@ public class AIServiceUtilityTest {
         assertEquals(AIWritingSkillService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));
         assertEquals("short", service.truncateContext("short"));
         assertEquals(500, service.truncateContext(repeat("a", 550)).length());
-    }
-
-    private static String repeat(String value, int count) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < count; i++) {
-            sb.append(value);
-        }
-        return sb.toString();
     }
 }

@@ -1,7 +1,7 @@
-import { AxiosInstance } from "axios";
-import { ApiResponse } from "../../type";
-import { postRefreshCacheSse } from "../../utils/sse-utils";
-import { MessageInstance } from "antd/es/message/interface";
+import {AxiosInstance} from "axios";
+import {ApiResponse} from "../../type";
+import {postRefreshCacheSse} from "../../utils/sse-utils";
+import {MessageInstance} from "antd/es/message/interface";
 
 export type ArticlePinningEntry = {
     logId: number;
@@ -70,7 +70,7 @@ export const finishArticlePinningRequest = (guard: ArticlePinningRequestGuard) =
 };
 
 export const loadArticlePinning = async (axiosInstance: AxiosInstance) => {
-    const { data } = await axiosInstance.get<ApiResponse<ArticlePinningData>>(API_PATH);
+    const {data} = await axiosInstance.get<ApiResponse<ArticlePinningData>>(API_PATH);
     return data;
 };
 
@@ -86,7 +86,7 @@ export const updateArticlePinning = (
     postRefreshCacheSse<ApiResponse<ArticlePinningData>>(`${API_PATH}/${action}`, {
         body: {
             logId,
-            ...(options.direction ? { direction: options.direction } : {}),
+            ...(options.direction ? {direction: options.direction} : {}),
         },
         messageApi: options.messageApi,
         messageKey: "articlePinningRefreshCache",

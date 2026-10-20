@@ -1,9 +1,9 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
@@ -14,10 +14,9 @@ import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.MarkdownRenderer;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.exception.DAOException;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -30,11 +29,9 @@ import java.util.logging.Logger;
 
 @Singleton
 public class ArticlePublishingService {
+    private static final Logger LOGGER = LoggerUtil.getLogger(ArticlePublishingService.class);
     private final AdminAuditService adminAuditService;
     private final MessageCenterOperationService messageCenterOperationService;
-
-    private static final Logger LOGGER = LoggerUtil.getLogger(ArticlePublishingService.class);
-
     private final AdminArticleService articleService;
     private final ArticleQueryService queries;
 

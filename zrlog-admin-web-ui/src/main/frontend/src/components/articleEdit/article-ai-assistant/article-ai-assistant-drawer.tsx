@@ -1,20 +1,20 @@
-import { useUiApp } from "@zrlog/ui/feedback";
+import {useUiApp} from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import DownloadIcon from "@zrlog/ui/icons/download";
 import ChevronDownIcon from "@zrlog/ui/icons/chevron-down";
-import { Button, Drawer, Dropdown, Typography } from "antd";
+import {Button, Drawer, Dropdown, Typography} from "antd";
 
-import { useEffect, useRef, useState } from "react";
-import { useTheme } from "antd-style";
+import {useEffect, useRef, useState} from "react";
+import {useTheme} from "antd-style";
 import AIContentItem from "@zrlog/editor/core/ai/AIContentItem";
 import AIIcon from "../../../icons/AIProviderIcon";
-import { AIStateCache, getAIStateCacheKey } from "@zrlog/editor/dist/ai/AIStateCache";
-import { getAppState } from "../../../base/ConfigProviderApp";
-import { getRes } from "../../../utils/constants";
-import { getEditorUser } from "../../../utils/helpers";
-import { ArticleEditState } from "../index.types";
+import {AIStateCache, getAIStateCacheKey} from "@zrlog/editor/dist/ai/AIStateCache";
+import {getAppState} from "../../../base/ConfigProviderApp";
+import {getRes} from "../../../utils/constants";
+import {getEditorUser} from "../../../utils/helpers";
+import {ArticleEditState} from "../index.types";
 import useArticleEditorScreens from "../use-article-editor-screens";
-import type { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
+import type {useArticleAiAssistantConfig} from "./article-ai-assistant-button";
 
 type Props = {
     data: ArticleEditState;
@@ -28,16 +28,16 @@ type Props = {
 };
 
 export default function ArticleAiAssistantDrawer({
-    data,
-    config,
-    open,
-    onClose,
-    getContainer,
-    width,
-    onSizeChange,
-    stateCache,
-}: Props) {
-    const { modal } = useUiApp();
+                                                     data,
+                                                     config,
+                                                     open,
+                                                     onClose,
+                                                     getContainer,
+                                                     width,
+                                                     onSizeChange,
+                                                     stateCache,
+                                                 }: Props) {
+    const {modal} = useUiApp();
     const theme = useTheme();
     const screens = useArticleEditorScreens();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -80,7 +80,7 @@ export default function ArticleAiAssistantDrawer({
     return (
         <Drawer
             title={
-                <div style={{ display: "flex", alignItems: "center", gap: theme.marginXS, minWidth: 0 }}>
+                <div style={{display: "flex", alignItems: "center", gap: theme.marginXS, minWidth: 0}}>
                     <Dropdown
                         trigger={["click"]}
                         placement="bottomLeft"
@@ -92,14 +92,14 @@ export default function ArticleAiAssistantDrawer({
                             items: [
                                 {
                                     key: "export",
-                                    icon: <DownloadIcon />,
+                                    icon: <DownloadIcon/>,
                                     label: res.exportAiMessages,
                                     disabled: actions.disabled || actions.exporting || actions.clearing,
                                     onClick: () => void actions.onExport(),
                                 },
                                 {
                                     key: "clear",
-                                    icon: <DeleteIcon />,
+                                    icon: <DeleteIcon/>,
                                     label: res.clearAiMessages,
                                     danger: true,
                                     disabled: actions.disabled || actions.exporting || actions.clearing,
@@ -109,7 +109,7 @@ export default function ArticleAiAssistantDrawer({
                                             content: res.clearAiMessagesConfirmDescription,
                                             okText: res.clearAiMessages,
                                             cancelText: getRes().cancel,
-                                            okButtonProps: { danger: true },
+                                            okButtonProps: {danger: true},
                                             getContainer,
                                             onOk: actions.onClear,
                                         }),
@@ -119,14 +119,14 @@ export default function ArticleAiAssistantDrawer({
                     >
                         <Button
                             type="text"
-                            icon={<AIIcon name={data.aiProvider} />}
+                            icon={<AIIcon name={data.aiProvider}/>}
                             aria-label={getRes().websiteAi.label}
                             title={res.conversationActions}
                             loading={actions.exporting || actions.clearing}
-                            style={{ flexShrink: 0, paddingInline: theme.paddingXS }}
+                            style={{flexShrink: 0, paddingInline: theme.paddingXS}}
                         >
                             {getRes().websiteAi.label}
-                            <ChevronDownIcon style={{ fontSize: theme.fontSizeSM }} />
+                            <ChevronDownIcon style={{fontSize: theme.fontSizeSM}}/>
                         </Button>
                     </Dropdown>
                     {data.article.title && (
@@ -148,7 +148,7 @@ export default function ArticleAiAssistantDrawer({
                 </div>
             }
             open={open}
-            closable={{ placement: "end" }}
+            closable={{placement: "end"}}
             onClose={() => {
                 saveScroll();
                 onClose();
@@ -159,27 +159,27 @@ export default function ArticleAiAssistantDrawer({
             resizable={
                 screens.sm
                     ? {
-                          onResize: (nextWidth) => {
-                              setDrawerWidth(nextWidth);
-                              stateCache.write(widthKey, nextWidth);
-                              onSizeChange?.(nextWidth);
-                          },
-                      }
+                        onResize: (nextWidth) => {
+                            setDrawerWidth(nextWidth);
+                            stateCache.write(widthKey, nextWidth);
+                            onSizeChange?.(nextWidth);
+                        },
+                    }
                     : false
             }
             styles={{
-                header: { padding: theme.paddingSM },
-                title: { minWidth: 0 },
-                body: { padding: 0, overflow: "hidden" },
+                header: {padding: theme.paddingSM},
+                title: {minWidth: 0},
+                body: {padding: 0, overflow: "hidden"},
             }}
         >
-            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div style={{display: "flex", flexDirection: "column", height: "100%"}}>
                 <div
                     ref={scrollRef}
                     onScroll={saveScroll}
-                    style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: theme.paddingSM }}
+                    style={{flex: 1, minHeight: 0, overflowY: "auto", padding: theme.paddingSM}}
                 >
-                    <div style={{ maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%" }}>
+                    <div style={{maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%"}}>
                         {config.messages.map((content, index) => {
                             const message = config.renderMessage({
                                 content,
@@ -194,7 +194,7 @@ export default function ArticleAiAssistantDrawer({
                                 ),
                             });
                             return message === null ? null : (
-                                <div key={index} style={{ paddingBottom: theme.paddingSM }}>
+                                <div key={index} style={{paddingBottom: theme.paddingSM}}>
                                     {message}
                                 </div>
                             );
@@ -207,7 +207,7 @@ export default function ArticleAiAssistantDrawer({
                         padding: theme.paddingSM,
                     }}
                 >
-                    <div style={{ maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%" }}>
+                    <div style={{maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%"}}>
                         {config.renderFooter()}
                     </div>
                 </div>

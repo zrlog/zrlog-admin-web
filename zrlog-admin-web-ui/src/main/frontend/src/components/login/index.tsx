@@ -1,8 +1,8 @@
 import Input from "@zrlog/ui/antd/Input";
-import { useUiMessage } from "@zrlog/ui/feedback";
+import {useUiMessage} from "@zrlog/ui/feedback";
 import KeyIcon from "@zrlog/ui/icons/key";
-import { useEffect, useRef, useState } from "react";
-import { Button, Divider, Form, Layout, Space } from "antd";
+import {useEffect, useRef, useState} from "react";
+import {Button, Divider, Form, Layout, Space} from "antd";
 import {
     getBackendServerUrl,
     getDefaultLoginInfo,
@@ -13,30 +13,30 @@ import {
     LoginUserInfo,
     setBackendServerUrl,
 } from "../../utils/constants";
-import { useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import Title from "antd/es/typography/Title";
 import PWAHandler from "../../base/PWAHandler";
-import { addToCache, removeAllCaches } from "../../utils/cache";
+import {addToCache, removeAllCaches} from "../../utils/cache";
 import styled from "styled-components";
-import { getContextPath } from "../../utils/helpers";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getCsrData } from "../../api";
+import {getContextPath} from "../../utils/helpers";
+import {useAxiosBaseInstance} from "../../base/AppBase";
+import {getCsrData} from "../../api";
 import {
     ApiResponse,
     LoginResponse,
     PasskeyAuthenticationOptionsResponse,
     PasskeyAuthenticationVerifyRequest,
 } from "../../type";
-import { AxiosInstance } from "axios";
-import { getSsDate, ssKeyStorageKey } from "../../base/SsData";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { useTheme } from "antd-style";
-import { ADMIN_ERROR_CODE } from "../../common/admin-error-code";
+import {AxiosInstance} from "axios";
+import {getSsDate, ssKeyStorageKey} from "../../base/SsData";
+import {getAppState} from "../../base/ConfigProviderApp";
+import {useTheme} from "antd-style";
+import {ADMIN_ERROR_CODE} from "../../common/admin-error-code";
 import loginPublishingWorkspace from "../../assets/login-publishing-workspace.webp";
 
-import { authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation } from "../../utils/passkey";
-import { applyUserPreferences } from "../../utils/user-preferences";
-import { hasUserAppearance } from "../../utils/user-appearance";
+import {authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation} from "../../utils/passkey";
+import {applyUserPreferences} from "../../utils/user-preferences";
+import {hasUserAppearance} from "../../utils/user-appearance";
 
 const md5 = require("md5");
 
@@ -68,7 +68,7 @@ interface StyledLoginPageProps {
 }
 
 export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
-    ({ mainColor, dark, desk, colorBgContainer, colorBgLayout, theme }) => {
+    ({mainColor, dark, desk, colorBgContainer, colorBgLayout, theme}) => {
         return {
             minHeight: "100vh",
             background: colorBgLayout,
@@ -78,12 +78,12 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
             linear-gradient(90deg, rgba(23, 32, 51, 0.035) 1px, transparent 1px)
         `
                 : dark
-                ? `
+                    ? `
             radial-gradient(at 0% 0%, rgba(24, 144, 255, 0.08) 0px, transparent 50%),
             radial-gradient(at 100% 100%, rgba(114, 46, 209, 0.08) 0px, transparent 50%),
             linear-gradient(135deg, ${colorBgLayout} 0%, #000000 100%)
         `
-                : `
+                    : `
             radial-gradient(at 0% 0%, rgba(24, 144, 255, 0.15) 0px, transparent 50%),
             radial-gradient(at 100% 100%, rgba(114, 46, 209, 0.15) 0px, transparent 50%),
             linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)
@@ -104,8 +104,8 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                 boxShadow: desk
                     ? theme.boxShadowSecondary
                     : dark
-                    ? "0 20px 40px rgba(0, 0, 0, 0.4), 0 10px 20px rgba(0, 0, 0, 0.3)"
-                    : "0 20px 40px rgba(0, 0, 0, 0.08), 0 10px 20px rgba(0, 0, 0, 0.05)",
+                        ? "0 20px 40px rgba(0, 0, 0, 0.4), 0 10px 20px rgba(0, 0, 0, 0.3)"
+                        : "0 20px 40px rgba(0, 0, 0, 0.08), 0 10px 20px rgba(0, 0, 0, 0.05)",
                 overflow: "hidden",
                 position: "relative",
                 "@media (max-width: 1024px)": {
@@ -203,7 +203,7 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                 boxShadow: "none",
                 background: "transparent",
                 width: "100%",
-                "&::before": { display: "none" },
+                "&::before": {display: "none"},
             },
 
             [`& .ant-form-item-label`]: {
@@ -232,7 +232,7 @@ const preloadApiCache = (axiosInstance: AxiosInstance, uris: string[]) => {
                 return;
             }
             try {
-                const { data } = await getCsrData(key, 0, axiosInstance);
+                const {data} = await getCsrData(key, 0, axiosInstance);
                 addToCache(key, data);
             } catch (error) {
                 console.error("cache error:", error);
@@ -254,7 +254,7 @@ const saveApiCache = (axiosInstance: AxiosInstance, responseBody: LoginResponse)
     preloadApiCache(axiosInstance, responseBody.data.cacheableApiUris ?? []);
 };
 
-const Index = ({ offline }: { offline: boolean }) => {
+const Index = ({offline}: { offline: boolean }) => {
     const [logging, setLogging] = useState<boolean>(false);
     const [passkeyLogging, setPasskeyLogging] = useState(false);
     const defaultUserInfo = getDefaultLoginInfo();
@@ -267,7 +267,7 @@ const Index = ({ offline }: { offline: boolean }) => {
     const lastAutoSubmittedMfaCodeRef = useRef("");
     const passkeyLoginInFlightRef = useRef(false);
 
-    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
 
     const navigate = useNavigate();
     const theme = useTheme();
@@ -296,7 +296,7 @@ const Index = ({ offline }: { offline: boolean }) => {
                 if (urlInfo[0] === "/" || urlInfo[0] === "") {
                     urlInfo[0] = "/index";
                 }
-                navigate(getRealRouteUrl(urlInfo.join("?")), { replace: true });
+                navigate(getRealRouteUrl(urlInfo.join("?")), {replace: true});
             }
         } else {
             navigate(getRealRouteUrl(data.data.actions?.includes("dashboard.read") ? "/index" : "/article"), {
@@ -317,7 +317,7 @@ const Index = ({ offline }: { offline: boolean }) => {
             if (isStaticPage()) {
                 axiosInstance.defaults.baseURL = loginState.backendServerUrl;
             }
-            const { data } = await axiosInstance.post<LoginResponse>("/api/admin/login", loginForm);
+            const {data} = await axiosInstance.post<LoginResponse>("/api/admin/login", loginForm);
             if (data.error) {
                 if (data.error === ADMIN_ERROR_CODE.mfaCodeRequired || data.error === ADMIN_ERROR_CODE.mfaCodeInvalid) {
                     setMfaStep(true);
@@ -463,28 +463,28 @@ const Index = ({ offline }: { offline: boolean }) => {
                                         <Form.Item
                                             label={getRes().login.backendServerUrl}
                                             name={"backendServerUrl"}
-                                            rules={[{ required: true }]}
+                                            rules={[{required: true}]}
                                         >
-                                            <Input autoComplete={"url"} />
+                                            <Input autoComplete={"url"}/>
                                         </Form.Item>
                                     )}
                                     <Form.Item
                                         label={getRes().login.userName}
                                         name="userName"
-                                        rules={[{ required: true }]}
+                                        rules={[{required: true}]}
                                     >
-                                        <Input autoComplete={"username"} />
+                                        <Input autoComplete={"username"}/>
                                     </Form.Item>
 
                                     <Form.Item
                                         label={getRes().login.password}
                                         name="password"
-                                        rules={[{ required: true }]}
+                                        rules={[{required: true}]}
                                     >
-                                        <Input.Password autoComplete={"current-password"} />
+                                        <Input.Password autoComplete={"current-password"}/>
                                     </Form.Item>
 
-                                    <Form.Item style={{ marginTop: "20px", marginBottom: 0 }}>
+                                    <Form.Item style={{marginTop: "20px", marginBottom: 0}}>
                                         <Button
                                             disabled={offline || passkeyLogging}
                                             loading={logging}
@@ -502,10 +502,10 @@ const Index = ({ offline }: { offline: boolean }) => {
                                         <Button
                                             block
                                             disabled={offline || logging}
-                                            icon={<KeyIcon />}
+                                            icon={<KeyIcon/>}
                                             loading={passkeyLogging}
                                             size="large"
-                                            style={{ flexShrink: 0 }}
+                                            style={{flexShrink: 0}}
                                             onClick={() => void submitPasskeyLogin()}
                                         >
                                             {getRes().login.passkeySubmit}
@@ -517,7 +517,7 @@ const Index = ({ offline }: { offline: boolean }) => {
 
                         {mfaStep && (
                             <Form layout="vertical" onFinish={() => onFinishMfa()}>
-                                <Form.Item label={getRes().login.mfaCode} rules={[{ required: true }]}>
+                                <Form.Item label={getRes().login.mfaCode} rules={[{required: true}]}>
                                     <Input.OTP
                                         autoFocus
                                         inputMode={"numeric"}
@@ -532,15 +532,15 @@ const Index = ({ offline }: { offline: boolean }) => {
                                         formatter={(value) => value.replace(/\D/g, "")}
                                     />
                                 </Form.Item>
-                                <Form.Item style={{ marginTop: "20px", marginBottom: 0 }}>
-                                    <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                                <Form.Item style={{marginTop: "20px", marginBottom: 0}}>
+                                    <Space direction="vertical" style={{width: "100%"}} size={12}>
                                         <Button
                                             disabled={offline || mfaCode.length !== 6}
                                             loading={logging}
                                             type="primary"
                                             size={"large"}
                                             htmlType="submit"
-                                            style={{ width: "100%" }}
+                                            style={{width: "100%"}}
                                         >
                                             {getRes().login.mfaSubmit}
                                         </Button>

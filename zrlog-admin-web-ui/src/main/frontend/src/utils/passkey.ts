@@ -1,10 +1,10 @@
-import { browserSupportsWebAuthn, startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import type {
     AuthenticationResponseJSON,
     PublicKeyCredentialCreationOptionsJSON,
     PublicKeyCredentialRequestOptionsJSON,
     RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
+import {browserSupportsWebAuthn, startAuthentication, startRegistration} from "@simplewebauthn/browser";
 
 type PasskeyAvailabilityOptions = {
     backendServerUrlConfigured?: boolean;
@@ -38,7 +38,7 @@ const isSecureHttpOrigin = (url: URL): boolean => {
 
 export const canUsePasskeys = (
     backendServerUrl: string,
-    { backendServerUrlConfigured = true }: PasskeyAvailabilityOptions = {}
+    {backendServerUrlConfigured = true}: PasskeyAvailabilityOptions = {}
 ): boolean => {
     const normalizedBackendServerUrl = backendServerUrl.trim();
     if (!backendServerUrlConfigured || !isAbsoluteOrRootRelativeUrl(normalizedBackendServerUrl)) {
@@ -71,11 +71,11 @@ export const canUsePasskeys = (
 export const authenticateWithPasskey = (
     options: PublicKeyCredentialRequestOptionsJSON
 ): Promise<AuthenticationResponseJSON> => {
-    return startAuthentication({ optionsJSON: options });
+    return startAuthentication({optionsJSON: options});
 };
 
 export const registerPasskey = (options: PublicKeyCredentialCreationOptionsJSON): Promise<RegistrationResponseJSON> => {
-    return startRegistration({ optionsJSON: options });
+    return startRegistration({optionsJSON: options});
 };
 
 export const isPasskeyCancellation = (error: unknown): boolean => {

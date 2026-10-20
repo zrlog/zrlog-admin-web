@@ -6,7 +6,6 @@ import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.util.I18nUtil;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -15,13 +14,6 @@ import java.util.*;
 
 @Singleton
 public class MessageCenterOperationService {
-
-    @Inject
-    public MessageCenterOperationService(
-            MessageCenterStateService messageCenterStateService, WebsiteCacheService cacheService) {
-        this.messageCenterStateService = messageCenterStateService;
-        this.cacheService = cacheService;
-    }
 
     private static final String OPERATION_NOTICE_KEY = "message_center_operation_notices";
     private static final String OPERATION_TYPE = "operationTask";
@@ -38,6 +30,12 @@ public class MessageCenterOperationService {
     }.getType();
     private final WebsiteCacheService cacheService;
     private final MessageCenterStateService messageCenterStateService;
+    @Inject
+    public MessageCenterOperationService(
+            MessageCenterStateService messageCenterStateService, WebsiteCacheService cacheService) {
+        this.messageCenterStateService = messageCenterStateService;
+        this.cacheService = cacheService;
+    }
 
     public void recordReplaceArticleResourceUrl(int scannedArticles, int updatedArticles, int updatedFields) {
         long now = System.currentTimeMillis();

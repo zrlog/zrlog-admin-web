@@ -1,12 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.web.page.AdminPageRequestHandler;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.HttpVersion;
@@ -20,13 +13,7 @@ import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
-import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
-import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
-import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
-import com.zrlog.admin.business.rest.response.SystemResponse;
-import com.zrlog.admin.business.rest.response.UserPreferencesResponse;
-import com.zrlog.admin.business.rest.response.VersionResponse;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -37,18 +24,17 @@ import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.admin.web.controller.api.WebSiteController;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.ui.AdminUiComponent;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.User;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.WebSite;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.NetworkProxy;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.After;
@@ -64,11 +50,34 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.Assert.*;
+
 public class AdminPageServiceTest {
 
     private ZrLogConfig applicationConfig;
 
     private AdminResource resources;
+
+    private static InputStream html(String value) {
+        return new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static HttpResponse response() {
+        return (HttpResponse) Proxy.newProxyInstance(
+                AdminPageServiceTest.class.getClassLoader(),
+                new Class[]{HttpResponse.class},
+                (proxy, method, args) -> null);
+    }
+
+    private static void setAdminToken() throws Exception {
+        AdminTokenVO token = new AdminTokenVO();
+        token.setUserId(1);
+        token.setSessionId("session-1");
+        token.setProtocol("http");
+        Method method = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
+        method.setAccessible(true);
+        method.invoke(null, token);
+    }
 
     @Before
     public void setUp() {
@@ -130,7 +139,7 @@ public class AdminPageServiceTest {
                             (HttpRequest)
                                     Proxy.newProxyInstance(
                                             getClass().getClassLoader(),
-                                            new Class[] {HttpRequest.class},
+                                            new Class[]{HttpRequest.class},
                                             (proxy, method, args) -> {
                                                 if (method.getName().equals("getHeader")) {
                                                     if ("User-Agent".equals(args[0]))
@@ -182,7 +191,7 @@ public class AdminPageServiceTest {
                     AccountAuthorizationTest.login(db, 1, role);
                     db.component(AccountComponent.class).preferences()
                             .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"language\":\"en_US\",\"appearance\":{"
-                                            + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
+                                    + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
                     Document document = Jsoup.parse(service.buildHtml(request(page, contextPath, config), response(),
                             html("<html><head><base href=\"/\"></head><body><pre id=\"__SS_DATA__\"></pre></body></html>")));
                     com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
@@ -417,30 +426,30 @@ public class AdminPageServiceTest {
             }
             assertTrue(
                     service.serverSide(
+                                    "/admin/user/preferences/appearance",
+                                    request(
                                             "/admin/user/preferences/appearance",
-                                            request(
-                                                    "/admin/user/preferences/appearance",
-                                                    "/blog",
-                                                    config),
-                                            response())
-                                    .getData()
+                                            "/blog",
+                                            config),
+                                    response())
+                            .getData()
                             instanceof UserPreferencesResponse);
             assertTrue(
                     service.serverSide(
+                                    "/admin/user/applications/tokens",
+                                    request(
                                             "/admin/user/applications/tokens",
-                                            request(
-                                                    "/admin/user/applications/tokens",
-                                                    "/blog",
-                                                    config),
-                                            response())
-                                    .getData()
+                                            "/blog",
+                                            config),
+                                    response())
+                            .getData()
                             instanceof OAuthModels.Page);
             assertTrue(
                     service.serverSide(
-                                            "/admin/website/members",
-                                            request("/admin/website/members", "/blog", config),
-                                            response())
-                                    .getData()
+                                    "/admin/website/members",
+                                    request("/admin/website/members", "/blog", config),
+                                    response())
+                            .getData()
                             instanceof MemberModels.Page);
             assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
             assertEquals(
@@ -644,7 +653,8 @@ public class AdminPageServiceTest {
                                 new SimpleHttpResponse(request, new ResponseConfig()) {
                                     @Override
                                     protected void send(
-                                            byte[] bytes, boolean body, boolean close) {}
+                                            byte[] bytes, boolean body, boolean close) {
+                                    }
                                 };
                         route.invoke(Controller.buildController(route, request, response));
                         String prefix = contextPath.equals("/") ? "" : contextPath;
@@ -768,10 +778,6 @@ public class AdminPageServiceTest {
         };
     }
 
-    private static InputStream html(String value) {
-        return new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8));
-    }
-
     private HttpRequest request(String uri, String contextPath) {
         return request(uri, contextPath, null);
     }
@@ -780,7 +786,7 @@ public class AdminPageServiceTest {
         return (HttpRequest)
                 Proxy.newProxyInstance(
                         AdminPageServiceTest.class.getClassLoader(),
-                        new Class[] {HttpRequest.class},
+                        new Class[]{HttpRequest.class},
                         (proxy, method, args) -> {
                             if ("getUri".equals(method.getName())) {
                                 return uri;
@@ -813,13 +819,6 @@ public class AdminPageServiceTest {
                         });
     }
 
-    private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminPageServiceTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
-    }
-
     private RequestConfig requestConfig(DataSourceWrapper testDataSource) {
         applicationConfig
                 .getServerConfig()
@@ -839,16 +838,6 @@ public class AdminPageServiceTest {
         RequestConfig requestConfig = new RequestConfig();
         requestConfig.setRouter(router);
         return requestConfig;
-    }
-
-    private static void setAdminToken() throws Exception {
-        AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(1);
-        token.setSessionId("session-1");
-        token.setProtocol("http");
-        Method method = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
-        method.setAccessible(true);
-        method.invoke(null, token);
     }
 
     public static class OfflineVersionController extends WebSiteController {
