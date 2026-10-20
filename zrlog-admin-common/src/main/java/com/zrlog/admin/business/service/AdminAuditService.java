@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
@@ -22,6 +23,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Singleton
 public class AdminAuditService {
@@ -35,6 +38,7 @@ public class AdminAuditService {
     private static final String AUDIT_LOG_KEY = "admin_audit_log";
     private static final int MAX_LOG_SIZE = 100;
     private static final Gson GSON = new Gson();
+    private static final Logger LOGGER = LoggerUtil.getLogger(AdminAuditService.class);
 
     public void record(HttpRequest request, AdminAuditAction action) {
         record(request, action, "");
@@ -81,10 +85,31 @@ public class AdminAuditService {
                 logs = logs.subList(0, MAX_LOG_SIZE);
             }
 
-            kvService.putString(AUDIT_LOG_KEY, GSON.toJson(logs));
+            if (!kvService.putString(AUDIT_LOG_KEY, serializeLogs(logs))) {
+                LOGGER.warning("Record admin audit log failed: action=" + action.name()
+                        + ", uri=" + request.getUri() + ", reason=no rows affected");
+            }
         } catch (SQLException e) {
-            // Ignore audit log error to not break business
+            // The business operation is already saved, but an audit failure must remain diagnosable.
+            LOGGER.log(Level.WARNING, "Record admin audit log failed: action=" + action.name()
+                    + ", uri=" + request.getUri(), e);
         }
+    }
+
+    private String serializeLogs(List<AdminAuditLogEntryResponse> logs) {
+        String json = GSON.toJson(logs);
+        StringBuilder stored = new StringBuilder(json.length());
+        for (int i = 0; i < json.length(); i++) {
+            char character = json.charAt(i);
+            if (Character.isSurrogate(character)) {
+                // Legacy website.value columns use MySQL utf8. JSON escapes preserve
+                // supplementary characters (including emoji) without a schema migration.
+                stored.append("\\u").append(Integer.toHexString(character));
+            } else {
+                stored.append(character);
+            }
+        }
+        return stored.toString();
     }
 
     String sanitizeContent(AdminAuditAction action, String content) {

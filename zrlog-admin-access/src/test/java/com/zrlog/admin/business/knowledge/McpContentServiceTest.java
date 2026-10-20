@@ -25,6 +25,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
@@ -32,6 +33,7 @@ import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
 import com.zrlog.model.Tag;
 import com.zrlog.model.Type;
+import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.util.I18nUtil;
 
 import org.junit.Test;
@@ -39,8 +41,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.lang.reflect.Proxy;
+import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 @RunWith(Parameterized.class)
@@ -151,6 +156,11 @@ public class McpContentServiceTest {
     }
 
     private ArticlePublishingService publishing(CacheService cache, DataSourceWrapper testDataSource) {
+        return publishing(cache, testDataSource, ApplicationServicesFixture.audit(testDataSource));
+    }
+
+    private ArticlePublishingService publishing(CacheService cache, DataSourceWrapper testDataSource,
+                                                AdminAuditService audit) {
         return new ArticlePublishingService(
                 new AdminArticleService(
                         cache,
@@ -172,10 +182,119 @@ public class McpContentServiceTest {
                         ApplicationServicesFixture.locks(testDataSource)),
                 ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
                 markdown -> null,
-                ApplicationServicesFixture.audit(testDataSource),
+                audit,
                 ApplicationServicesFixture.operations(testDataSource));
     }
     private Set<String> names(McpContentService tools) throws Exception { return tools.definitions("en_US").stream().map(t->t.name).collect(Collectors.toSet()); }
+
+    @Test
+    public void preservesEmojiCreationAndPublicationLogsWithLegacyUtf8Storage() throws Exception {
+        try (InMemoryZrLogDatabase db = open();
+             TestLogCapture logs = TestLogCapture.forClass(AdminAuditService.class)) {
+            applicationConfig = db.config();
+            WebsiteKvService auditStore = new WebsiteKvService(db.dataSource()) {
+                @Override
+                public boolean putString(String key, String value) throws SQLException {
+                    // H2/SQLite accept supplementary characters; enforce MySQL utf8's limit here.
+                    if (value.codePoints().anyMatch(codePoint -> codePoint > 0xffff)) {
+                        throw new SQLException("Incorrect string value for website.value", "HY000", 1366);
+                    }
+                    return super.putString(key, value);
+                }
+            };
+            AdminAuditService audit = new AdminAuditService(auditStore);
+            McpContentService tools = tools(
+                    token(db.dataSource()), "en_US",
+                    new ContentToolService(
+                            publishing(db.cacheService(), db.dataSource(), audit),
+                            request -> {},
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            () -> new Tag(db.dataSource()),
+                            () -> new Type(db.dataSource())),
+                    null, db.dataSource());
+            tools.call("create_article", args(CREATE));
+
+            String title = "大理🌿 重庆🌶️ 家人👨‍👩‍👧 𠮷 \\uD83C\\uDF3F \"游记\"";
+            JsonObject create = args(CREATE);
+            create.addProperty("title", title);
+            create.addProperty("alias", "emoji-audit");
+            SavedArticle draft = (SavedArticle) tools.call("create_article", create);
+            assertEquals("draft", draft.status);
+            assertEquals(title, db.scalar("select title from log where logId=?", draft.id));
+            assertEquals(2, audit.getRecentLogs().size());
+            assertEquals(title, audit.getRecentLogs().get(0).getContent());
+
+            SavedArticle published = (SavedArticle) tools.call("publish_article",
+                    args("{\"id\":" + draft.id + ",\"version\":0}"));
+
+            assertEquals("published", published.status);
+            assertEquals(1, published.version);
+            JsonArray stored = JsonParser.parseString(auditStore.getString("admin_audit_log")).getAsJsonArray();
+            assertEquals(3, stored.size());
+            assertEquals("PUBLISH_ARTICLE", stored.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals("CREATE_ARTICLE", stored.get(1).getAsJsonObject().get("action").getAsString());
+            assertEquals(title, stored.get(0).getAsJsonObject().get("content").getAsString());
+            assertEquals(title, stored.get(1).getAsJsonObject().get("content").getAsString());
+            assertEquals("Original", stored.get(2).getAsJsonObject().get("content").getAsString());
+            assertEquals(title, audit.getRecentLogs().get(0).getContent());
+            assertEquals(title, audit.getRecentLogs().get(1).getContent());
+            assertEquals("MCP", audit.getRecentLogs().get(0).getBrowser());
+            assertFalse(logs.contains(Level.WARNING, "Record admin audit log failed"));
+        }
+    }
+
+    @Test
+    public void reportsAuditDatabaseFailureWithoutLosingSuccessfulPublication() throws Exception {
+        assertAuditFailureIsVisible(true);
+    }
+
+    @Test
+    public void reportsAuditWriteWithNoAffectedRowsWithoutLosingSuccessfulPublication() throws Exception {
+        assertAuditFailureIsVisible(false);
+    }
+
+    private void assertAuditFailureIsVisible(boolean throwsException) throws Exception {
+        try (InMemoryZrLogDatabase db = open();
+             TestLogCapture logs = TestLogCapture.forClass(AdminAuditService.class)) {
+            applicationConfig = db.config();
+            AtomicBoolean failAuditWrite = new AtomicBoolean();
+            WebsiteKvService auditStore = new WebsiteKvService(db.dataSource()) {
+                @Override
+                public boolean putString(String key, String value) throws SQLException {
+                    if (failAuditWrite.get()) {
+                        if (throwsException) throw new SQLException("Audit database unavailable", "08006");
+                        return false;
+                    }
+                    return super.putString(key, value);
+                }
+            };
+            McpContentService tools = tools(
+                    token(db.dataSource()), "en_US",
+                    new ContentToolService(
+                            publishing(db.cacheService(), db.dataSource(), new AdminAuditService(auditStore)),
+                            request -> {},
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            () -> new Tag(db.dataSource()),
+                            () -> new Type(db.dataSource())),
+                    null, db.dataSource());
+            SavedArticle draft = (SavedArticle) tools.call("create_article", args(CREATE));
+            String previousAudit = auditStore.getString("admin_audit_log");
+            assertFalse(logs.contains(Level.WARNING, "Record admin audit log failed"));
+
+            failAuditWrite.set(true);
+            SavedArticle published = (SavedArticle) tools.call("publish_article",
+                    args("{\"id\":" + draft.id + ",\"version\":0}"));
+
+            assertEquals("published", published.status);
+            assertEquals(1, published.version);
+            assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=?", draft.id)));
+            assertEquals(previousAudit, auditStore.getString("admin_audit_log"));
+            assertTrue("A missing audit entry must produce a diagnostic warning",
+                    logs.contains(Level.WARNING, "Record admin audit log failed"));
+            assertTrue(logs.contains(Level.WARNING, "action=PUBLISH_ARTICLE"));
+            assertTrue(logs.contains(Level.WARNING, "uri=/mcp"));
+        }
+    }
 
     @Test public void createsPatchesAndPublishesThroughVersionAuditAndCacheServices() throws Exception {
         try(InMemoryZrLogDatabase db=open()) {
