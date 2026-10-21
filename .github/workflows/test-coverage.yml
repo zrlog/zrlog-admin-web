@@ -51,6 +51,9 @@ jobs:
       - name: Build release Javadocs
         run: ./mvnw -B -ntp -DskipTests package javadoc:jar
 
+      - name: Verify the release bundle without publishing
+        run: python3 scripts/check-release-bundle.py
+
       - name: Summarize JaCoCo coverage
         shell: bash
         run: |
