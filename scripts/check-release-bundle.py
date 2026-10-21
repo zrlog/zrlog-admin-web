@@ -49,7 +49,11 @@ def main():
 
         # No publishing credentials are read from the user's settings.
         settings = directory / "settings.xml"
-        settings.write_text('<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"/>', encoding="utf-8")
+        # The legacy client dereferences server settings even when upload is disabled.
+        # Inert fixture values satisfy initialization; no real credentials are loaded.
+        settings.write_text('<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">'
+                            '<servers><server><id>central</id><username>bundle-check</username>'
+                            '<password>unpublished-fixture</password></server></servers></settings>', encoding="utf-8")
         command = [str(project / "mvnw"), "-B", "-ntp", "-s", str(settings), "-gs", str(settings)]
         repository = args.maven_repo.resolve() if args.maven_repo else directory / "repository"
         command.append(f"-Dmaven.repo.local={repository}")
