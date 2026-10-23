@@ -40,6 +40,8 @@ import static org.junit.Assert.*;
 public class AdminDashboardServiceTest {
 
     private ZrLogConfig applicationConfig;
+    private final DashboardLayoutPolicy layout = new DashboardLayoutPolicy();
+    private final DashboardPluginLoader loader = new DashboardPluginLoader(() -> null);
 
     private static AdminDashboardCardConfigResponse cardConfig(String id, Boolean enabled, Integer sort) {
         AdminDashboardCardConfigResponse card = new AdminDashboardCardConfigResponse();
@@ -137,12 +139,32 @@ public class AdminDashboardServiceTest {
     }
 
     @Test
+    public void missingCardsStayEnabledAndSavedDisabledCardsStayDisabled() {
+        assertTrue(layout.isCardEnabled(null, "activity"));
+        AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
+        config.setCards(null);
+        assertTrue(layout.isCardEnabled(config, "activity"));
+        AdminDashboardCardResponse disabled = new AdminDashboardCardResponse();
+        disabled.setKind("card");
+        disabled.setId("activity");
+        disabled.setEnabled(false);
+        AdminDashboardCardResponse enabled = new AdminDashboardCardResponse();
+        enabled.setKind("card");
+        enabled.setId("auditTrail");
+        enabled.setEnabled(true);
+        config.setCards(List.of(disabled, enabled));
+        assertFalse(layout.isCardEnabled(config, "activity"));
+        assertTrue(layout.isCardEnabled(config, "auditTrail"));
+        assertTrue(layout.isCardEnabled(config, "missing"));
+    }
+
+    @Test
     public void shouldFillSurfacePathsFromSafePluginName() {
         AdminDashboardCardResponse panel = new AdminDashboardCardResponse();
         panel.setType("surface");
         panel.setPluginName(" reminder ");
 
-        AdminDashboardCardResponse normalizedPanel = AdminDashboardService.normalizePanel(panel);
+        AdminDashboardCardResponse normalizedPanel = DashboardLayoutPolicy.normalizePanel(panel);
 
         assertSame(panel, normalizedPanel);
         assertEquals("reminder", normalizedPanel.getId());
@@ -159,7 +181,7 @@ public class AdminDashboardServiceTest {
         panel.setSurfaceUrl(" /admin/plugins/reminder/surface?scope=dashboard ");
         panel.setActionUrl("/admin/plugins/reminder/surfaceAction");
 
-        AdminDashboardCardResponse normalizedPanel = AdminDashboardService.normalizePanel(panel);
+        AdminDashboardCardResponse normalizedPanel = DashboardLayoutPolicy.normalizePanel(panel);
 
         assertSame(panel, normalizedPanel);
         assertEquals("/admin/plugins/reminder/surface?scope=dashboard", normalizedPanel.getSurfaceUrl());
@@ -174,7 +196,7 @@ public class AdminDashboardServiceTest {
         panel.setSurfaceUrl("https://example.com/surface");
         panel.setActionUrl("//example.com/surfaceAction");
 
-        assertNull(AdminDashboardService.normalizePanel(panel));
+        assertNull(DashboardLayoutPolicy.normalizePanel(panel));
     }
 
     @Test
@@ -183,7 +205,7 @@ public class AdminDashboardServiceTest {
         panel.setType("surface");
         panel.setPluginName("../reminder");
 
-        assertNull(AdminDashboardService.normalizePanel(panel));
+        assertNull(DashboardLayoutPolicy.normalizePanel(panel));
     }
 
     @Test
@@ -193,7 +215,7 @@ public class AdminDashboardServiceTest {
         panel.setPluginName("reminder");
         panel.setViewUrl(" /settings/index?tab=base ");
 
-        AdminDashboardCardResponse normalizedPanel = AdminDashboardService.normalizePanel(panel);
+        AdminDashboardCardResponse normalizedPanel = DashboardLayoutPolicy.normalizePanel(panel);
 
         assertSame(panel, normalizedPanel);
         assertEquals("settings/index?tab=base", normalizedPanel.getViewUrl());
@@ -205,7 +227,7 @@ public class AdminDashboardServiceTest {
         panel.setType("view");
         panel.setViewUrl("https://example.com/dashboard");
 
-        AdminDashboardCardResponse normalizedPanel = AdminDashboardService.normalizePanel(panel);
+        AdminDashboardCardResponse normalizedPanel = DashboardLayoutPolicy.normalizePanel(panel);
 
         assertSame(panel, normalizedPanel);
         assertEquals("https://example.com/dashboard", normalizedPanel.getViewUrl());
@@ -218,7 +240,7 @@ public class AdminDashboardServiceTest {
         panel.setPluginName("reminder");
         panel.setViewUrl("../admin");
 
-        AdminDashboardCardResponse normalizedPanel = AdminDashboardService.normalizePanel(panel);
+        AdminDashboardCardResponse normalizedPanel = DashboardLayoutPolicy.normalizePanel(panel);
 
         assertSame(panel, normalizedPanel);
         assertEquals("index", normalizedPanel.getViewUrl());
@@ -226,41 +248,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldConvertDashboardCardRequestsToResponses() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
+
         AdminDashboardCardRequest request = new AdminDashboardCardRequest();
         request.setKind("plugin");
         request.setId("reminder");
@@ -275,7 +263,7 @@ public class AdminDashboardServiceTest {
         request.setHeight(260);
         request.setOrder(7);
 
-        List<AdminDashboardCardResponse> cards = service.toCardResponses(List.of(request));
+        List<AdminDashboardCardResponse> cards = layout.toCardResponses(List.of(request));
 
         assertEquals(1, cards.size());
         AdminDashboardCardResponse card = cards.get(0);
@@ -291,57 +279,23 @@ public class AdminDashboardServiceTest {
         assertEquals(Integer.valueOf(3), card.getMaxItems());
         assertEquals(Integer.valueOf(260), card.getHeight());
         assertEquals(Integer.valueOf(7), card.getOrder());
-        assertEquals(List.of(), service.toCardResponses(null));
+        assertEquals(List.of(), layout.toCardResponses(null));
     }
 
     @Test
     public void shouldFillDashboardRefreshConfigWithDefaults() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
+
         AdminDashboardConfigResponse target = new AdminDashboardConfigResponse();
         AdminDashboardConfigResponse source = new AdminDashboardConfigResponse();
         source.setAutoRefreshEnabled(true);
         source.setAutoRefreshIntervalSeconds(5);
-        service.fillRefreshConfig(target, source);
+        layout.fillRefreshConfig(target, source);
 
         AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
         request.setAutoRefreshEnabled(true);
         request.setAutoRefreshIntervalSeconds(15);
         AdminDashboardConfigResponse requestTarget = new AdminDashboardConfigResponse();
-        service.fillRefreshConfig(requestTarget, request);
+        layout.fillRefreshConfig(requestTarget, request);
 
         assertEquals(true, target.getAutoRefreshEnabled());
         assertEquals(Integer.valueOf(60), target.getAutoRefreshIntervalSeconds());
@@ -351,47 +305,13 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldMergeDefaultDashboardCardsWithSavedOverrides() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
+
         AdminDashboardCardConfigResponse welcome = cardConfig("welcome", false, 90);
         AdminDashboardCardConfigResponse localDraft = cardConfig("localDraft", false, 5);
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
         AdminDashboardCardConfigResponse missing = cardConfig(null, false, 1);
 
-        List<AdminDashboardCardConfigResponse> cards = service.mergeCards(List.of(welcome, localDraft, unknown, missing));
+        List<AdminDashboardCardConfigResponse> cards = layout.mergeCards(List.of(welcome, localDraft, unknown, missing));
 
         assertEquals(7, cards.size());
         assertEquals("localDraft", cards.get(0).getId());
@@ -405,41 +325,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldMergePluginPanelsAndFillMissingStandardFields() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
+
         AdminDashboardCardResponse standard = panel("reminder", "surface", 20);
         standard.setTitle("Reminder");
         standard.setSurfaceUrl("/admin/plugins/reminder/surface");
@@ -455,7 +341,7 @@ public class AdminDashboardServiceTest {
         customView.setViewUrl("settings");
         customView.setSort(15);
 
-        List<AdminDashboardCardResponse> panels = service.mergePluginPanels(List.of(saved, customView),
+        List<AdminDashboardCardResponse> panels = layout.mergePluginPanels(List.of(saved, customView),
                 List.of(standard));
 
         assertEquals(2, panels.size());
@@ -470,41 +356,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldExtractItemsClearRuntimeDataAndBuildDashboardItems() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
+
         AdminDashboardCardResponse cardItem = new AdminDashboardCardResponse();
         cardItem.setKind("card");
         cardItem.setId("welcome");
@@ -518,10 +370,10 @@ public class AdminDashboardServiceTest {
         pluginItem.setError("error");
         pluginItem.setSurfaceLoaded(true);
 
-        List<AdminDashboardCardConfigResponse> cards = service.extractCardItems(List.of(cardItem, pluginItem));
-        List<AdminDashboardCardResponse> plugins = service.extractPluginItems(List.of(cardItem, pluginItem));
-        service.clearRuntimeData(List.of(pluginItem));
-        List<AdminDashboardCardResponse> items = service.toItems(cards, plugins);
+        List<AdminDashboardCardConfigResponse> cards = layout.extractCardItems(List.of(cardItem, pluginItem));
+        List<AdminDashboardCardResponse> plugins = layout.extractPluginItems(List.of(cardItem, pluginItem));
+        layout.clearRuntimeData(List.of(pluginItem));
+        List<AdminDashboardCardResponse> items = layout.toItems(cards, plugins);
 
         assertEquals(1, cards.size());
         assertEquals("welcome", cards.get(0).getId());
@@ -538,18 +390,18 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldNormalizePanelDefaultsAndDropInvalidPanels() {
-        assertNull(AdminDashboardService.normalizePanel(null));
+        assertNull(DashboardLayoutPolicy.normalizePanel(null));
         AdminDashboardCardResponse invalidType = new AdminDashboardCardResponse();
         invalidType.setId("bad");
         invalidType.setType("chart");
-        assertNull(AdminDashboardService.normalizePanel(invalidType));
+        assertNull(DashboardLayoutPolicy.normalizePanel(invalidType));
 
         AdminDashboardCardResponse view = new AdminDashboardCardResponse();
         view.setType("view");
         view.setPluginName("reminder");
         view.setOrder(22);
 
-        AdminDashboardCardResponse normalized = AdminDashboardService.normalizePanel(view);
+        AdminDashboardCardResponse normalized = DashboardLayoutPolicy.normalizePanel(view);
 
         assertSame(view, normalized);
         assertEquals("reminder", normalized.getId());
@@ -562,61 +414,27 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldValidatePluginMetadataEntriesAndUrls() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
 
-        assertTrue(service.hasEntry(List.of("/surface", "other"), "surface"));
-        assertTrue(service.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
-        assertFalse(service.hasEntry(List.of("other"), "surface"));
-        assertFalse(service.hasEntry("surface", "surface"));
-        assertTrue(service.hasSurfaceMetadata(
+
+        assertTrue(loader.hasEntry(List.of("/surface", "other"), "surface"));
+        assertTrue(loader.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
+        assertFalse(loader.hasEntry(List.of("other"), "surface"));
+        assertFalse(loader.hasEntry("surface", "surface"));
+        assertTrue(loader.hasSurfaceMetadata(
                 Map.of("paths", List.of("surface"), "actions", List.of())));
-        assertFalse(service.hasSurfaceMetadata(
+        assertFalse(loader.hasSurfaceMetadata(
                 Map.of("paths", List.of("index"), "actions", List.of("other"))));
-        assertEquals("/admin/plugins/reminder/surface", AdminDashboardService.pluginUrl("reminder", "surface"));
-        assertEquals("reminder", AdminDashboardService.normalizePluginName(" reminder "));
-        assertNull(AdminDashboardService.normalizePluginName("../reminder"));
+        assertEquals("/admin/plugins/reminder/surface", DashboardLayoutPolicy.pluginUrl("reminder", "surface"));
+        assertEquals("reminder", DashboardLayoutPolicy.normalizePluginName(" reminder "));
+        assertNull(DashboardLayoutPolicy.normalizePluginName("../reminder"));
         assertEquals("/admin/plugins/reminder/surface?x=1",
-                AdminDashboardService.normalizePluginContextPath("/admin/plugins/reminder/surface?x=1"));
-        assertNull(AdminDashboardService.normalizePluginContextPath("//example.com/surface"));
+                DashboardLayoutPolicy.normalizePluginContextPath("/admin/plugins/reminder/surface?x=1"));
+        assertNull(DashboardLayoutPolicy.normalizePluginContextPath("//example.com/surface"));
         assertEquals("settings/index?tab=base",
-                AdminDashboardService.normalizePluginViewUrl("/settings/index?tab=base"));
-        assertNull(AdminDashboardService.normalizePluginViewUrl("ftp://example.com/file"));
-        assertTrue(AdminDashboardService.hasParentPathSegment("a/../b"));
-        assertFalse(AdminDashboardService.hasParentPathSegment("a/b"));
+                DashboardLayoutPolicy.normalizePluginViewUrl("/settings/index?tab=base"));
+        assertNull(DashboardLayoutPolicy.normalizePluginViewUrl("ftp://example.com/file"));
+        assertTrue(DashboardLayoutPolicy.hasParentPathSegment("a/../b"));
+        assertFalse(DashboardLayoutPolicy.hasParentPathSegment("a/b"));
     }
 
     @Test
@@ -627,27 +445,7 @@ public class AdminDashboardServiceTest {
             FakePluginCorePlugin plugin = new FakePluginCorePlugin();
             db.config().getAllPlugins().add(plugin);
             AdminDashboardService service =
-                    new AdminDashboardService(
-                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                            new AdminStatisticsService(
-                                    db.unitCacheService(),
-                                    RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(db.dataSource()),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new Comment(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
-                                            ApplicationServicesFixture.site(db.config()),
-                                            ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(db.dataSource())),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new Log(db.dataSource())),
-                            () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AccountServicesFixture.component(db.dataSource()).identities());
+                    db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard();
             AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
             request.setAutoRefreshEnabled(true);
             request.setAutoRefreshIntervalSeconds(20);
@@ -688,31 +486,7 @@ public class AdminDashboardServiceTest {
                             + "\"actionUrl\":\"/admin/plugins/missing/surfaceAction\"}],"
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
             AdminDashboardConfigResponse config =
-                    new AdminDashboardService(
-                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                            new AdminStatisticsService(
-                                    db.unitCacheService(),
-                                    RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(db.dataSource()),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new Comment(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
-                                            ApplicationServicesFixture.site(db.config()),
-                                            ApplicationServicesFixture.buildId(
-                                                    db.resources()),
-                                            ApplicationServicesFixture.messages(
-                                                    db.dataSource())),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .permissions(),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .preferences(),
-                                    () -> new Log(db.dataSource())),
-                            () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AccountServicesFixture.component(db.dataSource()).identities())
+                    db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard()
                             .getConfig(null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
@@ -725,31 +499,7 @@ public class AdminDashboardServiceTest {
 
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
             AdminDashboardConfigResponse fallback =
-                    new AdminDashboardService(
-                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                            new AdminStatisticsService(
-                                    db.unitCacheService(),
-                                    RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(db.dataSource()),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new Comment(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
-                                            ApplicationServicesFixture.site(db.config()),
-                                            ApplicationServicesFixture.buildId(
-                                                    db.resources()),
-                                            ApplicationServicesFixture.messages(
-                                                    db.dataSource())),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .permissions(),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .preferences(),
-                                    () -> new Log(db.dataSource())),
-                            () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AccountServicesFixture.component(db.dataSource()).identities())
+                    db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard()
                             .getConfig(null, token());
 
             assertEquals(7, fallback.getCards().size());
@@ -762,27 +512,7 @@ public class AdminDashboardServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             AdminDashboardService service =
-                    new AdminDashboardService(
-                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                            new AdminStatisticsService(
-                                    db.unitCacheService(),
-                                    RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(db.dataSource()),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new Comment(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
-                                            ApplicationServicesFixture.site(db.config()),
-                                            ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(db.dataSource())),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new Log(db.dataSource())),
-                            () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AccountServicesFixture.component(db.dataSource()).identities());
+                    db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard();
 
             assertNull(service.getFirstUseChecklist());
 
@@ -816,14 +546,14 @@ public class AdminDashboardServiceTest {
                 long start = System.nanoTime();
                 AdminDashboardConfigResponse config =
                         new AdminDashboardService(
-                                new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                                new AdminStatisticsService(
+                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
+                            new AdminStatisticsService(
                                         db.unitCacheService(),
                                         RuntimeInfoFixture.from(db.config()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
                                         () -> new Log(db.dataSource()),
                                         () -> new Comment(db.dataSource())),
-                                new ArticleQueryService(db.unitCacheService(),
+                            new ArticleQueryService(db.unitCacheService(),
                                         ApplicationServicesFixture.capability(
                                                 db.config(), ArticleAssistant.class),
                                         new AdminPageDataFactory(
@@ -838,12 +568,12 @@ public class AdminDashboardServiceTest {
                                         AccountServicesFixture.component(db.dataSource())
                                                 .preferences(),
                                         () -> new Log(db.dataSource())),
-                                50,
-                                () -> db.config().getPlugin(PluginCorePlugin.class),
-                                AccountServicesFixture.component(db.dataSource())
+                            new com.zrlog.admin.business.service.DashboardPluginLoader(() -> db.config().getPlugin(PluginCorePlugin.class), 50),
+                            AccountServicesFixture.component(db.dataSource())
                                         .preferences(),
-                                AccountServicesFixture.component(db.dataSource())
-                                        .identities())
+                            AccountServicesFixture.component(db.dataSource())
+                                        .identities(),
+                            new com.zrlog.admin.business.service.DashboardLayoutPolicy())
                                 .getConfig(null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");

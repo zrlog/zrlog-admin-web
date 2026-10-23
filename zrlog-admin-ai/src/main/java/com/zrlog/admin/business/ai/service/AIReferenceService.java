@@ -47,7 +47,7 @@ public final class AIReferenceService {
         if (!AccountAction.ARTICLE_ASSIST.allowed(identities.revalidate(actor))
                 || "off".equals(settings.knowledgeScope)) throw new PermissionErrorException();
         return Objects.requireNonNull(tools, "Content tools are required for article references")
-                .knowledge(actor, AIChatService.scopes(settings), I18nUtil.getCurrentLocale());
+                .knowledge(actor, AIChatAccessPolicy.scopes(settings), I18nUtil.getCurrentLocale());
     }
 
     public SearchResult search(AccountAccess actor, String query) throws SQLException {

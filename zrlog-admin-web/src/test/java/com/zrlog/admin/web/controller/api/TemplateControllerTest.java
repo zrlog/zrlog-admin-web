@@ -11,6 +11,9 @@ import com.zrlog.admin.business.rest.response.TemplateValuePreviewResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.TemplateService;
+import com.zrlog.admin.business.service.TemplatePackageInstaller;
+import com.zrlog.admin.business.service.TemplateCatalog;
+import com.zrlog.admin.business.service.TemplateSettingsService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -277,7 +280,10 @@ public class TemplateControllerTest {
                                 () -> null,
                                 () -> null,
                                 ApplicationServicesFixture.audit(testDataSource),
-                                () -> new WebSite(testDataSource)),
+                                () -> new WebSite(testDataSource),
+                                new TemplatePackageInstaller(new TemplateCatalog()),
+                                new TemplateSettingsService(() -> new WebSite(testDataSource), new InMemoryZrLogDatabase.TestCacheService()),
+                                new TemplateCatalog()),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",

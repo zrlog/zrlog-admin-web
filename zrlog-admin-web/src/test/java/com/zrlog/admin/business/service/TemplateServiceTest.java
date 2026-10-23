@@ -3,7 +3,8 @@ package com.zrlog.admin.business.service;
 import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
-import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.admin.web.di.AdminComponent;
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.Constants;
@@ -16,8 +17,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,22 +36,64 @@ public class TemplateServiceTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
+    public void discoveryLeavesMissingThemesAndQueuedArchivesUntouchedUntilPreparation() throws Exception {
+        withRootPath(() -> {
+            File templates = new File(temporaryFolder.getRoot(), "static/include/templates");
+            new TemplateCatalog().list(Constants.TEMPLATE_BASE_PATH + "missing", null);
+            assertFalse(templates.exists());
+            assertTrue(templates.mkdirs());
+            File archive = createThemeZip(Map.of("index.ftl", "<html>queued</html>"));
+            Path queued = templates.toPath().resolve("queued-theme.zip");
+            Files.copy(archive.toPath(), queued);
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                db.putWebsite("template", Constants.getDefaultTemplatePath());
+                TemplateService service = db.component(AdminComponent.class).templates();
+                String name = Constants.TEMPLATE_BASE_PATH + "queued-theme";
+                assertFalse(service.getAllTemplates(null).stream().anyMatch(t -> name.equals(t.getTemplate())));
+                assertTrue(Files.exists(queued));
+                assertFalse(new File(templates, "queued-theme").exists());
+
+                service.prepareTemplates();
+                assertEquals("<html>queued</html>", Files.readString(templates.toPath().resolve("queued-theme/index.ftl")));
+                assertTrue(service.getAllTemplates(null).stream().anyMatch(t -> name.equals(t.getTemplate())));
+            }
+        });
+    }
+
+    @Test
+    public void failedReplacementRestoresOldThemeAndRemovesStagingFiles() throws Exception {
+        withRootPath(() -> {
+            createLocalTemplate("recover-theme");
+            Path target = temporaryFolder.getRoot().toPath().resolve("static/include/templates/recover-theme");
+            File zip = createThemeZip(Map.of("index.ftl", "<html>replacement</html>"));
+            TemplatePackageInstaller installer = new TemplatePackageInstaller(new TemplateCatalog()) {
+                @Override
+                void movePath(Path source, Path destination) throws IOException {
+                    if (source.getFileName().toString().startsWith(".upload-")) {
+                        throw new IOException("Simulated installation move failure");
+                    }
+                    super.movePath(source, destination);
+                }
+            };
+            assertThrows(IOException.class, () -> installer.upload("recover-theme", true, zip));
+            assertEquals("<html></html>", Files.readString(target.resolve("index.ftl")));
+            assertTrue(Files.isRegularFile(target.resolve("template.properties")));
+            try (var paths = Files.list(target.getParent())) {
+                assertEquals(List.of("recover-theme"), paths.map(p -> p.getFileName().toString()).collect(java.util.stream.Collectors.toList()));
+            }
+        });
+    }
+
+    @Test
     public void shouldDiscoverLocalTemplateAndLoadConfigOverridesFromRealDatabase() throws Exception {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                        db.unitCacheService()
-                                .getPublicWebSiteInfo()
-                                .setTemplate(Constants.getDefaultTemplatePath());
+                        db.putWebsite("template", Constants.getDefaultTemplatePath());
                         String templatePath = createLocalTemplate("local-theme");
                         db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
                         TemplateService service =
-                                new TemplateService(
-                                        db.unitCacheService(),
-                                        () -> null,
-                                        () -> null,
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new WebSite(db.dataSource()));
+                                db.component(AdminComponent.class).templates();
 
                         List<TemplateEntryResponse> templates =
                                 service.getAllTemplates(templatePath);
@@ -95,12 +140,7 @@ public class TemplateServiceTest {
                                         + "configForm.accent.placeholder=\\u9009\\u62e9\\u989c\\u8272\n");
                         db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
                         TemplateService service =
-                                new TemplateService(
-                                        db.unitCacheService(),
-                                        () -> null,
-                                        () -> null,
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new WebSite(db.dataSource()));
+                                db.component(AdminComponent.class).templates();
                         for (String language : List.of("en_US", "zh_CN", "en_US")) {
                             try (AdminLanguageContext ignored =
                                          AdminLanguageContext.open(language)) {
@@ -139,14 +179,9 @@ public class TemplateServiceTest {
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                         String templatePath = createLocalTemplate("active-local-theme");
-                        db.unitCacheService().getPublicWebSiteInfo().setTemplate(templatePath);
+                        db.putWebsite("template", templatePath);
                         List<TemplateEntryResponse> entries =
-                                new TemplateService(
-                                        db.unitCacheService(),
-                                        () -> null,
-                                        () -> null,
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new WebSite(db.dataSource()))
+                                db.component(AdminComponent.class).templates()
                                         .getAllTemplates(templatePath);
                         TemplateEntryResponse local =
                                 entries.stream()
@@ -180,17 +215,10 @@ public class TemplateServiceTest {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                        db.unitCacheService()
-                                .getPublicWebSiteInfo()
-                                .setTemplate(Constants.getDefaultTemplatePath());
+                        db.putWebsite("template", Constants.getDefaultTemplatePath());
                         String templatePath = createLocalTemplate("sanitize-theme");
                         TemplateService service =
-                                new TemplateService(
-                                        db.unitCacheService(),
-                                        () -> null,
-                                        () -> null,
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new WebSite(db.dataSource()));
+                                db.component(AdminComponent.class).templates();
                         Map<String, Object> settings = new LinkedHashMap<>();
                         settings.put("accent", "<b>blue</b><script>bad()</script>");
                         settings.put(
@@ -202,7 +230,7 @@ public class TemplateServiceTest {
                         settings.put("pageSize", 12);
                         settings.put("unknown", "<script>ignored()</script>");
 
-                        UpdateRecordResponse response = service.save(templatePath, settings);
+                        UpdateRecordResponse response = service.saveAndRecord(templatePath, settings, new AdminAuditContext(1, "127.0.0.1", "/template/config", "test"));
                         Map<String, Object> stored =
                                 new WebSite(db.dataSource()).getTemplateConfigMap(templatePath);
 
@@ -232,14 +260,7 @@ public class TemplateServiceTest {
                     File zipFile = createThemeZip(Map.of("index.ftl", "<html>new</html>"));
 
                     UploadTemplateResponse response =
-                            new TemplateService(
-                                    new InMemoryZrLogDatabase.TestCacheService(),
-                                    () -> null,
-                                    () -> null,
-                                    ApplicationServicesFixture.audit(null),
-                                    () -> {
-                                        throw new IllegalStateException("Database is unavailable in this test");
-                                    })
+                            new TemplatePackageInstaller(new TemplateCatalog())
                                     .upload("uploaded-theme", false, zipFile);
 
                     File installed =
@@ -277,15 +298,8 @@ public class TemplateServiceTest {
                                     Map.of(
                                             "index.ftl", "<html>replacement</html>",
                                             "assets/theme.css", "new-content"));
-                    TemplateService service =
-                            new TemplateService(
-                                    new InMemoryZrLogDatabase.TestCacheService(),
-                                    () -> null,
-                                    () -> null,
-                                    ApplicationServicesFixture.audit(null),
-                                    () -> {
-                                        throw new IllegalStateException("Database is unavailable in this test");
-                                    });
+                    TemplatePackageInstaller service =
+                            new TemplatePackageInstaller(new TemplateCatalog());
 
                     UploadTemplateResponse rejected =
                             service.upload("replace-theme", false, zipFile);
@@ -317,14 +331,7 @@ public class TemplateServiceTest {
                     File zipFile = createThemeZip(Map.of("../outside.txt", "outside"));
 
                     UploadTemplateResponse response =
-                            new TemplateService(
-                                    new InMemoryZrLogDatabase.TestCacheService(),
-                                    () -> null,
-                                    () -> null,
-                                    ApplicationServicesFixture.audit(null),
-                                    () -> {
-                                        throw new IllegalStateException("Database is unavailable in this test");
-                                    })
+                            new TemplatePackageInstaller(new TemplateCatalog())
                                     .upload("unsafe-theme", false, zipFile);
 
                     assertEquals(1, response.getError());
@@ -346,14 +353,7 @@ public class TemplateServiceTest {
                     File zipFile = createZip(Map.of("index.ftl", "<html></html>"));
 
                     UploadTemplateResponse response =
-                            new TemplateService(
-                                    new InMemoryZrLogDatabase.TestCacheService(),
-                                    () -> null,
-                                    () -> null,
-                                    ApplicationServicesFixture.audit(null),
-                                    () -> {
-                                        throw new IllegalStateException("Database is unavailable in this test");
-                                    })
+                            new TemplatePackageInstaller(new TemplateCatalog())
                                     .upload("missing-metadata", false, zipFile);
 
                     assertEquals(1, response.getError());

@@ -194,22 +194,8 @@ public class AIFileInputTest {
                         "{\"input\":\"Continue\",\"articleId\":7,\"files\":[]}")) {
                     String payload =
                             read(
-                                    new AIChatService(client,
-                                            null,
-                                            ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component(db.dataSource())
-                                                    .permissions(),
-                                            AccountServicesFixture.component(db.dataSource())
-                                                    .identities(),
-                                            AccountServicesFixture.component(db.dataSource())
-                                                    .preferences(),
-                                            AIServiceDependencies.approvals(db.dataSource()),
-                                            new AIFileService(),
-                                            AIServiceDependencies.writing(db.dataSource()),
-                                            AIServiceDependencies.conversations(db.dataSource()),
-                                            AIServiceDependencies.writingTools(db.dataSource()),
-                                            AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
+                                    AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                                             .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), new Gson().fromJson(json, ChatRequest.class), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
                     assertTrue(payload, payload.contains("\"type\":\"done\""));
                 }
@@ -251,36 +237,14 @@ public class AIFileInputTest {
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
             String first =
                     read(
-                            new AIChatService(client,
-                                    null,
-                                    ContentToolsFixture.from(db.config()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).identities(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(
-                                            ContentToolsFixture.from(db.config()), db.dataSource()))
+                            AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                                     .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request(7, png, jpeg, webp, csv), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(png.data));
             assertTrue(
-                    read(new AIChatService(client,
-                            null,
-                            ContentToolsFixture.from(db.config()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(
-                                    ContentToolsFixture.from(db.config()), db.dataSource()))
+                    read(AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                             .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request(7), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()))
                             .contains("\"type\":\"done\""));
             for (JsonObject wire : client.requestBodies) {
@@ -338,19 +302,8 @@ public class AIFileInputTest {
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
             String first =
                     read(
-                            new AIChatService(client,
-                                    null,
-                                    ContentToolsFixture.from(db.config()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).identities(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(
-                                            ContentToolsFixture.from(db.config()), db.dataSource()))
+                            AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                                     .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request(7, pdf, csv, excel), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(csv.data));
@@ -388,19 +341,8 @@ public class AIFileInputTest {
             forged.attachments = List.of(unknown);
             next.history = List.of(forged);
             assertTrue(
-                    read(new AIChatService(client,
-                            null,
-                            ContentToolsFixture.from(db.config()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(
-                                    ContentToolsFixture.from(db.config()), db.dataSource()))
+                    read(AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                             .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), next, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()))
                             .contains("\"type\":\"done\""));
             assertEquals(3, fileParts(client.requestBodies.get(1)).size());
@@ -421,31 +363,13 @@ public class AIFileInputTest {
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(call.toString())), streamResponse(terminal(MESSAGE)));
             String first =
                     read(
-                            new AIChatService(client,
-                                    null,
-                                    ContentToolsFixture.from(db.config()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).identities(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(
-                                            ContentToolsFixture.from(db.config()), db.dataSource()))
+                            AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                                     .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request(7, csv, png), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
             assertTrue(first, first.contains("approval-required"));
             RunView view =
-                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(null, db.dataSource()))
+                    AIServiceDependencies.chat(db.dataSource(), null, null,
+                            new AIChatModelClient(new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                             .getRun(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7);
             assertEquals("sales.csv", view.attachments.get(0).name);
             String checkpoint = db.scalar("select value from website where name='ai_pending_u1_7'").toString();
@@ -458,19 +382,8 @@ public class AIFileInputTest {
             decision.approvalId = view.approval.id;
             decision.decision = "reject";
             assertTrue(
-                    read(new AIChatService(client,
-                            null,
-                            ContentToolsFixture.from(db.config()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(
-                                    ContentToolsFixture.from(db.config()), db.dataSource()))
+                    read(AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                             .resume(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), decision, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()))
                             .contains("\"type\":\"done\""));
             assertBytes(csv, fileParts(client.requestBodies.get(1)).get(0));
@@ -488,37 +401,15 @@ public class AIFileInputTest {
                 assertThrows(
                         AIFileInputException.class,
                         () ->
-                                new AIChatService(client,
-                                        null,
-                                        ContentToolsFixture.from(db.config()),
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
-                                        AccountServicesFixture.component(db.dataSource()).identities(),
-                                        AccountServicesFixture.component(db.dataSource()).preferences(),
-                                        AIServiceDependencies.approvals(db.dataSource()),
-                                        new AIFileService(),
-                                        AIServiceDependencies.writing(db.dataSource()),
-                                        AIServiceDependencies.conversations(db.dataSource()),
-                                        AIServiceDependencies.writingTools(db.dataSource()),
-                                        AIServiceDependencies.references(
-                                                ContentToolsFixture.from(db.config()), db.dataSource()))
+                                AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                                         .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request(7, text("report.csv", "a,b")), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
                 Input image = image("png");
                 assertThrows(
                         AIFileInputException.class,
                         () ->
-                                new AIChatService(client,
-                                        null,
-                                        ContentToolsFixture.from(db.config()),
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
-                                        AccountServicesFixture.component(db.dataSource()).identities(),
-                                        AccountServicesFixture.component(db.dataSource()).preferences(),
-                                        AIServiceDependencies.approvals(db.dataSource()),
-                                        new AIFileService(),
-                                        AIServiceDependencies.writing(db.dataSource()),
-                                        AIServiceDependencies.conversations(db.dataSource()),
-                                        AIServiceDependencies.writingTools(db.dataSource()),
-                                        AIServiceDependencies.references(
-                                                ContentToolsFixture.from(db.config()), db.dataSource()))
+                                AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(client, new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()))
                                         .start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request(7, image), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
                 assertTrue(client.requests.isEmpty());
             }
@@ -611,15 +502,8 @@ public class AIFileInputTest {
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
             conversations.captureAccount(java.util.Objects.requireNonNullElse(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), 0)).appendAIMessageEntries(List.of(message), 7L);
             AIChatService chat =
-                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(null, db.dataSource()));
+                    AIServiceDependencies.chat(db.dataSource(), null, null,
+                            new AIChatModelClient(new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()));
             assertArrayEquals(Base64.getDecoder().decode(image.data), storage.read(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), chat.imageAttachment(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7, png.id)));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 0, png.id));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7, document.id));
@@ -655,15 +539,8 @@ public class AIFileInputTest {
             checkpoints.pause(run);
             checkpoints.save(run, "running");
             AIChatService chat =
-                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(null, db.dataSource()));
+                    AIServiceDependencies.chat(db.dataSource(), null, null,
+                            new AIChatModelClient(new AIFileService()), new AIFileService(), AIServiceDependencies.writing(db.dataSource()));
             assertEquals(image.id, chat.imageAttachment(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 0, image.id).id);
             checkpoints.save(run, "completed");
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Describe");

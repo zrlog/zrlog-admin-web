@@ -314,7 +314,8 @@ public class AIChatToolParityTest {
                 .get(ContentToolFactory.class);
     }
 
-    private static class Model extends AIChatService {
+    private static class Model extends AIChatModelClient {
+        final AIChatService service;
         final List<String> responses;
         final List<JsonObject> requests = new ArrayList<>();
         private final com.hibegin.common.dao.DataSourceWrapper actorSource;
@@ -322,17 +323,9 @@ public class AIChatToolParityTest {
         };
 
         Model(DataSourceWrapper testDataSource, ContentToolFactory tools, String... responses) {
-            super(
-                    AIChatToolParityTest.request(),
-                    tools,
-                    AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
-                    AccountServicesFixture.component(testDataSource).preferences(),
-                    AIServiceDependencies.approvals(testDataSource),
-                    new AIFileService(),
-                    AIServiceDependencies.writing(testDataSource),
-                    AIServiceDependencies.conversations(testDataSource),
-                    AIServiceDependencies.writingTools(testDataSource),
-                    AIServiceDependencies.references(tools, testDataSource));
+            super(new AIFileService());
+            this.service = AIServiceDependencies.chat(testDataSource, AIChatToolParityTest.request(), tools,
+                            this, new AIFileService(), AIServiceDependencies.writing(testDataSource));
             this.actorSource = testDataSource;
             this.responses = List.of(responses);
         }
@@ -345,7 +338,7 @@ public class AIChatToolParityTest {
             ChatRequest input = new ChatRequest();
             input.input = "Save and publish the article as requested";
             input.articleId = articleId;
-            String chunk = new String(start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String chunk = new String(service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             StringBuilder wire = new StringBuilder(chunk);
             for (int i = 0; i < 8; i++) {
                 var paused = chunk.lines().filter(line -> line.startsWith("data: "))
@@ -358,7 +351,7 @@ public class AIChatToolParityTest {
                 confirmation.runId = view.get("runId").getAsString();
                 confirmation.approvalId = view.getAsJsonObject("approval").get("id").getAsString();
                 confirmation.decision = "approve";
-                chunk = new String(resume(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), confirmation, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                chunk = new String(service.resume(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), confirmation, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 wire.append(chunk);
             }
             return wire.toString();
