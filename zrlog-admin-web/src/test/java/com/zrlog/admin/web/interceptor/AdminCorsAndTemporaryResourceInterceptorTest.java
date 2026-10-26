@@ -344,7 +344,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
                         () -> false,
                         AccountServicesFixture.component(null).requestIdentity(),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null), () -> {
+                                () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }))
                         .doInterceptor(

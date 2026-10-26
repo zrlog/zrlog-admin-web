@@ -70,7 +70,8 @@ public class UploadService {
         String temporaryUri = buildTemporaryUri(resolvedDir, file, name);
         if (temporaryUri != null) {
             try (FileInputStream inputStream = new FileInputStream(file)) {
-                return dbFileService.toDbFile(temporaryUri, IOUtil.getByteByInputStream(inputStream));
+                // SWS currently exposes only a temporary filename. Keep the original name unknown until its upload API supplies it.
+                return dbFileService.toDbFile(temporaryUri, inputStream, null);
             }
         }
         String finalFilePath = PathUtil.getStaticFile(uri).toString();

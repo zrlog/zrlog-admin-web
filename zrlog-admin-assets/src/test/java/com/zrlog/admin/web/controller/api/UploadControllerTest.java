@@ -153,7 +153,7 @@ public class UploadControllerTest {
             assertTrue(uri.startsWith(dir + "/"));
             assertArrayEquals(
                     "thumb".getBytes(StandardCharsets.UTF_8),
-                    new DbFileService(ApplicationServicesFixture.websiteKv(ignored.dataSource()), () -> new WebSite(ignored.dataSource()))
+                    new DbFileService(() -> new WebSite(ignored.dataSource()))
                             .loadDbFile(uri));
         }
     }
@@ -199,7 +199,7 @@ public class UploadControllerTest {
                                 () -> null,
                                 AccountServicesFixture.component(source).identities(), AccountServicesFixture.component(source).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source))), AccountServicesFixture.component(source).requestIdentity());
+                                        () -> new WebSite(source))), AccountServicesFixture.component(source).requestIdentity());
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;

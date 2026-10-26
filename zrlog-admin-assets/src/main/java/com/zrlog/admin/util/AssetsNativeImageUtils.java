@@ -10,6 +10,7 @@ public final class AssetsNativeImageUtils {
 
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                com.zrlog.admin.business.service.DbFileMetadata.class,
                 com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest.class,
                 com.zrlog.admin.business.rest.response.UploadFileResponse.class,
                 com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity.class,

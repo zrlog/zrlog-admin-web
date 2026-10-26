@@ -420,8 +420,7 @@ public class FileManagerService {
         }
         if (path.startsWith(ADMIN_DB_ATTACHED_TMP + "/")) {
             try {
-                this.dbFileService.loadDbFile(path);
-                return "file";
+                return this.dbFileService.hasRecord(path) ? "file" : "directory";
             } catch (Exception e) {
                 return "directory";
             }
@@ -455,8 +454,16 @@ public class FileManagerService {
         return IOUtil.getByteByFile(target);
     }
 
+    public java.io.InputStream open(String path) throws IOException {
+        if (path.startsWith(ADMIN_DB_ATTACHED_TMP + "/")) return dbFileService.openDbFile(path);
+        return new java.io.FileInputStream(resolveAndValidate(path));
+    }
+
     public String readContent(String path) throws IOException {
-        byte[] bytes = read(path);
+        byte[] bytes;
+        try (java.io.InputStream input = open(path)) {
+            bytes = input.readNBytes(1024 * 1024 + 1);
+        }
         if (bytes.length > 1024 * 1024) {
             return "File too large (max 1MB)";
         }

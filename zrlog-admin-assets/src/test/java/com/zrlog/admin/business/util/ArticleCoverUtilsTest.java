@@ -61,7 +61,7 @@ public class ArticleCoverUtilsTest {
                                 () -> null,
                                 AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null), () -> {
+                                        () -> {
                                     throw new IllegalStateException("Database is unavailable in this test");
                                 }))));
         assertEquals(
@@ -74,7 +74,7 @@ public class ArticleCoverUtilsTest {
                                 () -> null,
                                 AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null), () -> {
+                                        () -> {
                                     throw new IllegalStateException("Database is unavailable in this test");
                                 }))));
     }
@@ -90,7 +90,7 @@ public class ArticleCoverUtilsTest {
                                 () -> null,
                                 AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null), () -> {
+                                        () -> {
                                     throw new IllegalStateException("Database is unavailable in this test");
                                 }))));
     }
@@ -111,7 +111,7 @@ public class ArticleCoverUtilsTest {
                                 () -> null,
                                 AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null), () -> {
+                                        () -> {
                                     throw new IllegalStateException("Database is unavailable in this test");
                                 })));
 

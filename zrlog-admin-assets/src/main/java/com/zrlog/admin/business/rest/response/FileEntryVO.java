@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class FileEntryVO {
+    private String originalName;
+    private long uploadedAt;
 
     private String name;
     private String path;
@@ -42,6 +44,22 @@ public class FileEntryVO {
 
     public String getName() {
         return name;
+    }
+
+    public String getOriginalName() {
+        return originalName;
+    }
+
+    public void setOriginalName(String originalName) {
+        this.originalName = originalName;
+    }
+
+    public long getUploadedAt() {
+        return uploadedAt;
+    }
+
+    public void setUploadedAt(long uploadedAt) {
+        this.uploadedAt = uploadedAt;
     }
 
     public void setName(String name) {

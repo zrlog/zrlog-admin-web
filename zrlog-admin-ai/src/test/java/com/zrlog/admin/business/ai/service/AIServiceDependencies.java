@@ -59,7 +59,7 @@ public final class AIServiceDependencies {
     }
 
     public static DbFileService dbFiles(DataSourceWrapper source) {
-        return new DbFileService(ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source));
+        return new DbFileService(() -> new WebSite(source));
     }
 
     public static AIToolService tools(DataSourceWrapper source) {

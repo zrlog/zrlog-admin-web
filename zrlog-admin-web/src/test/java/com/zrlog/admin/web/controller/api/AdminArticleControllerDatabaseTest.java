@@ -138,7 +138,7 @@ public class AdminArticleControllerDatabaseTest {
                                 () -> null,
                                 AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource))),
+                                        () -> new WebSite(testDataSource))),
                         AIServiceDependencies.chat(testDataSource, null, null,
                             new AIChatModelClient(new AIFileService()), new AIFileService(), AIServiceDependencies.writing(testDataSource)),
                         new AIReferenceService(null,
