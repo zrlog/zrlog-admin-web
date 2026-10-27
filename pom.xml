@@ -10,6 +10,7 @@
     <version>4.0.2-SNAPSHOT</version>
     <modelVersion>4.0.0</modelVersion>
     <properties>
+        <sws.version>4.1.17</sws.version>
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>build</frontendBuildOutputPath>
         <zrlog-install-web.version>4.0.1</zrlog-install-web.version>

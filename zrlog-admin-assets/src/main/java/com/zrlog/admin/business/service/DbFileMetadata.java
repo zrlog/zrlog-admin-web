@@ -4,7 +4,7 @@ package com.zrlog.admin.business.service;
 public final class DbFileMetadata {
     public int formatVersion;
     public boolean ready;
-    // Null for legacy files and HTTP uploads until SWS exposes the original multipart filename.
+    // Null when the legacy file or caller did not supply an original filename.
     public String originalName;
     public long size;
     public long uploadedAt;

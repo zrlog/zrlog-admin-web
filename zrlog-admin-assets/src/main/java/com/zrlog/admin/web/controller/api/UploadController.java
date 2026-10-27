@@ -3,6 +3,7 @@ package com.zrlog.admin.web.controller.api;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.hibegin.http.server.api.UploadedFile;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.UploadService;
@@ -14,7 +15,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
 
-import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -37,6 +37,18 @@ public class UploadController extends Controller {
         return upload();
     }
 
+    @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.ASSET_UPLOAD, descriptionKey = "file.download")
+    public void resource() throws IOException {
+        response.addHeader("Cache-Control", "no-store");
+        response.addHeader("Content-Type", "application/octet-stream");
+        try (java.io.InputStream input = uploadService.openTemporaryResource(requestIdentity.current(), request.getParaToStr("path"))) {
+            response.write(input);
+        } catch (java.io.FileNotFoundException missing) {
+            response.renderCode(404);
+        }
+    }
+
     /**
      * @deprecated use {@link #index()}.
      */
@@ -49,15 +61,16 @@ public class UploadController extends Controller {
     }
 
     private ApiStandardResponse<UploadFileResponse> upload() throws IOException, SQLException {
-        File imgFile = request.getFile("imgFile");
+        UploadedFile imgFile = request.getUploadedFile("imgFile");
         if (imgFile == null) {
-            imgFile = request.getFile("file");
+            imgFile = request.getUploadedFile("file");
         }
-        if (imgFile == null || !imgFile.exists()) {
+        if (imgFile == null || !imgFile.getFile().exists()) {
             throw new ArgsException("imgFile");
         }
         return new ApiStandardResponse<>(uploadService.saveUploadedFile(
                 requestIdentity.current(), imgFile, request.getParaToStr("dir"), request.getParaToStr("name"),
+                Boolean.parseBoolean(request.getParaToStr("temporary", "false")),
                 getRequest(), AdminTokenThreadLocal.getUser()));
     }
 }

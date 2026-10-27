@@ -74,6 +74,16 @@ public class UploadActorBoundaryTest {
             assertTrue(stored.getUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/2/"));
             assertEquals("temporary author attachment", new String(Base64.getDecoder().decode(
                     (String) db.scalar("select value from website where name=?", "db_file" + stored.getUrl())), StandardCharsets.UTF_8));
+            try (var input = uploads.openTemporaryResource(actor, stored.getUrl())) {
+                assertEquals("temporary author attachment", new String(input.readAllBytes(), StandardCharsets.UTF_8));
+            }
+            db.execute("insert into user(userId,userName,role) values(3,'other-writer','author')");
+            var otherActor = AccessActorBoundaryTest.actor(db, 3);
+            assertThrows(PermissionErrorException.class, () -> uploads.openTemporaryResource(otherActor, stored.getUrl()));
+            assertThrows(PermissionErrorException.class,
+                    () -> uploads.openTemporaryResource(actor.restrictActions(Set.of("article.read")), stored.getUrl()));
+            assertThrows(com.zrlog.common.exception.ArgsException.class,
+                    () -> uploads.openTemporaryResource(actor, AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/2/../3/file.zip"));
             var avatarOnly = actor.restrictActions(Set.of("account.self"));
             var avatar = uploads.saveAvatarBytes(avatarOnly, "avatar".getBytes(StandardCharsets.UTF_8), "png", request(), null);
             assertTrue(avatar.getUrl().startsWith("/sub/attached/users/2/"));
@@ -101,6 +111,8 @@ public class UploadActorBoundaryTest {
                 assertThrows(PermissionErrorException.class, () -> uploads.saveUploadedFile(actor, file, "image", request(), null));
                 assertThrows(PermissionErrorException.class, () -> uploads.saveThumbnailBytes(actor, new byte[]{1}, "png", request(), null));
                 assertThrows(PermissionErrorException.class, () -> uploads.saveAvatarBytes(actor, new byte[]{1}, "png", request(), null));
+                assertThrows(PermissionErrorException.class,
+                        () -> uploads.openTemporaryResource(actor, AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/2/file.zip"));
             }
             assertEquals("unchanged", Files.readString(file.toPath()));
             assertFalse(PathUtil.getStaticFile("/attached").exists());

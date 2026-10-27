@@ -111,6 +111,10 @@
       {
         "name": "upload",
         "parameterTypes": []
+      },
+      {
+        "name": "install",
+        "parameterTypes": []
       }
     ]
   },

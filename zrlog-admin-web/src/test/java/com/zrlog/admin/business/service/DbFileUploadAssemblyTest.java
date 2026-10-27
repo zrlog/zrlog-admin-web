@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.api.UploadedFile;
 import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.cookie.Cookie;
 import com.zrlog.admin.business.AdminConstants;
@@ -42,13 +43,15 @@ public class DbFileUploadAssemblyTest {
             upload.file = folder.newFile("generated-request-123.bin");
             Files.write(upload.file.toPath(), content);
             String original = "原始插件包.bin";
+            upload.uploadedFile = new UploadedFile("file", original, "application/octet-stream", upload.file);
             byte[] header = ("--boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + original
                     + "\"\r\nContent-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8);
             ByteArrayOutputStream body = new ByteArrayOutputStream();
             body.write(header); body.write(content); body.write("\r\n--boundary--\r\n".getBytes(StandardCharsets.UTF_8));
             upload.body = body.toByteArray();
             upload.headers.put("Content-Type", "multipart/form-data; boundary=boundary");
-            upload.params.put("dir", AdminConstants.ADMIN_DB_ATTACHED_TMP + "/packages");
+            upload.params.put("dir", "packages");
+            upload.params.put("temporary", "true");
             upload.params.put("name", "stored.bin");
             UploadController controller = (UploadController) Controller.buildController(
                     UploadController.class.getMethod("index"), upload.request(), upload.response());
@@ -56,7 +59,7 @@ public class DbFileUploadAssemblyTest {
             assertEquals(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/packages/stored.bin", url);
             DbFileMetadata meta = new Gson().fromJson(db.queryOne("SELECT remark FROM website WHERE name=?", "db_file" + url)
                     .get("remark").toString(), DbFileMetadata.class);
-            assertNull("SWS does not expose the original filename yet; never persist the generated temp name", meta.originalName);
+            assertEquals(original, meta.originalName);
             assertEquals(content.length, meta.size);
             assertTrue(meta.uploadedAt > 0);
             assertEquals(3, meta.chunkCount);
@@ -89,6 +92,11 @@ public class DbFileUploadAssemblyTest {
             assertFalse(db.component(AssetsComponent.class).temporaryResources().doInterceptor(other.request(), other.response()));
             assertEquals(403, other.code);
             assertNull(other.written);
+
+            DbFileService resources = new DbFileService(() -> new com.zrlog.model.WebSite(db.dataSource()));
+            assertTrue(resources.deleteByKey(url));
+            assertFalse(resources.hasRecord(url));
+            assertTrue(db.queryList("SELECT name FROM website WHERE name LIKE 'db_file_chunk:%'").isEmpty());
         }
     }
 
@@ -100,6 +108,7 @@ public class DbFileUploadAssemblyTest {
         final List<Cookie> cookies = new ArrayList<>();
         String uri = "/api/admin/upload";
         File file;
+        UploadedFile uploadedFile;
         byte[] body = new byte[0];
         byte[] written;
         int code;
@@ -111,6 +120,7 @@ public class DbFileUploadAssemblyTest {
                 switch (m.getName()) {
                     case "getServerConfig": return db.config().getServerConfig();
                     case "getFile": return "file".equals(a[0]) ? file : null;
+                    case "getUploadedFile": return "file".equals(a[0]) ? uploadedFile : null;
                     case "getParaToStr": return params.getOrDefault(a[0], a.length > 1 ? (String) a[1] : null);
                     case "getInputStream": return new ByteArrayInputStream(body);
                     case "getHeader": return headers.get(a[0]);

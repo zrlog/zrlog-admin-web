@@ -4,6 +4,7 @@ import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.http.server.api.HttpRequest;
+import com.hibegin.http.server.api.UploadedFile;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -12,6 +13,7 @@ import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.admin.util.UploadFileUtils;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
@@ -20,6 +22,7 @@ import jakarta.inject.Singleton;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
@@ -59,6 +62,49 @@ public class UploadService {
 
     public UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, String name, HttpRequest request,
                                                AdminTokenVO adminTokenVO) throws IOException, SQLException {
+        return saveUploadedFile(actor, file, dir, name, null, request, adminTokenVO);
+    }
+
+    public UploadFileResponse saveUploadedFile(AccountAccess actor, UploadedFile upload, String dir, String name,
+                                               HttpRequest request, AdminTokenVO adminTokenVO) throws IOException, SQLException {
+        return saveUploadedFile(actor, upload, dir, name, false, request, adminTokenVO);
+    }
+
+    public UploadFileResponse saveUploadedFile(AccountAccess actor, UploadedFile upload, String dir, String name,
+                                               boolean temporary, HttpRequest request, AdminTokenVO adminTokenVO) throws IOException, SQLException {
+        authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
+        String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
+        if (temporary) {
+            if (resolvedDir.contains("..") || resolvedDir.contains("%") || resolvedDir.contains("?") || resolvedDir.contains("#")) {
+                throw new ArgsException("dir");
+            }
+            if (normalizeTemporaryDir(resolvedDir) == null) {
+                resolvedDir = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/" + resolvedDir;
+            }
+        }
+        String originalName = upload.getOriginalFilename();
+        return saveUploadedFile(actor, upload.getFile(), resolvedDir, name,
+                originalName == null || originalName.isEmpty() ? null : originalName, request, adminTokenVO);
+    }
+
+    /** Uploaded resources can be read through the same delegated asset permission without file-manager access. */
+    public InputStream openTemporaryResource(AccountAccess actor, String path) throws IOException {
+        authorize(actor, null, AccountAction.ASSET_UPLOAD);
+        if (path == null || !path.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/")
+                || path.contains("..") || path.contains("%") || path.contains("\\") || path.contains("//")
+                || path.contains("?") || path.contains("#")) throw new ArgsException("path");
+        if (!actor.isAdministrator() && !path.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/")) {
+            throw new PermissionErrorException();
+        }
+        try {
+            return dbFileService.openDbFile(path);
+        } catch (com.zrlog.common.exception.NotImplementException missing) {
+            throw new java.io.FileNotFoundException(path);
+        }
+    }
+
+    private UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, String name, String originalName,
+                                                HttpRequest request, AdminTokenVO adminTokenVO) throws IOException, SQLException {
         authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
         String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
         if (!actor.isAdministrator()) {
@@ -70,8 +116,7 @@ public class UploadService {
         String temporaryUri = buildTemporaryUri(resolvedDir, file, name);
         if (temporaryUri != null) {
             try (FileInputStream inputStream = new FileInputStream(file)) {
-                // SWS currently exposes only a temporary filename. Keep the original name unknown until its upload API supplies it.
-                return dbFileService.toDbFile(temporaryUri, inputStream, null);
+                return dbFileService.toDbFile(temporaryUri, inputStream, originalName);
             }
         }
         String finalFilePath = PathUtil.getStaticFile(uri).toString();

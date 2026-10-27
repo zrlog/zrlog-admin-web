@@ -58,6 +58,10 @@
       {
         "name": "thumbnail",
         "parameterTypes": []
+      },
+      {
+        "name": "resource",
+        "parameterTypes": []
       }
     ]
   }

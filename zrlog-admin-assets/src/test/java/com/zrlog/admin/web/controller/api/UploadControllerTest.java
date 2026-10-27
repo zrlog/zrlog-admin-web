@@ -3,6 +3,7 @@ package com.zrlog.admin.web.controller.api;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.api.UploadedFile;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
@@ -51,6 +52,10 @@ public class UploadControllerTest {
                 (proxy, method, args) -> {
                     if ("getFile".equals(method.getName())) {
                         return files.get(args[0].toString());
+                    }
+                    if ("getUploadedFile".equals(method.getName())) {
+                        File file = files.get(args[0].toString());
+                        return file == null ? null : new UploadedFile(args[0].toString(), null, null, file);
                     }
                     if ("getParaToStr".equals(method.getName())) {
                         String key = args[0].toString();
