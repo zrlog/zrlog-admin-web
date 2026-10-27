@@ -831,12 +831,12 @@ public class AdminControllerDelegationTest {
         AdminController controller =
                 new AdminController(
                         new AdminDashboardService(
-                                new WebsiteKvService(
+                            new WebsiteKvService(
                                         () -> {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
                                         }),
-                                new AdminStatisticsService(
+                            new AdminStatisticsService(
                                         new InMemoryZrLogDatabase.TestCacheService(),
                                         RuntimeInfoFixture.from(applicationConfig),
                                         ApplicationServicesFixture.audit(null),
@@ -848,7 +848,7 @@ public class AdminControllerDelegationTest {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
                                         }),
-                                new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
+                            new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                         ApplicationServicesFixture.capability(
                                                 applicationConfig, ArticleAssistant.class),
                                         new AdminPageDataFactory(
@@ -861,9 +861,10 @@ public class AdminControllerDelegationTest {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
                                         }),
-                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                AccountServicesFixture.component(null).preferences(),
-                                AccountServicesFixture.component(null).identities()),
+                            new com.zrlog.admin.business.service.DashboardPluginLoader(() -> applicationConfig.getPlugin(PluginCorePlugin.class)),
+                            AccountServicesFixture.component(null).preferences(),
+                            AccountServicesFixture.component(null).identities(),
+                            new com.zrlog.admin.business.service.DashboardLayoutPolicy()),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
@@ -1247,14 +1248,14 @@ public class AdminControllerDelegationTest {
             AdminController controller =
                     new AdminController(
                             new AdminDashboardService(
-                                    new WebsiteKvService(() -> new WebSite(db.dataSource())),
-                                    new AdminStatisticsService(
+                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
+                            new AdminStatisticsService(
                                             db.unitCacheService(),
                                             RuntimeInfoFixture.from(db.config()),
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
-                                    new ArticleQueryService(db.unitCacheService(),
+                            new ArticleQueryService(db.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
                                             new AdminPageDataFactory(
@@ -1268,11 +1269,12 @@ public class AdminControllerDelegationTest {
                                             AccountServicesFixture.component(db.dataSource())
                                                     .preferences(),
                                             () -> new Log(db.dataSource())),
-                                    () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component(db.dataSource())
+                            new com.zrlog.admin.business.service.DashboardPluginLoader(() -> db.config().getPlugin(PluginCorePlugin.class)),
+                            AccountServicesFixture.component(db.dataSource())
                                             .preferences(),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .identities()),
+                            AccountServicesFixture.component(db.dataSource())
+                                            .identities(),
+                            new com.zrlog.admin.business.service.DashboardLayoutPolicy()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
@@ -1330,14 +1332,14 @@ public class AdminControllerDelegationTest {
             AdminController controller =
                     new AdminController(
                             new AdminDashboardService(
-                                    new WebsiteKvService(() -> new WebSite(ignored.dataSource())),
-                                    new AdminStatisticsService(
+                            new WebsiteKvService(() -> new WebSite(ignored.dataSource())),
+                            new AdminStatisticsService(
                                             ignored.unitCacheService(),
                                             RuntimeInfoFixture.from(ignored.config()),
                                             ApplicationServicesFixture.audit(ignored.dataSource()),
                                             () -> new Log(ignored.dataSource()),
                                             () -> new Comment(ignored.dataSource())),
-                                    new ArticleQueryService(ignored.unitCacheService(),
+                            new ArticleQueryService(ignored.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     ignored.config(), ArticleAssistant.class),
                                             new AdminPageDataFactory(
@@ -1352,11 +1354,12 @@ public class AdminControllerDelegationTest {
                                             AccountServicesFixture.component(ignored.dataSource())
                                                     .preferences(),
                                             () -> new Log(ignored.dataSource())),
-                                    () -> ignored.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component(ignored.dataSource())
+                            new com.zrlog.admin.business.service.DashboardPluginLoader(() -> ignored.config().getPlugin(PluginCorePlugin.class)),
+                            AccountServicesFixture.component(ignored.dataSource())
                                             .preferences(),
-                                    AccountServicesFixture.component(ignored.dataSource())
-                                            .identities()),
+                            AccountServicesFixture.component(ignored.dataSource())
+                                            .identities(),
+                            new com.zrlog.admin.business.service.DashboardLayoutPolicy()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
@@ -1387,12 +1390,12 @@ public class AdminControllerDelegationTest {
     public void shouldAttachDashboardCardDataByCardId() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(
+                            new WebsiteKvService(
                                 () -> {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new AdminStatisticsService(
+                            new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
                                 ApplicationServicesFixture.audit(null),
@@ -1404,7 +1407,7 @@ public class AdminControllerDelegationTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
+                            new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
@@ -1417,9 +1420,10 @@ public class AdminControllerDelegationTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
+                            new com.zrlog.admin.business.service.DashboardPluginLoader(() -> applicationConfig.getPlugin(PluginCorePlugin.class)),
+                            AccountServicesFixture.component(null).preferences(),
+                            AccountServicesFixture.component(null).identities(),
+                            new com.zrlog.admin.business.service.DashboardLayoutPolicy());
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         AdminDashboardCardResponse welcome = card("welcome");
         AdminDashboardCardResponse quickAction = card("quickAction");
@@ -1457,64 +1461,6 @@ public class AdminControllerDelegationTest {
         assertEquals(false, auditTrailData.getLoading());
         assertEquals(null, pluginSurface.getData());
         assertEquals(null, ((AdminDashboardDataInsightsResponse) dataInsights.getData()).getTypeData());
-    }
-
-    @Test
-    public void shouldResolveDashboardCardEnabledState() throws Exception {
-        AdminDashboardService service =
-                new AdminDashboardService(
-                        new WebsiteKvService(
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new AdminStatisticsService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(null),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                },
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(null)),
-                                AccountServicesFixture.component(null).permissions(),
-                                AccountServicesFixture.component(null).preferences(),
-                                () -> {
-                                    throw new IllegalStateException(
-                                            "Database is unavailable in this test");
-                                }),
-                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).identities());
-        Method method = AdminDashboardService.class.getDeclaredMethod("isCardEnabled", AdminDashboardConfigResponse.class,
-                String.class);
-        method.setAccessible(true);
-
-        assertEquals(true, method.invoke(service, new Object[]{null, "activity"}));
-        AdminDashboardConfigResponse noCards = new AdminDashboardConfigResponse();
-        noCards.setCards(null);
-        assertEquals(true, method.invoke(service, noCards, "activity"));
-
-        AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
-        AdminDashboardCardResponse disabled = card("activity");
-        disabled.setEnabled(false);
-        AdminDashboardCardResponse enabled = card("auditTrail");
-        enabled.setEnabled(true);
-        config.setCards(List.of(disabled, enabled));
-
-        assertEquals(false, method.invoke(service, config, "activity"));
-        assertEquals(true, method.invoke(service, config, "auditTrail"));
-        assertEquals(true, method.invoke(service, config, "missing"));
     }
 
     private static class ResponseRecorder {

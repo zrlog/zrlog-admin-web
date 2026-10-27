@@ -191,7 +191,7 @@ public class AIService {
         return cleaned.substring(0, 500);
     }
 
-    protected void checkAiConfig(AIWebSiteInfo info) {
+    protected static void checkAiConfig(AIWebSiteInfo info) {
         if (info.getAi_provider() == null) {
             throw new ArgsException("ai_provider");
         }

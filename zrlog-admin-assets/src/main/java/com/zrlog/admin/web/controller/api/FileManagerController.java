@@ -3,7 +3,6 @@ package com.zrlog.admin.web.controller.api;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.hibegin.http.io.LengthByteArrayInputStream;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest;
 import com.zrlog.admin.business.rest.response.*;
@@ -171,8 +170,9 @@ public class FileManagerController extends BaseController {
             response.redirect(URI.create(target.startsWith("//") ? "https:" + target : target).toASCIIString());
             return;
         }
-        byte[] target = fileManagerService.read(path);
-        response.addHeader("Content-Disposition", "attachment;filename=" + new File(path).getName());
-        response.write(new LengthByteArrayInputStream(target));
+        try (java.io.InputStream target = fileManagerService.open(path)) {
+            response.addHeader("Content-Disposition", "attachment;filename=" + new File(path).getName());
+            response.write(target);
+        }
     }
 }

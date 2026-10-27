@@ -1,16 +1,13 @@
-import {CSSProperties, FunctionComponent, useCallback, useEffect, useRef, useState} from "react";
-import {Dropdown, Grid, Select, Space, theme, Typography} from "antd";
-import {useTheme} from "antd-style";
-import {useAxiosBaseInstance} from "../../base/AppBase";
-import {getRes, tryAppendBackendServerUrl} from "../../utils/constants";
-import {FileManagerData} from "./index";
-import FileManagerView from "./view";
-import {FileEntry, formatSize, getFileIcon, getShortcutIcon, hasAction, isImage} from "./shared";
+import { ResourcePicker } from "@zrlog/ui/resources";
+import { CSSProperties, FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
+import { theme } from "antd";
+import { useAxiosBaseInstance } from "../../base/AppBase";
+import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
+import type { FileManagerData } from "./index";
+import { FileEntry, formatSize, getFileIcon, hasAction, isImage } from "./shared";
 import BackendImage from "../../common/BackendImage";
-import {addToCache, getCacheByKey} from "../../utils/cache";
+import { addToCache, getCacheByKey } from "../../utils/cache";
 
-const {useBreakpoint} = Grid;
-const {Text} = Typography;
 const FILE_MANAGER_API = "/api/admin/file-manager";
 
 type FileManagerPickerProps = {
@@ -38,26 +35,17 @@ const getCachedPickerUiState = (key?: string): FileManagerPickerUiState => {
 };
 
 const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
-                                                                          data,
-                                                                          onlyImage = false,
-                                                                          acceptExtensions,
-                                                                          onSelectFile,
-                                                                          disabled = false,
-                                                                          style,
-                                                                          stateCacheKey,
-                                                                      }) => {
-    const {token} = theme.useToken();
-    const themeVars = useTheme();
-    const screens = useBreakpoint();
+    data,
+    onlyImage = false,
+    acceptExtensions,
+    onSelectFile,
+    disabled = false,
+    style,
+    stateCacheKey,
+}) => {
+    const { token } = theme.useToken();
     const axiosInstance = useAxiosBaseInstance();
     const res = getRes().fileManager;
-    const borderSecondary = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
-    const compactItems = screens.sm !== true;
-    const gridItemPadding = compactItems ? 6 : 8;
-    const gridItemGap = compactItems ? 4 : 6;
-    const gridItemMinHeight = compactItems ? 84 : 100;
-    const gridImageMaxHeight = compactItems ? 44 : 60;
-    const gridIconSize = compactItems ? 24 : undefined;
     const cachedUiState = getCachedPickerUiState(stateCacheKey);
 
     const [currentPath, setCurrentPathState] = useState(cachedUiState.currentPath || "");
@@ -66,8 +54,15 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     const [shortcuts, setShortcuts] = useState<FileEntry[]>(() => data?.shortcuts ?? []);
     const [entries, setEntries] = useState<FileEntry[]>(() => data?.entries ?? []);
     const [loading, setLoading] = useState(!data);
+    const [error, setError] = useState<string>();
     const hydratedFromDataRef = useRef(Boolean(data));
     const fetchSeqRef = useRef(0);
+    useEffect(
+        () => () => {
+            fetchSeqRef.current++;
+        },
+        []
+    );
     const effectivePath = currentPath || "";
     const persistUiState = useCallback(
         (patch: FileManagerPickerUiState) => {
@@ -84,21 +79,21 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     const setCurrentPath = useCallback(
         (path: string) => {
             setCurrentPathState(path);
-            persistUiState({currentPath: path});
+            persistUiState({ currentPath: path });
         },
         [persistUiState]
     );
     const setSearchKey = useCallback(
         (key: string) => {
             setSearchKeyState(key);
-            persistUiState({searchKey: key});
+            persistUiState({ searchKey: key });
         },
         [persistUiState]
     );
     const setViewMode = useCallback(
         (view: "grid" | "list") => {
             setViewModeState(view);
-            persistUiState({viewMode: view});
+            persistUiState({ viewMode: view });
         },
         [persistUiState]
     );
@@ -115,16 +110,21 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
             const seq = ++fetchSeqRef.current;
             const nextKey = key.trim();
             setLoading(true);
+            setError(undefined);
             setEntries([]);
             try {
-                const {data} = await axiosInstance.get(FILE_MANAGER_API, {
-                    params: nextKey ? {key: nextKey} : {path},
+                const { data } = await axiosInstance.get(FILE_MANAGER_API, {
+                    params: nextKey ? { key: nextKey } : { path },
                 });
                 if (seq !== fetchSeqRef.current) {
                     return;
                 }
+                if (data.error) throw new Error(data.message || getRes().fileManager.readFailed);
                 setShortcuts((data.data?.shortcuts ?? []) as FileEntry[]);
                 setEntries((data.data?.entries ?? []) as FileEntry[]);
+            } catch (error) {
+                if (seq === fetchSeqRef.current)
+                    setError(error instanceof Error ? error.message : getRes().fileManager.readFailed);
             } finally {
                 if (seq === fetchSeqRef.current) {
                     setLoading(false);
@@ -142,185 +142,6 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
         void fetchEntries(effectivePath, searchKey);
     }, [effectivePath, fetchEntries, searchKey]);
 
-    const getMatchedRoot = useCallback(
-        (path: string) => {
-            return [...shortcuts]
-                .sort((a, b) => b.path.length - a.path.length)
-                .find((root) => path.startsWith(root.path));
-        },
-        [shortcuts]
-    );
-    const activeRoot = getMatchedRoot(effectivePath);
-    const mobileRootSelect =
-        screens.md === true ? null : (
-            <Select
-                value={activeRoot?.path || ""}
-                onChange={(path) => {
-                    setSearchKey("");
-                    setCurrentPath(path);
-                }}
-                options={[
-                    {
-                        value: "",
-                        label: res.title,
-                    },
-                    ...shortcuts.map((root) => ({
-                        value: root.path,
-                        label: (
-                            <Space size={8}>
-                                {getShortcutIcon(root, activeRoot?.path === root.path)}
-                                <span>{root.name}</span>
-                            </Space>
-                        ),
-                    })),
-                ]}
-                style={{minWidth: 144, flex: "1 1 144px"}}
-            />
-        );
-    const breadcrumbItems = (() => {
-        if (!effectivePath) {
-            return [{key: "", title: res.title}];
-        }
-        const matchedRoot = getMatchedRoot(effectivePath);
-        if (!matchedRoot) {
-            return [{key: "", title: <a onClick={() => setSearchKey("")}>{res.title}</a>}];
-        }
-        const rootKey = matchedRoot.path;
-        const rootTitle = matchedRoot.name;
-        const relativePath = effectivePath.substring(rootKey.length).replace(/^\/+/, "");
-        const items = [{key: rootKey, title: <a onClick={() => setCurrentPath(rootKey)}>{rootTitle}</a>}];
-        if (relativePath) {
-            const parts = relativePath.split("/").filter(Boolean);
-            parts.forEach((part, index) => {
-                const path = `${rootKey}/${parts.slice(0, index + 1).join("/")}`;
-                items.push({key: path, title: <a onClick={() => setCurrentPath(path)}>{part}</a>});
-            });
-        }
-        return [{key: "", title: <a onClick={() => setSearchKey("")}>{res.title}</a>}, ...items];
-    })();
-
-    const contextMenuItems = () => [] as any[];
-
-    const renderGridItem = (entry: FileEntry) => {
-        const selectable = !disabled && hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
-        const interactive = !disabled && (hasAction(entry, "OPEN") || selectable);
-        return (
-            <Dropdown key={entry.path} menu={{items: contextMenuItems()}} trigger={["contextMenu"]}>
-                <div>
-                    <div
-                        role="button"
-                        aria-label={entry.name}
-                        aria-disabled={!interactive}
-                        tabIndex={interactive ? 0 : -1}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                event.currentTarget.click();
-                            }
-                        }}
-                        style={{
-                            border: borderSecondary,
-                            borderRadius: themeVars.borderRadius,
-                            padding: gridItemPadding,
-                            cursor: interactive ? "pointer" : "default",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: gridItemGap,
-                            minHeight: gridItemMinHeight,
-                            justifyContent: "center",
-                            background: token.colorBgContainer,
-                            transition: "background-color 0.2s, border-color 0.2s",
-                        }}
-                        className="file-grid-item"
-                        onClick={() => {
-                            if (disabled) return;
-                            if (hasAction(entry, "OPEN")) {
-                                setSearchKey("");
-                                setCurrentPath(entry.path);
-                            } else if (selectable) {
-                                onSelectFile?.(tryAppendBackendServerUrl(entry.path), entry);
-                            }
-                        }}
-                    >
-                        {isImage(entry) ? (
-                            <BackendImage
-                                src={entry.path}
-                                alt={entry.name}
-                                preview={false}
-                                loading="lazy"
-                                style={{
-                                    maxWidth: "100%",
-                                    maxHeight: gridImageMaxHeight,
-                                    objectFit: "cover",
-                                    borderRadius: themeVars.borderRadiusSM,
-                                }}
-                            />
-                        ) : (
-                            getFileIcon(entry, token, gridIconSize)
-                        )}
-                        <Text
-                            ellipsis={{tooltip: entry.name}}
-                            style={{width: "100%", textAlign: "center", fontSize: compactItems ? 11 : 12}}
-                        >
-                            {entry.name}
-                        </Text>
-                    </div>
-                </div>
-            </Dropdown>
-        );
-    };
-
-    const renderListItem = (entry: FileEntry) => {
-        const isDir = entry.type === "directory";
-        const selectable = !disabled && hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
-        const interactive = !disabled && (hasAction(entry, "OPEN") || selectable);
-        return (
-            <Dropdown key={entry.path} menu={{items: contextMenuItems()}} trigger={["contextMenu"]}>
-                <div
-                    role="button"
-                    aria-label={entry.name}
-                    aria-disabled={!interactive}
-                    tabIndex={interactive ? 0 : -1}
-                    onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            event.currentTarget.click();
-                        }
-                    }}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 4px",
-                        borderBottom: borderSecondary,
-                        background: token.colorBgContainer,
-                        cursor: interactive ? "pointer" : "default",
-                    }}
-                    onClick={() => {
-                        if (disabled) return;
-                        if (hasAction(entry, "OPEN")) {
-                            setSearchKey("");
-                            setCurrentPath(entry.path);
-                        } else if (selectable) {
-                            onSelectFile?.(tryAppendBackendServerUrl(entry.path), entry);
-                        }
-                    }}
-                >
-                    {getFileIcon(entry, token)}
-                    <Text ellipsis style={{flex: 1, minWidth: 0}}>
-                        {entry.name}
-                    </Text>
-                    {!isDir && (
-                        <Text type="secondary" style={{fontSize: 12, whiteSpace: "nowrap"}}>
-                            {formatSize(entry.size)}
-                        </Text>
-                    )}
-                </div>
-            </Dropdown>
-        );
-    };
-
     const visibleEntries = entries.filter(
         (entry) =>
             entry.type === "directory" ||
@@ -330,30 +151,53 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     );
 
     return (
-        <FileManagerView
+        <ResourcePicker
             style={style}
-            screens={screens}
-            token={token}
-            themeVars={themeVars}
-            res={res}
-            shortcuts={shortcuts}
-            activeRoot={activeRoot}
-            breadcrumbItems={breadcrumbItems}
+            entries={visibleEntries}
+            roots={shortcuts}
+            path={effectivePath}
+            search={searchKey}
             viewMode={viewMode}
-            visibleEntries={visibleEntries}
-            renderGridItem={renderGridItem}
-            renderListItem={renderListItem}
-            setCurrentPath={setCurrentPath}
-            setViewMode={setViewMode}
-            filterActions={mobileRootSelect}
             loading={loading}
-            searchValue={searchKey}
+            disabled={disabled}
+            error={error}
+            onRetry={() => void fetchEntries(effectivePath, searchKey)}
+            labels={{
+                title: res.title,
+                searchPlaceholder: res.searchPlaceholder,
+                empty: res.empty,
+                searchEmpty: res.searchEmpty,
+                grid: res.view.grid,
+                list: res.view.list,
+                retry: res.retry,
+            }}
+            onPathChange={setCurrentPath}
             onSearchChange={(value) => {
                 setSearchKey(value);
-                if (value.trim()) {
-                    setCurrentPath("");
-                }
+                if (value.trim()) setCurrentPath("");
             }}
+            onViewModeChange={setViewMode}
+            canOpen={(entry) => hasAction(entry, "OPEN")}
+            canSelect={(entry) => hasAction(entry, "SELECT") && (!onlyImage || isImage(entry))}
+            onSelect={(entry) => onSelectFile?.(tryAppendBackendServerUrl(entry.path), entry)}
+            formatSize={formatSize}
+            renderIcon={(entry) => getFileIcon(entry, token)}
+            renderPreview={(entry) =>
+                isImage(entry) ? (
+                    <BackendImage
+                        src={entry.path}
+                        alt={entry.name}
+                        preview={false}
+                        loading="lazy"
+                        style={{
+                            maxWidth: "100%",
+                            maxHeight: 60,
+                            objectFit: "contain",
+                            borderRadius: token.borderRadiusSM,
+                        }}
+                    />
+                ) : undefined
+            }
         />
     );
 };

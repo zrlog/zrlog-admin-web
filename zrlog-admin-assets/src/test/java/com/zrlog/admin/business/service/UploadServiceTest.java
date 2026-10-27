@@ -64,7 +64,7 @@ public class UploadServiceTest {
                         () -> null,
                         AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null), () -> {
+                                () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }))
                         .getCloudUrl("/attached/a.png", "/tmp/a.png", request("/blog"), null);
@@ -81,7 +81,7 @@ public class UploadServiceTest {
                         () -> null,
                         AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null), () -> {
+                                () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }))
                         .saveAvatarBytes(
@@ -107,7 +107,7 @@ public class UploadServiceTest {
                         () -> null,
                         AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null), () -> {
+                                () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }))
                         .saveThumbnailBytes(
@@ -128,7 +128,7 @@ public class UploadServiceTest {
                 new UploadService(
                         () -> null,
                         AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> {
+                        new DbFileService(() -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }));
 
@@ -143,7 +143,7 @@ public class UploadServiceTest {
                 new UploadService(
                         () -> null,
                         AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> {
+                        new DbFileService(() -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }));
 
@@ -163,7 +163,7 @@ public class UploadServiceTest {
                 new UploadService(
                         () -> null,
                         AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> {
+                        new DbFileService(() -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }));
 

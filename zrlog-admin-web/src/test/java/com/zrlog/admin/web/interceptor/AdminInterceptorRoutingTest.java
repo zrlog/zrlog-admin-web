@@ -226,7 +226,7 @@ public class AdminInterceptorRoutingTest {
                         () -> false,
                         AccountServicesFixture.component(null).requestIdentity(),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null), () -> {
+                                () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }))
                         .isHandleAble(
@@ -237,7 +237,7 @@ public class AdminInterceptorRoutingTest {
                         () -> false,
                         AccountServicesFixture.component(null).requestIdentity(),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null), () -> {
+                                () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         }))
                         .isHandleAble(request("/attached/tmp/image.png")));

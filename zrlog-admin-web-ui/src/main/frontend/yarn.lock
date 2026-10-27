@@ -4404,19 +4404,19 @@
     marked "16.0.0"
     react-sequence-diagram "0.0.12"
 
-"@zrlog/ui@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.npmjs.org/@zrlog/ui/-/ui-0.2.0.tgz#83fdfd1faaff4f7542af52617df2796e6484376b"
-  integrity sha512-Y1qdl9jNZgVH2XTZJoXm56mlaRo5Y2+/6x+UwWtlsN8jQDprrrV0qEd4samQThyNknAYK6ba63IHkHC/R8iiZA==
+"@zrlog/ui@0.2.1":
+  version "0.2.1"
+  resolved "https://registry.npmjs.org/@zrlog/ui/-/ui-0.2.1.tgz#df14d2ffd6181d4de1f79f93e88de021b24da843"
+  integrity sha512-dIEhJ1d8ZsAphgv1Aoc4wD0zc4syYx383s6Bij8caw+CMoXzt05X9J12hoH2/aMczDbYkEevBdwlOFSdm9+QJQ==
   dependencies:
     "@ant-design/fast-color" "3.0.1"
     antd-style "4.1.0"
     clsx "2.1.1"
 
-"@zrlog/utils@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.npmjs.org/@zrlog/utils/-/utils-0.2.0.tgz#1998601cf932231060731e548ff0f49c4a208fb4"
-  integrity sha512-+k4ZaJvGP2y2qH89aTi2PFORQPNVZ0vKRnJg43Jax9rMA/cKsvpAW0AVCYpHb+uo1Ez2XfjJkbOSewmdn/9czw==
+"@zrlog/utils@0.2.1":
+  version "0.2.1"
+  resolved "https://registry.npmjs.org/@zrlog/utils/-/utils-0.2.1.tgz#6ea458eace95d77290337639896e9babed3a0fb1"
+  integrity sha512-Sfku8kE02B6SPvIlDVxj4ZO2CA/3A2MfgRKUnbt0+VGArJG0/fUM65zy6LUSXiqdii/sRgE9h58GbZ4edKf6Ww==
 
 abab@^2.0.3, abab@^2.0.5:
   version "2.0.6"

@@ -11,7 +11,7 @@ import com.zrlog.common.TokenService;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -54,9 +54,10 @@ public class AdminTemporaryResourceInterceptor implements HandleAbleInterceptor 
             return false;
         }
         response.addHeader("Cache-Control", "no-store");
-        byte[] bytes = this.dbFileService.loadDbFile(uri);
-        response.addHeader("Content-Type", getMimeType(uri));
-        response.write(new ByteArrayInputStream(bytes));
+        try (InputStream input = this.dbFileService.openDbFile(uri)) {
+            response.addHeader("Content-Type", getMimeType(uri));
+            response.write(input);
+        }
         return false;
     }
 

@@ -1,111 +1,212 @@
 package com.zrlog.admin.business.service;
 
-import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.business.util.FileEntryUtils;
-import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.exception.NotImplementException;
 import com.zrlog.model.WebSite;
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.LongSupplier;
 
 public class DbFileService {
-    private static final String DB_FILE_PREFIX = "db_file";
-    private final WebsiteKvService websiteKvService;
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    // Raw bytes. Base64 is at most 349,528 bytes, below D1's 2,000,000-byte row limit.
+    public static final int CHUNK_BYTES = 256 * 1024;
+    private final DbFileStore store;
+    private final LongSupplier clock;
 
     @Inject
-    public DbFileService(
-            WebsiteKvService websiteKvService, jakarta.inject.Provider<WebSite> webSiteProvider) {
-        this.websiteKvService = websiteKvService;
-        this.webSiteProvider = webSiteProvider;
+    public DbFileService(Provider<WebSite> websites) {
+        this(websites, System::currentTimeMillis);
+    }
+
+    DbFileService(Provider<WebSite> websites, LongSupplier clock) {
+        this.store = new DbFileStore(websites, clock);
+        this.clock = clock;
     }
 
     public UploadFileResponse toDbFile(String key, byte[] bytes) throws SQLException {
-        // DB 存储
-        String dbKey = DB_FILE_PREFIX + key;
-        this.websiteKvService.putString(dbKey, Base64.getEncoder().encodeToString(bytes));
-        return new UploadFileResponse(key);
+        try {
+            return toDbFile(key, new ByteArrayInputStream(bytes), basename(key));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** The caller owns the input stream. No complete-file Base64 string is allocated. */
+    public UploadFileResponse toDbFile(String key, InputStream input, String originalName) throws SQLException, IOException {
+        requirePath(key);
+        String filename = originalName == null ? null : basename(originalName);
+        if (filename != null && (filename.isBlank() || filename.length() > 255 || filename.codePoints().anyMatch(Character::isISOControl)))
+            throw new IllegalArgumentException("Invalid original filename");
+        DbFileStore.Row claim = store.claim(key);
+        try {
+            MessageDigest digest = digest();
+            byte[] first = input.readNBytes(CHUNK_BYTES);
+            byte[] next = input.readNBytes(CHUNK_BYTES);
+            DbFileMetadata meta = new DbFileMetadata();
+            meta.formatVersion = 1;
+            meta.ready = true;
+            meta.originalName = filename;
+            meta.uploadedAt = clock.getAsLong();
+            meta.size = first.length;
+            digest.update(first);
+            String inline = "";
+            if (next.length == 0) {
+                inline = Base64.getEncoder().encodeToString(first);
+            } else {
+                meta.batch = claim.meta.pendingBatch;
+                meta.chunkSize = CHUNK_BYTES;
+                store.chunk(claim, meta.chunkCount++, first);
+                do {
+                    store.chunk(claim, meta.chunkCount++, next);
+                    meta.size += next.length;
+                    digest.update(next);
+                    next = input.readNBytes(CHUNK_BYTES);
+                } while (next.length != 0);
+            }
+            meta.sha256 = hex(digest.digest());
+            store.publish(claim, meta, inline);
+            return new UploadFileResponse(key);
+        } catch (IOException | SQLException | RuntimeException e) {
+            try {
+                store.abort(key, claim.meta.pendingBatch);
+            } catch (SQLException | RuntimeException cleanup) {
+                e.addSuppressed(cleanup);
+            }
+            throw e;
+        }
     }
 
     public byte[] loadDbFile(String key) {
-        String dbKey = DB_FILE_PREFIX + key;
-        Map<String, Object> webSiteMap =
-                this.websiteKvService.getByNames(Collections.singletonList(dbKey));
-        Object value = webSiteMap.get(dbKey);
-        if (value instanceof String) {
-            return Base64.getDecoder().decode((String) value);
+        try (InputStream input = openDbFile(key)) {
+            return input.readAllBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
-        throw new NotImplementException();
+    }
+
+    /** Verify a bounded-memory snapshot before HTTP writes headers. Close removes the local scratch file. */
+    public InputStream openDbFile(String key) throws IOException {
+        requirePath(key);
+        Path temp = null;
+        try {
+            DbFileStore.Row row = store.recover(store.find(key));
+            if (row == null || !row.meta.ready) throw new NotImplementException();
+            temp = Files.createTempFile("zrlog-db-file-", ".tmp");
+            MessageDigest digest = digest();
+            long size = 0;
+            try (OutputStream output = Files.newOutputStream(temp)) {
+                if (row.meta.batch == null) {
+                    byte[] bytes = Base64.getDecoder().decode(store.inline(row));
+                    output.write(bytes);
+                    digest.update(bytes);
+                    size = bytes.length;
+                } else {
+                    for (int index = 0; index < row.meta.chunkCount; index++) {
+                        String encoded = store.value(DbFileStore.chunkKey(row.meta.batch, index));
+                        if (encoded.length() > ((CHUNK_BYTES + 2) / 3) * 4) throw new IOException("Oversized database file chunk");
+                        byte[] bytes = Base64.getDecoder().decode(encoded);
+                        int expected = (int) Math.min(CHUNK_BYTES, row.meta.size - size);
+                        if (bytes.length != expected) throw new IOException("Invalid database file chunk length");
+                        output.write(bytes);
+                        digest.update(bytes);
+                        size += bytes.length;
+                    }
+                }
+            }
+            if (size != row.meta.size || (row.meta.sha256 != null && !row.meta.sha256.equals(hex(digest.digest()))))
+                throw new IOException("Database file integrity check failed");
+            Path snapshot = temp;
+            FileInputStream result = new FileInputStream(temp.toFile()) {
+                @Override
+                public void close() throws IOException {
+                    try { super.close(); } finally { Files.deleteIfExists(snapshot); }
+                }
+            };
+            temp = null;
+            return result;
+        } catch (SQLException | IllegalArgumentException e) {
+            throw new IOException("Cannot read database file", e);
+        } finally {
+            if (temp != null) Files.deleteIfExists(temp);
+        }
+    }
+
+    public boolean hasRecord(String key) throws SQLException {
+        requirePath(key);
+        return store.find(key) != null;
     }
 
     public List<FileEntryVO> getDbFiles(String path) throws SQLException {
-        String dbPrefix = DB_FILE_PREFIX + path;
-        if (!dbPrefix.endsWith("/")) {
-            dbPrefix += "/";
-        }
-        List<Map<String, Object>> records =
-                this.webSiteProvider
-                        .get()
-                        .queryListWithParams(
-                                "SELECT `name`,length(`value`) AS `size` FROM `website` WHERE `name` LIKE ?",
-                                dbPrefix + "%");
-        Map<String, FileEntryVO> entriesMap = new LinkedHashMap<>();
-        for (Map<String, Object> record : records) {
-            String name = (String) record.get("name");
-            String relativePath = name.substring(dbPrefix.length());
-            if (StringUtils.isEmpty(relativePath)) {
-                continue;
+        requirePath(path);
+        String prefix = DbFileStore.FILE_PREFIX + (path.endsWith("/") ? path : path + "/");
+        Map<String, FileEntryVO> entries = new LinkedHashMap<>();
+        for (Map<String, Object> record : store.list(path)) {
+            DbFileStore.Row row = store.recover(new DbFileStore.Row(record));
+            if (row == null || !row.meta.ready) continue;
+            String relative = row.name.substring(prefix.length());
+            if (relative.isEmpty()) continue;
+            int slash = relative.indexOf('/');
+            boolean directory = slash >= 0;
+            String name = directory ? relative.substring(0, slash) : relative;
+            String filePath = (path.endsWith("/") ? path : path + "/") + name;
+            if (entries.containsKey(name)) continue;
+            FileEntryVO entry = new FileEntryVO(name, filePath, directory ? "directory" : "file",
+                    directory ? 0 : row.meta.size, directory ? "" : FileEntryUtils.toMimeType(name),
+                    directory ? 0 : row.meta.uploadedAt);
+            if (!directory) {
+                entry.setOriginalName(row.meta.originalName);
+                entry.setUploadedAt(row.meta.uploadedAt);
             }
-            int firstSlashIndex = relativePath.indexOf("/");
-            if (firstSlashIndex != -1) {
-                String dirName = relativePath.substring(0, firstSlashIndex);
-                String dirPath = path.endsWith("/") ? path + dirName : path + "/" + dirName;
-                if (!entriesMap.containsKey(dirName)) {
-                    FileEntryVO entry = new FileEntryVO(dirName, dirPath, "directory", 0, "", 0);
-                    entry.setAccess(FileEntryAccess.ADMIN_ONLY);
-                    entry.setActions(List.of(FileEntryAction.OPEN, FileEntryAction.DELETE));
-                    entriesMap.put(dirName, FileEntryUtils.decorateEntry(entry));
-                }
-            } else {
-                String fileName = relativePath;
-                String filePath = path.endsWith("/") ? path + fileName : path + "/" + fileName;
-                FileEntryVO entry = new FileEntryVO(fileName, filePath, "file", toLong(record.get("size")), FileEntryUtils.toMimeType(fileName), 0);
-                entry.setAccess(FileEntryAccess.ADMIN_ONLY);
-                entry.setActions(List.of(FileEntryAction.PREVIEW, FileEntryAction.DOWNLOAD, FileEntryAction.DELETE));
-                entriesMap.put(fileName, FileEntryUtils.decorateEntry(entry));
-            }
+            entry.setAccess(FileEntryAccess.ADMIN_ONLY);
+            entry.setActions(directory ? List.of(FileEntryAction.OPEN, FileEntryAction.DELETE)
+                    : List.of(FileEntryAction.PREVIEW, FileEntryAction.DOWNLOAD, FileEntryAction.DELETE));
+            entries.put(name, FileEntryUtils.decorateEntry(entry));
         }
-        return new ArrayList<>(entriesMap.values());
-    }
-
-    private long toLong(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        if (value instanceof String && StringUtils.isNotEmpty((String) value)) {
-            return Long.parseLong((String) value);
-        }
-        return 0;
+        return new ArrayList<>(entries.values());
     }
 
     public boolean deleteByKey(String path) throws SQLException {
-        String dbKey = DB_FILE_PREFIX + path;
-        return this.webSiteProvider.get().set("name", dbKey).delete();
+        requirePath(path);
+        return store.delete(store.find(path));
     }
 
     public boolean deleteByPrefix(String path) throws SQLException {
-        String dbPrefix = DB_FILE_PREFIX + path;
-        if (!dbPrefix.endsWith("/")) {
-            dbPrefix += "/";
-        }
-        return this.webSiteProvider
-                .get()
-                .execute("DELETE FROM `website` WHERE `name` LIKE ?", dbPrefix + "%");
+        requirePath(path);
+        boolean deleted = false;
+        for (Map<String, Object> record : store.list(path)) deleted |= store.delete(new DbFileStore.Row(record));
+        return deleted;
+    }
+
+    private static void requirePath(String path) {
+        if (path == null || !path.startsWith("/") || DbFileStore.FILE_PREFIX.length() + path.length() > 255
+                || path.indexOf('\0') >= 0) throw new IllegalArgumentException("Invalid database file path");
+    }
+
+    private static String basename(String path) {
+        String normalized = path.replace('\\', '/');
+        return normalized.substring(normalized.lastIndexOf('/') + 1);
+    }
+
+    private static MessageDigest digest() {
+        try { return MessageDigest.getInstance("SHA-256"); }
+        catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) result.append(Character.forDigit((b & 255) >>> 4, 16)).append(Character.forDigit(b & 15, 16));
+        return result.toString();
     }
 }

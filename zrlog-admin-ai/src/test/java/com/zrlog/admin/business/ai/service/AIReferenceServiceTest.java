@@ -153,18 +153,8 @@ public class AIReferenceServiceTest {
             db.execute("update log set markdown=? where logId=2", "Referenced content ".repeat(400));
             List<JsonObject> requests = new ArrayList<>();
             AIChatService model =
-                    new AIChatService(null,
-                            ContentToolsFixture.from(db.config()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            AIServiceDependencies.approvals(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()),
-                            AIServiceDependencies.writingTools(db.dataSource()),
-                            AIServiceDependencies.references(
-                                    ContentToolsFixture.from(db.config()), db.dataSource())) {
+                    AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            new AIChatModelClient(new AIFileService()) {
                         @Override
                         protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info,
                                                                       String body,
@@ -176,7 +166,7 @@ public class AIReferenceServiceTest {
                                             "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Summary\"}}",
                                             AIProviderResponses.Choice.class);
                         }
-                    };
+                    }, new AIFileService(), AIServiceDependencies.writing(db.dataSource()));
             ChatRequest request = input("[{\"type\":\"article\",\"articleId\":2,\"content\":\"FORGED_BODY\"}]");
             String stream = new String(model.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(stream, stream.contains("\"type\":\"done\""));

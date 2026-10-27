@@ -57,7 +57,6 @@ public class FileManagerServiceTest {
                                             () -> null,
                                             AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
                                                         throw new IllegalStateException(
                                                                 "Database is unavailable in this test");
@@ -71,7 +70,6 @@ public class FileManagerServiceTest {
                                                         "Database is unavailable in this test");
                                             }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(null),
                                             () -> {
                                                 throw new IllegalStateException(
                                                         "Database is unavailable in this test");
@@ -119,7 +117,6 @@ public class FileManagerServiceTest {
                                 () -> null,
                                 AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null),
                                         () -> {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
@@ -133,7 +130,6 @@ public class FileManagerServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null),
                                 () -> {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
@@ -162,7 +158,6 @@ public class FileManagerServiceTest {
                                 () -> null,
                                 AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(null),
                                         () -> {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
@@ -176,7 +171,6 @@ public class FileManagerServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         new DbFileService(
-                                ApplicationServicesFixture.websiteKv(null),
                                 () -> {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
@@ -249,7 +243,6 @@ public class FileManagerServiceTest {
                                             () -> null,
                                             AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
                                                         throw new IllegalStateException(
                                                                 "Database is unavailable in this test");
@@ -263,7 +256,6 @@ public class FileManagerServiceTest {
                                                         "Database is unavailable in this test");
                                             }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(null),
                                             () -> {
                                                 throw new IllegalStateException(
                                                         "Database is unavailable in this test");
@@ -310,7 +302,6 @@ public class FileManagerServiceTest {
                                             () -> null,
                                             AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
                                                         throw new IllegalStateException(
                                                                 "Database is unavailable in this test");
@@ -324,7 +315,6 @@ public class FileManagerServiceTest {
                                                         "Database is unavailable in this test");
                                             }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(null),
                                             () -> {
                                                 throw new IllegalStateException(
                                                         "Database is unavailable in this test");
@@ -359,7 +349,6 @@ public class FileManagerServiceTest {
                                     () -> null,
                                     AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSite(db.dataSource()))),
                             new FileManagerReferenceService(
                                     ApplicationServicesFixture.websiteCache(db.dataSource()),
@@ -367,13 +356,12 @@ public class FileManagerServiceTest {
                                     null,
                                     () -> new Log(db.dataSource())),
                             new DbFileService(
-                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource())),
                             ApplicationServicesFixture.settings(db.dataSource()),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
             DbFileService dbFileService =
-                    new DbFileService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
+                    new DbFileService(() -> new WebSite(db.dataSource()));
             String filePath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs/a.txt";
             String dirPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs";
             dbFileService.toDbFile(filePath, "db-temp".getBytes(StandardCharsets.UTF_8));
@@ -421,8 +409,6 @@ public class FileManagerServiceTest {
                                                         .identities(), AccountServicesFixture.component(db.dataSource())
                                                 .permissions(),
                                                 new DbFileService(
-                                                        ApplicationServicesFixture.websiteKv(
-                                                                db.dataSource()),
                                                         () -> new WebSite(db.dataSource()))),
                                         new FileManagerReferenceService(
                                                 ApplicationServicesFixture.websiteCache(
@@ -431,8 +417,6 @@ public class FileManagerServiceTest {
                                                 null,
                                                 () -> new Log(db.dataSource())),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(
-                                                        db.dataSource()),
                                                 () -> new WebSite(db.dataSource())),
                                         ApplicationServicesFixture.settings(db.dataSource()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
@@ -499,8 +483,6 @@ public class FileManagerServiceTest {
                                                         .identities(), AccountServicesFixture.component(db.dataSource())
                                                 .permissions(),
                                                 new DbFileService(
-                                                        ApplicationServicesFixture.websiteKv(
-                                                                db.dataSource()),
                                                         () -> new WebSite(db.dataSource()))),
                                         new FileManagerReferenceService(
                                                 ApplicationServicesFixture.websiteCache(
@@ -509,8 +491,6 @@ public class FileManagerServiceTest {
                                                 null,
                                                 () -> new Log(db.dataSource())),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(
-                                                        db.dataSource()),
                                                 () -> new WebSite(db.dataSource())),
                                         ApplicationServicesFixture.settings(db.dataSource()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
@@ -533,7 +513,6 @@ public class FileManagerServiceTest {
                                             () -> null,
                                             AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
                                                         throw new IllegalStateException(
                                                                 "Database is unavailable in this test");
@@ -547,7 +526,6 @@ public class FileManagerServiceTest {
                                                         "Database is unavailable in this test");
                                             }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(null),
                                             () -> {
                                                 throw new IllegalStateException(
                                                         "Database is unavailable in this test");

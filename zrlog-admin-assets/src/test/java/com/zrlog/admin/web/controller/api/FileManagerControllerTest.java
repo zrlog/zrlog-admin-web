@@ -314,8 +314,6 @@ public class FileManagerControllerTest {
                                                 .identities(), AccountServicesFixture.component(testDataSource)
                                         .permissions(),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(
-                                                        testDataSource),
                                                 () -> new WebSite(testDataSource))),
                                 new FileManagerReferenceService(
                                         ApplicationServicesFixture.websiteCache(testDataSource),
@@ -323,7 +321,6 @@ public class FileManagerControllerTest {
                                         null,
                                         () -> new Log(testDataSource)),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(testDataSource),
                                         () -> new WebSite(testDataSource)),
                                 ApplicationServicesFixture.settings(testDataSource),
                                 ApplicationServicesFixture.audit(testDataSource),
@@ -360,7 +357,6 @@ public class FileManagerControllerTest {
                             () -> null,
                             AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                             new DbFileService(
-                                    ApplicationServicesFixture.websiteKv(testDataSource),
                                     () -> new WebSite(testDataSource))),
                     new FileManagerReferenceService(
                             ApplicationServicesFixture.websiteCache(testDataSource),
@@ -368,7 +364,6 @@ public class FileManagerControllerTest {
                             null,
                             () -> new Log(testDataSource)),
                     new DbFileService(
-                            ApplicationServicesFixture.websiteKv(testDataSource),
                             () -> new WebSite(testDataSource)),
                     ApplicationServicesFixture.settings(testDataSource),
                     ApplicationServicesFixture.audit(testDataSource),
@@ -412,6 +407,11 @@ public class FileManagerControllerTest {
         public byte[] read(String path) {
             readPath = path;
             return bytes;
+        }
+
+        @Override
+        public java.io.InputStream open(String path) {
+            return new java.io.ByteArrayInputStream(read(path));
         }
 
         @Override

@@ -115,7 +115,7 @@ public class AIExplicitActorBoundaryTest {
             };
             assertEquals(1, AdminTokenThreadLocal.getUserId());
             String wire = DelegatedAccess.withPermissions(Set.of("article.read"), false,
-                    () -> read(model.start(actor, input, audit(), null)));
+                    () -> read(model.service.start(actor, input, audit(), null)));
             assertTrue(wire, wire.contains("\"type\":\"done\""));
             assertEquals(1, AdminTokenThreadLocal.getUserId());
             assertFalse(model.requests.get(0).has("tools")); // Explicit user's knowledge preference is off.
@@ -150,7 +150,7 @@ public class AIExplicitActorBoundaryTest {
                         throw new RuntimeException(error);
                     }
                 };
-                var response = model.start(actor, input(), audit(), null);
+                var response = model.service.start(actor, input(), audit(), null);
                 try {
                     assertTrue(started.await(5, TimeUnit.SECONDS));
                     db.execute("update user set " + mutation + " where userId=2");
@@ -164,8 +164,8 @@ public class AIExplicitActorBoundaryTest {
                 assertEquals(2, AIServiceDependencies.conversations(db.dataSource()).captureAccount(2)
                         .exportAIMessage(-2L).getMessages().stream()
                         .filter(message -> Set.of("user", "assistant").contains(message.getRole())).count());
-                assertThrows(PermissionErrorException.class, () -> model.start(actor, input(), audit(), null));
-                assertThrows(PermissionErrorException.class, () -> model.getRun(actor, 0));
+                assertThrows(PermissionErrorException.class, () -> model.service.start(actor, input(), audit(), null));
+                assertThrows(PermissionErrorException.class, () -> model.service.getRun(actor, 0));
             }
         }
     }
@@ -183,7 +183,7 @@ public class AIExplicitActorBoundaryTest {
                     throw new RuntimeException(e);
                 }
             };
-            String wire = read(model.start(actor(db), input(), audit(), null));
+            String wire = read(model.service.start(actor(db), input(), audit(), null));
             assertTrue(wire, wire.contains("\"error\":\"permission\""));
             assertFalse(wire, wire.contains("approval-required"));
             assertFalse(wire, wire.contains("\"type\":\"done\""));
@@ -199,7 +199,7 @@ public class AIExplicitActorBoundaryTest {
             var model = new Model(db, new AIFileService(), call("create_article",
                     "{\"title\":\"Forbidden\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Forbidden</p>\"}"), answer());
             AdminTokenThreadLocal.remove();
-            String wire = read(model.start(actor, input(), audit(), null));
+            String wire = read(model.service.start(actor, input(), audit(), null));
             assertTrue(wire, wire.contains("\"type\":\"done\""));
             assertFalse(model.requests.get(0).getAsJsonArray("tools").toString().contains("create_article"));
             var toolReply = model.requests.get(1).getAsJsonArray("messages").asList().stream()
@@ -220,19 +220,19 @@ public class AIExplicitActorBoundaryTest {
             var actor = actor(db);
             var model = new Model(db, new AIFileService(), call("upload_attachment",
                     "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"));
-            String wire = read(model.start(actor, input(), audit(), null));
+            String wire = read(model.service.start(actor, input(), audit(), null));
             assertTrue(wire, wire.contains("approval-required"));
-            assertNotNull(model.getRun(actor, 0).approval);
-            var restricted = model.getRun(actor.restrictActions(Set.of("article.assist", "article.read")), 0);
+            assertNotNull(model.service.getRun(actor, 0).approval);
+            var restricted = model.service.getRun(actor.restrictActions(Set.of("article.assist", "article.read")), 0);
             assertEquals("permission", restricted.error);
             assertNull(restricted.input);
             assertNull(restricted.approval);
             var store = AIServiceDependencies.approvals(db.dataSource());
             var run = store.read(2, 0);
             store.save(run, "cancelled");
-            assertNotNull(model.getRun(actor, 0).input);
+            assertNotNull(model.service.getRun(actor, 0).input);
             knowledge(db, "off");
-            var cancelled = model.getRun(actor, 0);
+            var cancelled = model.service.getRun(actor, 0);
             assertEquals("permission", cancelled.error);
             assertNull(cancelled.input);
             assertNull(cancelled.approval);
@@ -316,7 +316,8 @@ public class AIExplicitActorBoundaryTest {
         return db;
     }
 
-    private static final class Model extends AIChatService {
+    private static final class Model extends AIChatModelClient {
+        final AIChatService service;
         final List<JsonObject> requests = new ArrayList<>();
         private final List<String> replies;
         AccountAccess seenActor;
@@ -324,14 +325,9 @@ public class AIExplicitActorBoundaryTest {
         };
 
         Model(InMemoryZrLogDatabase db, AIFileService files, String... replies) {
-            super(null, ContentToolsFixture.from(db.config()),
-                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                    AccountServicesFixture.component(db.dataSource()).identities(),
-                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                    AIServiceDependencies.approvals(db.dataSource()), files,
-                    AIServiceDependencies.writing(db.dataSource()), AIServiceDependencies.conversations(db.dataSource()),
-                    AIServiceDependencies.writingTools(db.dataSource()),
-                    AIServiceDependencies.references(ContentToolsFixture.from(db.config()), db.dataSource()));
+            super(files);
+            this.service = AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
+                            this, files, AIServiceDependencies.writing(db.dataSource()));
             this.replies = List.of(replies);
         }
 

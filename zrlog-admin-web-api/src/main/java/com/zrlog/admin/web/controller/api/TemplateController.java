@@ -144,6 +144,7 @@ public class TemplateController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.list")
     public AdminPageDataResponse<List<TemplateEntryResponse>> index() throws IOException {
+        templateService.prepareTemplates();
         return pages.response(requestIdentity.optional(), templateService.getAllTemplates(templateService.getTemplatePath(getRequest())),
                 "", request.getUri());
     }

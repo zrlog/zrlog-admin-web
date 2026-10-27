@@ -14,6 +14,22 @@ public final class AIServiceDependencies {
     private AIServiceDependencies() {
     }
 
+    public static AIChatService chat(DataSourceWrapper source, com.hibegin.http.server.api.HttpRequest request,
+                                     ContentToolFactory tools, AIChatModelClient model, AIFileService files,
+                                     AIWritingSkillService.Factory skills) {
+        var account = AccountServicesFixture.component(source);
+        return new AIChatService(request, tools, new AIChatAccessPolicy(account.identities(), account.permissions(), account.preferences()),
+                account.preferences(), approvals(source), skills, conversations(source), references(tools, source),
+                executor(source, model, files, skills), new AIChatSseWriter());
+    }
+
+    static AIChatRunExecutor executor(DataSourceWrapper source, AIChatModelClient model, AIFileService files,
+                                      AIWritingSkillService.Factory skills) {
+        var account = AccountServicesFixture.component(source);
+        return new AIChatRunExecutor(model, writingTools(source), conversations(source),
+                approvals(source), files, skills, new AIChatAccessPolicy(account.identities(), account.permissions(), account.preferences()));
+    }
+
     public static com.zrlog.data.security.AccountAccess actor(DataSourceWrapper source) {
         if (source == null) return com.zrlog.data.security.AccountAccess.from(java.util.Map.of(
                 "userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
@@ -43,7 +59,7 @@ public final class AIServiceDependencies {
     }
 
     public static DbFileService dbFiles(DataSourceWrapper source) {
-        return new DbFileService(ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source));
+        return new DbFileService(() -> new WebSite(source));
     }
 
     public static AIToolService tools(DataSourceWrapper source) {
