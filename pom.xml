@@ -4,15 +4,15 @@
     <parent>
         <groupId>com.hibegin</groupId>
         <artifactId>zrlog-base</artifactId>
-        <version>4.0.1-SNAPSHOT</version>
+        <version>4.0.1</version>
     </parent>
     <artifactId>zrlog-admin-web-parent</artifactId>
-    <version>4.0.1-SNAPSHOT</version>
+    <version>4.0.1</version>
     <modelVersion>4.0.0</modelVersion>
     <properties>
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>build</frontendBuildOutputPath>
-        <zrlog-install-web.version>4.0.1-SNAPSHOT</zrlog-install-web.version>
+        <zrlog-install-web.version>4.0.1</zrlog-install-web.version>
         <gpg.passphrase/>
         <dagger.version>2.60.1</dagger.version>
     </properties>
