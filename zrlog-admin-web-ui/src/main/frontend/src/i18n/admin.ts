@@ -2047,6 +2047,9 @@ const zhCN = {
         "uploadDrop": "拖拽文件到此处，或点击上传",
         "size": "大小",
         "lastModified": "修改时间",
+        "originalName": "原始文件名",
+        "uploadedAt": "上传时间",
+        "mimeType": "文件类型（MIME）",
         "sortBy": {
             "time": "修改时间",
             "name": "名称",
@@ -4137,6 +4140,9 @@ const enUS: AdminI18nResource = {
         "uploadDrop": "Drop files here or click to upload",
         "size": "Size",
         "lastModified": "Modified",
+        "originalName": "Original filename",
+        "uploadedAt": "Uploaded",
+        "mimeType": "File type (MIME)",
         "sortBy": {
             "time": "Modified Time",
             "name": "Name",

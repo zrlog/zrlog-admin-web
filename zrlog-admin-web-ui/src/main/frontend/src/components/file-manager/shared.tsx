@@ -23,6 +23,8 @@ export interface FileEntry {
     size: number;
     mimeType: string;
     lastModified: number;
+    originalName?: string | null;
+    uploadedAt?: number;
     image?: boolean;
     textPreviewable?: boolean;
     iconType?: "library" | "directory" | "directory_locked" | "image" | "code" | "archive" | "file";

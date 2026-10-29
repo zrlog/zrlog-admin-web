@@ -54,6 +54,7 @@ import {addToCache, getCacheByKey} from "../../utils/cache";
 import {getLabelValueSeparator, getRealRouteUrl, getRes, tryAppendBackendServerUrl} from "../../utils/constants";
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import FileManagerView from "./view";
+import FileDetailMetadata from "./detail-metadata";
 import {FileEntry, formatSize, getFileIcon, hasAction, hasDirectoryAction, isExternalPath, isImage} from "./shared";
 import BaseDragger from "@zrlog/editor/dist/editor/common/BaseDragger";
 import SidebarNavItem from "../common/SidebarNavItem";
@@ -1311,20 +1312,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({data, style}) => {
                                     }}
                                 >
                                     <Space direction="vertical" size={4}>
-                                        <Text type="secondary">
-                                            {res.size}
-                                            {getLabelValueSeparator()}
-                                            {formatSize(selectedEntry.size)}
-                                        </Text>
-                                        <Text type="secondary">
-                                            {res.lastModified}
-                                            {getLabelValueSeparator()}
-                                            {selectedEntry.lastModified > 0 ? (
-                                                <TimeAgo timestamp={selectedEntry.lastModified}/>
-                                            ) : (
-                                                "-"
-                                            )}
-                                        </Text>
+                                        <FileDetailMetadata entry={selectedEntry}/>
                                         {selectedEntry.type === "file" && selectedEntry.missing !== true ? (
                                             <div>
                                                 <Text type="secondary">
@@ -1482,20 +1470,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({data, style}) => {
                         {selectedEntry && (
                             <Space direction="vertical" style={{width: "100%"}}>
                                 <Text strong>{getEntryDisplayName(selectedEntry)}</Text>
-                                <Text type="secondary">
-                                    {res.size}
-                                    {getLabelValueSeparator()}
-                                    {formatSize(selectedEntry.size)}
-                                </Text>
-                                <Text type="secondary">
-                                    {res.lastModified}
-                                    {getLabelValueSeparator()}
-                                    {selectedEntry.lastModified > 0 ? (
-                                        <TimeAgo timestamp={selectedEntry.lastModified}/>
-                                    ) : (
-                                        "-"
-                                    )}
-                                </Text>
+                                <FileDetailMetadata entry={selectedEntry}/>
                                 {selectedEntry.type === "file" && selectedEntry.missing !== true ? (
                                     <Text type="secondary">
                                         {res.accessUrl}
