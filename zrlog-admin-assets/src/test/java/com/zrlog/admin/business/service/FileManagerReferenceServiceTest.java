@@ -320,7 +320,7 @@ public class FileManagerReferenceServiceTest {
                                     java.util.Collections::emptyList);
             var content =
                     com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
-                            .create(
+                            .create(() -> null,
                                     data,
                                     shared,
                                     AccountServicesFixture.component(db.dataSource()),

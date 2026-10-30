@@ -187,7 +187,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                         ContentComponent.class,
                         r ->
                                 DaggerContentComponent.factory()
-                                        .create(
+                                        .create(() -> r.get(AutomationComponent.class).publicationScheduler(),
                                                 r.get(DataComponent.class),
                                                 r.get(ServiceComponent.class),
                                                 r.get(AccountComponent.class),

@@ -50,7 +50,7 @@ public final class AutomationIntegrationApplication {
         InstallConfigVO install = new Gson().fromJson(Files.readString(project.resolve("conf/memory-install.json")), InstallConfigVO.class);
         install.setDbConfig(LocalSqliteSupport.createDatabaseConfig(installer));
         if (install.getAppendWebsite() == null) install.setAppendWebsite(new LinkedHashMap<>());
-        install.getAppendWebsite().put("host", "localhost:" + port);
+        install.getAppendWebsite().put("host", "127.0.0.1:" + port);
         if (!new InstallService(installer, install).install()) throw new IllegalStateException("Integration installation failed");
         Path plugins = Files.createDirectories(root.resolve("conf/plugins/installed-plugins"));
         Files.copy(core, plugins.getParent().resolve("plugin-core.jar"));

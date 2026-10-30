@@ -54,7 +54,7 @@ public final class AutomationEngine {
                 summary.skipped++;
                 continue;
             }
-            AutomationModels.Run run = execute(row, entry, trigger, deadline - RESULT_RESERVE_MILLIS);
+            AutomationModels.Run run = execute(row, entry, trigger, deadline - RESULT_RESERVE_MILLIS, null);
             if (run == null) { summary.skipped++; continue; }
             summary.executed++;
             summary.runIds.add(run.id);
@@ -67,7 +67,8 @@ public final class AutomationEngine {
     public AutomationModels.Run runNow(AccountAccess actor, String id, long revision, long budgetMillis) throws SQLException {
         actor = authority.current(actor);
         AutomationStore.Snapshot<StoredTask> row = store.task(id);
-        if (row == null || row.value.ownerId != actor.getUserId()) throw new PermissionErrorException();
+        if (row == null) throw new PermissionErrorException();
+        authority.access(actor, row.value, registry.require(row.value.type).definition);
         if (row.value.revision != revision || row.value.activeRun != null) throw new IllegalStateException("automation.taskChanged");
         if ("uncertain".equals(row.value.lastStatus) || "needs_attention".equals(row.value.lastStatus)) {
             throw new IllegalStateException("automation.reviewRequired");
@@ -77,21 +78,21 @@ public final class AutomationEngine {
             throw new IllegalArgumentException("automation.insufficientBudget");
         }
         // An API delegate must not use the owner's stored grants to broaden this manual request.
-        for (String action : row.value.authorizedActions) TaskAuthority.require(actor, action);
-        AutomationModels.Run run = execute(row, entry, "manual", clock.getAsLong() + budgetMillis - RESULT_RESERVE_MILLIS);
+        for (String action : row.value.executionActions) TaskAuthority.require(actor, action);
+        AutomationModels.Run run = execute(row, entry, "manual", clock.getAsLong() + budgetMillis - RESULT_RESERVE_MILLIS, actor);
         if (run == null) throw new IllegalStateException("automation.taskChanged");
         return run;
     }
 
     private AutomationModels.Run execute(AutomationStore.Snapshot<StoredTask> row, TaskRegistry.Entry entry,
-                                          String trigger, long requestDeadline) throws SQLException {
+                                          String trigger, long requestDeadline, AccountAccess manualActor) throws SQLException {
         StoredTask task = row.copy(StoredTask.class);
         if (task.activeRun != null || (!"manual".equals(trigger) && (!task.enabled || task.nextRunAt == null
                 || task.nextRunAt > clock.getAsLong()))) return null;
         AccountAccess actor = null;
         String unavailable = null;
         try {
-            actor = authority.restore(task);
+            actor = manualActor == null ? authority.restore(task) : manualActor.restrictActions(task.executionActions);
             if (entry == null || !entry.definition.available) unavailable = "automation.taskUnavailable";
             else for (String action : entry.definition.requiredActions) TaskAuthority.require(actor, action);
         } catch (PermissionErrorException error) {
@@ -109,6 +110,8 @@ public final class AutomationEngine {
         run.scheduledAt = "manual".equals(trigger) || task.nextRunAt == null ? now : task.nextRunAt;
         run.startedAt = now;
         run.trigger = trigger;
+        run.triggeredBy = manualActor == null ? null : manualActor.getUserId();
+        run.executionUserId = actor == null ? null : actor.getUserId();
         run.status = "running";
         task.activeRun = run;
         task.leaseUntil = Math.min(requestDeadline, now + (entry == null ? 30000 : entry.definition.timeoutSeconds * 1000L)) + 5000;
@@ -121,7 +124,7 @@ public final class AutomationEngine {
         } else {
             final AccountAccess executionActor = actor;
             TaskExecutionContext context = new TaskExecutionContext(run.id, executionActor,
-                    Math.min(requestDeadline, task.leaseUntil - 5000), clock, () -> checkOwnership(task), progress -> {
+                    Math.min(requestDeadline, task.leaseUntil - 5000), clock, () -> checkOwnership(task, executionActor), progress -> {
                 var checkpoint = store.run(run.id);
                 if (checkpoint == null || !"running".equals(checkpoint.value.status)) throw new IllegalStateException("automation.runChanged");
                 var next = checkpoint.copy(AutomationModels.Run.class);
@@ -163,11 +166,11 @@ public final class AutomationEngine {
         return run;
     }
 
-    private void checkOwnership(StoredTask expected) throws Exception {
+    private void checkOwnership(StoredTask expected, AccountAccess executionActor) throws Exception {
         AutomationStore.Snapshot<StoredTask> row = store.task(expected.id);
         if (row == null || row.value.activeRun == null || !row.value.activeRun.id.equals(expected.activeRun.id)
                 || row.value.leaseUntil <= clock.getAsLong()) throw new IllegalStateException("automation.executionExpired");
-        authority.restore(expected);
+        authority.revalidateExecution(executionActor);
     }
 
     private void recover(AutomationStore.Snapshot<StoredTask> row) throws SQLException {

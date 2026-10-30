@@ -1,7 +1,11 @@
 package com.zrlog.admin.business.automation;
 
+import com.zrlog.admin.business.service.HostMaintenanceTaskProvider;
+import com.zrlog.admin.business.service.TemporaryCleanupTaskProvider;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.business.rest.response.PreCheckVersionResponse;
+import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.User;
 import com.zrlog.model.WebSite;
@@ -11,118 +15,86 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class AutomationDefaultsTest {
     @Parameterized.Parameters(name = "{0}")
-    public static Collection<Object[]> databases() {
-        return Arrays.asList(new Object[]{"h2"}, new Object[]{"sqlite"}, new Object[]{"web-api"});
-    }
+    public static Collection<Object[]> databases() { return Arrays.asList(new Object[]{"h2"}, new Object[]{"sqlite"}, new Object[]{"web-api"}); }
     private final String backend;
     public AutomationDefaultsTest(String backend) { this.backend = backend; }
     private InMemoryZrLogDatabase open() throws Exception {
-        InMemoryZrLogDatabase db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
+        var db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
         return db;
     }
+    private AutomationDefaults defaults(InMemoryZrLogDatabase db, AutomationStore store) {
+        var upgrade = new AutomaticUpgradeTaskProvider(store, new AutomaticUpgradeTaskProvider.Operations() {
+            public boolean available() { return true; }
+            public String channel() { return "release"; }
+            public String currentBuildId() { return "old"; }
+            public PreCheckVersionResponse check() { throw new AssertionError("Initialization must not check or upgrade"); }
+            public boolean submit(Version target, TaskExecutionContext context) { throw new AssertionError("Initialization must not upgrade"); }
+        }, System::currentTimeMillis);
+        var registry = new TaskRegistry(() -> List.of(new HostMaintenanceTaskProvider(null, null, () -> null),
+                new TemporaryCleanupTaskProvider(null, null, null), upgrade, new PluginScheduledTaskProvider(() -> null)));
+        return new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())), registry);
+    }
 
     @Test
-    public void keepsExistingEnablementAndDoesNotRecreateDeletedDefaultsAfterRestart() throws Exception {
-        try (InMemoryZrLogDatabase db = open()) {
-            db.execute("DELETE FROM website WHERE name IN (?,?)", "autoUpgradeVersion", "cache_timeout_minutes");
-            db.execute("INSERT INTO website(name,value) VALUES(?,?)", "autoUpgradeVersion", "-1");
-            db.execute("INSERT INTO website(name,value) VALUES(?,?)", "cache_timeout_minutes", "7");
+    public void maintenanceIsSiteWideAndEnabledExceptAutomaticUpgrade() throws Exception {
+        try (var db = open()) {
             var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())));
-            assertTrue(defaults.initialize());
-            assertEquals(2, store.taskCount(1));
-            var tasks = store.tasks(1, 100, 0);
-            var cache = tasks.stream().filter(row -> row.value.type.equals("site.refresh-cache")).findFirst().orElseThrow();
-            var version = tasks.stream().filter(row -> row.value.type.equals("system.check-version")).findFirst().orElseThrow();
-            assertTrue(cache.value.enabled);
-            assertEquals(Integer.valueOf(7), cache.value.schedule.intervalMinutes);
-            assertFalse(version.value.enabled);
-            AccountAccess actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
-            assertTrue(store.deleteTask(cache, actor));
-            assertTrue(new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource()))).initialize());
-            assertEquals(1, store.taskCount(1));
-            assertNull(store.task(cache.value.id));
+            assertTrue(defaults(db, store).initialize()); assertTrue(defaults(db, store).initializePluginTrigger());
+            assertEquals(5, store.taskCount(0)); assertEquals(0, store.taskCount(1));
+            for (var row : store.tasks(0, 100, 0)) {
+                assertEquals(!"system.auto-upgrade".equals(row.value.type), row.value.enabled);
+                assertEquals(0, row.value.ownerId);
+                assertTrue(row.value.nextRunAt > 0);
+            }
+            var cleanup = store.task(AutomationDefaults.systemId("system.cleanup-temporary")).value;
+            assertEquals(7, cleanup.parameters.get("retentionDays").getAsInt());
+            assertEquals(Integer.valueOf(1440), cleanup.schedule.intervalMinutes);
+            assertEquals("release", store.task(AutomationDefaults.systemId("system.auto-upgrade")).value.parameters.get("channel").getAsString());
+            assertTrue(defaults(db, store).initialize()); assertTrue(defaults(db, store).initializePluginTrigger());
+            assertEquals(5, store.taskCount(0));
         }
     }
 
     @Test
-    public void completedMigrationFencesAStaleInitializerAfterDeletion() throws Exception {
-        try (InMemoryZrLogDatabase db = open()) {
+    public void repeatedInitializationPreservesUserSettingsAndIgnoresOldDevelopmentStorage() throws Exception {
+        try (var db = open()) {
             var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var state = new AutomationDefaults.State();
-            state.ownerId = 1;
-            state.createdAt = System.currentTimeMillis();
-            state.cacheMinutes = 5;
-            state.checkSeconds = 86400;
-            assertTrue(store.write(AutomationDefaults.KEY, null, state));
-            var stale = store.read(AutomationDefaults.KEY, AutomationDefaults.State.class);
-            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())));
-            assertTrue(defaults.initialize());
-            var cache = store.tasks(1, 100, 0).get(0);
-            AccountAccess actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
-            assertTrue(store.deleteTask(cache, actor));
-            store.insertDefaultTask(cache.value, actor, stale);
-            assertNull(store.task(cache.value.id));
+            db.execute("INSERT INTO website(name,value,remark) VALUES(?,?,?)",
+                    "assistant.task:old-development-task", "invalid old format", "0");
+            assertTrue(defaults(db, store).initialize());
+            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var row = store.task(AutomationDefaults.systemId("system.cleanup-temporary"));
+            var stopped = row.copy(StoredTask.class);
+            stopped.enabled = false; stopped.schedule.intervalMinutes = 120;
+            stopped.parameters.addProperty("retentionDays", 31); stopped.revision++;
+            assertTrue(store.replaceTask(row, stopped, actor));
+            // Simulate a restart between inserting defaults and completing initialization.
+            db.execute("DELETE FROM website WHERE name=?", AutomationDefaults.KEY);
+            assertTrue(defaults(db, store).initialize());
+            var current = store.task(stopped.id).value;
+            assertFalse(current.enabled); assertEquals(stopped.revision, current.revision);
+            assertEquals(Integer.valueOf(120), current.schedule.intervalMinutes);
+            assertEquals(31, current.parameters.get("retentionDays").getAsInt());
+            assertEquals(4, store.taskCount(0)); assertEquals(0, store.due(0, 64).size());
         }
     }
 
     @Test
-    public void migratesOnePluginParentAndNeverRecreatesItAfterDeletion() throws Exception {
-        try (InMemoryZrLogDatabase db = open()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())));
-            assertTrue(defaults.initialize());
-            assertTrue(defaults.initializePluginTrigger());
-            assertEquals(3, store.taskCount(1));
-            var parent = store.tasks(1, 100, 0).stream().filter(row -> row.value.type.equals(PluginScheduledTaskProvider.TYPE)).findFirst().orElseThrow();
-            assertTrue(parent.value.enabled);
-            assertEquals(Integer.valueOf(1), parent.value.schedule.intervalMinutes);
-            assertEquals(java.util.List.of("plugin.manage"), parent.value.authorizedActions);
-            assertTrue(parent.value.parameters.entrySet().isEmpty());
-            AccountAccess owner = AccountAccess.from(new User(db.dataSource()).loadById(1));
-            assertTrue(store.deleteTask(parent, owner));
-            assertTrue(defaults.initializePluginTrigger());
-            assertNull(store.task(parent.value.id));
-            assertEquals(2, store.taskCount(1));
-        }
-    }
-
-    @Test
-    public void pluginMigrationCompletionFencesStaleInsertionAfterDeletion() throws Exception {
-        try (InMemoryZrLogDatabase db = open()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var state = new AutomationDefaults.State();
-            state.ownerId = 1; state.createdAt = System.currentTimeMillis();
-            assertTrue(store.write(AutomationDefaults.PLUGIN_KEY, null, state));
-            var stale = store.read(AutomationDefaults.PLUGIN_KEY, AutomationDefaults.State.class);
-            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())));
-            assertTrue(defaults.initializePluginTrigger());
-            var parent = store.tasks(1, 100, 0).get(0);
-            AccountAccess owner = AccountAccess.from(new User(db.dataSource()).loadById(1));
-            assertTrue(store.deleteTask(parent, owner));
-            store.insertDefaultTask(parent.value, owner, stale);
-            assertNull(store.task(parent.value.id));
-        }
-    }
-
-    @Test
-    public void doesNotAssignMaintenancePermissionsToAnEditor() throws Exception {
-        try (InMemoryZrLogDatabase db = open()) {
+    public void initializationCannotInventAnOwnerOrBypassAccountPermissions() throws Exception {
+        try (var db = open()) {
             db.execute("UPDATE user SET role=? WHERE userId=?", "editor", 1);
             var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())));
-            assertFalse(defaults.initialize());
-            assertFalse(defaults.initializePluginTrigger());
-            assertEquals(0, store.taskCount(1));
-            assertNull(store.read(AutomationDefaults.KEY, AutomationDefaults.State.class));
+            assertFalse(defaults(db, store).initialize()); assertFalse(defaults(db, store).initializePluginTrigger());
+            assertEquals(0, store.taskCount(0));
         }
     }
 }

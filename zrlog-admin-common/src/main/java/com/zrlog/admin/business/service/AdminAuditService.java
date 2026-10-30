@@ -74,6 +74,10 @@ public class AdminAuditService {
                 newLog.setBrowser("MCP");
             }
 
+            if (context.getUri() != null && context.getUri().startsWith("/assistant/run/")) {
+                newLog.setBrowser("Assistant");
+                newLog.setAgentName("ZrLog Assistant");
+            }
             logs.add(0, newLog); // Add to the beginning
 
             if (logs.size() > MAX_LOG_SIZE) {

@@ -64,7 +64,7 @@ public class AutomationNotificationTest {
         assertEquals(1, notices.size());
         assertTrue(inbox().list(owner).isEmpty());
         assertTrue(AutomationStore.JSON.toJson(notices).contains("My private reminder"));
-        assertFalse(AutomationStore.JSON.toJson(notices).contains("authorizedActions"));
+        assertFalse(AutomationStore.JSON.toJson(notices).contains("executionActions"));
         var payload = (com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.OperationTaskPayload) notices.get(0).getPayload();
         assertEquals("/assistant?runId=" + run.id, payload.getActionPath());
         assertTrue(inbox().markRead(author, notices.get(0).getTaskKey()));
@@ -82,6 +82,7 @@ public class AutomationNotificationTest {
         assertThrows(PermissionErrorException.class, () -> inbox().markRead(owner, key));
         assertNull(store.run(run.id).value.noticeReadAt);
         assertThrows(PermissionErrorException.class, () -> inbox().list(author.restrictActions(List.of("article.read"))));
+        assertThrows(PermissionErrorException.class, () -> inbox().markRead(author.restrictActions(List.of("article.read")), key));
         db.execute("update user set enabled=? where userId=?", false, 2);
         assertThrows(PermissionErrorException.class, () -> inbox().list(author));
         assertThrows(PermissionErrorException.class, () -> inbox().markRead(author, key));

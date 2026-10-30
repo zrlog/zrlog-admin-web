@@ -3,7 +3,6 @@ package com.zrlog.admin.business.automation;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
@@ -15,82 +14,79 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
-/** Migrates existing timers once; plugin schedules remain plugin-owned behind one parent trigger. */
+/** One site-wide maintenance configuration per provider, created once without replacing user settings. */
 @Singleton
 public final class AutomationDefaults {
-    static final String KEY = "assistant.defaults";
-    static final String PLUGIN_KEY = "assistant.plugin-defaults";
+    static final String KEY = "assistant.v1.defaults";
+    static final String PLUGIN_KEY = "assistant.v1.plugin-defaults";
     private final AutomationStore store;
     private final Provider<User> users;
     private final WebsiteKvService settings;
+    private final TaskRegistry registry;
 
     @Inject
-    public AutomationDefaults(AutomationStore store, Provider<User> users, WebsiteKvService settings) {
-        this.store = store;
-        this.users = users;
-        this.settings = settings;
+    public AutomationDefaults(AutomationStore store, Provider<User> users, WebsiteKvService settings, TaskRegistry registry) {
+        this.store = store; this.users = users; this.settings = settings; this.registry = registry;
     }
 
     public boolean initialize() throws SQLException { return initialize(KEY, false); }
-
     public boolean initializePluginTrigger() throws SQLException { return initialize(PLUGIN_KEY, true); }
 
     private boolean initialize(String key, boolean plugins) throws SQLException {
-        AutomationStore.Snapshot<State> row = store.read(key, State.class);
+        var row = store.read(key, State.class);
         if (row != null && row.value.complete) return true;
+        AccountAccess actor = AccountAccess.from(users.get().queryFirstWithParams(
+                "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));
+        if (!actor.isOwner()) return false;
         if (row == null) {
-            AccountAccess owner = AccountAccess.from(users.get().queryFirstWithParams(
-                    "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));
-            if (!owner.isOwner()) return false;
             State state = new State();
-            state.ownerId = owner.getUserId();
             state.createdAt = System.currentTimeMillis();
-            if (!plugins) {
-                state.cacheMinutes = cacheMinutes(settings.getString("cache_timeout_minutes"));
-                Integer legacyCycle = settings.upgradeWebSiteInfo().getAutoUpgradeVersion();
-                state.checkSeconds = AutoUpgradeVersionType.cycle(legacyCycle == null ? 86400 : legacyCycle).getCycle();
-            }
-            store.writeAuthorized(key, null, state, owner);
+            state.cacheMinutes = cacheMinutes(settings.getString("cache_timeout_minutes"));
+            Integer cycle = settings.upgradeWebSiteInfo().getAutoUpgradeVersion();
+            state.checkSeconds = AutoUpgradeVersionType.cycle(cycle == null ? 86400 : cycle).getCycle();
+            store.writeAuthorized(key, null, state, actor);
             row = store.read(key, State.class);
             if (row == null) return false;
         }
         if (row.value.complete) return true;
-        AccountAccess owner = AccountAccess.from(users.get().loadById(row.value.ownerId));
-        if (!owner.isOwner()) return false;
-        if (plugins) {
-            seed(row, owner, PluginScheduledTaskProvider.TYPE, "plugins", 1, true);
-        } else {
-            seed(row, owner, "site.refresh-cache", "cache", row.value.cacheMinutes, true);
-            seed(row, owner, "system.check-version", "version", Math.max(1, row.value.checkSeconds / 60), row.value.checkSeconds > 0);
+        for (var definition : registry.definitions()) {
+            if (!definition.systemTask || plugins != PluginScheduledTaskProvider.TYPE.equals(definition.type)) continue;
+            definition.requiredActions.forEach(action -> TaskAuthority.require(actor, action));
+            String id = systemId(definition.type);
+            if (store.task(id) != null) continue;
+            StoredTask task = fresh(row.value, definition);
+            task.id = id; task.ownerId = 0; task.revision = 1L;
+            task.executionActions = List.copyOf(definition.requiredActions);
+            store.insertDefaultTask(task, actor);
+            if (store.task(id) == null) return false;
         }
-        State done = row.copy(State.class);
-        done.complete = true;
-        if (store.writeAuthorized(key, row, done, owner)) return true;
-        AutomationStore.Snapshot<State> latest = store.read(key, State.class);
+        State done = row.copy(State.class); done.complete = true;
+        if (store.writeAuthorized(key, row, done, actor)) return true;
+        var latest = store.read(key, State.class);
         return latest != null && latest.value.complete;
     }
 
-    private void seed(AutomationStore.Snapshot<State> state, AccountAccess actor, String type, String label,
-                      int intervalMinutes, boolean enabled) throws SQLException {
+    static String systemId(String type) {
+        return AutomationStore.ownerPrefix(0) + UUID.nameUUIDFromBytes(type.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private StoredTask fresh(State state, AutomationModels.Definition definition) {
+        if (definition.defaultSchedule == null || "once".equals(definition.defaultSchedule.kind)) throw new IllegalStateException("automation.invalidDefinition");
         StoredTask task = new StoredTask();
-        task.id = AutomationStore.ownerPrefix(actor.getUserId()) + UUID.nameUUIDFromBytes(type.getBytes(StandardCharsets.UTF_8));
-        task.ownerId = actor.getUserId();
-        task.ownerRole = actor.getRole();
-        task.ownerAuthVersion = actor.getAuthVersion();
-        task.name = I18nUtil.getAdminBackendStringFromRes("admin.automation." + label + ".title");
-        task.type = type;
-        task.revision = 1L;
-        task.enabled = enabled;
-        task.createdAt = state.value.createdAt;
-        task.updatedAt = state.value.createdAt;
-        task.authorizedActions = List.of((PluginScheduledTaskProvider.TYPE.equals(type)
-                ? AccountAction.PLUGIN_MANAGE : AccountAction.SYSTEM_MANAGE).getId());
-        task.schedule = new AutomationModels.Schedule();
-        task.schedule.kind = "interval";
-        task.schedule.intervalMinutes = intervalMinutes;
-        task.schedule.at = state.value.createdAt + intervalMinutes * 60000L;
-        task.nextRunAt = task.schedule.at;
-        store.insertDefaultTask(task, actor, state);
+        task.name = I18nUtil.getAdminBackendStringFromRes(definition.titleKey);
+        task.type = definition.type; task.enabled = definition.enabledByDefault;
+        task.createdAt = state.createdAt; task.updatedAt = state.createdAt;
+        task.parameters = definition.defaultParameters.deepCopy();
+        task.schedule = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(definition.defaultSchedule), AutomationModels.Schedule.class);
+        if ("site.refresh-cache".equals(task.type)) task.schedule.intervalMinutes = state.cacheMinutes;
+        if ("system.check-version".equals(task.type)) {
+            task.schedule.intervalMinutes = Math.max(1, state.checkSeconds / 60);
+            task.enabled &= state.checkSeconds > 0;
+        }
+        if ("interval".equals(task.schedule.kind)) task.schedule.at = state.createdAt + task.schedule.intervalMinutes * 60000L;
+        TaskSchedule.validate(task.schedule);
+        task.nextRunAt = TaskSchedule.nextAfter(task.schedule, state.createdAt);
+        return task;
     }
 
     private static int cacheMinutes(String value) {
@@ -102,7 +98,6 @@ public final class AutomationDefaults {
     }
 
     public static class State {
-        public int ownerId;
         public long createdAt;
         public int cacheMinutes;
         public int checkSeconds;

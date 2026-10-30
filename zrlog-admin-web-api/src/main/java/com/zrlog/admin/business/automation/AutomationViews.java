@@ -9,6 +9,9 @@ public final class AutomationViews {
     private AutomationViews() { }
 
     public static class Task extends AutomationModels.Plan {
+        public boolean systemTask;
+        public Integer updatedBy;
+        public List<String> requiredActions = new ArrayList<>();
         public long createdAt;
         public long updatedAt;
         public Long nextRunAt;
@@ -20,6 +23,7 @@ public final class AutomationViews {
     public static class Overview {
         public List<AutomationModels.Definition> definitions = new ArrayList<>();
         public List<Task> tasks = new ArrayList<>();
+        public List<Task> systemTasks = new ArrayList<>();
         public long total;
         public boolean aiAvailable;
         public boolean canManageScheduler;

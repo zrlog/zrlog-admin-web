@@ -22,12 +22,11 @@ public class AutomationProposalTest {
         var channel = field("channel", "text"); channel.readOnly = true; definition.fields.add(channel);
         var input = proposal(); var candidate = input.plans.get(0);
         candidate.id = "another-task"; candidate.revision = 99L; candidate.enabled = true;
-        candidate.authorizedActions = List.of("system.manage", "article.publish");
         candidate.parameters.addProperty("articleId", 35); candidate.parameters.addProperty("version", 10);
         candidate.parameters.addProperty("retryUnconfirmed", true); candidate.parameters.addProperty("channel", "preview");
         candidate.parameters.addProperty("hiddenCommand", "execute");
         var result = AutomationProposalService.sanitize(input, List.of(definition)).plans.get(0);
-        assertNull(result.id); assertNull(result.revision); assertFalse(result.enabled); assertTrue(result.authorizedActions.isEmpty());
+        assertNull(result.id); assertNull(result.revision); assertFalse(result.enabled);
         assertEquals("Remember writing", result.parameters.get("text").getAsString());
         assertEquals(1, result.parameters.size());
         assertEquals("09:00", result.schedule.time);
@@ -41,6 +40,8 @@ public class AutomationProposalTest {
         assertThrows(IllegalArgumentException.class, () -> AutomationProposalService.sanitize(schedule, List.of(definition())));
         var parameters = proposal(); parameters.plans.get(0).parameters.add("text", new JsonObject());
         assertThrows(IllegalArgumentException.class, () -> AutomationProposalService.sanitize(parameters, List.of(definition())));
+        var system = definition(); system.systemTask = true;
+        assertThrows(IllegalArgumentException.class, () -> AutomationProposalService.sanitize(proposal(), List.of(system)));
         var unavailable = definition(); unavailable.available = false;
         assertThrows(IllegalArgumentException.class, () -> AutomationProposalService.sanitize(proposal(), List.of(unavailable)));
     }

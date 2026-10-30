@@ -24,7 +24,7 @@ public class AutomationProposalAssemblyTest {
         provider.createContext("/chat/completions", exchange -> {
             outbound.set(JsonParser.parseString(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject());
             String content = "{\"explanation\":\"Review this plan before saving.\",\"plans\":[{\"id\":\"forged-id\",\"enabled\":true,"
-                    + "\"authorizedActions\":[\"system.manage\"],\"name\":\"Write weekly\",\"type\":\"assistant.reminder\","
+                    + "\"executionActions\":[\"system.manage\"],\"name\":\"Write weekly\",\"type\":\"assistant.reminder\","
                     + "\"schedule\":{\"kind\":\"weekly\",\"timezone\":\"Asia/Shanghai\",\"time\":\"17:00\",\"weekdays\":[5]},"
                     + "\"parameters\":{\"text\":\"Plan next week's writing\",\"hiddenCommand\":\"publish\"}}]}";
             JsonObject delta = new JsonObject(); delta.addProperty("content", content);
@@ -47,7 +47,7 @@ public class AutomationProposalAssemblyTest {
             var proposal = component.proposals().propose(actor, input);
             var plan = proposal.plans.get(0);
             assertEquals("assistant.reminder", plan.type); assertEquals("17:00", plan.schedule.time);
-            assertNull(plan.id); assertFalse(plan.enabled); assertTrue(plan.authorizedActions.isEmpty());
+            assertNull(plan.id); assertFalse(plan.enabled);
             assertEquals(1, plan.parameters.size()); assertTrue(plan.parameters.has("text"));
             assertEquals(before, component.store().taskCount(actor.getUserId()));
             assertFalse(outbound.get().has("tools"));

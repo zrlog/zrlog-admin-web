@@ -1,33 +1,38 @@
-import {act} from "react";
-import {createRoot, Root} from "react-dom/client";
-import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
-import {ArticleEntry} from "./index.types";
+import { act } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { ArticleEntry } from "./index.types";
 import ArticlePublishReviewModal from "./article-publish-review-modal";
+
+jest.mock("@zrlog/ui/antd/Input", () => ({
+    __esModule: true,
+    default: (props: any) => require("react").createElement("input", props),
+}));
 
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     return {
-        Alert: ({message}: { message?: React.ReactNode }) => React.createElement("div", null, message),
-        Button: ({children, icon, ...props}: any) => React.createElement("button", props, icon, children),
-        Grid: {useBreakpoint: () => ({md: true, lg: true})},
-        Modal: ({children, open, title, onCancel, onOk, okText, cancelText, okButtonProps, footer}: any) =>
+        Alert: ({ message }: { message?: React.ReactNode }) => React.createElement("div", null, message),
+        Button: ({ children, icon, ...props }: any) => React.createElement("button", props, icon, children),
+        Grid: { useBreakpoint: () => ({ md: true, lg: true }) },
+        Modal: ({ children, open, title, onCancel, onOk, okText, cancelText, okButtonProps, footer }: any) =>
             open
                 ? React.createElement(
-                    "div",
-                    {role: "dialog"},
-                    React.createElement("h1", null, title),
-                    children,
-                    footer === undefined
-                        ? React.createElement(
-                            React.Fragment,
-                            null,
-                            React.createElement("button", {onClick: onCancel}, cancelText),
-                            React.createElement("button", {...okButtonProps, onClick: onOk}, okText)
-                        )
-                        : footer
-                )
+                      "div",
+                      { role: "dialog" },
+                      React.createElement("h1", null, title),
+                      children,
+                      footer === undefined
+                          ? React.createElement(
+                                React.Fragment,
+                                null,
+                                React.createElement("button", { onClick: onCancel }, cancelText),
+                                React.createElement("button", { ...okButtonProps, onClick: onOk }, okText)
+                            )
+                          : footer
+                  )
                 : null,
-        Segmented: ({onChange, options, value}: any) =>
+        Segmented: ({ onChange, options, value }: any) =>
             React.createElement(
                 "div",
                 null,
@@ -43,17 +48,17 @@ jest.mock("antd", () => {
                     )
                 )
             ),
-        Space: ({children, direction, ...props}: any) => {
+        Space: ({ children, direction, ...props }: any) => {
             void direction;
             return React.createElement("div", props, children);
         },
-        Tooltip: ({children}: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+        Tooltip: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
         Typography: {
-            Text: ({children, strong, ...props}: any) => {
+            Text: ({ children, strong, ...props }: any) => {
                 void strong;
                 return React.createElement("span", props, children);
             },
-            Title: ({children, level, ...props}: any) => {
+            Title: ({ children, level, ...props }: any) => {
                 void level;
                 return React.createElement("h2", props, children);
             },
@@ -100,11 +105,11 @@ jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     },
 }));
 
-jest.mock("../../base/ConfigProviderApp", () => ({getAppState: () => ({dark: false})}));
+jest.mock("../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
 jest.mock("../article/article-preview-snapshot", () => ({
     __esModule: true,
-    default: ({htmlContent}: { htmlContent?: string }) =>
-        require("react").createElement("div", {"data-testid": "preview-content"}, htmlContent),
+    default: ({ htmlContent }: { htmlContent?: string }) =>
+        require("react").createElement("div", { "data-testid": "preview-content" }, htmlContent),
 }));
 
 jest.mock("../../utils/constants", () => ({
@@ -112,7 +117,15 @@ jest.mock("../../utils/constants", () => ({
         cancel: "Cancel",
         close: "Close",
         edit: "Edit",
-        article: {previewSnapshot: {digest: "Summary", empty: "Empty", keywords: "Tags"}},
+        automations: {
+            publicationTime: "Publication time",
+            publishNow: "Publish now",
+            publishLater: "Schedule publication",
+            schedulePublication: "Save and schedule",
+            publicationTimeHelp: "Review the saved version",
+            futureTimeRequired: "Choose a future time",
+        },
+        article: { previewSnapshot: { digest: "Summary", empty: "Empty", keywords: "Tags" } },
         articleEdit: {
             publishReview: {
                 title: "Pre-publish Review",
@@ -163,7 +176,7 @@ const completeArticle: ArticleEntry = {
     version: 1,
 };
 
-const typeOptions = [{value: 1, label: "Engineering"}];
+const typeOptions = [{ value: 1, label: "Engineering" }];
 
 const reactActEnvironment = globalThis as typeof globalThis & {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -204,10 +217,33 @@ describe("ArticlePublishReviewModal", () => {
         return props;
     };
 
+    it("requires a future time and passes the exact instant for scheduled publication", async () => {
+        const onConfirm = jest.fn<Promise<boolean>, [number?]>(async () => true);
+        renderModal({ onConfirm });
+        const button = (text: string) =>
+            Array.from(container.querySelectorAll("button")).find((b) => b.textContent === text)!;
+        act(() => button("Schedule publication").click());
+        expect(button("Save and schedule").disabled).toBe(true);
+        const input = container.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+        const value = "2099-06-10T12:30";
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        expect(button("Save and schedule").disabled).toBe(false);
+        await act(async () => button("Save and schedule").click());
+        expect(onConfirm).toHaveBeenCalledWith(new Date(value).getTime());
+    });
+
+    it("does not offer scheduling for an already published article", () => {
+        renderModal({ article: { ...completeArticle, logId: 5, rubbish: false } });
+        expect(container.textContent).not.toContain("Schedule publication");
+    });
+
     it("blocks confirmation until the required title and category are present", () => {
         const onConfirm = jest.fn(async () => true);
         renderModal({
-            article: {...completeArticle, title: "", typeId: 9},
+            article: { ...completeArticle, title: "", typeId: 9 },
             onConfirm,
         });
 
@@ -248,7 +284,7 @@ describe("ArticlePublishReviewModal", () => {
 
     it("blocks publish confirmation while a draft assistant request is pending", () => {
         const onConfirm = jest.fn(async () => true);
-        renderModal({draftAiPending: true, onConfirm});
+        renderModal({ draftAiPending: true, onConfirm });
 
         const confirmButton = Array.from(container.querySelectorAll("button")).find(
             (button) => button.textContent === "Confirm Publish"
@@ -262,7 +298,7 @@ describe("ArticlePublishReviewModal", () => {
     it("switches to a stable mobile preview and closes only after successful confirmation", async () => {
         const onOpenChange = jest.fn();
         const onConfirm = jest.fn(async () => true);
-        renderModal({onOpenChange, onConfirm});
+        renderModal({ onOpenChange, onConfirm });
 
         const frame = container.querySelector('[data-testid="article-publish-preview-frame"]') as HTMLDivElement;
         expect(frame.dataset.previewMode).toBe("desktop");
@@ -284,7 +320,7 @@ describe("ArticlePublishReviewModal", () => {
     it("uses a side-effect-free close action in content preview mode", () => {
         const onOpenChange = jest.fn();
         const onConfirm = jest.fn(async () => true);
-        renderModal({previewOnly: true, onOpenChange, onConfirm});
+        renderModal({ previewOnly: true, onOpenChange, onConfirm });
 
         expect(container.querySelector('[role="dialog"] h1')?.textContent).toBe("Content Preview");
         const closeButton = Array.from(container.querySelectorAll("button")).find(

@@ -3,6 +3,13 @@ package com.zrlog.admin.business.rest.response;
 public class CreateOrUpdateArticleResponse {
 
     private Long logId;
+    private int version;
+    private com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule publicationSchedule;
+    public int getVersion() { return version; }
+    public void setVersion(int version) { this.version = version; }
+    public com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule getPublicationSchedule() { return publicationSchedule; }
+    public void setPublicationSchedule(com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule schedule) { this.publicationSchedule = schedule; }
+
 
 
     private Boolean rubbish;

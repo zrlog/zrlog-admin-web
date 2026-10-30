@@ -13,7 +13,7 @@ import java.util.function.LongSupplier;
 
 /** Submits a confirmed upgrade policy and records the exact target before touching the application. */
 public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider {
-    static final String KEY = "assistant.upgrade";
+    static final String KEY = "assistant.v1.upgrade";
     private final AutomationStore store;
     private final Operations operations;
     private final LongSupplier clock;
@@ -31,8 +31,9 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         definition.titleKey = "admin.automation.upgrade.title";
         definition.descriptionKey = "admin.automation.upgrade.description";
         definition.category = "maintenance";
+        definition.systemTask = true;
+        definition.enabledByDefault = false;
         definition.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
-        definition.requiresAuthorization = true;
         definition.timeoutSeconds = 600;
         definition.available = operations.available();
         definition.unavailableReasonKey = "admin.automation.upgrade.unsupported";
@@ -148,7 +149,8 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     private boolean canRetry(Receipt receipt, AccountAccess actor) throws SQLException {
-        if (receipt.ownerId != actor.getUserId() || installed(receipt) || "confirmed".equals(receipt.state)) return false;
+        TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
+        if (installed(receipt) || "confirmed".equals(receipt.state)) return false;
         var run = store.run(receipt.runId);
         return run != null && run.value.finishedAt != null
                 && (List.of("uncertain", "needs_attention").contains(run.value.status)

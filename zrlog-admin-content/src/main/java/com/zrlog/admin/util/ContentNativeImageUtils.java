@@ -10,6 +10,7 @@ public final class ContentNativeImageUtils {
 
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule.class,
                 com.zrlog.admin.business.rest.request.CreateArticleRequest.class,
                 com.zrlog.admin.business.rest.request.CreateTypeRequest.class,
                 com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse.class,

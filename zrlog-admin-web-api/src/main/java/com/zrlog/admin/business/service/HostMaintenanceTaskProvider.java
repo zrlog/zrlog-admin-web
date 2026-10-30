@@ -39,6 +39,11 @@ public final class HostMaintenanceTaskProvider implements ScheduledTaskProvider 
         definition.titleKey = "admin.automation." + key + ".title";
         definition.descriptionKey = "admin.automation." + key + ".description";
         definition.category = "maintenance";
+        definition.systemTask = true;
+        definition.enabledByDefault = true;
+        definition.defaultSchedule = new AutomationModels.Schedule();
+        definition.defaultSchedule.kind = "interval";
+        definition.defaultSchedule.intervalMinutes = "site.refresh-cache".equals(type) ? 5 : 1440;
         definition.timeoutSeconds = seconds;
         definition.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
         return definition;

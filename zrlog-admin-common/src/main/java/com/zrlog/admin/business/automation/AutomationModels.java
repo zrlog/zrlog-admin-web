@@ -17,12 +17,14 @@ public final class AutomationModels {
         public String title;
         public String description;
         public String category;
+        /** A preconfigured maintenance task, managed through enablement and settings. */
+        public boolean systemTask;
+        public boolean enabledByDefault;
         public boolean requiresAi;
         public boolean available = true;
         public String unavailableReasonKey;
         public String unavailableReason;
         public int timeoutSeconds = 30;
-        public boolean requiresAuthorization;
         public List<String> requiredActions = new ArrayList<>();
         public List<String> optionalActions = new ArrayList<>();
         public List<Field> fields = new ArrayList<>();
@@ -59,13 +61,12 @@ public final class AutomationModels {
         public boolean enabled = true;
         public Schedule schedule;
         public JsonObject parameters = new JsonObject();
-        public List<String> authorizedActions = new ArrayList<>();
 
         @Override
         public void doValid() {
             if (name == null || name.isBlank() || name.length() > 160 || type == null || type.isBlank()
                     || schedule == null || parameters == null || parameters.toString().length() > 32768
-                    || authorizedActions == null || (id != null && (revision == null || revision < 1))) {
+                    || (id != null && (revision == null || revision < 1))) {
                 throw new IllegalArgumentException("automation.invalidPlan");
             }
         }
@@ -127,6 +128,8 @@ public final class AutomationModels {
         public long startedAt;
         public Long finishedAt;
         public String trigger;
+        public Integer triggeredBy;
+        public Integer executionUserId;
         public String status;
         public Result result;
         public String errorCode;

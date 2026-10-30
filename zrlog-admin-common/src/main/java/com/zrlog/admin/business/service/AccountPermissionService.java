@@ -45,6 +45,26 @@ public final class AccountPermissionService {
         article(account, id, false);
     }
 
+    /** Shared declaration checks for HTTP features, assistants and background work. */
+    public static void requireAction(AccountAccess account, String actionId) {
+        for (AccountAction action : AccountAction.values()) {
+            if (action.getId().equals(actionId)) {
+                if (account == null || !action.allowed(account)) throw new PermissionErrorException();
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Unknown account action: " + actionId);
+    }
+
+    public static void requireActions(AccountAccess account, java.util.Collection<String> actions) {
+        actions.forEach(action -> requireAction(account, action));
+    }
+
+    public static boolean allowsActions(AccountAccess account, java.util.Collection<String> actions) {
+        try { requireActions(account, actions); return true; }
+        catch (PermissionErrorException denied) { return false; }
+    }
+
     public void require(AccountAccess account, AccountAction action) {
         if (account == null || !action.allowed(account)) throw new PermissionErrorException();
     }

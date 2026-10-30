@@ -29,6 +29,12 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
         definition.titleKey = "admin.automation.cleanup.title";
         definition.descriptionKey = "admin.automation.cleanup.description";
         definition.category = "maintenance";
+        definition.systemTask = true;
+        definition.enabledByDefault = true;
+        definition.defaultParameters.addProperty("retentionDays", 7);
+        definition.defaultSchedule = new AutomationModels.Schedule();
+        definition.defaultSchedule.kind = "interval";
+        definition.defaultSchedule.intervalMinutes = 1440;
         definition.timeoutSeconds = 30;
         definition.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
         var days = new AutomationModels.Field();

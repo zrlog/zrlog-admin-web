@@ -17,7 +17,7 @@ import java.util.function.LongSupplier;
 
 /** Dedicated trigger credentials are stored as digests and never included in ordinary page data. */
 public final class AutomationSettingsService {
-    static final String KEY = "assistant.scheduler";
+    static final String KEY = "assistant.v1.scheduler";
     private final AutomationStore store;
     private final TaskAuthority authority;
     private final LongSupplier clock;

@@ -12,6 +12,9 @@ public interface ScheduledTaskProvider {
     /** Validate and normalize provider parameters with the user's current permissions. */
     JsonObject prepare(String type, JsonObject parameters, AccountAccess actor) throws Exception;
 
+    /** Optional cohesive identity: one plan per account and business object. */
+    default String instanceKey(String type, JsonObject parameters) { return null; }
+
     /** The provider owns its cohesive workflow, child steps and final outcome; the scheduler executes only this task. */
     AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception;
 

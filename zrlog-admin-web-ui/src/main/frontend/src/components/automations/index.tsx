@@ -25,6 +25,7 @@ import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
+import SystemTasks from "./SystemTasks";
 import RunChildren from "./RunChildren";
 import TaskSettings from "./TaskSettings";
 import ProposalForm from "./ProposalForm";
@@ -46,6 +47,9 @@ export default function Automations({
     const [detail, setDetail] = useState<Run>();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedRun = searchParams.get("runId");
+    useEffect(() => {
+        if (searchParams.get("tab") === "system") setTab("system");
+    }, [searchParams]);
     const [notice, contextHolder] = useUiMessage();
     const api = useAxiosBaseInstance();
     const res = getRes().automations;
@@ -135,6 +139,19 @@ export default function Automations({
     };
     const taskList = (
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+            <Space wrap>
+                <Typography.Title level={4} style={{ margin: 0 }}>
+                    {res.tasks}
+                </Typography.Title>
+                <Button type="primary" disabled={disabled} onClick={() => setEditing({})}>
+                    {res.create}
+                </Button>
+                {overview.aiAvailable && (
+                    <Button disabled={disabled} onClick={() => setProposing(true)}>
+                        {res.askAssistant}
+                    </Button>
+                )}
+            </Space>
             <List
                 dataSource={overview.tasks}
                 locale={{ emptyText: <Empty description={res.empty} /> }}
@@ -206,33 +223,35 @@ export default function Automations({
             )}
             <Typography.Title level={4}>{res.templates}</Typography.Title>
             <Row gutter={[16, 16]}>
-                {overview.definitions.map((definition) => (
-                    <Col key={definition.type} xs={24} md={12} xl={8}>
-                        <Card title={definition.title} style={{ height: "100%" }}>
-                            <Typography.Paragraph>{definition.description}</Typography.Paragraph>
-                            {!definition.available && definition.unavailableReason && (
-                                <Typography.Paragraph type="secondary">
-                                    {definition.unavailableReason}
-                                </Typography.Paragraph>
-                            )}
-                            <Space wrap>
-                                <Tag>{definition.requiresAi ? res.ai : res.aiOptional}</Tag>
-                                <Button
-                                    disabled={disabled || !definition.available}
-                                    onClick={() =>
-                                        setEditing({
-                                            type: definition.type,
-                                            name: definition.title,
-                                            schedule: definition.defaultSchedule,
-                                        })
-                                    }
-                                >
-                                    {definition.available ? res.create : res.unavailable}
-                                </Button>
-                            </Space>
-                        </Card>
-                    </Col>
-                ))}
+                {overview.definitions
+                    .filter((definition) => !definition.systemTask)
+                    .map((definition) => (
+                        <Col key={definition.type} xs={24} md={12} xl={8}>
+                            <Card title={definition.title} style={{ height: "100%" }}>
+                                <Typography.Paragraph>{definition.description}</Typography.Paragraph>
+                                {!definition.available && definition.unavailableReason && (
+                                    <Typography.Paragraph type="secondary">
+                                        {definition.unavailableReason}
+                                    </Typography.Paragraph>
+                                )}
+                                <Space wrap>
+                                    <Tag>{definition.requiresAi ? res.ai : res.aiOptional}</Tag>
+                                    <Button
+                                        disabled={disabled || !definition.available}
+                                        onClick={() =>
+                                            setEditing({
+                                                type: definition.type,
+                                                name: definition.title,
+                                                schedule: definition.defaultSchedule,
+                                            })
+                                        }
+                                    >
+                                        {definition.available ? res.create : res.unavailable}
+                                    </Button>
+                                </Space>
+                            </Card>
+                        </Col>
+                    ))}
             </Row>
         </Space>
     );
@@ -245,7 +264,10 @@ export default function Automations({
                     placeholder={res.allTasks}
                     value={filter}
                     onChange={setFilter}
-                    options={overview.tasks.map((task) => ({ value: task.id, label: task.name }))}
+                    options={[...(overview.systemTasks ?? []), ...overview.tasks].map((task) => ({
+                        value: task.id,
+                        label: task.name,
+                    }))}
                 />
                 <Button onClick={() => void loadRuns(runs.page).catch(() => undefined)}>{res.reload}</Button>
             </Space>
@@ -288,23 +310,39 @@ export default function Automations({
                 </div>
                 {(offline || offlineData) && <Alert type="info" title={res.offline} />}
                 <Space wrap>
-                    <Button type="primary" disabled={disabled} onClick={() => setEditing({})}>
-                        {res.create}
-                    </Button>
                     <Button disabled={disabled} onClick={() => void reload().catch(() => undefined)}>
                         {res.reload}
                     </Button>
                 </Space>
-                {overview.aiAvailable && (
-                    <Button disabled={disabled} onClick={() => setProposing(true)} style={{ alignSelf: "start" }}>
-                        {res.askAssistant}
-                    </Button>
-                )}
                 <Tabs
                     activeKey={tab}
                     onChange={setTab}
                     items={[
                         { key: "tasks", label: res.tasks, children: taskList },
+                        ...(overview.systemTasks.length
+                            ? [
+                                  {
+                                      key: "system",
+                                      label: res.systemTasks,
+                                      children: (
+                                          <SystemTasks
+                                              tasks={overview.systemTasks}
+                                              definitions={overview.definitions}
+                                              disabled={disabled}
+                                              onConfigure={setEditing}
+                                              onHistory={showHistory}
+                                              onEnabled={(task, enabled) =>
+                                                  void mutate("enabled", {
+                                                      id: task.id,
+                                                      revision: task.revision,
+                                                      enabled,
+                                                  })
+                                              }
+                                          />
+                                      ),
+                                  },
+                              ]
+                            : []),
                         { key: "history", label: res.history, children: history },
                         ...(overview.canManageScheduler
                             ? [
@@ -330,7 +368,7 @@ export default function Automations({
             {proposing && (
                 <ProposalForm
                     request={request}
-                    definitions={overview.definitions}
+                    definitions={overview.definitions.filter((definition) => !definition.systemTask)}
                     onClose={() => setProposing(false)}
                     onChoose={(plan) => {
                         setProposing(false);

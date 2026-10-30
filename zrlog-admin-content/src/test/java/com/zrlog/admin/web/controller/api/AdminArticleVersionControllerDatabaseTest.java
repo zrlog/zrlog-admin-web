@@ -142,7 +142,7 @@ public class AdminArticleVersionControllerDatabaseTest {
                                 java.util.Collections::emptyList);
         var content =
                 com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
-                        .create(
+                        .create(() -> null,
                                 data,
                                 services,
                                 AccountServicesFixture.component(testDataSource),

@@ -69,6 +69,7 @@ public interface ContentComponent {
     @Component.Factory
     interface Factory {
         ContentComponent create(
+                @BindsInstance Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler> publicationScheduler,
                 @BindsInstance DataComponent data,
                 @BindsInstance ServiceComponent services,
                 @BindsInstance AccountComponent account,

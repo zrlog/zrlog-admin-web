@@ -32,8 +32,8 @@ public final class AutomationModule {
     }
 
     @Provides @Singleton
-    static AutomationTickService ticks(AutomationEngine engine, AutomationStore store) {
-        return new AutomationTickService(engine, store, System::currentTimeMillis);
+    static AutomationTickService ticks(AutomationEngine engine, AutomationStore store, AutomationDefaults defaults) {
+        return new AutomationTickService(engine, store, System::currentTimeMillis, defaults);
     }
 
     @Provides @Singleton

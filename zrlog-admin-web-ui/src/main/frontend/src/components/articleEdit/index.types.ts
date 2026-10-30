@@ -20,6 +20,7 @@ export type ArticleEntry = ChangedContent &
     previewUrl?: string;
     socialPreview?: SocialPreview;
     transparentPublish?: boolean;
+    publishAt?: number;
     editorType?: string;
 };
 

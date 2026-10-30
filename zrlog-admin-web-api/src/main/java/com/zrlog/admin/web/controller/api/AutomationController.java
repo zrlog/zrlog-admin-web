@@ -4,6 +4,9 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.automation.*;
+import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -23,11 +26,12 @@ public final class AutomationController extends BaseController {
     private final AdminPageDataFactory pages;
     private final AutomationProposalService proposals;
     private final AutomationNotificationService notifications;
+    private final AdminAuditService audit;
 
     @Inject
     public AutomationController(AutomationService tasks, AutomationDashboard dashboard, AutomationEngine engine,
                                 AutomationSettingsService settings, AdminRequestIdentity identities, AdminPageDataFactory pages,
-                                AutomationProposalService proposals, AutomationNotificationService notifications) {
+                                AutomationProposalService proposals, AutomationNotificationService notifications, AdminAuditService audit) {
         this.tasks = tasks;
         this.dashboard = dashboard;
         this.engine = engine;
@@ -36,6 +40,7 @@ public final class AutomationController extends BaseController {
         this.pages = pages;
         this.proposals = proposals;
         this.notifications = notifications;
+        this.audit = audit;
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
@@ -71,7 +76,11 @@ public final class AutomationController extends BaseController {
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.save")
     public ApiStandardResponse<AutomationViews.Task> save() throws Exception {
         AutomationModels.Plan plan = getRequestBodyWithNullCheck(AutomationModels.Plan.class);
-        return result(() -> AutomationDashboard.task(tasks.save(identities.current(), plan)));
+        return result(() -> {
+            var saved = tasks.save(identities.current(), plan);
+            record(AdminAuditAction.CONFIGURE_ASSISTANT_TASK, saved.name);
+            return AutomationDashboard.task(saved);
+        });
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
@@ -79,21 +88,33 @@ public final class AutomationController extends BaseController {
     public ApiStandardResponse<AutomationViews.Task> enabled() throws Exception {
         AutomationViews.Change change = getRequestBodyWithNullCheck(AutomationViews.Change.class);
         if (change.enabled == null) throw new IllegalArgumentException("automation.invalidPlan");
-        return result(() -> AutomationDashboard.task(tasks.setEnabled(identities.current(), change.id, change.revision, change.enabled)));
+        return result(() -> {
+            var saved = tasks.setEnabled(identities.current(), change.id, change.revision, change.enabled);
+            record(change.enabled ? AdminAuditAction.ENABLE_ASSISTANT_TASK : AdminAuditAction.PAUSE_ASSISTANT_TASK, saved.name);
+            return AutomationDashboard.task(saved);
+        });
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.delete")
     public ApiStandardResponse<Boolean> delete() throws Exception {
         AutomationViews.Change change = getRequestBodyWithNullCheck(AutomationViews.Change.class);
-        return result(() -> { tasks.delete(identities.current(), change.id, change.revision); return true; });
+        return result(() -> {
+            var deleted = tasks.delete(identities.current(), change.id, change.revision);
+            record(AdminAuditAction.DELETE_ASSISTANT_TASK, deleted.name);
+            return true;
+        });
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.run")
     public ApiStandardResponse<AutomationViews.Run> run() throws Exception {
         AutomationViews.Change change = getRequestBodyWithNullCheck(AutomationViews.Change.class);
-        return result(() -> AutomationDashboard.run(engine.runNow(identities.current(), change.id, change.revision, settings.manualBudgetMillis())));
+        return result(() -> {
+            var run = engine.runNow(identities.current(), change.id, change.revision, settings.manualBudgetMillis());
+            record(AdminAuditAction.RUN_ASSISTANT_TASK, run.taskName);
+            return AutomationDashboard.run(run);
+        });
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
@@ -120,7 +141,10 @@ public final class AutomationController extends BaseController {
     public ApiStandardResponse<AutomationSettingsService.SettingsView> saveSettings() throws Exception {
         AutomationViews.SettingsChange change = getRequestBodyWithNullCheck(AutomationViews.SettingsChange.class);
         if (change.internalEnabled == null || change.externalEnabled == null) throw new IllegalArgumentException("automation.invalidPlan");
-        return result(() -> settings.save(identities.current(), change.revision, change.internalEnabled, change.externalEnabled, change.externalBudgetSeconds));
+        return result(() -> {
+            var saved = settings.save(identities.current(), change.revision, change.internalEnabled, change.externalEnabled, change.externalBudgetSeconds);
+            record(AdminAuditAction.UPDATE_ASSISTANT_SETTINGS, ""); return saved;
+        });
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
@@ -128,14 +152,24 @@ public final class AutomationController extends BaseController {
     public ApiStandardResponse<AutomationSettingsService.IssuedToken> rotateToken() throws Exception {
         AutomationViews.SettingsChange change = getRequestBodyWithNullCheck(AutomationViews.SettingsChange.class);
         response.addHeader("Cache-Control", "no-store");
-        return result(() -> settings.rotate(identities.current(), change.revision));
+        return result(() -> {
+            var issued = settings.rotate(identities.current(), change.revision);
+            record(AdminAuditAction.ROTATE_ASSISTANT_TOKEN, ""); return issued;
+        });
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "automation.token")
     public ApiStandardResponse<AutomationSettingsService.SettingsView> revokeToken() throws Exception {
         AutomationViews.SettingsChange change = getRequestBodyWithNullCheck(AutomationViews.SettingsChange.class);
-        return result(() -> settings.revoke(identities.current(), change.revision));
+        return result(() -> {
+            var saved = settings.revoke(identities.current(), change.revision);
+            record(AdminAuditAction.REVOKE_ASSISTANT_TOKEN, ""); return saved;
+        });
+    }
+
+    private void record(AdminAuditAction action, String content) {
+        audit.record(AdminAuditContexts.from(request, identities.current().getUserId()), action, content);
     }
 
     private <T> ApiStandardResponse<T> result(Operation<T> operation) throws Exception {

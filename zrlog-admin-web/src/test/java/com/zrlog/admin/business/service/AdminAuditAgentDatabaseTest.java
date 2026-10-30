@@ -37,6 +37,28 @@ public class AdminAuditAgentDatabaseTest {
     }
 
     @Test
+    public void assistantUsesTheExistingOperationLogAndKeepsTheExecutionAccount() throws Exception {
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
+            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+            var execution = new com.zrlog.admin.business.automation.TaskExecutionContext(
+                    "test-run", actor, System.currentTimeMillis() + 1000, System::currentTimeMillis, () -> { });
+            service.record(execution.audit(), AdminAuditAction.CREATE_ARTICLE, "Scheduled draft");
+            service.record(AdminAuditContexts.from(request("browser"), 2), AdminAuditAction.ROTATE_ASSISTANT_TOKEN, "secret-token");
+            var logs = service.getRecentLogs();
+            assertEquals(2, logs.size());
+            assertEquals(Integer.valueOf(2), logs.get(0).getActorUserId());
+            assertEquals("", logs.get(0).getContent());
+            assertEquals(Integer.valueOf(1), logs.get(1).getActorUserId());
+            assertEquals("Assistant", logs.get(1).getBrowser());
+            assertEquals("ZrLog Assistant", logs.get(1).getAgentName());
+            assertEquals("Scheduled draft", logs.get(1).getContent());
+            var stored = db.scalar("select value from website where name='admin_audit_log'").toString();
+            org.junit.Assert.assertFalse(stored.contains("secret-token"));
+        }
+    }
+
+    @Test
     public void capturedAuditSourceSurvivesRequestChangesAndWorkerDispatch() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));

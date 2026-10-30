@@ -1,4 +1,5 @@
-import {Alert, Button, Grid, Modal, Segmented, Space, Tooltip, Typography} from "antd";
+import { Alert, Button, Grid, Modal, Segmented, Space, Tooltip, Typography } from "antd";
+import Input from "@zrlog/ui/antd/Input";
 import SuccessIcon from "@zrlog/ui/icons/success";
 import ErrorIcon from "@zrlog/ui/icons/error";
 import DesktopIcon from "@zrlog/ui/icons/desktop";
@@ -6,13 +7,13 @@ import EditIcon from "@zrlog/ui/icons/edit";
 import AlertIcon from "@zrlog/ui/icons/alert";
 import MobileIcon from "@zrlog/ui/icons/mobile";
 
-import {useTheme} from "antd-style";
-import {FunctionComponent, useEffect, useMemo, useRef, useState} from "react";
-import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
-import {getAppState} from "../../base/ConfigProviderApp";
-import {getRes} from "../../utils/constants";
+import { useTheme } from "antd-style";
+import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
+import { getAppState } from "../../base/ConfigProviderApp";
+import { getRes } from "../../utils/constants";
 import ArticlePreviewSnapshot from "../article/article-preview-snapshot";
-import {ArticleEntry} from "./index.types";
+import { ArticleEntry } from "./index.types";
 import {
     ArticlePublishReviewCheck,
     ArticlePublishReviewField,
@@ -33,28 +34,40 @@ type ArticlePublishReviewModalProps = {
     getContainer?: () => HTMLElement;
     onOpenChange: (open: boolean) => void;
     onLocate: (target: ArticlePublishReviewTarget) => void;
-    onConfirm: () => Promise<boolean>;
+    onConfirm: (publishAt?: number) => Promise<boolean>;
 };
 
 type PreviewMode = "desktop" | "mobile";
 
 const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProps> = ({
-                                                                                          open,
-                                                                                          previewOnly = false,
-                                                                                          article,
-                                                                                          typeOptions,
-                                                                                          offline,
-                                                                                          draftAiPending,
-                                                                                          saving,
-                                                                                          contentConflict,
-                                                                                          getContainer,
-                                                                                          onOpenChange,
-                                                                                          onLocate,
-                                                                                          onConfirm,
-                                                                                      }) => {
+    open,
+    previewOnly = false,
+    article,
+    typeOptions,
+    offline,
+    draftAiPending,
+    saving,
+    contentConflict,
+    getContainer,
+    onOpenChange,
+    onLocate,
+    onConfirm,
+}) => {
     const theme = useTheme();
     const screens = Grid.useBreakpoint();
     const res = getRes().articleEdit.publishReview;
+    const timing = getRes().automations;
+    const [publishLater, setPublishLater] = useState(false);
+    const [publicationTime, setPublicationTime] = useState("");
+    const publishAt = publicationTime ? new Date(publicationTime).getTime() : undefined;
+    const invalidPublicationTime =
+        publishLater && (!publishAt || !Number.isFinite(publishAt) || publishAt <= Date.now());
+    useEffect(() => {
+        if (open) {
+            setPublishLater(false);
+            setPublicationTime("");
+        }
+    }, [open]);
     const [previewMode, setPreviewMode] = useState<PreviewMode>("desktop");
     const [previewHtml, setPreviewHtml] = useState(article.content || "");
     const [confirming, setConfirming] = useState(false);
@@ -70,7 +83,7 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
         const nextHtml = markdownToHtmlSyncWithCallback(
             article.markdown || "",
             (renderedHtml) => setPreviewHtml(renderedHtml || article.content || ""),
-            {linkPreview: false}
+            { linkPreview: false }
         );
         setPreviewHtml(nextHtml || article.content || "");
     }, [article.content, article.markdown, open]);
@@ -124,12 +137,12 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
 
     const statusIcon = (check: ArticlePublishReviewCheck) => {
         if (check.status === "blocker") {
-            return <ErrorIcon style={{color: theme.colorError}}/>;
+            return <ErrorIcon style={{ color: theme.colorError }} />;
         }
         if (check.status === "warning") {
-            return <AlertIcon style={{color: theme.colorWarning}}/>;
+            return <AlertIcon style={{ color: theme.colorWarning }} />;
         }
-        return <SuccessIcon style={{color: theme.colorSuccess}}/>;
+        return <SuccessIcon style={{ color: theme.colorSuccess }} />;
     };
 
     const handleCancel = () => {
@@ -145,14 +158,15 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
             offline ||
             draftAiPending ||
             contentConflict ||
-            review.blockers.length > 0
+            review.blockers.length > 0 ||
+            invalidPublicationTime
         ) {
             return;
         }
         confirmingRef.current = true;
         setConfirming(true);
         try {
-            if (await onConfirm()) {
+            if (await onConfirm(publishLater ? publishAt : undefined)) {
                 onOpenChange(false);
             }
         } finally {
@@ -167,18 +181,24 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
     };
 
     const confirmDisabled =
-        !previewOnly && (offline || draftAiPending || contentConflict || saving || review.blockers.length > 0);
+        !previewOnly &&
+        (offline ||
+            draftAiPending ||
+            contentConflict ||
+            saving ||
+            review.blockers.length > 0 ||
+            invalidPublicationTime);
     const blockingText = previewOnly
         ? undefined
         : offline
-            ? res.offline
-            : draftAiPending
-                ? res.aiPending
-                : contentConflict
-                    ? res.contentConflict
-                    : review.blockers.length > 0
-                        ? res.blocked
-                        : undefined;
+        ? res.offline
+        : draftAiPending
+        ? res.aiPending
+        : contentConflict
+        ? res.contentConflict
+        : review.blockers.length > 0
+        ? res.blocked
+        : undefined;
     const previewFrameWidth = previewMode === "mobile" ? 390 : "100%";
 
     return (
@@ -187,7 +207,7 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
             open={open}
             onCancel={handleCancel}
             onOk={() => void handleConfirm()}
-            okText={res.confirm}
+            okText={publishLater ? timing.schedulePublication : res.confirm}
             cancelText={getRes().cancel}
             footer={
                 previewOnly ? (
@@ -196,14 +216,14 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                     </Button>
                 ) : undefined
             }
-            okButtonProps={{disabled: confirmDisabled}}
-            cancelButtonProps={{disabled: confirming}}
+            okButtonProps={{ disabled: confirmDisabled }}
+            cancelButtonProps={{ disabled: confirming }}
             confirmLoading={confirming}
             closable={!confirming}
             keyboard={!confirming}
             maskClosable={!confirming}
             width={screens.lg ? 1080 : "calc(100vw - 24px)"}
-            style={screens.lg ? undefined : {top: 8, paddingBottom: 8}}
+            style={screens.lg ? undefined : { top: 8, paddingBottom: 8 }}
             getContainer={getContainer}
             destroyOnHidden
             styles={{
@@ -213,8 +233,37 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                 },
             }}
         >
-            <Space direction="vertical" size={theme.margin} style={{display: "flex"}}>
-                {blockingText && <Alert showIcon type="error" message={blockingText}/>}
+            <Space direction="vertical" size={theme.margin} style={{ display: "flex" }}>
+                {!previewOnly && (article.rubbish || !article.logId) && !article.privacy && (
+                    <Space direction="vertical" style={{ width: "100%" }}>
+                        <Typography.Text strong>{timing.publicationTime}</Typography.Text>
+                        <Segmented
+                            value={publishLater ? "later" : "now"}
+                            options={[
+                                { value: "now", label: timing.publishNow },
+                                { value: "later", label: timing.publishLater },
+                            ]}
+                            onChange={(value) => setPublishLater(value === "later")}
+                            disabled={saving || confirming}
+                        />
+                        {publishLater && (
+                            <>
+                                <Input
+                                    type="datetime-local"
+                                    aria-label={timing.publicationTime}
+                                    value={publicationTime}
+                                    onChange={(event) => setPublicationTime(event.target.value)}
+                                    disabled={saving || confirming}
+                                />
+                                <Typography.Text type="secondary">{timing.publicationTimeHelp}</Typography.Text>
+                                {publicationTime && invalidPublicationTime && (
+                                    <Typography.Text type="danger">{timing.futureTimeRequired}</Typography.Text>
+                                )}
+                            </>
+                        )}
+                    </Space>
+                )}
+                {blockingText && <Alert showIcon type="error" message={blockingText} />}
                 <div
                     style={{
                         display: "grid",
@@ -224,10 +273,10 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                     }}
                 >
                     <section aria-labelledby="article-publish-review-metadata-title">
-                        <Typography.Title id="article-publish-review-metadata-title" level={5} style={{marginTop: 0}}>
+                        <Typography.Title id="article-publish-review-metadata-title" level={5} style={{ marginTop: 0 }}>
                             {res.metadata}
                         </Typography.Title>
-                        <div role="list" style={{borderTop: borderSecondary}}>
+                        <div role="list" style={{ borderTop: borderSecondary }}>
                             {review.checks.map((check) => (
                                 <div
                                     role="listitem"
@@ -244,11 +293,11 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                                     }}
                                 >
                                     {statusIcon(check)}
-                                    <div style={{minWidth: 0}}>
+                                    <div style={{ minWidth: 0 }}>
                                         <Typography.Text strong>{fieldLabel(check.field)}</Typography.Text>
                                         <Typography.Text
                                             type="secondary"
-                                            style={{display: "block", overflowWrap: "anywhere"}}
+                                            style={{ display: "block", overflowWrap: "anywhere" }}
                                         >
                                             {checkDetail(check)}
                                         </Typography.Text>
@@ -258,7 +307,7 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                                             <Button
                                                 type="text"
                                                 size="small"
-                                                icon={<EditIcon/>}
+                                                icon={<EditIcon />}
                                                 aria-label={`${getRes().edit} ${fieldLabel(check.field)}`}
                                                 onClick={() => handleLocate(check.target)}
                                             />
@@ -269,7 +318,7 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                         </div>
                     </section>
 
-                    <section aria-labelledby="article-publish-review-preview-title" style={{minWidth: 0}}>
+                    <section aria-labelledby="article-publish-review-preview-title" style={{ minWidth: 0 }}>
                         <div
                             style={{
                                 display: "flex",
@@ -280,15 +329,15 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                                 flexWrap: "wrap",
                             }}
                         >
-                            <Typography.Title id="article-publish-review-preview-title" level={5} style={{margin: 0}}>
+                            <Typography.Title id="article-publish-review-preview-title" level={5} style={{ margin: 0 }}>
                                 {res.contentPreview}
                             </Typography.Title>
                             <Segmented<PreviewMode>
                                 value={previewMode}
                                 onChange={setPreviewMode}
                                 options={[
-                                    {value: "desktop", label: res.desktop, icon: <DesktopIcon/>},
-                                    {value: "mobile", label: res.mobile, icon: <MobileIcon/>},
+                                    { value: "desktop", label: res.desktop, icon: <DesktopIcon /> },
+                                    { value: "mobile", label: res.mobile, icon: <MobileIcon /> },
                                 ]}
                             />
                         </div>
@@ -315,11 +364,11 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                                     borderBottom: borderSecondary,
                                 }}
                             >
-                                <Typography.Title level={3} style={{margin: 0, overflowWrap: "anywhere"}}>
+                                <Typography.Title level={3} style={{ margin: 0, overflowWrap: "anywhere" }}>
                                     {article.title.trim() || res.untitled}
                                 </Typography.Title>
                             </div>
-                            <div style={{flex: 1, minHeight: 0, paddingInline: theme.padding}}>
+                            <div style={{ flex: 1, minHeight: 0, paddingInline: theme.padding }}>
                                 <ArticlePreviewSnapshot
                                     htmlContent={previewHtml}
                                     dark={getAppState().dark}

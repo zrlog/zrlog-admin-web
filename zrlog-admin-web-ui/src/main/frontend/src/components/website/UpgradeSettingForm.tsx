@@ -163,7 +163,10 @@ const UpgradeSettingForm = ({
             )}
             {data.scheduleManaged ? (
                 <Form.Item label={getRes().websiteUpgrade.autoCheckCycle} style={formItemStyle}>
-                    <Button disabled={offline || offlineData} onClick={() => navigate(getRealRouteUrl("/assistant"))}>
+                    <Button
+                        disabled={offline || offlineData}
+                        onClick={() => navigate(getRealRouteUrl("/assistant") + "?tab=system")}
+                    >
                         {getRes().automations.manageUpdates}
                     </Button>
                 </Form.Item>
