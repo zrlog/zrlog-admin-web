@@ -61,7 +61,7 @@ public final class HostAutomaticUpgradeOperations implements AutomaticUpgradeTas
             var request = new DockerUpdaterProtocol.UpgradeRequest();
             request.requestId = "assistant_" + context.runId().replace('.', '_');
             request.channel = channel();
-            request.version = target.getVersion();
+            request.version = target.getArtifactVersion();
             request.buildId = target.getBuildId();
             var job = UpdaterHosts.dockerControl(updater.get()).submit(request);
             return job != null && request.requestId.equals(job.id) && !job.recoveryRequired

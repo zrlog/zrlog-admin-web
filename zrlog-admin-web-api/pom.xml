@@ -12,6 +12,12 @@
     <dependencies>
         <dependency>
             <groupId>com.hibegin</groupId>
+            <artifactId>zrlog-updater-docker</artifactId>
+            <version>${zrlog-updater.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.hibegin</groupId>
             <artifactId>zrlog-admin-account</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
