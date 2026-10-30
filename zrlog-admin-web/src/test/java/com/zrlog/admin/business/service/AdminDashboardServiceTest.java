@@ -530,7 +530,7 @@ public class AdminDashboardServiceTest {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void shouldTimeoutSlowSurfacePreloadWithoutBlockingDashboardConfig() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
@@ -582,7 +582,9 @@ public class AdminDashboardServiceTest {
                 assertNotNull(pluginItem);
                 assertEquals(Boolean.FALSE, pluginItem.getSurfaceLoaded());
                 assertNotNull(pluginItem.getError());
+                assertTrue("Timed-out plugin work must be interrupted", plugin.interrupted.await(1, TimeUnit.SECONDS));
             } finally {
+                plugin.release.countDown();
                 db.config().getAllPlugins().remove(plugin);
             }
         }
@@ -646,14 +648,17 @@ public class AdminDashboardServiceTest {
     }
 
     private static class SlowSurfacePluginCorePlugin extends FakePluginCorePlugin {
+        private final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        private final java.util.concurrent.CountDownLatch interrupted = new java.util.concurrent.CountDownLatch(1);
         @Override
         public CloseResponseHandle getContext(String uri, HttpMethod method,
                                               com.hibegin.http.server.api.HttpRequest request,
                                               AdminTokenVO adminTokenVO) {
             if ("/admin/plugins/reminder/surface".equals(uri)) {
                 try {
-                    Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+                    release.await();
                 } catch (InterruptedException e) {
+                    interrupted.countDown();
                     Thread.currentThread().interrupt();
                 }
                 return closeResponse("{\"success\":true,\"data\":{\"title\":\"Late Surface\"}}");
