@@ -14,7 +14,7 @@ import { getRealRouteUrl, getRes } from "../utils/constants";
 import { getContextPath } from "../utils/helpers";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { API_ADMIN_STATIC_SITE_SYNC_PATH, API_DO_UPGRADE_PATH, getVersion } from "../api";
-import { ApiResponse, UpgradeData } from "../type";
+import { ApiResponse, UpgradeData, UpgradeExecution } from "../type";
 import UpgradeContent from "./upgrade-content";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
@@ -92,6 +92,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         progressItems: [],
     });
     const [upgradeRiskAccepted, setUpgradeRiskAccepted] = useState(false);
+    const [retryReviewed, setRetryReviewed] = useState(false);
     const [data, setData] = useState(initialData);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshError, setRefreshError] = useState<string>();
@@ -105,6 +106,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     useEffect(() => {
         setData(initialData);
         setUpgradeRiskAccepted(false);
+        setRetryReviewed(false);
         setRefreshing(false);
         setRefreshError(undefined);
         setCheckedAt(undefined);
@@ -123,6 +125,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         setRefreshing(true);
         setRefreshError(undefined);
         setUpgradeRiskAccepted(false);
+        setRetryReviewed(false);
         try {
             const requestConfig = { params: { fetch: true }, showError: false, timeout: 30000 };
             const { data: response } = await axiosInstance.get<ApiResponse<UpgradeData>>(
@@ -415,13 +418,20 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             const response = submit
                 ? await postRefreshCacheSse<DockerResponse>(API_DO_UPGRADE_PATH, {
                       ...options,
-                      body: { upgradeRiskAccepted: true, docker: task },
+                      body: { upgradeRiskAccepted: true, docker: task, ...reviewedExecution() },
                   })
                 : await getRefreshCacheSse<DockerResponse>(
                       "/api/admin/upgrade/docker-status?requestId=" + encodeURIComponent(task.requestId),
                       options
                   );
             if (!isCurrent() || upgradeFinishing.current) {
+                return;
+            }
+            if (submit && handleUpgradeConflict(response)) {
+                clearDockerUpgrade(task.requestId);
+                dockerTask.current = undefined;
+                setDockerPending(false);
+                setDockerRetry(false);
                 return;
             }
             if (submit && response.error && !receivedProgress) {
@@ -657,12 +667,28 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         }));
     };
 
+    const reviewedExecution = () =>
+        retryReviewed && data.execution?.canRetry ? { reviewedExecutionId: data.execution.id } : {};
+
+    const handleUpgradeConflict = (response: ApiResponse<unknown>) => {
+        if (response.error !== 409) return false;
+        const execution = response.data as UpgradeExecution | null;
+        setData((previous) => ({ ...previous, execution }));
+        setRetryReviewed(false);
+        setUpgradeRiskAccepted(false);
+        finishUpgradeTask("warning", response.message);
+        messageApi.error(response.message);
+        returnToReview();
+        return true;
+    };
+
     const handleUpgradeResponse = async (
         response: ApiResponse<UpgradeProcessResponse>,
         buildId: string,
         online: boolean
     ) => {
         if (!mounted.current || upgradeFinishing.current || failureEventReceived.current) return;
+        if (handleUpgradeConflict(response)) return;
         if (response.error) {
             failureEventReceived.current = true;
             messageApi.error(response.message);
@@ -727,7 +753,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 return;
             }
             const response = await postRefreshCacheSse<ApiResponse<UpgradeProcessResponse>>(API_DO_UPGRADE_PATH, {
-                body: { upgradeRiskAccepted },
+                body: { upgradeRiskAccepted, ...reviewedExecution() },
                 messageApi,
                 messageKey: "upgrade",
                 onEvent: onUpgradeEvent,
@@ -755,6 +781,14 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             return true;
         }
         if (!upgradeRiskAccepted) {
+            return true;
+        }
+        if (
+            (data.onlineUpgradable || data.dockerUpdaterAvailable) &&
+            data.execution &&
+            !data.execution.confirmed &&
+            !(data.execution.canRetry && retryReviewed)
+        ) {
             return true;
         }
         return false;
@@ -830,6 +864,34 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             <div style={{ minWidth: 0, paddingBottom: token.paddingLG }}>
                 {!showExecution && (
                     <>
+                        {data.execution && (
+                            <Alert
+                                type={data.execution.confirmed ? "success" : "warning"}
+                                showIcon
+                                style={{ marginBottom: token.marginLG }}
+                                message={getRes().upgrade.execution[data.execution.state]}
+                                description={
+                                    <>
+                                        <div style={{ overflowWrap: "anywhere" }}>
+                                            {getRes().upgrade.execution[data.execution.source]} ·{" "}
+                                            {data.execution.version}
+                                            {" · "}
+                                            {data.execution.buildId}
+                                        </div>
+                                        {!data.execution.confirmed && <div>{getRes().upgrade.execution.detail}</div>}
+                                        {data.execution.canRetry && (
+                                            <Checkbox
+                                                checked={retryReviewed}
+                                                disabled={offline || awaitingPageData || refreshing || !!refreshError}
+                                                onChange={(event) => setRetryReviewed(event.target.checked)}
+                                            >
+                                                {getRes().upgrade.execution.review}
+                                            </Checkbox>
+                                        )}
+                                    </>
+                                }
+                            />
+                        )}
                         {data.upgrade ? (
                             <>
                                 <Title level={4} style={{ marginTop: 0 }}>

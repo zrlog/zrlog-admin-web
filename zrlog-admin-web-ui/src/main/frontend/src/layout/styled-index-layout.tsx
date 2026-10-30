@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import {colorToRgba} from "./slider";
+import { colorToRgba } from "./slider";
 
 type StyledIndexLayoutProps = {
     compactMode: boolean;
@@ -37,6 +37,28 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
 
     .ant-layout-header {
         background: ${(props) => props.colorBgElevated} !important;
+    }
+
+    .admin-assistant-entry {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        border-radius: ${(props) => props.borderRadiusLG}px;
+        color: ${(props) => props.textColor};
+    }
+
+    .admin-assistant-entry:hover,
+    .admin-assistant-entry[aria-current="page"] {
+        color: ${(props) => props.colorPrimary};
+        background: ${(props) => props.colorFillSecondary};
+    }
+
+    .admin-assistant-entry:focus-visible {
+        outline: ${(props) => props.lineWidth * 2}px ${(props) => props.lineType} ${(props) => props.colorPrimary};
+        outline-offset: 2px;
     }
 
     /* Menu styling */

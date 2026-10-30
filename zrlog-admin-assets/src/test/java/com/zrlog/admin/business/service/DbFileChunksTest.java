@@ -44,6 +44,64 @@ public class DbFileChunksTest {
     private DbFileService anotherInstance() { return new DbFileService(() -> new WebSite(db.dataSource()), now::get); }
 
     @Test
+    public void expiryCleanupKeepsReferencedRecentLegacyAndActiveResources() throws Exception {
+        String root = "/admin/attached/tmp/";
+        service.toDbFile(root + "expired.bin", data(DbFileService.CHUNK_BYTES + 1));
+        service.toDbFile(root + "article.bin", data(2));
+        service.toDbFile(root + "session.bin", data(3));
+        service.toDbFile(root + "history.bin", data(4));
+        db.putWebsite("db_file" + root + "legacy.bin", "YQ==");
+        service.toDbFile("/admin/attached/tmp-neighbor/keep.bin", data(5));
+        now.addAndGet(java.time.Duration.ofDays(8).toMillis());
+        service.toDbFile(root + "recent.bin", data(6));
+        new DbFileStore(() -> new WebSite(db.dataSource()), now::get).claim(root + "active.bin");
+        db.execute("insert into log(logId,userId,typeId,title,content,rubbish) values(?,?,?,?,?,?)",
+                71, 1, 1, "References", "<img src=\"" + root + "article.bin\">", true);
+        db.execute("insert into log_version(log_id,article_version,from_version,patch_json) values(?,?,?,?)",
+                71, 0, 1, "{\"content\":\"" + root + "history.bin\"}");
+        db.putWebsite("ai.saved-session", "{\"file\":\"" + root + "session.bin\"}");
+        var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+        var context = new com.zrlog.admin.business.automation.TaskExecutionContext("cleanup", actor, now.get() + 60000, now::get, () -> {});
+        DbFileService.CleanupBatch batch = service.cleanupTemporary(7, "", context);
+        assertEquals(1, batch.removed);
+        assertFalse(service.hasRecord(root + "expired.bin"));
+        for (String name : List.of("article.bin", "session.bin", "history.bin", "recent.bin", "legacy.bin", "active.bin"))
+            assertTrue(name, service.hasRecord(root + name));
+        assertTrue(service.hasRecord("/admin/attached/tmp-neighbor/keep.bin"));
+        assertEquals(0L, ((Number) db.scalar("SELECT count(*) FROM website WHERE name>=? AND name<?", "db_file_chunk:", "db_file_chunk;")).longValue());
+        assertThrows(IllegalArgumentException.class, () -> service.cleanupTemporary(0, "", context));
+    }
+
+    @Test
+    public void cleanupPreservesWebsiteReferencesSavedImmediatelyBeforeDeletionClaim() throws Exception {
+        for (boolean escaped : new boolean[]{false, true}) {
+            String path = "/admin/attached/tmp/racing-" + escaped + ".bin";
+            byte[] payload = data(DbFileService.CHUNK_BYTES + 17);
+            service.toDbFile(path, payload);
+            now.addAndGet(java.time.Duration.ofDays(8).toMillis());
+            AtomicInteger referenceWrites = new AtomicInteger();
+            WebSite documents = new WebSite(db.dataSource()) {
+                @Override public boolean execute(String sql, Object... params) throws SQLException {
+                    if (sql.startsWith("UPDATE website SET remark=?") && sql.contains("FROM log")
+                            && Arrays.asList(params).contains("db_file" + path) && referenceWrites.getAndIncrement() == 0) {
+                        db.putWebsite("assistant.saved-session." + escaped,
+                                "{\"file\":\"" + (escaped ? path.replace("/", "\\/") : path) + "\"}");
+                    }
+                    return super.execute(sql, params);
+                }
+            };
+            var cleanup = new DbFileService(() -> documents, now::get);
+            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+            var context = new com.zrlog.admin.business.automation.TaskExecutionContext("cleanup", actor,
+                    now.get() + 60000, now::get, () -> {});
+            assertEquals(0, cleanup.cleanupTemporary(7, "", context).removed);
+            assertTrue(referenceWrites.get() > 0);
+            assertFalse(metadata(path).deleting);
+            assertArrayEquals(payload, anotherInstance().loadDbFile(path));
+        }
+    }
+
+    @Test
     public void roundTripsBoundarySizesAcrossInstancesWithBoundedRowsAndMetadata() throws Exception {
         for (int length : new int[]{0, 1, 2, DbFileService.CHUNK_BYTES - 1, DbFileService.CHUNK_BYTES,
                 DbFileService.CHUNK_BYTES + 1, DbFileService.CHUNK_BYTES * 2, 2 * 1024 * 1024 + 57}) {

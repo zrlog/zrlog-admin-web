@@ -8,6 +8,20 @@ import com.zrlog.common.Constants;
 public class AdminRouters {
 
     public static void configAdminRoute(Router router) {
+        router.addMapper("/api/admin/assistant", AutomationController.class, "index");
+        router.addMapper("/api/admin/assistant/save", AutomationController.class, "save");
+        router.addMapper("/api/admin/assistant/propose", AutomationController.class, "propose");
+        router.addMapper("/api/admin/assistant/enabled", AutomationController.class, "enabled");
+        router.addMapper("/api/admin/assistant/delete", AutomationController.class, "delete");
+        router.addMapper("/api/admin/assistant/run", AutomationController.class, "run");
+        router.addMapper("/api/admin/assistant/runs", AutomationController.class, "runs");
+        router.addMapper("/api/admin/assistant/detail", AutomationController.class, "detail");
+        router.addMapper("/api/admin/assistant/notices", AutomationController.class, "notices");
+        router.addMapper("/api/admin/assistant/readNotice", AutomationController.class, "readNotice");
+        router.addMapper("/api/admin/assistant/settings", AutomationController.class, "settings");
+        router.addMapper("/api/admin/assistant/settings/save", AutomationController.class, "saveSettings");
+        router.addMapper("/api/admin/assistant/token/rotate", AutomationController.class, "rotateToken");
+        router.addMapper("/api/admin/assistant/token/revoke", AutomationController.class, "revokeToken");
         // api
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH, AdminController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/403", AdminController.class, "error");

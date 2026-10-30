@@ -19,6 +19,8 @@ export type BackgroundTask = {
 };
 
 const STORAGE_KEY = "zrlog-admin-background-tasks-v1";
+// Personal notices are restored from the authenticated server, never from a shared browser cache.
+const isPersonalNotice = (task: BackgroundTask) => task.taskKey?.startsWith("server.assistant.") === true;
 const taskStatuses: BackgroundTaskStatus[] = [
     "pending",
     "running",
@@ -93,7 +95,7 @@ const loadStoredTasks = () => {
         if (!Array.isArray(parsedValue)) {
             return [];
         }
-        return parsedValue.map(normalizeStoredTask).filter((task): task is BackgroundTask => !!task);
+        return parsedValue.map(normalizeStoredTask).filter((task): task is BackgroundTask => !!task && !isPersonalNotice(task));
     } catch {
         return [];
     }
@@ -126,6 +128,7 @@ const trimTasks = () => {
         .filter((task) => !isBackgroundTaskActive(task.status))
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .filter((task) => {
+            if (isPersonalNotice(task)) return true;
             const status = task.status as BackgroundTaskFinishStatus;
             if (retainedCountByStatus[status] >= finishedTaskRetentionLimits[status]) {
                 return false;
@@ -141,7 +144,7 @@ const persistTasks = () => {
         return;
     }
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks.filter(task => !isPersonalNotice(task))));
     } catch {
         // Storage can be unavailable in private mode or near quota; task UI should still work in memory.
     }

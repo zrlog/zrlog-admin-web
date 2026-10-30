@@ -1,0 +1,60 @@
+package com.zrlog.admin.business.automation;
+
+import java.sql.SQLException;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.LongSupplier;
+
+/** Keeps last-trigger health separate from business runs; empty ticks do not fill execution history. */
+public final class AutomationTickService {
+    private final AutomationEngine engine;
+    private final AutomationStore store;
+    private final LongSupplier clock;
+
+    public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock) {
+        this.engine = engine;
+        this.store = store;
+        this.clock = clock;
+    }
+
+    public AutomationModels.TickResult tick(String source, String credentialId, long budgetMillis) throws SQLException {
+        if (!List.of("internal", "external").contains(source)) throw new IllegalArgumentException("automation.invalidTrigger");
+        String key = "assistant.tick:" + source;
+        Health health = new Health();
+        health.id = UUID.randomUUID().toString();
+        health.source = source;
+        health.credentialId = credentialId;
+        health.startedAt = clock.getAsLong();
+        health.status = "running";
+        AutomationStore.Snapshot<Health> before = store.read(key, Health.class);
+        store.write(key, before, health);
+        try {
+            health.result = engine.tick(source, budgetMillis);
+            health.status = "success";
+            return health.result;
+        } catch (SQLException | RuntimeException error) {
+            health.status = "failed";
+            throw error;
+        } finally {
+            health.finishedAt = clock.getAsLong();
+            AutomationStore.Snapshot<Health> current = store.read(key, Health.class);
+            if (current != null && health.id.equals(current.value.id)) store.write(key, current, health);
+        }
+    }
+
+    public Health health(String source) throws SQLException {
+        if (!List.of("internal", "external").contains(source)) throw new IllegalArgumentException("automation.invalidTrigger");
+        AutomationStore.Snapshot<Health> row = store.read("assistant.tick:" + source, Health.class);
+        return row == null ? null : row.value;
+    }
+
+    public static class Health {
+        public String id;
+        public String source;
+        public String credentialId;
+        public long startedAt;
+        public Long finishedAt;
+        public String status;
+        public AutomationModels.TickResult result;
+    }
+}

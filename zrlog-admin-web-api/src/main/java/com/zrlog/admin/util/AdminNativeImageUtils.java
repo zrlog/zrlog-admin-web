@@ -12,6 +12,7 @@ public class AdminNativeImageUtils {
     private static void adminJson() {
         CommonNativeImageUtils.reg();
         AccountNativeImageUtils.reg();
+        AutomationNativeImageUtils.reg();
         ContentNativeImageUtils.reg();
         AssetsNativeImageUtils.reg();
         AiNativeImageUtils.reg();
@@ -23,6 +24,8 @@ public class AdminNativeImageUtils {
                 com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest.class,
                 com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest.class,
                 com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest.class,
+                com.zrlog.admin.business.rest.response.UpgradeCheckResponse.class,
+                com.zrlog.admin.business.automation.UpgradeExecutionCoordinator.View.class,
                 com.zrlog.admin.business.rest.request.UpgradeSettingsRequest.class,
                 com.zrlog.admin.business.rest.response.UpgradeSettingsResponse.class,
                 com.zrlog.admin.business.rest.response.TemplateDownloadResponse.class,

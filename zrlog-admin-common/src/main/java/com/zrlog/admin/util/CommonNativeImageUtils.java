@@ -10,6 +10,16 @@ public final class CommonNativeImageUtils {
 
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                com.zrlog.admin.business.automation.AutomationModels.Definition.class,
+                com.zrlog.admin.business.automation.AutomationAssistant.Request.class,
+                com.zrlog.admin.business.automation.AutomationAssistant.Proposal.class,
+                com.zrlog.admin.business.automation.AutomationModels.Field.class,
+                com.zrlog.admin.business.automation.AutomationModels.Schedule.class,
+                com.zrlog.admin.business.automation.AutomationModels.Plan.class,
+                com.zrlog.admin.business.automation.AutomationModels.ChildResult.class,
+                com.zrlog.admin.business.automation.AutomationModels.Result.class,
+                com.zrlog.admin.business.automation.AutomationModels.Run.class,
+                com.zrlog.admin.business.automation.AutomationModels.TickResult.class,
                 com.zrlog.common.vo.TemplateVO.TemplateConfigMap.class,
                 com.zrlog.business.rest.response.UpgradeProcessResponse.class,
                 com.zrlog.business.rest.response.PreCheckVersionResponse.class,

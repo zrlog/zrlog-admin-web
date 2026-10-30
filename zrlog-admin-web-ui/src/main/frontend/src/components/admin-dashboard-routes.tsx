@@ -25,7 +25,7 @@ import SlidersIcon from "@zrlog/ui/icons/sliders";
 import SyncIcon from "@zrlog/ui/icons/sync";
 import TagsIcon from "@zrlog/ui/icons/tags";
 import UserIcon from "@zrlog/ui/icons/user";
-import {isFeaturePathEnabled} from "../utils/module-capabilities";
+import { isFeaturePathEnabled } from "../utils/module-capabilities";
 import {
     getAccountPage,
     USER_APPLICATION_PAGES,
@@ -33,16 +33,16 @@ import {
     USER_ROUTES,
     WEBSITE_ROUTES,
 } from "../utils/account-page-routes";
-import {actionForPath, hasAction} from "../utils/account-access";
-import type {ComponentType, ReactNode} from "react";
-import {lazy} from "react";
+import { actionForPath, hasAction } from "../utils/account-access";
+import type { ComponentType, ReactNode } from "react";
+import { lazy } from "react";
 
-import {buildUriPaths} from "../base/AppBase";
-import {getRes, isServerDevelopmentMode} from "../utils/constants";
+import { buildUriPaths } from "../base/AppBase";
+import { getRes, isServerDevelopmentMode } from "../utils/constants";
 import MyLoadingComponent from "./my-loading-component";
-import type {WebSiteProps} from "./website";
-import type {ArticleEditProps} from "./articleEdit/index.types";
-import type {ErrorPageProps} from "./unknown-error-page";
+import type { WebSiteProps } from "./website";
+import type { ArticleEditProps } from "./articleEdit/index.types";
+import type { ErrorPageProps } from "./unknown-error-page";
 
 const LightweightFallback = MyLoadingComponent as ComponentType<any>;
 
@@ -62,6 +62,7 @@ const AsyncTemplate = lazy(() => import("components/template"));
 const AsyncTemplateConfig = lazy(() => import("components/template/template-config"));
 const AsyncAccountSecurity = lazy(() => import("components/account-security"));
 const AsyncArticle = lazy(() => import("components/article"));
+const AsyncAutomations = lazy(() => import("components/automations"));
 const AsyncMembers = lazy(() => import("components/members"));
 const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
@@ -126,62 +127,62 @@ export const renderAdminDashboardRouteIcon = (
     selected = false,
     fontSize?: number
 ): ReactNode => {
-    const style = fontSize ? {fontSize} : undefined;
+    const style = fontSize ? { fontSize } : undefined;
     switch (iconKey) {
         case "api":
-            return <ApiIcon selected={selected} style={style}/>;
+            return <ApiIcon selected={selected} style={style} />;
         case "appstore":
-            return <AppsIcon selected={selected} style={style}/>;
+            return <AppsIcon selected={selected} style={style} />;
         case "bars":
-            return <ListIcon selected={selected} style={style}/>;
+            return <ListIcon selected={selected} style={style} />;
         case "comment":
-            return <MessageIcon selected={selected} style={style}/>;
+            return <MessageIcon selected={selected} style={style} />;
         case "container":
-            return <ContainerIcon selected={selected} style={style}/>;
+            return <ContainerIcon selected={selected} style={style} />;
         case "copyright":
-            return <CopyrightIcon selected={selected} style={style}/>;
+            return <CopyrightIcon selected={selected} style={style} />;
         case "dashboard":
-            return <DashboardIcon selected={selected} style={style}/>;
+            return <DashboardIcon selected={selected} style={style} />;
         case "database":
-            return <DatabaseIcon selected={selected} style={style}/>;
+            return <DatabaseIcon selected={selected} style={style} />;
         case "edit":
-            return <EditIcon selected={selected} style={style}/>;
+            return <EditIcon selected={selected} style={style} />;
         case "experiment":
-            return <ExperimentIcon selected={selected} style={style}/>;
+            return <ExperimentIcon selected={selected} style={style} />;
         case "file-text":
-            return <FileTextIcon selected={selected} style={style}/>;
+            return <FileTextIcon selected={selected} style={style} />;
         case "folder":
-            return <FolderIcon selected={selected} style={style}/>;
+            return <FolderIcon selected={selected} style={style} />;
         case "home":
-            return <HomeIcon selected={selected} style={style}/>;
+            return <HomeIcon selected={selected} style={style} />;
         case "info":
-            return <InfoIcon selected={selected} style={style}/>;
+            return <InfoIcon selected={selected} style={style} />;
         case "link":
-            return <LinkIcon selected={selected} style={style}/>;
+            return <LinkIcon selected={selected} style={style} />;
         case "lock":
-            return <LockIcon selected={selected} style={style}/>;
+            return <LockIcon selected={selected} style={style} />;
         case "read":
-            return <ReadIcon selected={selected} style={style}/>;
+            return <ReadIcon selected={selected} style={style} />;
         case "robot":
-            return <RobotIcon selected={selected} style={style}/>;
+            return <RobotIcon selected={selected} style={style} />;
         case "safety-certificate":
-            return <SecurityIcon selected={selected} style={style}/>;
+            return <SecurityIcon selected={selected} style={style} />;
         case "search":
-            return <SearchIcon selected={selected} style={style}/>;
+            return <SearchIcon selected={selected} style={style} />;
         case "setting":
-            return <SettingsIcon selected={selected} style={style}/>;
+            return <SettingsIcon selected={selected} style={style} />;
         case "skin":
-            return <AppearanceIcon selected={selected} style={style}/>;
+            return <AppearanceIcon selected={selected} style={style} />;
         case "sliders":
-            return <SlidersIcon selected={selected} style={style}/>;
+            return <SlidersIcon selected={selected} style={style} />;
         case "sync":
-            return <SyncIcon selected={selected} style={style}/>;
+            return <SyncIcon selected={selected} style={style} />;
         case "tags":
-            return <TagsIcon selected={selected} style={style}/>;
+            return <TagsIcon selected={selected} style={style} />;
         case "user":
-            return <UserIcon selected={selected} style={style}/>;
+            return <UserIcon selected={selected} style={style} />;
         case "webhook":
-            return <WebhookIcon selected={selected} style={style}/>;
+            return <WebhookIcon selected={selected} style={style} />;
     }
 };
 
@@ -198,6 +199,19 @@ export const createAdminDashboardRoutes = (
     articleEditProps: Partial<ArticleEditProps> = {}
 ): AdminDashboardRouteDefinition[] => [
     {
+        paths: buildUriPaths("assistant"),
+        lazy: AsyncAutomations,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "assistant",
+                title: () => getRes().automations.title,
+                iconKey: "robot",
+                keywords: ["assistant", "schedule", "automations", "助手", "定时", "计划", "自动升级"],
+            },
+        ],
+    },
+    {
         paths: buildUriPaths(WEBSITE_ROUTES.members.slice(1)),
         lazy: AsyncMembers,
         fallback: LightweightFallback,
@@ -210,7 +224,7 @@ export const createAdminDashboardRoutes = (
             },
         ],
     },
-    {paths: buildUriPaths(USER_ROUTES.authorize.slice(1)), lazy: AsyncOAuthConsent, fallback: LightweightFallback},
+    { paths: buildUriPaths(USER_ROUTES.authorize.slice(1)), lazy: AsyncOAuthConsent, fallback: LightweightFallback },
     {
         paths: [...buildUriPaths("index"), ...buildUriPaths("")],
         lazy: AsyncIndex,
@@ -262,7 +276,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "basic"} as WebSiteProps,
+        props: { activeKey: "basic" } as WebSiteProps,
         search: [
             {
                 id: "website",
@@ -276,7 +290,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/admin"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "admin"} as WebSiteProps,
+        props: { activeKey: "admin" } as WebSiteProps,
         search: [
             {
                 id: "website_admin",
@@ -290,7 +304,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/webhook"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "webhook"} as WebSiteProps,
+        props: { activeKey: "webhook" } as WebSiteProps,
         search: [
             {
                 id: "website_webhook",
@@ -310,7 +324,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/other"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "other"} as WebSiteProps,
+        props: { activeKey: "other" } as WebSiteProps,
         search: [
             {
                 id: "website_seo",
@@ -324,7 +338,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/blog"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "blog"} as WebSiteProps,
+        props: { activeKey: "blog" } as WebSiteProps,
         search: [
             {
                 id: "website_blog",
@@ -338,7 +352,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/ai"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "ai"} as WebSiteProps,
+        props: { activeKey: "ai" } as WebSiteProps,
         search: [
             {
                 id: "website_ai",
@@ -352,7 +366,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/privacy"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "privacy"} as WebSiteProps,
+        props: { activeKey: "privacy" } as WebSiteProps,
         search: [
             {
                 id: "website_privacy",
@@ -367,7 +381,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/article-edit"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "article-edit"} as WebSiteProps,
+        props: { activeKey: "article-edit" } as WebSiteProps,
         search: [
             {
                 id: "website_article_content",
@@ -381,7 +395,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/content-protector"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "content-protector"} as WebSiteProps,
+        props: { activeKey: "content-protector" } as WebSiteProps,
         search: [
             {
                 id: "website_content_protector",
@@ -395,7 +409,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("system/upgrade"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "upgrade"} as WebSiteProps,
+        props: { activeKey: "upgrade" } as WebSiteProps,
         search: [
             {
                 id: "system_upgrade",
@@ -409,13 +423,13 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/upgrade"),
         lazy: AsyncLegacySystemSettings,
         fallback: LightweightFallback,
-        props: {page: "upgrade"},
+        props: { page: "upgrade" },
     },
     {
         paths: buildUriPaths("website/lab"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: {activeKey: "lab"} as WebSiteProps,
+        props: { activeKey: "lab" } as WebSiteProps,
         search: [
             {
                 id: "website_lab",
@@ -442,7 +456,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("website/version"),
         lazy: AsyncLegacySystemSettings,
         fallback: LightweightFallback,
-        props: {page: "version"},
+        props: { page: "version" },
     },
     {
         paths: buildUriPaths("article-type"),
@@ -548,7 +562,7 @@ export const createAdminDashboardRoutes = (
             paths: buildUriPaths(USER_ROUTES[page].slice(1)),
             lazy: AsyncUser,
             fallback: LightweightFallback,
-            props: {activeKey: "preferences", activePage: page},
+            props: { activeKey: "preferences", activePage: page },
             getComponentKey: (_data, cacheKey) => cacheKey,
             search: [
                 {
@@ -565,7 +579,7 @@ export const createAdminDashboardRoutes = (
             paths: buildUriPaths(USER_ROUTES[page].slice(1)),
             lazy: AsyncUser,
             fallback: LightweightFallback,
-            props: {activeKey: "applications", activePage: page},
+            props: { activeKey: "applications", activePage: page },
             getComponentKey: (_data, cacheKey) => cacheKey,
             search: [
                 {

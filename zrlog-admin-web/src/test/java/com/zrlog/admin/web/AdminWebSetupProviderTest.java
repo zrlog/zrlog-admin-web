@@ -84,6 +84,56 @@ public class AdminWebSetupProviderTest {
         assertTrue(plugins.stream().anyMatch(AdminStaticResourcePlugin.class::isInstance));
     }
 
+    @Test
+    public void realAssemblyMigratesParentBeforeTransferringPluginScheduleOwnership() throws Exception {
+        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+            db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
+            db.loadAdminWebModules();
+            var component = db.component(com.zrlog.admin.web.di.automation.AutomationComponent.class);
+            java.util.List<Boolean> ownership = new java.util.ArrayList<>();
+            var core = (com.zrlog.business.plugin.PluginCorePlugin) java.lang.reflect.Proxy.newProxyInstance(
+                    getClass().getClassLoader(), new Class[]{com.zrlog.business.plugin.PluginCorePlugin.class}, (proxy, method, args) -> {
+                        if (method.getName().equals("supportsHostScheduler")) return true;
+                        if (method.getName().equals("setExternallyScheduled")) {
+                            ownership.add((Boolean) args[0]);
+                            if (ownership.size() == 1) assertEquals(3, component.store().taskCount(1));
+                        }
+                        return method.getReturnType() == boolean.class ? false : null;
+                    });
+            db.config().getAllPlugins().add(core);
+            var setup = db.config().getWebSetup(AdminWebSetup.class);
+            assertEquals(2, component.store().taskCount(1));
+            setup.getPlugins();
+            assertEquals(List.of(true), ownership);
+            var parent = component.store().tasks(1, 100, 0).stream()
+                    .filter(row -> row.value.type.equals(com.zrlog.admin.business.automation.PluginScheduledTaskProvider.TYPE))
+                    .findFirst().orElseThrow();
+            var owner = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+            component.tasks().delete(owner, parent.value.id, parent.value.revision);
+            setup.getPlugins();
+            assertEquals(List.of(true, true), ownership);
+            assertNull(component.store().task(parent.value.id));
+        }
+    }
+
+    @Test
+    public void assemblyKeepsLegacyPluginSchedulingWhenNoOwnerCanAcceptMigration() throws Exception {
+        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            java.util.List<Boolean> ownership = new java.util.ArrayList<>();
+            var core = (com.zrlog.business.plugin.PluginCorePlugin) java.lang.reflect.Proxy.newProxyInstance(
+                    getClass().getClassLoader(), new Class[]{com.zrlog.business.plugin.PluginCorePlugin.class}, (proxy, method, args) -> {
+                        if (method.getName().equals("supportsHostScheduler")) return true;
+                        if (method.getName().equals("setExternallyScheduled")) ownership.add((Boolean) args[0]);
+                        return method.getReturnType() == boolean.class ? false : null;
+                    });
+            db.config().getAllPlugins().add(core);
+            db.config().getWebSetup(AdminWebSetup.class).getPlugins();
+            assertEquals(List.of(false), ownership);
+            assertEquals(0, db.component(com.zrlog.admin.web.di.automation.AutomationComponent.class).store().taskCount(1));
+        }
+    }
+
     private static class NotInstalledConfig extends ZrLogConfig {
 
         NotInstalledConfig() {

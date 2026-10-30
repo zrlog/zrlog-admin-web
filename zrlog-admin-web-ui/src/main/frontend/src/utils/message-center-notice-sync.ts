@@ -3,6 +3,7 @@ import {getRes} from "./constants";
 import {getBackgroundTasks, removeBackgroundTaskByKey, upsertBackgroundTaskByKey} from "./background-task-store";
 
 const SERVER_TASK_KEY_PREFIX = "server.";
+export const ASSISTANT_NOTICE_PREFIX = "server.assistant.";
 
 const isVersionUpdateNotice = (
     notice: MessageCenterNotice
@@ -47,10 +48,11 @@ const buildUnreadCommentDescription = (notice: MessageCenterNotice) => {
     return getRes().backgroundTask.unreadComment.pending.replace("{count}", `${count}`);
 };
 
-export const syncMessageCenterNotices = (notices: MessageCenterNotice[]) => {
+export const syncMessageCenterNotices = (notices: MessageCenterNotice[], personal = false) => {
     const incomingTaskKeys = new Set(notices.map((notice) => notice.taskKey));
     getBackgroundTasks()
-        .filter((task) => task.taskKey?.startsWith(SERVER_TASK_KEY_PREFIX) && !incomingTaskKeys.has(task.taskKey))
+        .filter((task) => task.taskKey?.startsWith(SERVER_TASK_KEY_PREFIX)
+            && task.taskKey.startsWith(ASSISTANT_NOTICE_PREFIX) === personal && !incomingTaskKeys.has(task.taskKey))
         .forEach((task) => {
             if (task.taskKey) {
                 removeBackgroundTaskByKey(task.taskKey);
@@ -80,7 +82,7 @@ export const syncMessageCenterNotices = (notices: MessageCenterNotice[]) => {
                     actionPath: notice.payload.actionPath,
                     timeLabel: notice.payload.source || getRes().backgroundTask.updatedAt,
                     closable: notice.payload.closable !== false,
-                    dismissPath: "/api/admin/message-center/read",
+                    dismissPath: personal ? "/api/admin/assistant/readNotice" : "/api/admin/message-center/read",
                     dismissPayload: {taskKey: notice.taskKey},
                     status: notice.status,
                     updatedAt: notice.updatedAt,

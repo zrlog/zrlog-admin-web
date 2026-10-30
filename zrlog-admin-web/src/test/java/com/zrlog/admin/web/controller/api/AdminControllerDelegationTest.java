@@ -11,6 +11,9 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.account.AvatarStorage;
+import com.zrlog.admin.business.automation.AutomationStore;
+import com.zrlog.admin.business.automation.TaskAuthority;
+import com.zrlog.admin.business.automation.UpgradeExecutionCoordinator;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
@@ -67,6 +70,12 @@ public class AdminControllerDelegationTest {
 
     private ZrLogConfig applicationConfig;
     private String previousRunMode;
+
+    private static UpgradeExecutionCoordinator upgradeExecutions(InMemoryZrLogDatabase db) {
+        return new UpgradeExecutionCoordinator(new AutomationStore(() -> new WebSite(db.dataSource())),
+                new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())),
+                        () -> new User(db.dataSource())));
+    }
 
     private static void setControllerRequest(Controller controller, HttpRequest request) throws Exception {
         Field field = Controller.class.getDeclaredField("request");
@@ -940,7 +949,8 @@ public class AdminControllerDelegationTest {
                             new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
-                            AccountServicesFixture.component(db.dataSource()).requestIdentity());
+                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                            upgradeExecutions(db));
             for (String path : List.of("/admin/upgrade", "/admin/ssJson")) {
                 setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
                 AdminPageDataResponse<PreCheckVersionResponse> page = controller.index();
@@ -997,13 +1007,15 @@ public class AdminControllerDelegationTest {
                             new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
-                            AccountServicesFixture.component(db.dataSource()).requestIdentity());
+                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                            upgradeExecutions(db));
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null));
 
             AdminPageDataResponse<PreCheckVersionResponse> index = controller.index();
 
             assertEquals(Boolean.FALSE, index.getData().getUpgrade());
             assertTrue(index.getMessage().length() > 0);
+            assertNull(((UpgradeCheckResponse) index.getData()).getExecution());
             assertEquals(true, index.getData().getOnlineUpgradable());
 
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/notice",
@@ -1030,6 +1042,7 @@ public class AdminControllerDelegationTest {
             assertTrue(process.getMessage().length() > 0);
             assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
             assertWebsiteValueContains(db, "admin_audit_log", "upgradeRiskAccepted");
+            assertNull(upgradeExecutions(db).view(com.zrlog.data.security.AccountAccess.from(new User(db.dataSource()).loadById(1))));
         }
     }
 
@@ -1147,6 +1160,7 @@ public class AdminControllerDelegationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             setAdminToken();
+            var executions = upgradeExecutions(db);
             var job = new DockerUpdaterProtocol.Job();
             job.id = "browser-request-1234";
             job.phase = "queued";
@@ -1186,7 +1200,8 @@ public class AdminControllerDelegationTest {
                             new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
-                            AccountServicesFixture.component(db.dataSource()).requestIdentity()) {
+                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                            executions) {
                         @Override
                         protected DockerControl dockerClient() {
                             return client;
@@ -1235,6 +1250,93 @@ public class AdminControllerDelegationTest {
                                         "admin.upgrade.docker.succeeded")));
                 assertEquals(null, stream.renderedJson);
             }
+            assertEquals(2, submissions.get());
+            var prior = executions.view(com.zrlog.data.security.AccountAccess.from(new User(db.dataSource()).loadById(1)));
+            assertEquals("manual", prior.source);
+            String different = docker.replace("browser-request-1234", "browser-request-5678");
+            ResponseRecorder conflict = new ResponseRecorder();
+            setControllerResponse(controller, conflict.response());
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of("Accept", "text/event-stream"), "{\"upgradeRiskAccepted\":true" + different));
+            controller.doUpgrade();
+            ApiStandardResponse<?> rejected = (ApiStandardResponse<?>) conflict.renderedJson;
+            assertEquals(409, rejected.getError());
+            assertEquals(prior.id, ((UpgradeExecutionCoordinator.View) rejected.getData()).id);
+            assertFalse(conflict.headers.containsKey("X-Accel-Buffering"));
+            assertEquals(2, submissions.get());
+
+        }
+    }
+
+    @Test
+    public void shouldClaimTheCheckedVersionBeforeManualExecutionAndRejectAStalePage() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
+            setAdminToken();
+            var executions = upgradeExecutions(db);
+            var actor = com.zrlog.data.security.AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var target = new Version();
+            target.setVersion("99.0.0"); target.setBuildId("reviewed-build");
+            var checks = new AtomicInteger();
+            var submissions = new AtomicInteger();
+            var kv = new WebsiteKvService(() -> new WebSite(db.dataSource()));
+            var service = new com.zrlog.business.service.UpgradeService(() -> null,
+                    new com.zrlog.business.service.UpgradeNoticeService(() -> true, kv), null, kv) {
+                @Override public PreCheckVersionResponse preUpgradeVersion(boolean fetch, UpdateVersionInfoPlugin plugin) {
+                    checks.incrementAndGet();
+                    var check = new PreCheckVersionResponse();
+                    check.setUpgrade(true); check.setOnlineUpgradable(true); check.setVersion(target);
+                    return check;
+                }
+                @Override public UpgradeProcessResponse doUpgradeVersion(Version version,
+                        com.zrlog.common.updater.UpgradeProgressListener listener, Map<String, Object> backend) {
+                    submissions.incrementAndGet();
+                    assertSame(target, version);
+                    try {
+                        assertEquals(target.getBuildId(), executions.view(actor).buildId);
+                        assertEquals("pending", executions.view(actor).state);
+                    } catch (SQLException error) { throw new AssertionError(error); }
+                    return new UpgradeProcessResponse(true, "submitted");
+                }
+            };
+            var controller = new UpgradeController(service, () -> null, () -> null,
+                    new AdminPageDataFactory(ApplicationServicesFixture.site(db.config()),
+                            ApplicationServicesFixture.buildId(db.resources()), ApplicationServicesFixture.messages(db.dataSource())),
+                    new DockerUpgradeProgressService(), ApplicationServicesFixture.audit(db.dataSource()),
+                    ApplicationServicesFixture.operations(db.dataSource()),
+                    AccountServicesFixture.component(db.dataSource()).requestIdentity(), executions);
+            var recorder = new ResponseRecorder();
+            setControllerResponse(controller, recorder.response());
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of(), "{\"upgradeRiskAccepted\":true}"));
+            controller.doUpgrade();
+            assertEquals(1, checks.get());
+            assertEquals(1, submissions.get());
+            assertEquals(0, ((ApiStandardResponse<?>) recorder.renderedJson).getError());
+            assertFalse(executions.view(actor).confirmed);
+
+            var conflict = new ResponseRecorder();
+            setControllerResponse(controller, conflict.response());
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of("Accept", "text/event-stream"), "{\"upgradeRiskAccepted\":true}"));
+            controller.doUpgrade();
+            assertEquals(409, ((ApiStandardResponse<?>) conflict.renderedJson).getError());
+            assertEquals(1, submissions.get());
+            assertFalse(conflict.headers.containsKey("X-Accel-Buffering"));
+
+            var previous = new AutomationStore(() -> new WebSite(db.dataSource())).read("assistant.upgrade",
+                    com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider.Receipt.class).value;
+            executions.finish(previous, false);
+            assertTrue(executions.view(actor).canRetry);
+            String reviewed = "{\"upgradeRiskAccepted\":true,\"reviewedExecutionId\":\"" + previous.runId + "\"}";
+            setControllerResponse(controller, recorder.response());
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(), Map.of(), reviewed));
+            controller.doUpgrade();
+            assertEquals(0, ((ApiStandardResponse<?>) recorder.renderedJson).getError());
+            assertEquals(2, submissions.get());
+            assertNotEquals(previous.runId, executions.view(actor).id);
+            controller.doUpgrade();
+            assertEquals(409, ((ApiStandardResponse<?>) recorder.renderedJson).getError());
             assertEquals(2, submissions.get());
         }
     }

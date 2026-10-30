@@ -17,6 +17,7 @@ public class AdminConstants {
     public static final String ADMIN_LOGIN_URI_PATH = ADMIN_URI_BASE_PATH + "/login";
     public static final String ADMIN_PWA_MANIFEST_API_URI_PATH = "/api" + ADMIN_URI_BASE_PATH + "/manifest";
     public static final String ADMIN_REFRESH_CACHE_API_URI_PATH = "/api" + ADMIN_URI_BASE_PATH + "/refreshCache";
+    public static final String ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH = "/api" + ADMIN_URI_BASE_PATH + "/assistant/trigger";
     public static final String ADMIN_TITLE_CHAR = " - ";
     public static final String AUTO_UPGRADE_VERSION_KEY = "autoUpgradeVersion";
     public static final Map<String, String> TITLE_MAP = new TreeMap<>();
@@ -71,6 +72,7 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system", "admin.system.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/assistant", "admin.automation.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/upgrade", "admin.system.upgrade.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/version", "admin.system.version.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/proxy", "admin.system.proxy.manage");

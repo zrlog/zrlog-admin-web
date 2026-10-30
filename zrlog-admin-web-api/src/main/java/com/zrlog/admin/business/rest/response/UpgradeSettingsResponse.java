@@ -10,6 +10,11 @@ public class UpgradeSettingsResponse extends UpgradeWebSiteInfo {
     private final boolean dockerMode;
     private DockerUpdaterProtocol.SettingsResponse dockerSettings;
     private String dockerErrorCode;
+    private boolean scheduleManaged;
+
+    public boolean isScheduleManaged() { return scheduleManaged; }
+
+    public void setScheduleManaged(boolean value) { scheduleManaged = value; }
 
     public UpgradeSettingsResponse(UpgradeWebSiteInfo settings, boolean dockerMode) {
         setAutoUpgradeVersion(settings.getAutoUpgradeVersion());

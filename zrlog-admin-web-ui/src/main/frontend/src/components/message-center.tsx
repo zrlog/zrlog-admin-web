@@ -6,11 +6,11 @@ import ErrorIcon from "@zrlog/ui/icons/error";
 import AlertIcon from "@zrlog/ui/icons/alert";
 import LoadingIcon from "@zrlog/ui/icons/loading";
 import StopIcon from "@zrlog/ui/icons/stop";
-import {Badge, Button, Card, Drawer, Empty, Grid, Popover, Skeleton, Space, Typography} from "antd";
+import { Badge, Button, Card, Drawer, Empty, Grid, Popover, Skeleton, Space, Typography } from "antd";
 
-import {useEffect, useMemo, useState} from "react";
-import {useTheme} from "antd-style";
-import {useLocation, useNavigate} from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useTheme } from "antd-style";
+import { useLocation, useNavigate } from "react-router-dom";
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import {
     BackgroundTaskStatus,
@@ -20,22 +20,24 @@ import {
     removeBackgroundTask,
     subscribeBackgroundTasks,
 } from "../utils/background-task-store";
-import {getLabelValueSeparator, getRealRouteUrl, getRes} from "../utils/constants";
-import {getAppState} from "../base/ConfigProviderApp";
-import {useAxiosBaseInstance} from "../base/AppBase";
+import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../utils/constants";
+import { getAppState } from "../base/ConfigProviderApp";
+import { useAxiosBaseInstance } from "../base/AppBase";
 
 const MessageCenter = ({
-                           compact = false,
-                           loading = false,
-                           hasUnread = false,
-                           onRefresh,
-                       }: {
+    compact = false,
+    loading = false,
+    hasUnread = false,
+    showSiteNotices = true,
+    onRefresh,
+}: {
     compact?: boolean;
     loading?: boolean;
     hasUnread?: boolean;
+    showSiteNotices?: boolean;
     onRefresh?: (force?: boolean) => void;
 }) => {
-    const {useBreakpoint} = Grid;
+    const { useBreakpoint } = Grid;
     const screens = useBreakpoint();
     const theme = useTheme();
     const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
@@ -44,7 +46,17 @@ const MessageCenter = ({
     const location = useLocation();
     const axiosInstance = useAxiosBaseInstance();
     const [open, setOpen] = useState(false);
-    const [tasks, setTasks] = useState(getBackgroundTasks());
+    const [allTasks, setTasks] = useState(getBackgroundTasks());
+    const tasks = useMemo(
+        () =>
+            allTasks.filter(
+                (task) =>
+                    showSiteNotices ||
+                    !task.taskKey?.startsWith("server.") ||
+                    task.taskKey.startsWith("server.assistant.")
+            ),
+        [allTasks, showSiteNotices]
+    );
     const mobileMode = screens.xs === true;
 
     useEffect(() => {
@@ -66,57 +78,57 @@ const MessageCenter = ({
             return {
                 color: "success",
                 label: getRes().backgroundTask.status.success,
-                icon: <SuccessIcon/>,
+                icon: <SuccessIcon />,
             };
         }
         if (status === "error") {
             return {
                 color: "error",
                 label: getRes().backgroundTask.status.error,
-                icon: <ErrorIcon/>,
+                icon: <ErrorIcon />,
             };
         }
         if (status === "warning") {
             return {
                 color: "warning",
                 label: getRes().backgroundTask.status.warning,
-                icon: <AlertIcon/>,
+                icon: <AlertIcon />,
             };
         }
         if (status === "cancelled") {
             return {
                 color: "default",
                 label: getRes().backgroundTask.status.cancelled,
-                icon: <StopIcon/>,
+                icon: <StopIcon />,
             };
         }
         if (status === "notice") {
             return {
                 color: "gold",
                 label: getRes().backgroundTask.status.notice,
-                icon: <NotificationsIcon/>,
+                icon: <NotificationsIcon />,
             };
         }
         if (status === "pending") {
             return {
                 color: "default",
                 label: getRes().backgroundTask.status.pending,
-                icon: <TimeIcon/>,
+                icon: <TimeIcon />,
             };
         }
         return {
             color: "processing",
             label: getRes().backgroundTask.status.running,
-            icon: <LoadingIcon/>,
+            icon: <LoadingIcon />,
         };
     };
 
     const triggerIcon =
-        runningCount > 0 ? <LoadingIcon style={{fontSize: 18}}/> : <NotificationsIcon style={{fontSize: 18}}/>;
+        runningCount > 0 ? <LoadingIcon style={{ fontSize: 18 }} /> : <NotificationsIcon style={{ fontSize: 18 }} />;
 
     const handleRemoveTask = async (taskId: string, dismissPath?: string, dismissPayload?: Record<string, unknown>) => {
         if (dismissPath) {
-            const {data} = await axiosInstance.post(dismissPath, dismissPayload || {});
+            const { data } = await axiosInstance.post(dismissPath, dismissPayload || {});
             if (data?.error !== 0) {
                 onRefresh?.(true);
                 return;
@@ -132,7 +144,7 @@ const MessageCenter = ({
             if (!task.dismissPath) {
                 continue;
             }
-            const {data} = await axiosInstance.post(task.dismissPath, task.dismissPayload || {});
+            const { data } = await axiosInstance.post(task.dismissPath, task.dismissPayload || {});
             if (data?.error !== 0) {
                 onRefresh?.(true);
                 return;
@@ -157,6 +169,9 @@ const MessageCenter = ({
     const trigger = (
         <Button
             type="text"
+            aria-label={getRes().backgroundTask.title}
+            aria-expanded={open}
+            title={getRes().backgroundTask.title}
             onClick={openMessageCenter}
             style={{
                 width: compact ? 32 : undefined,
@@ -224,7 +239,7 @@ const MessageCenter = ({
                 <Typography.Text type="secondary">{getRes().backgroundTask.retentionHint}</Typography.Text>
             </Space>
             {loading ? (
-                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                <Space direction="vertical" size={12} style={{ width: "100%" }}>
                     {[0, 1].map((key) => (
                         <Card
                             key={key}
@@ -233,9 +248,9 @@ const MessageCenter = ({
                                 border: borderSecondary,
                                 background: theme.colorBgContainer,
                             }}
-                            styles={{body: {padding: 14}}}
+                            styles={{ body: { padding: 14 } }}
                         >
-                            <Skeleton active title={{width: "40%"}} paragraph={{rows: 2}}/>
+                            <Skeleton active title={{ width: "40%" }} paragraph={{ rows: 2 }} />
                         </Card>
                     ))}
                 </Space>
@@ -274,7 +289,7 @@ const MessageCenter = ({
                         paddingRight: 4,
                     }}
                 >
-                    <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
                         {tasks.map((task) => {
                             const statusMeta = getStatusMeta(task.status);
                             const descriptionLines = task.description
@@ -287,10 +302,10 @@ const MessageCenter = ({
                                 !!(task.actionPath && task.actionLabel) ||
                                 (task.status !== "running" && task.closable !== false);
                             const taskTitle = (
-                                <Space size={8} wrap style={{maxWidth: "100%"}}>
+                                <Space size={8} wrap style={{ maxWidth: "100%" }}>
                                     <Typography.Text
                                         strong
-                                        style={{wordBreak: "break-word", overflowWrap: "anywhere"}}
+                                        style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
                                     >
                                         {task.title}
                                     </Typography.Text>
@@ -346,7 +361,7 @@ const MessageCenter = ({
                                         border: borderSecondary,
                                         background: theme.colorBgContainer,
                                     }}
-                                    styles={{body: {padding: 14}}}
+                                    styles={{ body: { padding: 14 } }}
                                 >
                                     <div
                                         style={{
@@ -358,7 +373,7 @@ const MessageCenter = ({
                                             marginBottom: descriptionLines?.length ? 8 : 6,
                                         }}
                                     >
-                                        <div style={{minWidth: 0, flex: 1}}>{taskTitle}</div>
+                                        <div style={{ minWidth: 0, flex: 1 }}>{taskTitle}</div>
                                         {taskActions}
                                     </div>
                                     {primaryDescription ? (
@@ -373,30 +388,30 @@ const MessageCenter = ({
                                             {primaryDescription}
                                         </Typography.Paragraph>
                                     ) : null}
-                                    <Space direction="vertical" size={2} style={{width: "100%"}}>
+                                    <Space direction="vertical" size={2} style={{ width: "100%" }}>
                                         {detailDescriptionLines.length
                                             ? detailDescriptionLines.map((line, index) => (
-                                                <Typography.Text
-                                                    key={`${task.id}-description-${index}`}
-                                                    type="secondary"
-                                                    style={{
-                                                        display: "block",
-                                                        fontSize: theme.fontSizeSM,
-                                                        wordBreak: "break-word",
-                                                        overflowWrap: "anywhere",
-                                                    }}
-                                                >
-                                                    {line}
-                                                </Typography.Text>
-                                            ))
+                                                  <Typography.Text
+                                                      key={`${task.id}-description-${index}`}
+                                                      type="secondary"
+                                                      style={{
+                                                          display: "block",
+                                                          fontSize: theme.fontSizeSM,
+                                                          wordBreak: "break-word",
+                                                          overflowWrap: "anywhere",
+                                                      }}
+                                                  >
+                                                      {line}
+                                                  </Typography.Text>
+                                              ))
                                             : null}
                                         <Typography.Text
                                             type="secondary"
-                                            style={{display: "block", fontSize: theme.fontSizeSM}}
+                                            style={{ display: "block", fontSize: theme.fontSizeSM }}
                                         >
                                             {task.timeLabel || getRes().backgroundTask.updatedAt}
                                             {getLabelValueSeparator()}
-                                            <TimeAgo timestamp={task.updatedAt}/>
+                                            <TimeAgo timestamp={task.updatedAt} />
                                         </Typography.Text>
                                     </Space>
                                 </Card>
@@ -408,7 +423,7 @@ const MessageCenter = ({
         </div>
     );
 
-    const popoverContent = <div style={{width: 360, maxWidth: "min(360px, calc(100vw - 32px))"}}>{contentBody}</div>;
+    const popoverContent = <div style={{ width: 360, maxWidth: "min(360px, calc(100vw - 32px))" }}>{contentBody}</div>;
 
     if (mobileMode) {
         return (

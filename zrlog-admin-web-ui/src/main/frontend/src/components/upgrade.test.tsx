@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { UpgradeData } from "../type";
+import { UpgradeData, UpgradeExecution } from "../type";
 import Upgrade, { UpgradeProps } from "./upgrade";
 import { getVersion } from "../api";
 import { finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
@@ -129,6 +129,16 @@ const refreshedData = (): UpgradeData => ({
     version: { ...initialData().version!, buildId: "new" },
     backupProtection: { ...initialData().backupProtection!, status: "READY", ready: true },
 });
+const execution = (canRetry = false, id = "previous-execution"): UpgradeExecution => ({
+    id,
+    source: "assistant",
+    version: "4.0.0",
+    buildId: "target-build",
+    state: canRetry ? "needs_review" : "pending",
+    startedAt: 1788829200000,
+    confirmed: false,
+    canRetry,
+});
 const deferred = () => {
     let resolve!: (value: unknown) => void;
     let reject!: (error: Error) => void;
@@ -195,6 +205,59 @@ describe("upgrade readiness actions", () => {
         expect(execute().disabled).toBe(true);
         await click(checkbox());
         expect(execute().disabled).toBe(false);
+    });
+
+    it("blocks a pending assistant update even after accepting ordinary update risk", async () => {
+        await render({ data: { ...initialData(), execution: execution() } });
+        await click(checkbox());
+        expect(execute().disabled).toBe(true);
+        expect(container.textContent).toContain("An update is running or awaiting confirmation");
+        expect(mockUpgrade).not.toHaveBeenCalled();
+    });
+
+    it("requires review of the latest execution and resets review when the check changes", async () => {
+        await render({ data: { ...initialData(), execution: execution(true) } });
+        for (const input of Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))) {
+            await click(input);
+        }
+        expect(execute().disabled).toBe(false);
+        mockGet.mockResolvedValue({
+            data: { error: 0, data: { ...initialData(), execution: execution(true, "new-execution") } },
+        });
+        await click(check());
+        expect(execute().disabled).toBe(true);
+        const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+        expect(inputs.every((input) => !input.checked)).toBe(true);
+        for (const input of inputs) await click(input);
+        mockUpgrade.mockResolvedValue({ error: 0, data: { finish: false, message: "" } });
+        await click(execute());
+        expect(mockUpgrade).toHaveBeenCalledWith(
+            "/api/admin/upgrade/doUpgrade",
+            expect.objectContaining({
+                body: { upgradeRiskAccepted: true, reviewedExecutionId: "new-execution" },
+            })
+        );
+    });
+
+    it("returns a stale page to review on conflict without polling for a restart", async () => {
+        jest.useFakeTimers();
+        jest.mocked(getVersion).mockClear();
+        try {
+            await render();
+            await click(checkbox());
+            mockUpgrade.mockResolvedValue({ error: 409, message: "Another update is pending", data: execution() });
+            await click(execute());
+            await act(async () => {
+                jest.advanceTimersByTime(600000);
+            });
+            expect(execute().disabled).toBe(true);
+            expect(checkbox().checked).toBe(false);
+            expect(container.textContent).toContain("An update is running or awaiting confirmation");
+            expect(getVersion).not.toHaveBeenCalled();
+            expect(mockUpgrade).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it("refreshes evidence without upgrading and requires renewed risk acceptance", async () => {
@@ -398,6 +461,19 @@ describe("Docker upgrade interaction and recovery", () => {
             Reflect.deleteProperty(globalThis, "crypto");
         }
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    });
+
+    it("does not recover or replay a Docker submission explicitly rejected by the shared receipt", async () => {
+        mockUpgrade.mockResolvedValue({ error: 409, message: "Another update is pending", data: execution() });
+        await render();
+        await act(async () => (container.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
+        await click("Update Now");
+        await tick();
+        expect(mockSubscribe).not.toHaveBeenCalled();
+        expect(getVersion).not.toHaveBeenCalled();
+        expect(readDockerUpgrade()).toBeUndefined();
+        expect(mockUpgrade).toHaveBeenCalledTimes(1);
+        expect(container.textContent).toContain("An update is running or awaiting confirmation");
     });
 
     it("saves before the SSE submission and uses the common restart check after a lost stream", async () => {
