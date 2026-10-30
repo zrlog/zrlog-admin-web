@@ -1,20 +1,4 @@
-import {
-    Alert,
-    Button,
-    Card,
-    Col,
-    Descriptions,
-    Drawer,
-    Empty,
-    List,
-    Pagination,
-    Popconfirm,
-    Row,
-    Select,
-    Space,
-    Tabs,
-    Typography,
-} from "antd";
+import { Alert, Button, Descriptions, Drawer, Pagination, Select, Space, Tabs, Typography, Tooltip } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -22,6 +6,11 @@ import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
+import PersonalTasks from "./PersonalTasks";
+import AddIcon from "@zrlog/ui/icons/add";
+import SettingsIcon from "@zrlog/ui/icons/settings";
+import RefreshIcon from "@zrlog/ui/icons/refresh";
+import { useAssistantStyles } from "./assistant-styles";
 import SystemTasks from "./SystemTasks";
 import RunChildren from "./RunChildren";
 import RunHistory from "./RunHistory";
@@ -61,6 +50,7 @@ export default function Automations({
         if (searchParams.get("tab") === "system") setTab("system");
     }, [searchParams]);
     const res = getRes().automations;
+    const { styles, cx } = useAssistantStyles();
     const disabled = offline || offlineData || busy;
     useEffect(() => setOverview(data), [data]);
     const request = useAssistantRequest();
@@ -130,126 +120,21 @@ export default function Automations({
         setTab("history");
     };
     const taskList = (
-        <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-            <Space wrap>
-                <Typography.Title level={4} style={{ margin: 0 }}>
-                    {res.tasks}
-                </Typography.Title>
-                <Button type="primary" disabled={disabled} onClick={() => setEditing({})}>
-                    {res.create}
-                </Button>
-                {overview.aiAvailable && (
-                    <Button disabled={disabled} onClick={() => setProposing(true)}>
-                        {res.askAssistant}
-                    </Button>
-                )}
-            </Space>
-            <List
-                dataSource={overview.tasks}
-                locale={{ emptyText: <Empty description={res.empty} /> }}
-                renderItem={(task) => (
-                    <List.Item>
-                        <Space orientation="vertical" style={{ width: "100%" }}>
-                            <Space wrap>
-                                <Typography.Text strong>{task.name}</Typography.Text>
-                                {status(task.activeRunId ? "running" : task.lastStatus)}
-                                {!task.enabled && <Tag>{res.paused}</Tag>}
-                            </Space>
-                            <Typography.Text type="secondary">
-                                {res.next}: {task.enabled ? date(task.nextRunAt) : res.none} · {res.last}:{" "}
-                                {date(task.lastRunAt)}
-                            </Typography.Text>
-                            {["needs_attention", "uncertain"].includes(task.lastStatus ?? "") && (
-                                <Alert type="warning" title={res.review} />
-                            )}
-                            <Space wrap>
-                                <Button disabled={disabled || !!task.activeRunId} onClick={() => setEditing(task)}>
-                                    {res.edit}
-                                </Button>
-                                <Button
-                                    disabled={
-                                        disabled ||
-                                        !!task.activeRunId ||
-                                        ["needs_attention", "uncertain"].includes(task.lastStatus ?? "")
-                                    }
-                                    onClick={() => void mutate("run", { id: task.id, revision: task.revision })}
-                                >
-                                    {res.run}
-                                </Button>
-                                <Button
-                                    disabled={disabled}
-                                    onClick={() =>
-                                        void mutate("enabled", {
-                                            id: task.id,
-                                            revision: task.revision,
-                                            enabled: !task.enabled,
-                                        })
-                                    }
-                                >
-                                    {task.enabled ? res.disable : res.enable}
-                                </Button>
-                                <Button type="link" onClick={() => showHistory(task)}>
-                                    {res.history}
-                                </Button>
-                                <Popconfirm
-                                    title={res.deleteHelp}
-                                    onConfirm={() => mutate("delete", { id: task.id, revision: task.revision })}
-                                >
-                                    <Button danger disabled={disabled || !!task.activeRunId}>
-                                        {res.delete}
-                                    </Button>
-                                </Popconfirm>
-                            </Space>
-                        </Space>
-                    </List.Item>
-                )}
-            />
-            {overview.total > 100 && (
-                <Pagination
-                    current={taskPage}
-                    pageSize={100}
-                    total={overview.total}
-                    showSizeChanger={false}
-                    onChange={setTaskPage}
-                />
-            )}
-            <Typography.Title level={4}>{res.templates}</Typography.Title>
-            <Row gutter={[16, 16]}>
-                {overview.definitions
-                    .filter((definition) => !definition.systemTask)
-                    .map((definition) => (
-                        <Col key={definition.type} xs={24} md={12} xl={8}>
-                            <Card title={definition.title} style={{ height: "100%" }}>
-                                <Typography.Paragraph>{definition.description}</Typography.Paragraph>
-                                {!definition.available && definition.unavailableReason && (
-                                    <Typography.Paragraph type="secondary">
-                                        {definition.unavailableReason}
-                                    </Typography.Paragraph>
-                                )}
-                                <Space wrap>
-                                    <Tag>{definition.requiresAi ? res.ai : res.aiOptional}</Tag>
-                                    <Button
-                                        disabled={disabled || !definition.available}
-                                        onClick={() =>
-                                            setEditing({
-                                                type: definition.type,
-                                                name: definition.title,
-                                                schedule: definition.defaultSchedule,
-                                            })
-                                        }
-                                    >
-                                        {definition.available ? res.create : res.unavailable}
-                                    </Button>
-                                </Space>
-                            </Card>
-                        </Col>
-                    ))}
-            </Row>
-        </Space>
+        <PersonalTasks
+            overview={overview}
+            disabled={disabled}
+            page={taskPage}
+            onPage={setTaskPage}
+            onEdit={setEditing}
+            onPropose={() => setProposing(true)}
+            onHistory={showHistory}
+            onMutate={mutate}
+            renderStatus={status}
+        />
     );
     const history = (
-        <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-            <Space wrap>
+        <section className={cx(styles.panel, styles.goals)} aria-label={res.history}>
+            <div className={styles.toolbar}>
                 <Select
                     allowClear
                     style={{ minWidth: 240, maxWidth: "100%" }}
@@ -262,9 +147,7 @@ export default function Automations({
                         label: task.name,
                     }))}
                 />
-                <Button onClick={() => void loadRuns(runs.page).catch(() => undefined)}>{res.reload}</Button>
-            </Space>
-            <Typography.Text type="secondary">{res.retention}</Typography.Text>
+            </div>
             <RunHistory
                 runs={runs.items}
                 onDetail={(run) => {
@@ -274,64 +157,89 @@ export default function Automations({
                 }}
                 renderStatus={status}
             />
-            <Pagination
-                current={runs.page}
-                pageSize={runs.pageSize}
-                total={runs.total}
-                showSizeChanger={false}
-                onChange={(page) => void loadRuns(page).catch(() => undefined)}
-            />
-        </Space>
+            <div className={styles.footer}>
+                <Typography.Text type="secondary">{res.retention}</Typography.Text>
+                <Pagination
+                    current={runs.page}
+                    pageSize={runs.pageSize}
+                    total={runs.total}
+                    showSizeChanger={false}
+                    onChange={(page) => void loadRuns(page).catch(() => undefined)}
+                />
+            </div>
+        </section>
     );
     return (
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: 16 }}>
-            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+        <div className={styles.page}>
+            <div className={styles.header}>
                 <div>
-                    <Typography.Title level={2}>{res.title}</Typography.Title>
-                    <Typography.Paragraph type="secondary">{res.intro}</Typography.Paragraph>
+                    <Typography.Title level={2} style={{ margin: 0 }}>
+                        {res.title}
+                    </Typography.Title>
+                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                        {res.intro}
+                    </Typography.Paragraph>
                 </div>
-                {(offline || offlineData) && <Alert type="info" title={res.offline} />}
                 <Space wrap>
-                    <Button disabled={disabled} onClick={() => void reload().catch(() => undefined)}>
-                        {res.reload}
-                    </Button>
                     {canAccessPage("/website/assistant") && (
-                        <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAssistant.title}</Link>
+                        <Link className={styles.settingsLink} to={getRealRouteUrl("/website/assistant")}>
+                            <SettingsIcon aria-hidden="true" />
+                            {getRes().websiteAssistant.title}
+                        </Link>
+                    )}
+                    {tab === "tasks" && (
+                        <Button type="primary" icon={<AddIcon />} disabled={disabled} onClick={() => setEditing({})}>
+                            {res.create}
+                        </Button>
                     )}
                 </Space>
-                <Tabs
-                    activeKey={tab}
-                    onChange={setTab}
-                    items={[
-                        { key: "tasks", label: res.tasks, children: taskList },
-                        ...(overview.systemTasks.length
-                            ? [
-                                  {
-                                      key: "system",
-                                      label: res.systemTasks,
-                                      children: (
-                                          <SystemTasks
-                                              tasks={overview.systemTasks}
-                                              definitions={overview.definitions}
-                                              disabled={disabled}
-                                              onConfigure={setEditing}
-                                              onHistory={showHistory}
-                                              onEnabled={(task, enabled) =>
-                                                  void mutate("enabled", {
-                                                      id: task.id,
-                                                      revision: task.revision,
-                                                      enabled,
-                                                  })
-                                              }
-                                          />
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        { key: "history", label: res.history, children: history },
-                    ]}
-                />
-            </Space>
+            </div>
+            {(offline || offlineData) && <Alert type="info" title={res.offline} />}
+            <Tabs
+                activeKey={tab}
+                onChange={setTab}
+                tabBarExtraContent={
+                    <Tooltip title={res.reload}>
+                        <Button
+                            type="text"
+                            icon={<RefreshIcon />}
+                            aria-label={res.reload}
+                            disabled={disabled}
+                            onClick={() =>
+                                void (tab === "history" ? loadRuns(runs.page) : reload()).catch(() => undefined)
+                            }
+                        />
+                    </Tooltip>
+                }
+                items={[
+                    { key: "tasks", label: res.tasks, children: taskList },
+                    ...(overview.systemTasks.length
+                        ? [
+                              {
+                                  key: "system",
+                                  label: res.systemTasks,
+                                  children: (
+                                      <SystemTasks
+                                          tasks={overview.systemTasks}
+                                          definitions={overview.definitions}
+                                          disabled={disabled}
+                                          onConfigure={setEditing}
+                                          onHistory={showHistory}
+                                          onEnabled={(task, enabled) =>
+                                              void mutate("enabled", {
+                                                  id: task.id,
+                                                  revision: task.revision,
+                                                  enabled,
+                                              })
+                                          }
+                                      />
+                                  ),
+                              },
+                          ]
+                        : []),
+                    { key: "history", label: res.history, children: history },
+                ]}
+            />
             {editing && (
                 <TaskForm
                     plan={editing}
