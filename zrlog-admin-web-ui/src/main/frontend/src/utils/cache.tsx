@@ -1,10 +1,10 @@
-import {isPWA} from "./env-utils";
-import {removeQueryParam} from "./helpers";
-import {cacheIgnoreReloadKeys} from "./constants";
+import { isPWA } from "./env-utils";
+import { removeQueryParam } from "./helpers";
+import { cacheIgnoreReloadKeys } from "./constants";
 import * as H from "history";
-import {getSsDate, ssKeyStorageKey} from "../base/SsData";
-import {getAccountPage} from "./account-page-routes";
-import type {BasicUserInfo} from "../type";
+import { getSsDate, ssKeyStorageKey } from "../base/SsData";
+import { getAccountPage } from "./account-page-routes";
+import type { BasicUserInfo } from "../type";
 
 const getCacheKey = () => {
     return window.location.host + "_cache_page_data_session_" + (getSsDate().key || "anonymous");
@@ -34,7 +34,9 @@ export const getPageDataCacheKeyByPath = (pathname: string, search: string) => {
 const ephemeralPageData: Record<string, any> = {};
 const ephemeralKey = (key: string) => `${getCacheKey()}:${key}`;
 const isSensitivePage = (key: string) =>
-    getAccountPage(key)?.sensitive === true || key.split(/[?#]/)[0].replace(/\.html$/, "") === "/system/proxy";
+    getAccountPage(key)?.sensitive === true ||
+    key.split(/[?#]/)[0].replace(/\.html$/, "") === "/assistant" ||
+    key.split(/[?#]/)[0].replace(/\.html$/, "") === "/system/proxy";
 
 export const getCachedData = (): Record<string, any> => {
     const tempData = localStorage.getItem(getCacheKey());
@@ -75,7 +77,7 @@ export const addToCache = (key: string, obj: any) => {
     putCache(record);
 };
 
-export const getCacheByKey = <T = any, >(key: string): T => {
+export const getCacheByKey = <T = any,>(key: string): T => {
     if (isSensitivePage(key)) return ephemeralPageData[ephemeralKey(key)] as T;
     const record = getCachedData();
     return record[key] as T;
@@ -86,7 +88,7 @@ export const cacheUserInfo = (user: BasicUserInfo) => {
     // /user also holds the profile page. Keep fields absent from the smaller /user/info response.
     addToCache(
         "/user",
-        profile && profile.key === user.key && profile.userId === user.userId ? {...profile, ...user} : user
+        profile && profile.key === user.key && profile.userId === user.userId ? { ...profile, ...user } : user
     );
 };
 

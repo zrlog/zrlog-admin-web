@@ -41,6 +41,36 @@ final class DbFileStore {
                 prefix, prefix.substring(0, prefix.length() - 1) + "0", prefix, prefix);
     }
 
+    List<Map<String, Object>> cleanupPage(String path, String after, int limit) throws SQLException {
+        String prefix = FILE_PREFIX + path + "/";
+        return websites.get().queryListWithParams("SELECT " + COLUMNS
+                + " FROM website WHERE name>=? AND name<? AND name>? ORDER BY name LIMIT ?",
+                prefix, prefix.substring(0, prefix.length() - 1) + "0", after, limit);
+    }
+
+    boolean deleteExpired(Row row, com.zrlog.data.security.AccountAccess actor) throws SQLException {
+        String path = row.name.substring(FILE_PREFIX.length());
+        String escaped = path.replace("/", "\\/");
+        DbFileMetadata meta = copy(row.meta);
+        meta.deleting = true;
+        String remark = encode(meta);
+        // References and deletion intent share one statement. The aggregate derived table also supports
+        // MySQL's restriction on selecting an UPDATE target directly in a subquery.
+        boolean claimed = websites.get().execute("UPDATE website SET remark=? WHERE name=? AND remark=?"
+                        + " AND EXISTS (SELECT 1 FROM user WHERE userId=? AND role=? AND enabled=? AND authVersion=?)"
+                        + " AND NOT EXISTS (SELECT 1 FROM log WHERE instr(content,?)>0 OR instr(markdown,?)>0"
+                        + " OR instr(thumbnail,?)>0 OR instr(digest,?)>0)"
+                        + " AND NOT EXISTS (SELECT 1 FROM log_version WHERE instr(patch_json,?)>0 OR instr(patch_json,?)>0)"
+                        + " AND (SELECT reference_count FROM (SELECT count(*) AS reference_count FROM website WHERE name<>?"
+                        + " AND NOT (name>=? AND name<?) AND name NOT LIKE 'assistant.cleanup.cursor:%'"
+                        + " AND (instr(value,?)>0 OR instr(value,?)>0)) AS saved_references)=0",
+                remark, row.name, row.remark, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(),
+                path, path, path, path, path, escaped, row.name, FILE_PREFIX, "db_film", path, escaped);
+        if (!claimed) return false;
+        recover(new Row(row.name, remark, meta));
+        return true;
+    }
+
     Row claim(String key) throws SQLException {
         Row old = recover(find(key));
         if (old != null && old.meta.pendingBatch != null) throw changed();

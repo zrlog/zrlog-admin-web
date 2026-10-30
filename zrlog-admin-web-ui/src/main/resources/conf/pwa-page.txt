@@ -1,4 +1,5 @@
 admin/index
+admin/assistant
 admin/
 admin/?pwa=true
 admin/index?pwa=true

@@ -40,6 +40,16 @@ public class BearerTokenInterceptorTest {
     private ZrLogConfig applicationConfig;
 
     @Test
+    public void leavesOnlyTheExactSchedulerRouteToItsDedicatedCredentialValidator() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
+            call("/api/admin/assistant/trigger", "zra_trigger_only", db.dataSource(), false);
+            assertEquals(401, call("/api/admin/assistant/trigger/", "zra_trigger_only", db.dataSource()).status);
+            assertEquals(401, call("/api/admin/assistant/save", "zra_trigger_only", db.dataSource()).status);
+        }
+    }
+
+    @Test
     public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open(); var language = AdminLanguageContext.open("zh_CN")) {
             applicationConfig = db.config();
@@ -156,6 +166,10 @@ public class BearerTokenInterceptorTest {
     }
 
     private Recorder call(String uri, String token, DataSourceWrapper testDataSource) throws Exception {
+        return call(uri, token, testDataSource, true);
+    }
+
+    private Recorder call(String uri, String token, DataSourceWrapper testDataSource, boolean handled) throws Exception {
         var config = applicationConfig.getServerConfig();
         RequestConfig requestConfig = new RequestConfig();
         requestConfig.setRouter(config.getRouter());
@@ -206,8 +220,8 @@ public class BearerTokenInterceptorTest {
                         new WebhookService(
                                 ApplicationServicesFixture.messages(testDataSource),
                                 ApplicationServicesFixture.websiteCache(testDataSource)));
-        assertTrue(interceptor.isHandleAble(request));
-        assertFalse(interceptor.doInterceptor(request, recorder.response()));
+        assertEquals(handled, interceptor.isHandleAble(request));
+        if (handled) assertFalse(interceptor.doInterceptor(request, recorder.response()));
         return recorder;
     }
 

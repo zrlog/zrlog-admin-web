@@ -39,6 +39,18 @@ export type UpgradeData = {
     faasMode?: boolean;
     warMode?: boolean;
     nativeImageMode?: boolean;
+    execution?: UpgradeExecution | null;
+};
+
+export type UpgradeExecution = {
+    id: string;
+    source: "manual" | "assistant";
+    version: string;
+    buildId: string;
+    state: "pending" | "needs_review" | "confirmed";
+    startedAt: number;
+    confirmed: boolean;
+    canRetry: boolean;
 };
 
 export type BackupProtectionStatus = {

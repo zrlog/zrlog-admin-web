@@ -19,13 +19,18 @@
 本文档只维护业务边界稳定、对自动化调用有独立价值且愿意承担兼容责任的关键接口，不是后台路由清单。未列出的后台路由仍可能存在，但属于
 admin UI 内部实现，不承诺对第三方调用保持兼容。
 
-当前覆盖 `zrlogctl` 使用的 17 个后台业务操作：文章列表、详情、创建与更新，分类列表、创建与更新，导航增删改查，通用附件上传、主题上传、外部通知，以及
-ZrLog 升级检查、版本通知和升级执行。登录与刷新令牌仍按 [OAuth](oauth.md) 协议处理。博客前台公开 `/api` 文档由
+当前覆盖后台业务操作：文章列表、详情、创建与更新，分类列表、创建与更新，导航增删改查，通用附件上传、主题上传、外部通知，以及
+ZrLog 升级检查、版本通知和升级执行，另提供助手任务的外部触发。登录与刷新令牌仍按 [OAuth](oauth.md) 协议处理。博客前台公开 `/api` 文档由
 `zrlog-blog-web` 独立维护。
 
 ZrLog 升级接口要求 `system.manage`。`checkZrLogUpgrade` 返回在线升级能力和备份状态；`executeZrLogUpgrade` 必须提交
 `upgradeRiskAccepted=true`，SSE 以 `response` 为最终处理结果、`sse-error` 为失败事件。断流和超时不得自动重试升级；
 `data.finish=true` 后仍需另行验证重启后的版本和可用性。`zrlogctl upgrade check` / `upgrade apply --accept-risk` 复用此契约。
+
+助手的外部定时调用使用 `POST /api/admin/assistant/trigger`（`triggerAssistantTasks`），只接收执行设置生成的专用 Bearer 令牌，
+不接受管理员登录令牌，也不接受任务参数或执行授权。预算在后台执行设置中配置，默认 60 秒；FaaS 需要外部定时调用。
+`executed` 包含失败和待处理结果，应同时检查 `failed`、`needsAttention` 和 `budgetExhausted`，再到助手执行历史中查看详情。
+断流或超时不代表任务未执行；结果待确认的任务需要检查后再启用。插件触发只保存一条助手父任务，本次插件执行按子任务展示。
 
 文章和分类读取沿用现有页面数据响应，只承诺契约中声明的核心字段；附带的编辑器配置、AI 上下文、列设置和页面元数据不纳入稳定接口。文章列表省略
 `status`、`size`、`sort` 时使用账号偏好；遍历全部可见文章需显式传空 `status`、固定分页大小和排序。列表不提供更新版本，更新前使用

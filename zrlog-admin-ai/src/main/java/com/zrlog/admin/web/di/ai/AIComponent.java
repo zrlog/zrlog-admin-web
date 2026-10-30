@@ -25,6 +25,8 @@ import jakarta.inject.Singleton;
                 AccountBindingsModule.class
         })
 public interface AIComponent {
+    com.zrlog.admin.business.ai.service.AIAutomationAssistant automationAssistant();
+    com.zrlog.admin.business.ai.service.AIScheduledTaskProvider scheduledTasks();
     AIConversationService conversations();
 
     AIPublishCheckService publishing();

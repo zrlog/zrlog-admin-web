@@ -112,6 +112,7 @@ export interface Upgrade {
     dockerErrorCode?: string;
     upgradePackageSource?: "dl" | "github";
     autoUpgradeVersion: number;
+    scheduleManaged?: boolean;
     upgradePreview: boolean;
 }
 

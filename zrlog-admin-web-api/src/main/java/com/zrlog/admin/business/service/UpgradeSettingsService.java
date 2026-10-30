@@ -50,6 +50,7 @@ public class UpgradeSettingsService {
         UpgradeSettingsResponse response =
                 new UpgradeSettingsResponse(
                         this.webSiteService.upgradeWebSiteInfo(), isDockerMode());
+        response.setScheduleManaged(settingsService.isUpgradeScheduleManaged());
         if (!response.isDockerMode()) {
             return response;
         }
@@ -71,6 +72,10 @@ public class UpgradeSettingsService {
     public void save(AccountAccess actor, UpgradeSettingsRequest input, AdminAuditContext audit) throws SQLException {
         actor = authorize(actor);
         input.doValid();
+        if (settingsService.isUpgradeScheduleManaged() && !java.util.Objects.equals(input.getAutoUpgradeVersion(),
+                webSiteService.upgradeWebSiteInfo().getAutoUpgradeVersion())) {
+            throw new ArgsException("autoUpgradeVersion");
+        }
         boolean docker = isDockerMode();
         if (docker) {
             requireDockerPermission(actor);

@@ -60,6 +60,8 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
     @Override
     public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
+        // This exact route has its own trigger-only credential validator in the host.
+        if (com.zrlog.admin.business.AdminConstants.ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH.equals(path)) return false;
         String header = request.getHeader("Authorization");
         if (header == null) return false;
         if (path.equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT)) {

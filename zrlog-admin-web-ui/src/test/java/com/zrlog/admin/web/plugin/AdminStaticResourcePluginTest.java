@@ -32,6 +32,8 @@ public class AdminStaticResourcePluginTest {
                 assertFalse(plugin.isStarted());
 
                 assertTrue(plugin.start());
+                assertTrue(plugin.startWithinBudget(new com.zrlog.business.plugin.StaticGenerationBudget(
+                        com.zrlog.util.ExecutionDeadline.afterMillis(5000), () -> {})));
 
                 assertFalse(plugin.isStarted());
                 assertFalse(plugin.stop());
@@ -48,6 +50,50 @@ public class AdminStaticResourcePluginTest {
             } finally {
                 ((ExecutorService) plugin.getExecutorService()).shutdownNow();
             }
+        }
+    }
+
+    @Test
+    public void boundedGenerationRendersAdminAssetsAndUsesTheBuildIdVersion() throws Exception {
+        try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
+            var config = database.config();
+            config.getServerConfig().getInterceptors().clear();
+            config.getServerConfig().addInterceptor(StaticPages.class);
+            var context = new ApplicationContext(config.getServerConfig());
+            context.init();
+            com.zrlog.common.vo.PublicWebSiteInfo site = new com.zrlog.common.vo.PublicWebSiteInfo();
+            site.setGenerator_html_status(true);
+            site.setHost("admin.example.com");
+            var resources = (com.zrlog.admin.business.service.AdminResource) java.lang.reflect.Proxy.newProxyInstance(
+                    getClass().getClassLoader(), new Class[]{com.zrlog.admin.business.service.AdminResource.class}, (proxy, method, args) -> {
+                        if (method.getName().equals("getAdminStaticCacheUris")) return java.util.Set.of("/admin/index");
+                        if (method.getName().equals("getAdminStaticResourceUris")) return java.util.Set.of("/admin/static/app.js");
+                        return method.invoke(database.resources(), args);
+                    });
+            var plugin = new AdminStaticResourcePlugin(new StaticSiteRenderer(config.getRequestConfig(), config.getResponseConfig(), context),
+                    () -> site, resources, "", () -> new WebSite(database.dataSource()));
+            try {
+                ((ExecutorService) plugin.getExecutorService()).shutdownNow();
+                var budget = new com.zrlog.business.plugin.StaticGenerationBudget(
+                        com.zrlog.util.ExecutionDeadline.afterMillis(5000), () -> {});
+                assertTrue(plugin.startWithinBudget(budget));
+                assertFalse(plugin.getHandleStatusPageMap().isEmpty());
+                assertTrue(plugin.getCacheFile("/admin/index.html").isFile());
+                assertTrue(plugin.getCacheFile("/admin/static/app.js").isFile());
+                assertTrue(plugin.getHandleStatusPageMap().values().stream().allMatch(
+                        state -> state == com.zrlog.business.plugin.StaticSitePlugin.HandleState.HANDLED));
+                assertEquals("test", plugin.getSiteVersionWithinBudget(budget));
+                assertEquals("test", java.nio.file.Files.readString(plugin.getCacheFile(plugin.getVersionFileName()).toPath()));
+                assertFalse(plugin.isStarted());
+            } finally { ((ExecutorService) plugin.getExecutorService()).shutdownNow(); }
+        }
+    }
+
+    public static class StaticPages implements com.hibegin.http.server.api.Interceptor {
+        @Override public boolean doInterceptor(com.hibegin.http.server.api.HttpRequest request,
+                                               com.hibegin.http.server.api.HttpResponse response) {
+            response.renderHtmlStr("<main>admin</main>");
+            return false;
         }
     }
 }

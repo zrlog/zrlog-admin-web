@@ -7,6 +7,7 @@ export const actionForPath = (raw: string): string => {
     const path = raw.split("?")[0].replace(/\.html$/, "");
     const accountPage = getAccountPage(path);
     if (accountPage) return accountPage.action;
+    if (path === "/assistant") return "account.session";
     if (path.startsWith("/article-edit")) return "article.read";
     if (path.startsWith("/article-type") || path.startsWith("/tag")) return "taxonomy.manage";
     if (path.startsWith("/article")) return "article.read";

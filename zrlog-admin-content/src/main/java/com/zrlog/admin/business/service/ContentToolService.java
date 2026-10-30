@@ -161,6 +161,12 @@ public final class ContentToolService {
 
     public SavedArticle save(AccountAccess account, String operation,
                              JsonObject args, Set<String> scopes, HttpRequest request, AdminAuditContext audit) throws SQLException {
+        return saveWithRefresh(account, operation, args, scopes, audit, () -> refresh.accept(request));
+    }
+
+    /** Non-HTTP callers supply their own bounded refresh operation. */
+    public SavedArticle saveWithRefresh(AccountAccess account, String operation, JsonObject args, Set<String> scopes,
+                                        AdminAuditContext audit, Runnable refreshOperation) throws SQLException {
         boolean create = operation.equals("create_article");
         permissionService.require(account, create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
@@ -210,7 +216,7 @@ public final class ContentToolService {
         result.status = status(Boolean.TRUE.equals(saved.getRubbish()), Boolean.TRUE.equals(saved.getPrivacy()));
         if (saved.isPublicCacheRefreshRequired()) {
             try {
-                refresh.accept(request);
+                refreshOperation.run();
                 result.refreshStatus = "updated";
             } catch (RuntimeException e) {
                 result.refreshStatus = "failed";

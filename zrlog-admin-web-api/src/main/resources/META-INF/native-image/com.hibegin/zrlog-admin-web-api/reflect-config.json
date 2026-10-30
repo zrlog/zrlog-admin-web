@@ -224,5 +224,66 @@
         "parameterTypes": []
       }
     ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.api.AutomationController",
+    "methods": [
+      {
+        "name": "propose",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "save",
+        "parameterTypes": []
+      },
+      {
+        "name": "enabled",
+        "parameterTypes": []
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "run",
+        "parameterTypes": []
+      },
+      {
+        "name": "runs",
+        "parameterTypes": []
+      },
+      {
+        "name": "detail",
+        "parameterTypes": []
+      },
+      {
+        "name": "settings",
+        "parameterTypes": []
+      },
+      {
+        "name": "saveSettings",
+        "parameterTypes": []
+      },
+      {
+        "name": "rotateToken",
+        "parameterTypes": []
+      },
+      {
+        "name": "revokeToken",
+        "parameterTypes": []
+      },
+      {
+        "name": "notices",
+        "parameterTypes": []
+      },
+      {
+        "name": "readNotice",
+        "parameterTypes": []
+      }
+    ]
   }
 ]

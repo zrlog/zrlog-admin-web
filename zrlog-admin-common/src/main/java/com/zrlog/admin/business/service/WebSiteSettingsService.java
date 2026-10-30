@@ -110,6 +110,11 @@ public class WebSiteSettingsService {
         }
     }
 
+    public boolean isUpgradeScheduleManaged() {
+        UpdateVersionInfoPlugin plugin = updatePlugin.get();
+        return plugin != null && plugin.isExternallyScheduled();
+    }
+
     public void validateUpgrade(UpgradeWebSiteInfo settings) throws SQLException {
         settings.doValid();
         if (settings.getUpgradePackageSource() == null) {

@@ -1,12 +1,12 @@
 import AdminEditorIconProvider from "../components/editor/AdminEditorIconProvider";
-import {App, ConfigProvider, theme as antdTheme} from "antd";
-import {useEffect, useState} from "react";
-import {isOffline} from "../utils/env-utils";
-import {getContextPath} from "../utils/helpers";
+import { App, ConfigProvider, theme as antdTheme } from "antd";
+import { useEffect, useState } from "react";
+import { isOffline } from "../utils/env-utils";
+import { getContextPath } from "../utils/helpers";
 import zh_CN from "antd/es/locale/zh_CN";
 import en_US from "antd/es/locale/en_US";
-import {legacyLogicalPropertiesTransformer, StyleProvider} from "@ant-design/cssinjs";
-import {BrowserRouter, Route, Routes} from "react-router-dom";
+import { legacyLogicalPropertiesTransformer, StyleProvider } from "@ant-design/cssinjs";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AppInit, {
     getColorPrimaryByRes,
     getLangByRes,
@@ -14,11 +14,19 @@ import AppInit, {
     isCompactModeByRes,
     isDarkModeByRes,
 } from "./AppInit";
-import {AppColorPrimaryState, AppCompactModeState, AppDarkState, AppLangState, AppState, AppThemeState,} from "../type";
-import {useThemeConfig} from "../utils/theme-utils";
+import {
+    AppColorPrimaryState,
+    AppCompactModeState,
+    AppDarkState,
+    AppLangState,
+    AppState,
+    AppThemeState,
+} from "../type";
+import { useThemeConfig } from "../utils/theme-utils";
 import ThemeGlobalStyle from "./theme/ThemeGlobalStyle";
-import {getAdminThemeDefinition} from "../utils/admin-themes";
-import {UiIconProvider} from "@zrlog/ui/icons";
+import { getAdminThemeDefinition } from "../utils/admin-themes";
+import { UiIconProvider } from "@zrlog/ui/icons";
+import { setEditorLang } from "@zrlog/editor/dist/editor/lang/editor-lang";
 
 type ChangeAbleState = AppCompactModeState | AppColorPrimaryState | AppDarkState | AppLangState | AppThemeState;
 
@@ -55,8 +63,8 @@ type ConfiguredAppContentProps = {
     onInit: (newState: ChangeAbleState) => void;
 };
 
-const ConfiguredAppContent = ({appState, basePath, onInit}: ConfiguredAppContentProps) => {
-    const {token} = antdTheme.useToken();
+const ConfiguredAppContent = ({ appState, basePath, onInit }: ConfiguredAppContentProps) => {
+    const { token } = antdTheme.useToken();
 
     return (
         <ConfigProvider
@@ -68,7 +76,7 @@ const ConfiguredAppContent = ({appState, basePath, onInit}: ConfiguredAppContent
         >
             <App>
                 <StyleProvider transformers={[legacyLogicalPropertiesTransformer]}>
-                    <ThemeGlobalStyle theme={appState.theme}/>
+                    <ThemeGlobalStyle theme={appState.theme} />
                     <BrowserRouter
                         basename={basePath}
                         future={{
@@ -79,7 +87,7 @@ const ConfiguredAppContent = ({appState, basePath, onInit}: ConfiguredAppContent
                         <Routes>
                             <Route
                                 path={"/*"}
-                                element={<AppInit lang={appState.lang} offline={appState.offline} onInit={onInit}/>}
+                                element={<AppInit lang={appState.lang} offline={appState.offline} onInit={onInit} />}
                             />
                         </Routes>
                     </BrowserRouter>
@@ -95,6 +103,8 @@ const ConfigProviderApp = () => {
         gAppState = getDefaultAppState();
         return gAppState;
     });
+    // Shared editor components also appear in messages and lists before the editor is opened.
+    setEditorLang(appState.lang === "en_US" ? "en_US" : "zh_CN");
 
     const updateOnlineStatus = () => {
         setState((prevState) => {

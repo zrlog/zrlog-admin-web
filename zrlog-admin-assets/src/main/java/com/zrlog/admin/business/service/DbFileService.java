@@ -189,6 +189,41 @@ public class DbFileService {
         return deleted;
     }
 
+    /** Expiry applies only to timestamped temporary resources, with a cursor for bounded work. */
+    public CleanupBatch cleanupTemporary(int retentionDays, String after,
+                                         com.zrlog.admin.business.automation.TaskExecutionContext context) throws Exception {
+        if (retentionDays < 1 || retentionDays > 3650) throw new IllegalArgumentException("automation.invalidParameters");
+        String root = com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
+        String prefix = DbFileStore.FILE_PREFIX + root + "/";
+        if (after == null || !after.startsWith(prefix)) after = "";
+        List<Map<String, Object>> records = store.cleanupPage(root, after, 128);
+        CleanupBatch result = new CleanupBatch();
+        long cutoff = clock.getAsLong() - java.time.Duration.ofDays(retentionDays).toMillis();
+        for (Map<String, Object> record : records) {
+            if (context.remainingMillis() < 2000) break;
+            context.checkActive();
+            DbFileStore.Row row = new DbFileStore.Row(record);
+            result.scanned++;
+            result.cursor = row.name;
+            if (row.meta.pendingBatch != null && row.meta.pendingUntil > clock.getAsLong()) continue;
+            // Resume abandoned writes and retired chunk removal using the existing conditional lifecycle.
+            if (row.meta.pendingBatch != null || row.meta.retiredBatch != null || row.meta.deleting || !row.meta.ready) {
+                row = store.recover(row);
+                if (row == null) { result.removed++; continue; }
+            }
+            if (row.meta.uploadedAt <= 0 || row.meta.uploadedAt >= cutoff) continue;
+            if (store.deleteExpired(row, context.actor())) result.removed++;
+        }
+        if (result.scanned == records.size() && records.size() < 128) result.cursor = "";
+        return result;
+    }
+
+    public static final class CleanupBatch {
+        public int scanned;
+        public int removed;
+        public String cursor = "";
+    }
+
     private static void requirePath(String path) {
         if (path == null || !path.startsWith("/") || DbFileStore.FILE_PREFIX.length() + path.length() > 255
                 || path.indexOf('\0') >= 0) throw new IllegalArgumentException("Invalid database file path");

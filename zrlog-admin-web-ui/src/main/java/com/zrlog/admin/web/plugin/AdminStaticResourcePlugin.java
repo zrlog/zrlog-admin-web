@@ -9,6 +9,7 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.StaticSiteRenderer;
+import com.zrlog.business.plugin.StaticGenerationBudget;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.dto.FaviconBase64DTO;
@@ -73,15 +74,42 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
 
     @Override
     public boolean start() {
-        cacheFiles.clear();
         lock.lock();
         try {
+            cacheFiles.clear();
             //do fetch
             doGenerator();
         } finally {
             lock.unlock();
         }
         return true;
+    }
+
+    @Override
+    public boolean startWithinBudget(StaticGenerationBudget budget) throws Exception {
+        budget.check();
+        if (!lock.tryLock(budget.remainingMillis(), java.util.concurrent.TimeUnit.MILLISECONDS))
+            throw new IllegalStateException("Static generation is busy");
+        try {
+            budget.check();
+            if (isDisabled()) return true;
+            cacheFiles.clear();
+            FaviconBase64DTO icon = webSiteProvider.get().faviconBase64DTO();
+            boolean cache = ResultValueConvertUtils.toBoolean(icon.getGenerator_html_status());
+            faviconWithinBudget(icon.getFavicon_png_pwa_192_base64(), AdminConstants.FAVICON_PNG_PWA_192_URI_PATH, cache, budget);
+            faviconWithinBudget(icon.getFavicon_png_pwa_512_base64(), AdminConstants.FAVICON_PNG_PWA_512_URI_PATH, cache, budget);
+            handleStatusPageMap.clear();
+            for (String uri : adminResource.getAdminStaticCacheUris()) {
+                budget.check();
+                handleStatusPageMap.put(uri, HandleState.NEW);
+            }
+            for (String uri : adminResource.getAdminStaticResourceUris()) {
+                budget.check();
+                handleStatusPageMap.put(uri, HandleState.NEW);
+            }
+            doFetchWithinBudget(renderer, budget);
+            return true;
+        } finally { lock.unlock(); }
     }
 
     @Override
@@ -124,6 +152,12 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
     @Override
     public String getSiteVersion() {
         return adminResource.getStaticResourceBuildId();
+    }
+
+    @Override
+    public String getSiteVersionWithinBudget(StaticGenerationBudget budget) {
+        budget.check();
+        return getSiteVersion();
     }
 
     @Override

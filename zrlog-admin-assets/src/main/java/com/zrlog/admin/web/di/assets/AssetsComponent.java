@@ -32,6 +32,8 @@ import java.util.function.Supplier;
 public interface AssetsComponent {
     UploadService uploads();
 
+    com.zrlog.admin.business.service.TemporaryCleanupTaskProvider cleanupTasks();
+
     AccountPermissionService permissions();
 
     AdminRequestIdentity requestIdentity();

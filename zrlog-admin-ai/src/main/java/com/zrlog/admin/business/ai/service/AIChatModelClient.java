@@ -10,6 +10,9 @@ import jakarta.inject.Inject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import com.hibegin.common.util.http.BoundedHttpExchange;
+import com.zrlog.util.ExecutionDeadline;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.util.*;
@@ -32,6 +35,12 @@ public class AIChatModelClient extends AIService {
 
     AIProviderResponses.Choice completeTurn(AccountAccess actor, AIWebSiteInfo info, List<AIProviderRequests.Message> messages,
                                                     List<Tool> definitions, AIChatStreamReader.Progress progress) throws IOException, InterruptedException {
+        return completeTurn(actor, info, messages, definitions, progress, null);
+    }
+
+    AIProviderResponses.Choice completeTurn(AccountAccess actor, AIWebSiteInfo info, List<AIProviderRequests.Message> messages,
+                                            List<Tool> definitions, AIChatStreamReader.Progress progress,
+                                            ExecutionDeadline deadline) throws IOException, InterruptedException {
         List<AIProviderRequests.Message> currentMessages = messages;
         StringBuilder content = new StringBuilder(), reasoning = new StringBuilder();
         List<OpenAIResponses.Item> responsesOutput = new ArrayList<>();
@@ -39,11 +48,19 @@ public class AIChatModelClient extends AIService {
             AIProviderResponses.Choice choice = null;
             for (int attempt = 0; ; attempt++) {
                 try {
-                    choice = complete(actor, info, request(info, currentMessages, continuation == 0 ? definitions : List.of()), progress);
+                    String body = request(info, currentMessages, continuation == 0 ? definitions : List.of());
+                    choice = deadline == null ? complete(actor, info, body, progress)
+                            : complete(actor, info, body, progress, deadline);
                     break;
                 } catch (AIRequestException e) {
                     if (!Objects.equals(e.getStatusCode(), 503) || attempt >= 2) throw e;
-                    pauseBeforeStreamRetry(attempt);
+                    if (deadline == null) pauseBeforeStreamRetry(attempt);
+                    else {
+                        long pause = (1L << (attempt + 1)) * 1000;
+                        if (deadline.requireRemainingMillis() <= pause) throw new java.net.http.HttpTimeoutException("AI time budget exhausted");
+                        Thread.sleep(pause);
+                        deadline.requireRemainingMillis();
+                    }
                 }
             }
             AIProviderResponses.Message reply = choice.getMessage();
@@ -97,6 +114,12 @@ public class AIChatModelClient extends AIService {
 
     protected AIProviderResponses.Choice complete(AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress)
             throws IOException, InterruptedException {
+        return complete(actor, info, body, progress, null);
+    }
+
+    private AIProviderResponses.Choice complete(AccountAccess actor, AIWebSiteInfo info, String body,
+                                                AIChatStreamReader.Progress progress, ExecutionDeadline deadline)
+            throws IOException, InterruptedException {
         boolean responses = info.getAi_provider() == AIProviderType.OPEN_AI;
         OpenAIResponsesAdapter adapter = new OpenAIResponsesAdapter();
         AIProviderRequests.CompletionRequest completion = gson.fromJson(body, AIProviderRequests.CompletionRequest.class);
@@ -126,8 +149,19 @@ public class AIChatModelClient extends AIService {
             }
             body = gson.toJson(wire);
         }
-        HttpResponse<InputStream> response = client().send(buildRequest(info, body, responses ? "/responses" : "/chat/completions"), HttpResponse.BodyHandlers.ofInputStream());
-        try (InputStream input = response.body()) {
+        var request = buildRequest(info, body, responses ? "/responses" : "/chat/completions");
+        HttpResponse<?> response;
+        InputStream responseBody;
+        if (deadline == null) {
+            HttpResponse<InputStream> streamed = client().send(request, HttpResponse.BodyHandlers.ofInputStream());
+            response = streamed;
+            responseBody = streamed.body();
+        } else {
+            HttpResponse<byte[]> buffered = BoundedHttpExchange.sendBytes(client(), request, deadline, 2 * 1024 * 1024);
+            response = buffered;
+            responseBody = new ByteArrayInputStream(buffered.body());
+        }
+        try (InputStream input = responseBody) {
             if (response.statusCode() != 200) throw new AIRequestException("AI request failed", response.statusCode());
             boolean sse = response.headers().firstValue("Content-Type").orElse("").toLowerCase(Locale.ROOT).contains("text/event-stream");
             return responses ? adapter.read(input, sse, info.isReasoningEnabled(), progress)
