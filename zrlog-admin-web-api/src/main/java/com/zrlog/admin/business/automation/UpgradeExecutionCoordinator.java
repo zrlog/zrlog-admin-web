@@ -95,13 +95,13 @@ public final class UpgradeExecutionCoordinator {
     }
 
     private boolean canRetry(AutomaticUpgradeTaskProvider.Receipt receipt, AccountAccess actor) throws SQLException {
+        TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
         if (installed(receipt) || "confirmed".equals(receipt.state)) return false;
         if ("manual".equals(receipt.source)) {
             return "uncertain".equals(receipt.phase)
                     || clock.getAsLong() - receipt.startedAt > REVIEW_AFTER_MILLIS
                     && ("submitted".equals(receipt.phase) || !Objects.equals(receipt.runtimeId, RUNTIME_ID));
         }
-        if (receipt.ownerId != actor.getUserId()) return false;
         var run = store.run(receipt.runId);
         return run != null && run.value.finishedAt != null
                 && (List.of("uncertain", "needs_attention").contains(run.value.status)

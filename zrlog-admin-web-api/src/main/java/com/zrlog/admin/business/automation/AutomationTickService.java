@@ -10,16 +10,20 @@ public final class AutomationTickService {
     private final AutomationEngine engine;
     private final AutomationStore store;
     private final LongSupplier clock;
+    private final AutomationDefaults defaults;
 
     public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock) {
-        this.engine = engine;
-        this.store = store;
-        this.clock = clock;
+        this(engine, store, clock, null);
+    }
+
+    public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock, AutomationDefaults defaults) {
+        this.engine = engine; this.store = store; this.clock = clock; this.defaults = defaults;
     }
 
     public AutomationModels.TickResult tick(String source, String credentialId, long budgetMillis) throws SQLException {
         if (!List.of("internal", "external").contains(source)) throw new IllegalArgumentException("automation.invalidTrigger");
-        String key = "assistant.tick:" + source;
+        if (defaults != null) { defaults.initialize(); defaults.initializePluginTrigger(); }
+        String key = "assistant.v1.tick:" + source;
         Health health = new Health();
         health.id = UUID.randomUUID().toString();
         health.source = source;
@@ -44,7 +48,7 @@ public final class AutomationTickService {
 
     public Health health(String source) throws SQLException {
         if (!List.of("internal", "external").contains(source)) throw new IllegalArgumentException("automation.invalidTrigger");
-        AutomationStore.Snapshot<Health> row = store.read("assistant.tick:" + source, Health.class);
+        AutomationStore.Snapshot<Health> row = store.read("assistant.v1.tick:" + source, Health.class);
         return row == null ? null : row.value;
     }
 

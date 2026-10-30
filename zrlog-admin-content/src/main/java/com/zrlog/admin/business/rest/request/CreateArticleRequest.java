@@ -25,6 +25,12 @@ public class CreateArticleRequest implements Validator {
     private String digest;
     private String editorType;
     private boolean transparentPublish;
+    private Long publishAt;
+
+    /** Optional publication time, Unix epoch milliseconds. */
+    public Long getPublishAt() { return publishAt; }
+    public void setPublishAt(Long publishAt) { this.publishAt = publishAt; }
+
     private boolean preserveDraftAiMessages;
 
     public String getContent() {
@@ -165,6 +171,7 @@ public class CreateArticleRequest implements Validator {
     @Override
     public void doValid() {
         validateArrangePlugin();
+        if (publishAt != null && (publishAt < 0 || publishAt > 253402300799000L)) throw new ArgsException("publishAt");
         if (Objects.isNull(typeId) || typeId <= 0) {
             throw new ArgsException("typeId");
         }

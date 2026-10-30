@@ -110,8 +110,14 @@ for (const [apiPath, pathItem] of Object.entries(spec.paths)) {
         }
         const annotationBlock = controllerSource.substring(Math.max(0, methodMatch.index - 500), methodMatch.index);
         const methodAnnotation = `@RequestMethod(method = HttpMethod.${method.toUpperCase()})`;
-        if (!annotationBlock.includes(methodAnnotation)) {
-            throw new Error(`${operationId} must explicitly declare ${methodAnnotation}`);
+        // Trigger-only endpoints authenticate before the controller/session chain.
+        // Their interceptor must reject other methods explicitly, with a 405 response.
+        const interceptorGuard = new RegExp(`if\\s*\\(request\\.getMethod\\(\\)\\s*!=\\s*HttpMethod\\.${method.toUpperCase()}\\)\\s*\\{[^}]*response\\.renderCode\\(405\\);[^}]*return false;`);
+        const guardedInterceptor = methodName === "doInterceptor"
+            && controllerSource.includes("implements HandleAbleInterceptor")
+            && interceptorGuard.test(controllerSource.substring(methodMatch.index));
+        if (!annotationBlock.includes(methodAnnotation) && !guardedInterceptor) {
+            throw new Error(`${operationId} must explicitly declare ${methodAnnotation} or reject other methods in its interceptor`);
         }
     }
 }

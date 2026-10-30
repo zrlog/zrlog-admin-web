@@ -40,8 +40,13 @@ public final class AutomationDashboard {
             response.definitions.add(copy);
         }
         response.aiAvailable = proposals.available(actor);
+        for (StoredTask task : tasks.systemTasks(actor)) response.systemTasks.add(task(task));
         for (StoredTask task : tasks.tasks(actor, offset)) response.tasks.add(task(task));
         response.total = store.taskCount(actor.getUserId());
+        var views = new java.util.ArrayList<>(response.systemTasks); views.addAll(response.tasks);
+        for (var view : views) {
+            view.requiredActions = tasks.requiredActions(view.type);
+        }
         response.canManageScheduler = AccountAction.SYSTEM_MANAGE.allowed(actor);
         return response;
     }
@@ -54,7 +59,7 @@ public final class AutomationDashboard {
         for (AutomationModels.Run run : tasks.runs(actor, taskId, response.pageSize, (response.page - 1) * response.pageSize)) {
             response.items.add(run(run));
         }
-        response.total = store.runCount(actor.getUserId(), taskId);
+        response.total = tasks.runCount(actor, taskId);
         return response;
     }
 
@@ -68,6 +73,7 @@ public final class AutomationDashboard {
 
     public static AutomationViews.Task task(StoredTask task) {
         AutomationViews.Task view = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationViews.Task.class);
+        view.systemTask = task.ownerId == 0;
         view.activeRunId = task.activeRun == null ? null : task.activeRun.id;
         return view;
     }

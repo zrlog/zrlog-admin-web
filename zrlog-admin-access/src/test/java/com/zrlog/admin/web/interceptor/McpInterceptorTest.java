@@ -457,7 +457,7 @@ public class McpInterceptorTest {
                 .instance(
                         ContentComponent.class,
                         DaggerContentComponent.factory()
-                                .create(
+                                .create(() -> null,
                                         data,
                                         shared,
                                         account,

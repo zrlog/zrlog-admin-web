@@ -30,7 +30,7 @@ public class PluginScheduledTaskTest {
     public PluginScheduledTaskTest(String backend) { this.backend = backend; }
 
     @Test
-    public void singleAuthorizedParentStoresNestedResultsWithoutImportingChildPlans() throws Exception {
+    public void singleSharedParentStoresNestedResultsWithoutImportingChildPlans() throws Exception {
         verify("success", "success", false);
     }
 
@@ -84,10 +84,16 @@ public class PluginScheduledTaskTest {
             plan.name = "Plugin schedules"; plan.type = PluginScheduledTaskProvider.TYPE;
             plan.schedule = provider.definitions().get(0).defaultSchedule;
             plan.schedule.at = System.currentTimeMillis() + 60000;
-            assertEquals("automation.authorizationRequired", assertThrows(IllegalArgumentException.class, () -> service.save(actor, plan)).getMessage());
-            plan.authorizedActions = List.of(AccountAction.PLUGIN_MANAGE.getId());
-            var saved = service.save(actor, plan);
-            var run = engine.runNow(actor, saved.id, saved.revision, 660000);
+            assertEquals("automation.systemTaskManaged", assertThrows(IllegalArgumentException.class, () -> service.save(actor, plan)).getMessage());
+            db.execute("UPDATE user SET role=? WHERE userId=?", "owner", actor.getUserId());
+            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()),
+                    new com.zrlog.business.service.WebsiteKvService(() -> new WebSite(db.dataSource())), registry);
+            assertTrue(defaults.initializePluginTrigger());
+            var saved = store.tasks(0, 100, 0).get(0).value;
+            assertTrue(saved.enabled);
+            assertEquals(List.of(AccountAction.PLUGIN_MANAGE.getId()), saved.executionActions);
+            var owner = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var run = engine.runNow(owner, saved.id, saved.revision, 660000);
             assertEquals(expectedParent, run.status);
             assertEquals(run.id, run.result.externalRunId);
             assertEquals(childStatus == null ? 0 : 2, run.result.children.size());
@@ -97,8 +103,8 @@ public class PluginScheduledTaskTest {
                 assertEquals("success", run.result.children.get(0).status);
                 assertEquals("error".equals(childStatus) ? "failed" : childStatus, run.result.children.get(1).status);
             }
-            assertEquals(1, store.taskCount(actor.getUserId()));
-            assertEquals(1, store.runCount(actor.getUserId(), null));
+            assertEquals(1, store.taskCount(0));
+            assertEquals(1, store.runCount(0, null));
             var persisted = store.run(run.id).value;
             assertEquals(childStatus == null ? 0 : 2, persisted.result.children.size());
             if (childStatus != null) assertEquals("Plugin first", AutomationDashboard.run(persisted).result.children.get(0).name);

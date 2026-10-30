@@ -34,7 +34,6 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
         definition.descriptionKey = "admin.automation.publish.description";
         definition.category = "content";
         definition.timeoutSeconds = 50;
-        definition.requiresAuthorization = true;
         definition.requiredActions = List.of(AccountAction.ARTICLE_READ.getId(), AccountAction.ARTICLE_UPDATE.getId(), AccountAction.ARTICLE_PUBLISH.getId());
         var article = new AutomationModels.Field();
         article.name = "articleId";
@@ -46,6 +45,9 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
         definition.defaultSchedule = new AutomationModels.Schedule();
         return List.of(definition);
     }
+
+    @Override
+    public String instanceKey(String type, JsonObject parameters) { return "article:" + integer(parameters, "articleId", 1); }
 
     @Override
     public JsonObject prepare(String type, JsonObject parameters, AccountAccess actor) throws Exception {

@@ -48,7 +48,7 @@ public class AttachmentStorageTest {
             var account = AccountServicesFixture.component(db.dataSource());
             var content =
                     com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
-                            .create(
+                            .create(() -> null,
                                     data,
                                     services,
                                     account,

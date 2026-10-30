@@ -1324,7 +1324,7 @@ public class AdminControllerDelegationTest {
             assertEquals(1, submissions.get());
             assertFalse(conflict.headers.containsKey("X-Accel-Buffering"));
 
-            var previous = new AutomationStore(() -> new WebSite(db.dataSource())).read("assistant.upgrade",
+            var previous = new AutomationStore(() -> new WebSite(db.dataSource())).read("assistant.v1.upgrade",
                     com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider.Receipt.class).value;
             executions.finish(previous, false);
             assertTrue(executions.view(actor).canRetry);

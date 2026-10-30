@@ -18,8 +18,8 @@ import java.util.Objects;
 /** One row per task/run, conditional single-statement writes on both JDBC and WebAPI databases. */
 @Singleton
 public final class AutomationStore {
-    static final String TASK_PREFIX = "assistant.task:";
-    static final String RUN_PREFIX = "assistant.run:";
+    static final String TASK_PREFIX = "assistant.v1.task:";
+    static final String RUN_PREFIX = "assistant.v1.run:";
     static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String ACTOR = " EXISTS (SELECT 1 FROM user WHERE userId=? AND role=? AND enabled=? AND authVersion=?)";
     private final Provider<WebSite> websites;
@@ -68,15 +68,14 @@ public final class AutomationStore {
         return websites.get().execute(sql, parameters.toArray());
     }
 
-    /** A completed migration fences late initializers, including after the user deletes a default task. */
-    void insertDefaultTask(StoredTask task, AccountAccess actor, Snapshot<AutomationDefaults.State> migration) throws SQLException {
+    /** Insert-only initialization cannot reset an existing site configuration. */
+    void insertDefaultTask(StoredTask task, AccountAccess actor) throws SQLException {
         String key = TASK_PREFIX + task.id;
         try {
             websites.get().execute("INSERT INTO website(name,value,remark) SELECT ?,?,? WHERE" + ACTOR
-                            + " AND EXISTS (SELECT 1 FROM website WHERE name=? AND value=?)"
                             + " AND NOT EXISTS (SELECT 1 FROM website WHERE name=?)",
                     key, JSON.toJson(task), dueKey(task), actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(),
-                    migration.key, migration.raw, key);
+                    key);
         } catch (SQLException error) {
             if (read(key, StoredTask.class) == null) throw error;
         }
@@ -116,6 +115,39 @@ public final class AutomationStore {
                 prefix, end(prefix), taskId, pageSize(limit), Math.max(0, offset)), AutomationModels.Run.class);
     }
 
+    public List<Snapshot<AutomationModels.Run>> visibleRuns(int ownerId, List<String> systemIds, String taskId, int limit, int offset) throws SQLException {
+        var query = visibleRunQuery(ownerId, systemIds, taskId);
+        query.parameters.add(pageSize(limit)); query.parameters.add(Math.max(0, offset));
+        return rows(websites.get().queryListWithParams("SELECT name,value FROM website WHERE " + query.where
+                + " ORDER BY SUBSTR(name," + (RUN_PREFIX.length() + 12) + ") DESC LIMIT ? OFFSET ?", query.parameters.toArray()), AutomationModels.Run.class);
+    }
+
+    public long visibleRunCount(int ownerId, List<String> systemIds, String taskId) throws SQLException {
+        var query = visibleRunQuery(ownerId, systemIds, taskId);
+        return ((Number) websites.get().queryFirstObj("SELECT count(*) FROM website WHERE " + query.where, query.parameters.toArray())).longValue();
+    }
+
+    private static RunQuery visibleRunQuery(int ownerId, List<String> systemIds, String taskId) {
+        String prefix = RUN_PREFIX + ownerPrefix(ownerId);
+        RunQuery query = new RunQuery();
+        query.where = "((name>=? AND name<?)";
+        query.parameters.add(prefix); query.parameters.add(end(prefix));
+        if (!systemIds.isEmpty()) {
+            query.where += " OR (name>=? AND name<? AND remark IN (" + String.join(",", java.util.Collections.nCopies(systemIds.size(), "?")) + "))";
+            query.parameters.add(RUN_PREFIX); query.parameters.add(end(RUN_PREFIX)); query.parameters.addAll(systemIds);
+        }
+        query.where += ")";
+        if (taskId != null && !taskId.isBlank()) {
+            requireId(taskId); query.where += " AND remark=?"; query.parameters.add(taskId);
+        }
+        return query;
+    }
+
+    private static class RunQuery {
+        String where;
+        List<Object> parameters = new ArrayList<>();
+    }
+
     public long taskCount(int ownerId) throws SQLException {
         String prefix = TASK_PREFIX + ownerPrefix(ownerId);
         return ((Number) websites.get().queryFirstObj("SELECT count(*) FROM website WHERE name>=? AND name<?", prefix, end(prefix))).longValue();
@@ -142,10 +174,30 @@ public final class AutomationStore {
             if ("running".equals(row.value.status) || row.value.finishedAt == null) continue;
             completed++;
             if (completed <= 500 && row.value.finishedAt >= oldest) continue;
-            if (websites.get().execute("DELETE FROM website WHERE name=? AND value=?", row.key, row.raw)) removed++;
+            if (websites.get().execute("DELETE FROM website WHERE name=? AND value=?", row.key, row.raw)) {
+                String reads = readKeyPrefix(row.value.id);
+                websites.get().execute("DELETE FROM website WHERE name>=? AND name<?", reads, end(reads));
+                removed++;
+            }
             if (removed >= 64) break;
         }
         return removed;
+    }
+
+    static String noticeReadKey(int userId, String runId) { return readKeyPrefix(runId) + userId; }
+    private static String readKeyPrefix(String runId) { return "assistant.v1.notice-read:" + runId + ":"; }
+
+    boolean markRunRead(Snapshot<AutomationModels.Run> run, AccountAccess actor) throws SQLException {
+        String key = noticeReadKey(actor.getUserId(), run.value.id);
+        try {
+            return websites.get().execute("INSERT INTO website(name,value) SELECT ?,? WHERE" + ACTOR
+                            + " AND EXISTS (SELECT 1 FROM website WHERE name=? AND value=?)",
+                    key, JSON.toJson(System.currentTimeMillis()), actor.getUserId(), actor.getRole(), true,
+                    actor.getAuthVersion(), run.key, run.raw);
+        } catch (SQLException error) {
+            if (read(key, Long.class) == null) throw error;
+            return true;
+        }
     }
 
     public <T> Snapshot<T> read(String key, Class<T> type) throws SQLException {
@@ -206,7 +258,7 @@ public final class AutomationStore {
     }
 
     static String ownerPrefix(int ownerId) {
-        if (ownerId < 1) throw new IllegalArgumentException("automation.invalidOwner");
+        if (ownerId < 0) throw new IllegalArgumentException("automation.invalidOwner");
         return String.format(Locale.ROOT, "%010d.", ownerId);
     }
 

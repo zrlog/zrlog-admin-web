@@ -1,14 +1,14 @@
-import {hasAction} from "../../utils/account-access";
-import {RefObject, SetStateAction, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {InputRef, Space} from "antd";
-import {MessageInstance} from "antd/es/message/interface";
-import {HookAPI as ModalHookAPI} from "antd/es/modal/useModal";
-import {AxiosInstance} from "axios";
-import {Location, NavigateFunction} from "react-router";
-import {auditTime, concatMap, Subject, tap} from "rxjs";
-import {Subscription} from "rxjs/internal/Subscription";
-import {createUri, getRes, updateUri} from "../../utils/constants";
-import {isOffline} from "../../utils/env-utils";
+import { hasAction } from "../../utils/account-access";
+import { RefObject, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { InputRef, Space } from "antd";
+import { MessageInstance } from "antd/es/message/interface";
+import { HookAPI as ModalHookAPI } from "antd/es/modal/useModal";
+import { AxiosInstance } from "axios";
+import { Location, NavigateFunction } from "react-router";
+import { auditTime, concatMap, Subject, tap } from "rxjs";
+import { Subscription } from "rxjs/internal/Subscription";
+import { createUri, getRes, updateUri } from "../../utils/constants";
+import { isOffline } from "../../utils/env-utils";
 import {
     articleDataToState,
     articleSaveToCache,
@@ -18,9 +18,9 @@ import {
     removeLocalArticleCache,
     restoreLocalArticleCache,
 } from "../../utils/article-cache";
-import {deepEqualWithSpecialJSON, disableExitTips, enableExitTips, updateDocumentTitle} from "../../utils/helpers";
-import {getCacheByKey, getPageDataCacheKeyByPath, removeCacheDataByKey} from "../../utils/cache";
-import {ApiResponse} from "../../type";
+import { deepEqualWithSpecialJSON, disableExitTips, enableExitTips, updateDocumentTitle } from "../../utils/helpers";
+import { getCacheByKey, getPageDataCacheKeyByPath, removeCacheDataByKey } from "../../utils/cache";
+import { ApiResponse } from "../../type";
 import {
     ArticleChangeableValue,
     ArticleEditInfo,
@@ -28,17 +28,17 @@ import {
     ArticleEntry,
     PublishStatusPopoverState,
 } from "./index.types";
-import useArticleDraftSync, {ArticleDraftSyncTask} from "./draft-sync/use-article-draft-sync";
+import useArticleDraftSync, { ArticleDraftSyncTask } from "./draft-sync/use-article-draft-sync";
 import {
     isRetryableArticleSyncError,
     mergeArticleSynchronizationMetadata,
 } from "./draft-sync/article-draft-sync-helpers";
 import useTransparentPublish from "./use-transparent-publish";
-import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
-import {renderMissingMarkdownContent} from "./article-save-content";
-import {markdownToHtml} from "@zrlog/editor/dist/editor/utils/marked-utils";
-import {DraftAiSaveGate, DraftArticleOperationRelease} from "./draft-ai-save-gate";
-import {ArticleUpdatedEvent} from "./article-ai-assistant/article-ai-assistant.types";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
+import { renderMissingMarkdownContent } from "./article-save-content";
+import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
+import { DraftAiSaveGate, DraftArticleOperationRelease } from "./draft-ai-save-gate";
+import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
 
 import useArticleVersionSync from "./version-sync/use-article-version-sync";
 
@@ -167,12 +167,12 @@ const migrateArticleAiMessageScope = (
 
 type ArticleAutoSaveOutcome =
     | {
-    type: "aiPending" | "deferred";
-}
+          type: "aiPending" | "deferred";
+      }
     | {
-    type: "blocked";
-    message: string;
-};
+          type: "blocked";
+          message: string;
+      };
 
 type UseArticleSaveCoordinatorOptions = {
     aliasRef: RefObject<InputRef>;
@@ -197,24 +197,24 @@ type UseArticleSaveCoordinatorOptions = {
 };
 
 const useArticleSaveCoordinator = ({
-                                       aliasRef,
-                                       axiosInstance,
-                                       data,
-                                       draftAiPendingCount,
-                                       draftAiSaveGate,
-                                       digestRef,
-                                       editCardRef,
-                                       location,
-                                       messageApi,
-                                       modal,
-                                       navigate,
-                                       offline,
-                                       preferredTypeId,
-                                       migrateUiStateToArticle,
-                                       restoreUiState,
-                                       updateCache,
-                                       updatePublishStatus,
-                                   }: UseArticleSaveCoordinatorOptions) => {
+    aliasRef,
+    axiosInstance,
+    data,
+    draftAiPendingCount,
+    draftAiSaveGate,
+    digestRef,
+    editCardRef,
+    location,
+    messageApi,
+    modal,
+    navigate,
+    offline,
+    preferredTypeId,
+    migrateUiStateToArticle,
+    restoreUiState,
+    updateCache,
+    updatePublishStatus,
+}: UseArticleSaveCoordinatorOptions) => {
     const initialStateRef = useRef<ArticleEditState>();
     if (!initialStateRef.current) {
         restoreLocalArticleCache(new URLSearchParams(location.search).get("localDraft"));
@@ -227,8 +227,8 @@ const useArticleSaveCoordinator = ({
     // A notification is a refresh target; versionRef advances only after accepting server data.
     const latestArticleUpdateRef = useRef<ArticleUpdatedEvent>();
     const createdArticleRef = useRef<number>();
-    const articleRefreshContextRef = useRef({axiosInstance, data, updateCache, messageApi});
-    articleRefreshContextRef.current = {axiosInstance, data, updateCache, messageApi};
+    const articleRefreshContextRef = useRef({ axiosInstance, data, updateCache, messageApi });
+    articleRefreshContextRef.current = { axiosInstance, data, updateCache, messageApi };
     const savingRef = useRef(state.saving);
     savingRef.current = state.saving;
     const contentSourceRef = useRef(state.contentSource);
@@ -271,13 +271,13 @@ const useArticleSaveCoordinator = ({
     const replaceCreatedArticleRoute = (url: URL) =>
         navigate(location.pathname + url.search, {
             replace: true,
-            state: {articleCreatedFrom: location.key},
+            state: { articleCreatedFrom: location.key },
         });
 
     const getLocalContentSource = (article: ArticleEntry): ArticleEditState["contentSource"] =>
         article.logId && article.logId > 0 ? "localEdit" : "localDraft";
 
-    const runArticleWrite = async <T, >(write: () => Promise<T>): Promise<T> => {
+    const runArticleWrite = async <T,>(write: () => Promise<T>): Promise<T> => {
         const previous = articleWriteRef.current;
         let release!: () => void;
         const current = new Promise<void>((resolve) => {
@@ -363,7 +363,7 @@ const useArticleSaveCoordinator = ({
             loadedArticleRef.current = newState.article;
             acknowledgedArticleRef.current =
                 getArticleDraftBase(newState.contentConflict?.localArticle || newState.article) || data.article;
-            setState({...newState, aiMessages});
+            setState({ ...newState, aiMessages });
             restoreUiState();
             setRestoreInputRevision((revision) => revision + 1);
             versionRef.current = newState.article.version;
@@ -441,10 +441,11 @@ const useArticleSaveCoordinator = ({
             ...previousState,
             rubbish: true,
             article: preserveLocalEdits
-                ? {...mergeArticleSynchronizationMetadata(previousState.article, newArticle, create), rubbish: true}
+                ? { ...mergeArticleSynchronizationMetadata(previousState.article, newArticle, create), rubbish: true }
                 : mergeArticleResponse(previousState.article, newArticle, create),
             saving: {
                 ...previousState.saving,
+                releaseSaving: false,
                 rubbishSaving: false,
                 previewIng: false,
                 autoSaving: false,
@@ -457,7 +458,7 @@ const useArticleSaveCoordinator = ({
             ...previousState,
             rubbish: false,
             article: preserveLocalEdits
-                ? {...mergeArticleSynchronizationMetadata(previousState.article, newArticle, create), rubbish: false}
+                ? { ...mergeArticleSynchronizationMetadata(previousState.article, newArticle, create), rubbish: false }
                 : mergeArticleResponse(previousState.article, newArticle, create),
             saving: {
                 ...previousState.saving,
@@ -487,7 +488,7 @@ const useArticleSaveCoordinator = ({
             ...previousState,
             rubbish: savedArticle ? true : previousState.article.rubbish,
             article: savedArticle
-                ? {...mergeArticleSynchronizationMetadata(previousState.article, savedArticle, create), rubbish: true}
+                ? { ...mergeArticleSynchronizationMetadata(previousState.article, savedArticle, create), rubbish: true }
                 : previousState.article,
             saving: {
                 ...previousState.saving,
@@ -538,6 +539,7 @@ const useArticleSaveCoordinator = ({
             messageApi.info(response.message);
         }
         const responseArticle = response.data.article;
+        baseArticle = { ...baseArticle, publishAt: undefined };
         acknowledgedArticleRef.current = responseArticle;
         versionRef.current = responseArticle.version;
         logIdRef.current = responseArticle.logId;
@@ -550,7 +552,7 @@ const useArticleSaveCoordinator = ({
         }
         let nextArticle: ArticleEntry;
         if (create) {
-            nextArticle = {...baseArticle, ...responseArticle};
+            nextArticle = { ...baseArticle, ...responseArticle };
             if (!autoSave && !preserveLocalEdits) {
                 removeLocalArticleCache();
             }
@@ -608,7 +610,7 @@ const useArticleSaveCoordinator = ({
         }
         // A preceding save may have turned this local draft into a persisted article.
         if (!article.logId || article.logId <= 0) {
-            article = {...article, logId: logIdRef.current > 0 ? logIdRef.current : article.logId};
+            article = { ...article, logId: logIdRef.current > 0 ? logIdRef.current : article.logId };
         }
         if (!hasAction("article.publish") && (release || (article.logId && !article.rubbish))) {
             acquiredCreateRelease?.();
@@ -621,11 +623,16 @@ const useArticleSaveCoordinator = ({
             ...article,
             version: versionRef.current,
             rubbish: !release,
-            transparentPublish: release && !autoSave && article.privacy !== true,
+            publishAt: release ? article.publishAt : undefined,
+            transparentPublish:
+                release &&
+                !autoSave &&
+                article.privacy !== true &&
+                !(article.publishAt && article.publishAt > Date.now()),
         };
         if (!article.title) {
             acquiredCreateRelease?.();
-            messageApi.error({content: getRes().articleEdit.requireTitle});
+            messageApi.error({ content: getRes().articleEdit.requireTitle });
             return false;
         }
         if (article.typeId === undefined || article.typeId === null || article.typeId <= 0) {
@@ -636,7 +643,7 @@ const useArticleSaveCoordinator = ({
         if (isOffline()) {
             acquiredCreateRelease?.();
             if (autoSave) {
-                autoSaveOutcomeRef.current = {type: "deferred"};
+                autoSaveOutcomeRef.current = { type: "deferred" };
                 persistToCache(newArticle);
                 return false;
             }
@@ -651,7 +658,7 @@ const useArticleSaveCoordinator = ({
         const releaseCreate = acquiredCreateRelease || draftAiSaveGate.tryBeginCreate(article.logId);
         if (!releaseCreate) {
             if (autoSave) {
-                autoSaveOutcomeRef.current = {type: "aiPending"};
+                autoSaveOutcomeRef.current = { type: "aiPending" };
             } else {
                 void messageApi.error(getRes().articleEdit.aiRequestPending);
             }
@@ -665,16 +672,16 @@ const useArticleSaveCoordinator = ({
             ...previousState,
             saving: release
                 ? {
-                    ...previousState.saving,
-                    releaseSaving: true,
-                    autoSaving: autoSave,
-                }
+                      ...previousState.saving,
+                      releaseSaving: true,
+                      autoSaving: autoSave,
+                  }
                 : {
-                    ...previousState.saving,
-                    rubbishSaving: true,
-                    previewIng: preview,
-                    autoSaving: autoSave,
-                },
+                      ...previousState.saving,
+                      rubbishSaving: true,
+                      previewIng: preview,
+                      autoSaving: autoSave,
+                  },
         }));
         enableExitTips(getRes().articleEdit.editExitWithoutSave);
         let saveSucceeded = false;
@@ -685,13 +692,13 @@ const useArticleSaveCoordinator = ({
             try {
                 const response = newArticle.transparentPublish
                     ? await postArticleWithTransparentPublish(uri, newArticle)
-                    : (await axiosInstance.post(uri, newArticle, autoSave ? ({showError: false} as any) : undefined))
-                        .data;
+                    : (await axiosInstance.post(uri, newArticle, autoSave ? ({ showError: false } as any) : undefined))
+                          .data;
                 responseData = response;
                 if (response.error) {
                     if (response.error === ARTICLE_UPDATE_EXPIRED_ERROR) {
                         if (newArticle.transparentPublish)
-                            updatePublishStatus((previous) => ({...previous, open: false, visible: false}));
+                            updatePublishStatus((previous) => ({ ...previous, open: false, visible: false }));
                         await loadServerArticleForConflict(newArticle);
                         return false;
                     }
@@ -729,16 +736,19 @@ const useArticleSaveCoordinator = ({
                     // Acknowledge this revision before publishing the response to the page cache.
                     // Otherwise a rerender can compare the new server version with the old local draft
                     // and manufacture a conflict. Newer input stays dirty on the acknowledged version.
-                    markDraftSyncedRef.current({article, revision: submittedRevision}, responseData.data.article);
+                    markDraftSyncedRef.current({ article, revision: submittedRevision }, responseData.data.article);
                 }
                 newArticle = handleArticleResponse(
                     responseData,
                     newArticle,
                     create,
                     autoSave,
-                    !newArticle.transparentPublish,
+                    !newArticle.transparentPublish && responseData.data.publicationSchedule?.state !== "failed",
                     preserveLocalEdits
                 );
+                if (responseData.data.publicationSchedule?.state === "failed") {
+                    messageApi.error(responseData.message);
+                }
                 saveSucceeded = true;
                 if (!autoSave && !preserveLocalEdits) {
                     latestAutoSaveTaskRef.current = undefined;
@@ -753,7 +763,7 @@ const useArticleSaveCoordinator = ({
             if (autoSave) {
                 finishAutoSave(saveSucceeded ? newArticle : undefined, create);
             } else if (saveSucceeded) {
-                if (release) {
+                if (!newArticle.rubbish) {
                     updateReleaseState(newArticle, create, preserveLocalEdits);
                 } else {
                     updateRubbishState(newArticle, create, preserveLocalEdits);
@@ -807,12 +817,12 @@ const useArticleSaveCoordinator = ({
             loading: true,
         };
         conflictRef.current = conflict;
-        setState((previous) => ({...previous, contentConflict: conflict}));
+        setState((previous) => ({ ...previous, contentConflict: conflict }));
         try {
-            const {data: response} = await axiosInstance.get<ApiResponse<ArticleEditInfo>>(
+            const { data: response } = await axiosInstance.get<ApiResponse<ArticleEditInfo>>(
                 "/api/admin/article-edit",
                 {
-                    params: {id: logId},
+                    params: { id: logId },
                     showError: false,
                 } as any
             );
@@ -829,7 +839,7 @@ const useArticleSaveCoordinator = ({
                 throw new Error("Stale article version");
             versionRef.current = serverArticle.version;
             loadedArticleRef.current = serverArticle;
-            conflictRef.current = {...conflict, serverVersion: serverArticle.version, loading: false};
+            conflictRef.current = { ...conflict, serverVersion: serverArticle.version, loading: false };
             setState((previousState) => ({
                 ...previousState,
                 article: serverArticle,
@@ -840,8 +850,8 @@ const useArticleSaveCoordinator = ({
             setRestoreInputRevision((revision) => revision + 1);
         } catch (error) {
             if (logIdRef.current !== logId || conflictRef.current !== conflict) return;
-            conflictRef.current = {...conflict, loading: false, loadError: true};
-            setState((previous) => ({...previous, contentConflict: conflictRef.current}));
+            conflictRef.current = { ...conflict, loading: false, loadError: true };
+            setState((previous) => ({ ...previous, contentConflict: conflictRef.current }));
         }
     };
 
@@ -979,7 +989,7 @@ const useArticleSaveCoordinator = ({
             createdArticleRef.current = event.articleId;
             logIdRef.current = event.articleId;
             versionRef.current = -1;
-            setState((previous) => ({...previous, article: {...previous.article, logId: event.articleId}}));
+            setState((previous) => ({ ...previous, article: { ...previous.article, logId: event.articleId } }));
         }
         if (event.articleId !== logIdRef.current || event.version <= versionRef.current) return;
         const latest = latestArticleUpdateRef.current;
@@ -1001,9 +1011,9 @@ const useArticleSaveCoordinator = ({
         let cancelled = false;
         const refresh = async () => {
             try {
-                const {data: response} = await articleRefreshContextRef.current.axiosInstance.get<
+                const { data: response } = await articleRefreshContextRef.current.axiosInstance.get<
                     ApiResponse<ArticleEditInfo>
-                >("/api/admin/article-edit", {params: {id: articleUpdate.articleId}});
+                >("/api/admin/article-edit", { params: { id: articleUpdate.articleId } });
                 // A write can start after this read, before React runs its effect cleanup.
                 if (articleWriteRef.current) await articleWriteRef.current;
                 if (cancelled || articleUpdate.articleId !== logIdRef.current) return;
@@ -1026,13 +1036,13 @@ const useArticleSaveCoordinator = ({
                 const previousConflict = conflictRef.current;
                 const nextConflict: ArticleEditState["contentConflict"] = local
                     ? {
-                        source: "localEdit",
-                        localArticle: previousConflict?.localArticle || local.article,
-                        localVersion: previousConflict?.localVersion ?? local.article.version,
-                        localUpdatedAt: previousConflict?.localUpdatedAt ?? local.updatedAt,
-                        serverVersion: serverArticle.version,
-                        baseArticle: previousConflict?.baseArticle || getArticleDraftBase(local.article),
-                    }
+                          source: "localEdit",
+                          localArticle: previousConflict?.localArticle || local.article,
+                          localVersion: previousConflict?.localVersion ?? local.article.version,
+                          localUpdatedAt: previousConflict?.localUpdatedAt ?? local.updatedAt,
+                          serverVersion: serverArticle.version,
+                          baseArticle: previousConflict?.baseArticle || getArticleDraftBase(local.article),
+                      }
                     : undefined;
                 // Queued writes must see the decision before React renders the refreshed article.
                 conflictRef.current = nextConflict;
@@ -1048,7 +1058,7 @@ const useArticleSaveCoordinator = ({
                 const aiMessages = created
                     ? migrateArticleAiMessageScope(articlePageCacheKey, cacheKey, response.data.aiMessages)
                     : readArticleAiMessages(articlePageCacheKey, currentContext.data.aiMessages);
-                currentContext.updateCache?.({...response.data, aiMessages}, cacheKey);
+                currentContext.updateCache?.({ ...response.data, aiMessages }, cacheKey);
                 if (created) {
                     createdArticleRef.current = undefined;
                     removeLocalArticleCache();
@@ -1142,7 +1152,7 @@ const useArticleSaveCoordinator = ({
             importedDraftCreatePendingRef.current = true;
             subRef.current?.unsubscribe();
             subjectRef.current = null;
-            const {data: response} = await axiosInstance.post<ApiResponse<ArticleEditInfo>>(
+            const { data: response } = await axiosInstance.post<ApiResponse<ArticleEditInfo>>(
                 createUri,
                 {
                     title: article.title,
@@ -1162,7 +1172,7 @@ const useArticleSaveCoordinator = ({
                     transparentPublish: false,
                     preserveDraftAiMessages: true,
                 },
-                {showError: false} as any
+                { showError: false } as any
             );
             const logId = response.data?.article?.logId;
             if (response.error || !logId || logId <= 0) {
@@ -1175,7 +1185,7 @@ const useArticleSaveCoordinator = ({
             updateCache?.(response.data, getLocalCacheKey(url));
             latestAutoSaveTaskRef.current = undefined;
             disableExitTips();
-            navigate(location.pathname + url.search, {replace: false});
+            navigate(location.pathname + url.search, { replace: false });
             succeeded = true;
             return true;
         } catch (_error) {
@@ -1213,7 +1223,7 @@ const useArticleSaveCoordinator = ({
             return undefined;
         }
         try {
-            const {data} = await axiosInstance.post(`/api/admin/article/cover/apply?id=${articleId}`, {
+            const { data } = await axiosInstance.post(`/api/admin/article/cover/apply?id=${articleId}`, {
                 dataUrl: cover.dataUrl,
                 extension: cover.extension,
                 messageId: cover.messageId,
@@ -1238,9 +1248,9 @@ const useArticleSaveCoordinator = ({
                 return;
             }
             resetAutoSaveQueue();
-            setState((previous) => ({...previous, saving: {...previous.saving, rubbishSaving: true}}));
+            setState((previous) => ({ ...previous, saving: { ...previous.saving, rubbishSaving: true } }));
             try {
-                const {data: response} = await axiosInstance.post("/api/admin/article-version/rollback", {
+                const { data: response } = await axiosInstance.post("/api/admin/article-version/rollback", {
                     logId: logIdRef.current,
                     version: versionRef.current,
                     targetVersion,

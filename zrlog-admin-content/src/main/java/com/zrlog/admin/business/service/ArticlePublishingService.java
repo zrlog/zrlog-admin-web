@@ -34,6 +34,9 @@ public class ArticlePublishingService {
     private final MessageCenterOperationService messageCenterOperationService;
     private final AdminArticleService articleService;
     private final ArticleQueryService queries;
+    private final java.util.function.Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler> scheduler;
+    private final AccountPermissionService permissions;
+
 
     private final CacheRefreshService cacheRefresh;
     private final MarkdownRenderer markdownRenderer;
@@ -45,7 +48,11 @@ public class ArticlePublishingService {
             CacheRefreshService cacheRefresh,
             MarkdownRenderer markdownRenderer,
             AdminAuditService adminAuditService,
-            MessageCenterOperationService messageCenterOperationService) {
+            MessageCenterOperationService messageCenterOperationService,
+            java.util.function.Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler> scheduler,
+            AccountPermissionService permissions) {
+        this.scheduler = scheduler;
+        this.permissions = permissions;
         this.adminAuditService = adminAuditService;
         this.messageCenterOperationService = messageCenterOperationService;
 
@@ -53,6 +60,48 @@ public class ArticlePublishingService {
         this.queries = queries;
         this.cacheRefresh = cacheRefresh;
         this.markdownRenderer = Objects.requireNonNull(markdownRenderer);
+    }
+
+    // Standalone content consumers can publish immediately without installing the host scheduler.
+    public ArticlePublishingService(AdminArticleService articles, ArticleQueryService queries, CacheRefreshService cache,
+                                    MarkdownRenderer markdown, AdminAuditService audit, MessageCenterOperationService messages) {
+        this(articles, queries, cache, markdown, audit, messages, () -> null, null);
+    }
+
+    private boolean scheduled(CreateArticleRequest body) {
+        return body.getPublishAt() != null && body.getPublishAt() > System.currentTimeMillis();
+    }
+
+    private boolean preparePublication(AccountAccess actor, CreateArticleRequest body) throws SQLException {
+        if (!scheduled(body)) return false;
+        AccountPermissionService.requireActions(actor, List.of("article.read", "article.update", "article.publish"));
+        if (body.isRubbish() || body.isPrivacy() || scheduler.get() == null) throw new com.zrlog.common.exception.ArgsException("publishAt");
+        if (body instanceof UpdateArticleRequest) {
+            var current = permissions.article(actor, ((UpdateArticleRequest) body).getLogId(), true);
+            if (!AccountAccess.truth(current.get("rubbish"))) throw new com.zrlog.common.exception.ArgsException("publishAt");
+        }
+        body.setRubbish(true);
+        return true;
+    }
+
+    private void schedulePublication(AccountAccess actor, CreateArticleRequest body, CreateOrUpdateArticleResponse saved,
+                                     AdminAuditContext audit, boolean scheduled) {
+        if (!scheduled) {
+            if (!Boolean.TRUE.equals(saved.getRubbish()) && !Boolean.TRUE.equals(saved.getPrivacy()) && scheduler.get() != null) {
+                try { scheduler.get().cancel(actor, saved.getLogId(), audit); }
+                catch (Exception failure) { LOGGER.log(Level.WARNING, "Could not pause the previous publication plan for article " + saved.getLogId(), failure); }
+            }
+            return;
+        }
+        try {
+            saved.setPublicationSchedule(scheduler.get().schedule(actor, saved.getLogId(), saved.getVersion(), body.getTitle(), body.getPublishAt(), audit));
+        } catch (Exception failure) {
+            // The draft is durable already. Return its real ID/version so retrying cannot duplicate the article.
+            var result = new com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule();
+            result.state = "failed"; result.publishAt = body.getPublishAt(); result.articleVersion = saved.getVersion();
+            saved.setPublicationSchedule(result);
+            LOGGER.log(Level.WARNING, "Publication schedule failed for saved draft " + saved.getLogId(), failure);
+        }
     }
 
     public void prepareRequest(CreateArticleRequest request) {
@@ -85,7 +134,7 @@ public class ArticlePublishingService {
     }
 
     public boolean shouldUseTransparentPublishStream(CreateArticleRequest request) {
-        return request.isTransparentPublish() && !request.isRubbish() && !request.isPrivacy();
+        return !scheduled(request) && request.isTransparentPublish() && !request.isRubbish() && !request.isPrivacy();
     }
 
     public boolean isTransparentPublish(CreateArticleRequest request, CreateOrUpdateArticleResponse response) {
@@ -95,7 +144,9 @@ public class ArticlePublishingService {
 
     public CreateOrUpdateArticleResponse create(AccountAccess actor, CreateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
+        boolean scheduled = preparePublication(actor, body);
         CreateOrUpdateArticleResponse response = articleService.create(actor, body);
+        schedulePublication(actor, body, response, audit, scheduled);
         this.adminAuditService.record(audit, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
         recordPublication(body, response, audit);
         return response;
@@ -103,7 +154,9 @@ public class ArticlePublishingService {
 
     public CreateOrUpdateArticleResponse update(AccountAccess actor, UpdateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
+        boolean scheduled = preparePublication(actor, body);
         CreateOrUpdateArticleResponse response = articleService.update(actor, body);
+        schedulePublication(actor, body, response, audit, scheduled);
         recordPublication(body, response, audit);
         return response;
     }
@@ -124,6 +177,12 @@ public class ArticlePublishingService {
             // The article is already saved. Refresh public data now, but do not hold
             // the editor's acknowledgement while plugins regenerate the static site.
             cacheRefresh.updateCache(true, request, List.of(StaticSiteType.BLOG));
+        }
+        detail.getData().setPublicationSchedule(saveResponse.getPublicationSchedule());
+        if (saveResponse.getPublicationSchedule() != null) {
+            detail.setMessage(I18nUtil.getAdminBackendStringFromRes("scheduled".equals(saveResponse.getPublicationSchedule().state)
+                    ? "admin.automation.publish.scheduled" : "admin.automation.publish.scheduleFailed"));
+            return detail;
         }
         boolean saved = Objects.equals(saveResponse.getRubbish(), true)
                 || Objects.equals(saveResponse.getPrivacy(), true);

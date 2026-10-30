@@ -251,6 +251,8 @@ public class AdminArticleService {
         }
         CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
         response.setLogId((long) Double.parseDouble(log.get("logId") + ""));
+        response.setVersion(createArticleRequest instanceof UpdateArticleRequest
+                ? ((UpdateArticleRequest) createArticleRequest).getVersion() + 1 : 0);
         response.setPrivacy(createArticleRequest.isPrivacy());
         response.setRubbish(createArticleRequest.isRubbish());
         response.setPublicCacheRefreshRequired(

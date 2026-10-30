@@ -24,8 +24,9 @@ public final class PluginScheduledTaskProvider implements ScheduledTaskProvider 
         definition.titleKey = "admin.automation.plugins.title";
         definition.descriptionKey = "admin.automation.plugins.description";
         definition.category = "maintenance";
+        definition.systemTask = true;
+        definition.enabledByDefault = true;
         definition.requiredActions = List.of(AccountAction.PLUGIN_MANAGE.getId());
-        definition.requiresAuthorization = true;
         definition.timeoutSeconds = 650;
         definition.available = plugin.get() != null;
         definition.unavailableReasonKey = "admin.automation.plugins.unavailable";

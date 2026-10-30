@@ -1,13 +1,13 @@
-import { Alert, Button, Checkbox, Drawer, Form, InputNumber, Select, Space, Typography } from "antd";
+import { Button, Drawer, Form, InputNumber, Select, Space, Typography } from "antd";
 import Input from "@zrlog/ui/antd/Input";
 import Switch from "@zrlog/ui/antd/Switch";
 import { useEffect } from "react";
 import { getRes } from "../../utils/constants";
-import { hasAction } from "../../utils/account-access";
+import TaskPermissions from "./TaskPermissions";
 import ArticleChoice from "./ArticleChoice";
 import type { Definition, Plan, Schedule } from "./types";
 
-type Values = Omit<Plan, "schedule"> & { schedule: Schedule; atLocal?: string; authorized?: boolean };
+type Values = Omit<Plan, "schedule"> & { schedule: Schedule; atLocal?: string };
 const localInput = (at: number) => {
     const date = new Date(at);
     return new Date(at - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -38,8 +38,7 @@ export default function TaskForm({
         form.setFieldsValue({
             ...plan,
             enabled: plan.enabled ?? true,
-            parameters: { ...plan.parameters, ...defaults },
-            authorized: false,
+            parameters: { ...defaults, ...plan.parameters },
             schedule: {
                 kind: "daily",
                 time: "09:00",
@@ -59,10 +58,6 @@ export default function TaskForm({
             type: values.type,
             enabled: values.enabled,
             parameters: values.parameters ?? {},
-            authorizedActions: [
-                ...(definition.requiresAuthorization ? definition.requiredActions : []),
-                ...(values.authorizedActions ?? []).filter((action) => definition.optionalActions.includes(action)),
-            ],
             schedule: {
                 ...values.schedule,
                 at: ["once", "interval"].includes(values.schedule.kind)
@@ -73,7 +68,7 @@ export default function TaskForm({
     };
     return (
         <Drawer
-            title={plan.id ? res.edit : res.create}
+            title={definition?.systemTask ? definition.title : plan.id ? res.edit : res.create}
             open
             onClose={onClose}
             closable={{ placement: "end" }}
@@ -81,21 +76,26 @@ export default function TaskForm({
             size={480}
         >
             <Form form={form} layout="vertical" disabled={busy} onFinish={save}>
-                <Form.Item name="type" label={res.capability} rules={[{ required: true }]}>
+                <Form.Item
+                    name="type"
+                    label={res.capability}
+                    hidden={!!definition?.systemTask}
+                    rules={[{ required: true }]}
+                >
                     <Select
                         disabled={!!plan.id}
-                        options={definitions.map((item) => ({
-                            value: item.type,
-                            label: item.title,
-                            disabled: !item.available,
-                        }))}
+                        options={definitions
+                            .filter((item) => !!plan.id || !item.systemTask)
+                            .map((item) => ({
+                                value: item.type,
+                                label: item.title,
+                                disabled: !item.available,
+                            }))}
                         onChange={(value) => {
                             const item = definitions.find((item) => item.type === value);
                             form.setFieldsValue({
                                 name: item?.title,
                                 parameters: item?.defaultParameters ?? {},
-                                authorized: false,
-                                authorizedActions: [],
                             });
                             if (item?.defaultSchedule)
                                 form.setFieldValue("schedule", {
@@ -106,7 +106,12 @@ export default function TaskForm({
                     />
                 </Form.Item>
                 <Typography.Paragraph type="secondary">{definition?.description}</Typography.Paragraph>
-                <Form.Item name="name" label={res.name} rules={[{ required: true, whitespace: true }, { max: 160 }]}>
+                <Form.Item
+                    name="name"
+                    label={res.name}
+                    hidden={!!definition?.systemTask}
+                    rules={[{ required: true, whitespace: true }, { max: 160 }]}
+                >
                     <Input maxLength={160} />
                 </Form.Item>
                 {definition?.fields.map((field) => (
@@ -119,12 +124,12 @@ export default function TaskForm({
                     >
                         {field.type === "article" ? (
                             <ArticleChoice
+                                readOnly={!!plan.id}
                                 title={typeof articleTitle === "string" ? articleTitle : undefined}
                                 version={typeof articleVersion === "number" ? articleVersion : undefined}
                                 onConfirm={(title, version) => {
                                     form.setFieldsValue({
                                         parameters: { ...form.getFieldValue("parameters"), title, version },
-                                        authorized: false,
                                     });
                                 }}
                             />
@@ -160,10 +165,12 @@ export default function TaskForm({
                 )}
                 <Form.Item name={["schedule", "kind"]} label={res.kind} rules={[{ required: true }]}>
                     <Select
-                        options={(["once", "interval", "daily", "weekly"] as const).map((value) => ({
-                            value,
-                            label: res[value],
-                        }))}
+                        options={(["once", "interval", "daily", "weekly"] as const)
+                            .filter((value) => !definition?.systemTask || value !== "once")
+                            .map((value) => ({
+                                value,
+                                label: res[value],
+                            }))}
                     />
                 </Form.Item>
                 {["once", "interval"].includes(kind) && (
@@ -195,45 +202,13 @@ export default function TaskForm({
                     </Form.Item>
                 )}
                 <Typography.Paragraph type="secondary">{res.scheduleHelp}</Typography.Paragraph>
-                {!!definition?.optionalActions.length && (
-                    <Form.Item name="authorizedActions" label={res.optionalActions} extra={res.optionalActionsHelp}>
-                        <Checkbox.Group
-                            options={definition.optionalActions.map((action) => ({
-                                value: action,
-                                label:
-                                    getRes().access.actions[
-                                        action as keyof ReturnType<typeof getRes>["access"]["actions"]
-                                    ] ?? action,
-                                disabled: !hasAction(action),
-                            }))}
-                        />
-                    </Form.Item>
-                )}
-                {definition?.requiresAuthorization && (
-                    <>
-                        <Alert type="info" title={res.authorizeHelp} style={{ marginBottom: 16 }} />
-                        <Form.Item
-                            name="authorized"
-                            valuePropName="checked"
-                            rules={[
-                                {
-                                    validator: (_, checked) =>
-                                        checked
-                                            ? Promise.resolve()
-                                            : Promise.reject(new Error(res.authorizationRequired)),
-                                },
-                            ]}
-                        >
-                            <Checkbox>{res.authorize}</Checkbox>
-                        </Form.Item>
-                    </>
-                )}
+                <TaskPermissions actions={definition?.requiredActions ?? []} />
                 <Form.Item name="enabled" label={res.enabled} valuePropName="checked">
                     <Switch />
                 </Form.Item>
                 <Space>
                     <Button type="primary" htmlType="submit" loading={busy} disabled={!definition?.available}>
-                        {res.save}
+                        {definition?.systemTask ? res.saveSettings : res.save}
                     </Button>
                     <Button onClick={onClose}>{res.close}</Button>
                 </Space>

@@ -272,22 +272,17 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void editsUseRevisionChecksAndBoundExplicitAuthorization() throws Exception {
+    public void editsUseRevisionChecksAndServerDerivedAccountPermissions() throws Exception {
         definition.requiredActions = List.of("system.manage");
-        definition.requiresAuthorization = true;
         AutomationModels.Plan plan = plan("once");
-        assertThrows(IllegalArgumentException.class, () -> service.save(actor, plan));
-        plan.authorizedActions = List.of("system.manage");
+        var restricted = actor.restrictActions(List.of("account.session"));
+        assertThrows(PermissionErrorException.class, () -> service.save(restricted, plan));
         StoredTask task = service.save(actor, plan);
+        assertEquals(List.of("system.manage"), task.executionActions);
         AutomationModels.Plan update = plan("once");
-        update.id = task.id;
-        update.revision = task.revision;
-        update.authorizedActions = List.of("system.manage");
+        update.id = task.id; update.revision = task.revision;
         service.save(actor, update);
         assertThrows(IllegalStateException.class, () -> service.save(actor, update));
-        AutomationModels.Plan excessive = plan("once");
-        excessive.authorizedActions = List.of("system.manage", "article.publish");
-        assertThrows(IllegalArgumentException.class, () -> service.save(actor, excessive));
     }
 
     @Test

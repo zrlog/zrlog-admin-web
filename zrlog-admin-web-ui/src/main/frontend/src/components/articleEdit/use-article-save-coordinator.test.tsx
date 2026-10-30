@@ -1,9 +1,9 @@
 import useArticleFieldAi from "./use-article-field-ai";
-import {articleContextRevision} from "./article-ai-assistant/article-ai-skill-contract";
-import {act, SetStateAction, useSyncExternalStore} from "react";
-import {createRoot, Root} from "react-dom/client";
-import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
-import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import { articleContextRevision } from "./article-ai-assistant/article-ai-skill-contract";
+import { act, SetStateAction, useSyncExternalStore } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import {
     articleDataToState,
     articleSaveToCache,
@@ -11,16 +11,16 @@ import {
     getArticleDraftSyncState,
     removeArticleCache,
 } from "../../utils/article-cache";
-import {getCacheByKey, removeCacheDataByKey} from "../../utils/cache";
-import {disableExitTips} from "../../utils/helpers";
-import {AIProviderType} from "../../type";
-import {ArticleEditInfo, ArticleEditState, ArticleEntry} from "./index.types";
-import {ToolAwareAIContent} from "./article-ai-assistant/article-ai-assistant.types";
+import { getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
+import { disableExitTips } from "../../utils/helpers";
+import { AIProviderType } from "../../type";
+import { ArticleEditInfo, ArticleEditState, ArticleEntry } from "./index.types";
+import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
 import useArticleEditorDocument from "./use-article-editor-document";
-import {createDraftAiSaveGate, DraftAiSaveGate} from "./draft-ai-save-gate";
-import {ArticleDraftSyncTask} from "./draft-sync/use-article-draft-sync";
-import {hasAction} from "../../utils/account-access";
+import { createDraftAiSaveGate, DraftAiSaveGate } from "./draft-ai-save-gate";
+import { ArticleDraftSyncTask } from "./draft-sync/use-article-draft-sync";
+import { hasAction } from "../../utils/account-access";
 
 let mockOffline = false;
 let mockUseRealDraftSync = false;
@@ -44,12 +44,12 @@ let mockDraftSyncApi: Record<string, ReturnType<typeof jest.fn>> | undefined;
 // Use the package's real CommonJS build with CRA's Jest resolver.
 jest.mock("@marijn/find-cluster-break", () => require("@marijn/find-cluster-break/dist/index.cjs"));
 
-jest.mock("../../utils/account-access", () => ({hasAction: require("@jest/globals").jest.fn(() => true)}));
+jest.mock("../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn(() => true) }));
 
-jest.mock("./version-sync/use-article-version-sync", () => ({__esModule: true, default: () => ({})}));
+jest.mock("./version-sync/use-article-version-sync", () => ({ __esModule: true, default: () => ({}) }));
 
 jest.mock("antd", () => ({
-    Space: ({children}: { children?: unknown }) => children,
+    Space: ({ children }: { children?: unknown }) => children,
 }));
 
 jest.mock("../../utils/constants", () => ({
@@ -58,7 +58,7 @@ jest.mock("../../utils/constants", () => ({
     getRes: () => ({
         articleEdit: {
             aiRequestPending: "Wait for the assistant request",
-            assistant: {saveInProgress: "Save in progress"},
+            assistant: { saveInProgress: "Save in progress" },
             coverApplySuccess: "Cover applied",
             editExitWithoutSave: "Unsaved",
             markdownImport: {
@@ -67,16 +67,16 @@ jest.mock("../../utils/constants", () => ({
                 offlineCreateUnavailable: "Reconnect before importing",
                 waitForCurrentSave: "Wait for the current save",
             },
-            publishReview: {offline: "Reconnect before publishing"},
+            publishReview: { offline: "Reconnect before publishing" },
             requireTitle: "Title required",
             requireType: "Category required",
             saveFailed: "Save failed",
         },
-        error: {unknown: "Unknown error"},
+        error: { unknown: "Unknown error" },
     }),
 }));
 
-jest.mock("../../utils/env-utils", () => ({isOffline: () => mockOffline}));
+jest.mock("../../utils/env-utils", () => ({ isOffline: () => mockOffline }));
 jest.mock("../../utils/article-cache", () => ({
     articleDataToState: require("@jest/globals").jest.fn(),
     articleSaveToCache: require("@jest/globals").jest.fn(),
@@ -167,7 +167,7 @@ const initialArticle = {
 };
 
 const createState = (articleEditInfo: ArticleEditInfo): ArticleEditState => ({
-    typeOptions: [{value: 1, label: "General"}],
+    typeOptions: [{ value: 1, label: "General" }],
     tags: [],
     aiProvider: AIProviderType.OPEN_AI,
     aiConfigured: false,
@@ -179,7 +179,7 @@ const createState = (articleEditInfo: ArticleEditInfo): ArticleEditState => ({
     rubbish: true,
     editorVersion: 3,
     contentSource: "server",
-    article: {...articleEditInfo.article},
+    article: { ...articleEditInfo.article },
     saving: {
         rubbishSaving: false,
         previewIng: false,
@@ -189,8 +189,8 @@ const createState = (articleEditInfo: ArticleEditInfo): ArticleEditState => ({
 });
 
 const data: ArticleEditInfo = {
-    article: {...initialArticle},
-    types: [{id: 1, typeName: "General"}],
+    article: { ...initialArticle },
+    types: [{ id: 1, typeName: "General" }],
     tags: [],
     aiProvider: AIProviderType.OPEN_AI,
     aiConfigured: false,
@@ -207,14 +207,14 @@ type Deferred<T> = {
     reject: (reason: unknown) => void;
 };
 
-const deferred = <T, >(): Deferred<T> => {
+const deferred = <T,>(): Deferred<T> => {
     let resolve!: (value: T) => void;
     let reject!: (reason: unknown) => void;
     const promise = new Promise<T>((resolvePromise, rejectPromise) => {
         resolve = resolvePromise;
         reject = rejectPromise;
     });
-    return {promise, resolve, reject};
+    return { promise, resolve, reject };
 };
 
 describe("useArticleSaveCoordinator publish outcomes", () => {
@@ -244,13 +244,13 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             draftAiSaveGate.getPendingAiCount
         );
         coordinator = useArticleSaveCoordinator({
-            aliasRef: {current: null},
-            axiosInstance: {post: mockArticlePost, get: mockArticleGet} as never,
+            aliasRef: { current: null },
+            axiosInstance: { post: mockArticlePost, get: mockArticleGet } as never,
             data: harnessData,
             draftAiPendingCount,
             draftAiSaveGate,
-            digestRef: {current: null},
-            editCardRef: {current: container},
+            digestRef: { current: null },
+            editCardRef: { current: container },
             location: harnessLocation as never,
             messageApi: messageApi as never,
             modal: modal as never,
@@ -276,11 +276,11 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     const remountWith = (nextData: ArticleEditInfo, search = "") => {
         act(() => root.unmount());
         harnessData = nextData;
-        harnessLocation = {pathname: "/article-edit", search, key: "draft-location"};
+        harnessLocation = { pathname: "/article-edit", search, key: "draft-location" };
         mockDraftSyncApi = undefined;
         window.history.replaceState({}, "", `/article-edit${search}`);
         root = createRoot(container);
-        act(() => root.render(<Harness/>));
+        act(() => root.render(<Harness />));
     };
 
     beforeEach(() => {
@@ -304,14 +304,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             mockPageCache.delete(cacheKey);
         });
         harnessData = data;
-        harnessLocation = {pathname: "/article-edit", search: "?id=7", key: "article-location"};
+        harnessLocation = { pathname: "/article-edit", search: "?id=7", key: "article-location" };
         updateCache = jest.fn((cache, cacheKey) => {
             mockPageCache.set(cacheKey, cache);
         });
         mockPageCache.set("/article-edit?id=7", data);
         window.history.replaceState({}, "", "/article-edit?id=7");
-        messageApi = {error: jest.fn(), info: jest.fn(), success: jest.fn(), warning: jest.fn()};
-        modal = {error: jest.fn()};
+        messageApi = { error: jest.fn(), info: jest.fn(), success: jest.fn(), warning: jest.fn() };
+        modal = { error: jest.fn() };
         migrateUiStateToArticle = jest.fn();
         navigate = jest.fn();
         draftAiSaveGate = createDraftAiSaveGate();
@@ -319,7 +319,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
-        act(() => root.render(<Harness/>));
+        act(() => root.render(<Harness />));
     });
 
     afterEach(() => {
@@ -350,19 +350,19 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             jest.useFakeTimers();
             mockUseRealDraftSync = true;
             const realCache = enableRealCacheFeedback();
-            const publishedData = {...data, article: {...initialArticle, rubbish: false}};
+            const publishedData = { ...data, article: { ...initialArticle, rubbish: false } };
             remountWith(publishedData, "?id=7");
             mockArticlePost.mockImplementation(async (_uri, body) => {
                 const article = body as ArticleEntry;
-                return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+                return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
             });
             expect(coordinator.state.aiConfigured).toBe(false);
             expect(coordinator.state.rubbish).toBe(false);
-            act(() => coordinator.handleValuesChange({title: publishedData.article.title}));
+            act(() => coordinator.handleValuesChange({ title: publishedData.article.title }));
             await act(async () => jest.advanceTimersByTime(5000));
             expect(mockArticlePost).not.toHaveBeenCalled();
             expect(coordinator.state.rubbish).toBe(false);
-            act(() => editorDocument.onChange({value: "Manual body", previewContent: "<p>Manual body</p>"}));
+            act(() => editorDocument.onChange({ value: "Manual body", previewContent: "<p>Manual body</p>" }));
             expect(coordinator.state.contentSource).toBe("localEdit");
             expect(coordinator.state.rubbish).toBe(true);
             expect(realCache.getLocalArticleCaches()[0].article.rubbish).toBe(true);
@@ -378,7 +378,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             expect(coordinator.state.contentSource).toBe("server");
             expect(coordinator.isSaving).toBe(false);
             expect(realCache.getLocalArticleCaches()).toEqual([]);
-            act(() => editorDocument.onChange({value: "Second edit", previewContent: "<p>Second edit</p>"}));
+            act(() => editorDocument.onChange({ value: "Second edit", previewContent: "<p>Second edit</p>" }));
             await act(async () => jest.advanceTimersByTime(5000));
             expect(mockArticlePost).toHaveBeenCalledTimes(2);
             expect(mockArticlePost.mock.calls[1][1]).toMatchObject({
@@ -391,7 +391,39 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             await act(async () => jest.advanceTimersByTime(5000));
             expect(mockArticlePost).toHaveBeenCalledTimes(2);
             expect(mockPostPublish).not.toHaveBeenCalled();
-            expect(coordinator.state.article).toMatchObject({markdown: "Second edit", rubbish: true, version: 5});
+            expect(coordinator.state.article).toMatchObject({ markdown: "Second edit", rubbish: true, version: 5 });
+        }
+    );
+
+    it.each(["scheduled", "failed"])(
+        "keeps the saved article a draft after a %s publication schedule",
+        async (state) => {
+            const publishAt = Date.now() + 3600000;
+            mockArticlePost.mockResolvedValueOnce({
+                data: {
+                    error: 0,
+                    message: state,
+                    data: {
+                        ...data,
+                        article: { ...initialArticle, rubbish: true, version: 4 },
+                        publicationSchedule: { state, publishAt, articleVersion: 4 },
+                    },
+                },
+            });
+            await act(async () => {
+                await coordinator.onSubmit({ ...initialArticle, publishAt }, true, false, false);
+            });
+            expect(mockPostPublish).not.toHaveBeenCalled();
+            expect(mockArticlePost).toHaveBeenCalledWith(
+                "/api/admin/article/update",
+                expect.objectContaining({ publishAt, rubbish: false, transparentPublish: false }),
+                undefined
+            );
+            expect(coordinator.state.rubbish).toBe(true);
+            expect(coordinator.state.article.version).toBe(4);
+            expect(coordinator.state.article.publishAt).toBeUndefined();
+            expect(coordinator.isSaving).toBe(false);
+            if (state === "failed") expect(messageApi.error).toHaveBeenCalledWith("failed");
         }
     );
 
@@ -399,12 +431,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         jest.useFakeTimers();
         mockUseRealDraftSync = true;
         const realCache = enableRealCacheFeedback();
-        const published = {...initialArticle, rubbish: false};
-        realCache.articleSaveToCache({...published, markdown: "Previously unsynced body"});
-        remountWith({...data, article: published}, "?id=7");
+        const published = { ...initialArticle, rubbish: false };
+        realCache.articleSaveToCache({ ...published, markdown: "Previously unsynced body" });
+        remountWith({ ...data, article: published }, "?id=7");
         mockArticlePost.mockImplementation(async (_uri, body) => {
             const article = body as ArticleEntry;
-            return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
         });
         expect(coordinator.state.rubbish).toBe(true);
         await act(async () => jest.advanceTimersByTime(5000));
@@ -426,12 +458,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             jest.useFakeTimers();
             mockUseRealDraftSync = true;
             const realCache = enableRealCacheFeedback();
-            const publishedData = {...data, article: {...initialArticle, rubbish: false}};
+            const publishedData = { ...data, article: { ...initialArticle, rubbish: false } };
             mockPageCache.set("/article-edit?id=7", publishedData);
             remountWith(publishedData, "?id=7");
             mockArticlePost.mockImplementation(async (_uri, body) => {
                 const article = body as ArticleEntry;
-                return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+                return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
             });
             const source: ToolAwareAIContent = {
                 role: "assistant",
@@ -445,11 +477,11 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     applicableFields: ["title"],
                 },
             };
-            act(() => fieldAi.applyGeneratedValues({title: "AI title"}, source));
+            act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, source));
             expect(coordinator.state.rubbish).toBe(true);
             expect(realCache.getLocalArticleCaches()[0].article.rubbish).toBe(true);
             // The assistant continues updating its conversation after applying a result.
-            act(() => coordinator.updateAiMessageCache([{role: "assistant", content: "Done", thinking: false}], 7));
+            act(() => coordinator.updateAiMessageCache([{ role: "assistant", content: "Done", thinking: false }], 7));
             if (reloadBeforeSave) remountWith(harnessData, "?id=7");
             await act(async () => jest.advanceTimersByTime(5000));
             expect(mockArticlePost).toHaveBeenCalledTimes(1);
@@ -464,7 +496,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             expect(coordinator.isSaving).toBe(false);
             expect(realCache.getLocalArticleCaches()).toEqual([]);
 
-            act(() => coordinator.handleValuesChange({markdown: "Manual body", content: "<p>Manual body</p>"}));
+            act(() => coordinator.handleValuesChange({ markdown: "Manual body", content: "<p>Manual body</p>" }));
             await act(async () => jest.advanceTimersByTime(5000));
             expect(mockArticlePost).toHaveBeenCalledTimes(2);
             expect(mockArticlePost.mock.calls[1][1]).toMatchObject({
@@ -481,7 +513,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             expect(coordinator.state).toMatchObject({
                 contentSource: "server",
                 rubbish: true,
-                article: {title: "AI title", markdown: "Manual body", rubbish: true, version: 5},
+                article: { title: "AI title", markdown: "Manual body", rubbish: true, version: 5 },
             });
         }
     );
@@ -494,12 +526,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         mockArticlePost.mockImplementation(async (_uri, body) => {
             const article = body as ArticleEntry;
             return {
-                data: {error: 0, data: {...harnessData, article: {...article, version: article.version + 1}}},
+                data: { error: 0, data: { ...harnessData, article: { ...article, version: article.version + 1 } } },
             };
         });
-        act(() => fieldAi.applyGeneratedValues({title: "AI title"}));
-        harnessData = {...harnessData, articleEditAutoSaveInterval: 2};
-        act(() => root.render(<Harness/>));
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }));
+        harnessData = { ...harnessData, articleEditAutoSaveInterval: 2 };
+        act(() => root.render(<Harness />));
         await act(async () => jest.advanceTimersByTime(5000));
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
         expect(coordinator.state.contentSource).toBe("server");
@@ -510,25 +542,25 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         jest.useFakeTimers();
         mockUseRealDraftSync = true;
         const realCache = enableRealCacheFeedback();
-        const publishedData = {...data, article: {...initialArticle, rubbish: false}};
+        const publishedData = { ...data, article: { ...initialArticle, rubbish: false } };
         remountWith(publishedData, "?id=7");
         const earlierSave = deferred<any>();
         mockArticlePost.mockImplementationOnce(async () => earlierSave.promise);
         mockArticlePost.mockImplementation(async (_uri, body) => {
             const article = body as ArticleEntry;
-            return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
         });
-        act(() => coordinator.handleValuesChange({title: "Earlier edit"}));
+        act(() => coordinator.handleValuesChange({ title: "Earlier edit" }));
         await act(async () => jest.advanceTimersByTime(5000));
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
-        act(() => fieldAi.applyGeneratedValues({title: "AI title"}));
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }));
         await act(async () =>
             earlierSave.resolve({
                 data: {
                     error: 0,
                     data: {
                         ...publishedData,
-                        article: {...publishedData.article, title: "Earlier edit", rubbish: true, version: 4},
+                        article: { ...publishedData.article, title: "Earlier edit", rubbish: true, version: 4 },
                     },
                 },
             })
@@ -536,7 +568,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(coordinator.state).toMatchObject({
             contentSource: "localEdit",
             rubbish: true,
-            article: {title: "AI title", rubbish: true, version: 4},
+            article: { title: "AI title", rubbish: true, version: 4 },
         });
         expect(coordinator.isSaving).toBe(false);
         expect(coordinator.state.contentConflict).toBeUndefined();
@@ -560,9 +592,9 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         remountWith(data, "?id=7");
         mockArticlePost.mockImplementation(async (_uri, body) => {
             const article = body as ArticleEntry;
-            return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
         });
-        act(() => fieldAi.applyGeneratedValues({title: "AI title"}));
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }));
         expect(coordinator.state.contentSource).toBe("localEdit");
         await act(async () => {
             jest.advanceTimersByTime(5000);
@@ -571,21 +603,21 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(coordinator.state.contentSource).toBe("server");
         expect(coordinator.state.contentConflict).toBeUndefined();
         expect(realCache.getLocalArticleCaches()).toEqual([]);
-        act(() => coordinator.updateAiMessageCache([{role: "assistant", content: "Done", thinking: false}], 7));
+        act(() => coordinator.updateAiMessageCache([{ role: "assistant", content: "Done", thinking: false }], 7));
         expect(coordinator.state.contentSource).toBe("server");
         expect(coordinator.state.contentConflict).toBeUndefined();
-        act(() => coordinator.handleValuesChange({markdown: "Manual body", content: "<p>Manual body</p>"}));
+        act(() => coordinator.handleValuesChange({ markdown: "Manual body", content: "<p>Manual body</p>" }));
         await act(async () => {
             jest.advanceTimersByTime(5000);
         });
         expect(mockArticlePost).toHaveBeenCalledTimes(2);
-        expect(coordinator.state.article).toMatchObject({title: "AI title", markdown: "Manual body", version: 5});
+        expect(coordinator.state.article).toMatchObject({ title: "AI title", markdown: "Manual body", version: 5 });
         expect(coordinator.state.contentSource).toBe("server");
         expect(realCache.getLocalArticleCaches()).toEqual([]);
         remountWith(harnessData, "?id=7");
         expect(coordinator.state.contentSource).toBe("server");
         expect(coordinator.state.contentConflict).toBeUndefined();
-        expect(coordinator.state.article).toMatchObject({title: "AI title", markdown: "Manual body", version: 5});
+        expect(coordinator.state.article).toMatchObject({ title: "AI title", markdown: "Manual body", version: 5 });
     });
 
     it.each([false, true])(
@@ -596,7 +628,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             remountWith(data, "?id=7");
             mockArticlePost.mockImplementation(async (_uri, body) => {
                 const article = body as ArticleEntry;
-                return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+                return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
             });
             const skill = (field: string, index: number): ToolAwareAIContent => ({
                 role: "assistant",
@@ -610,7 +642,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     applicableFields: [field],
                 },
             });
-            act(() => fieldAi.applyGeneratedValues({title: "AI title"}, skill("title", 1)));
+            act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, skill("title", 1)));
             if (saveBetween) {
                 await act(async () => {
                     jest.advanceTimersByTime(5000);
@@ -619,9 +651,9 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 expect(coordinator.state.article.version).toBe(4);
             }
             act(() => {
-                fieldAi.applyGeneratedValues({digest: "AI digest"}, skill("digest", 2));
-                fieldAi.applyGeneratedValues({keywords: "AI,writing"}, skill("keywords", 3));
-                fieldAi.applyGeneratedValues({markdown: "AI body"}, skill("markdown", 4));
+                fieldAi.applyGeneratedValues({ digest: "AI digest" }, skill("digest", 2));
+                fieldAi.applyGeneratedValues({ keywords: "AI,writing" }, skill("keywords", 3));
+                fieldAi.applyGeneratedValues({ markdown: "AI body" }, skill("markdown", 4));
             });
             await act(async () => {
                 jest.advanceTimersByTime(5000);
@@ -635,12 +667,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     markdown: "AI body",
                     version: saveBetween ? 4 : 3,
                 }),
-                {showError: false}
+                { showError: false }
             );
             expect(coordinator.state.article.version).toBe(saveBetween ? 5 : 4);
             expect(coordinator.state.contentSource).toBe("server");
             const writes = mockArticlePost.mock.calls.length;
-            act(() => fieldAi.applyGeneratedValues({keywords: "AI,writing"}, skill("keywords", 3)));
+            act(() => fieldAi.applyGeneratedValues({ keywords: "AI,writing" }, skill("keywords", 3)));
             await act(async () => {
                 jest.advanceTimersByTime(5000);
             });
@@ -657,7 +689,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         mockArticlePost.mockImplementationOnce(async () => firstSave.promise);
         mockArticlePost.mockImplementation(async (_uri, body) => {
             const article = body as ArticleEntry;
-            return {data: {error: 0, data: {...data, article: {...article, version: article.version + 1}}}};
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
         });
         const source: ToolAwareAIContent = {
             role: "assistant",
@@ -671,18 +703,18 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 applicableFields: ["title", "digest", "keywords"],
             },
         };
-        act(() => fieldAi.applyGeneratedValues({title: "AI title"}, source));
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, source));
         await act(async () => {
             jest.advanceTimersByTime(5000);
         });
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
         act(() => {
-            fieldAi.applyGeneratedValues({digest: "AI digest"}, {...source, messageId: "run-1:skill:1:2"});
-            fieldAi.applyGeneratedValues({keywords: "AI,writing"}, {...source, messageId: "run-1:skill:1:3"});
+            fieldAi.applyGeneratedValues({ digest: "AI digest" }, { ...source, messageId: "run-1:skill:1:2" });
+            fieldAi.applyGeneratedValues({ keywords: "AI,writing" }, { ...source, messageId: "run-1:skill:1:3" });
         });
         await act(async () => {
             firstSave.resolve({
-                data: {error: 0, data: {...data, article: {...initialArticle, title: "AI title", version: 4}}},
+                data: { error: 0, data: { ...data, article: { ...initialArticle, title: "AI title", version: 4 } } },
             });
         });
         expect(coordinator.getCurrentArticle()).toMatchObject({
@@ -702,7 +734,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 keywords: "AI,writing",
                 version: 4,
             }),
-            {showError: false}
+            { showError: false }
         );
         expect(coordinator.state.article.version).toBe(5);
         expect(coordinator.state.contentSource).toBe("server");
@@ -733,14 +765,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 applicableFields: ["title"],
             },
         };
-        act(() => fieldAi.applyGeneratedValues({title: "AI title"}, source));
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, source));
         mockArticleGet.mockResolvedValue({
-            data: {error: 0, data: {...data, article: {...initialArticle, title: "Server title", version: 4}}},
+            data: { error: 0, data: { ...data, article: { ...initialArticle, title: "Server title", version: 4 } } },
         });
-        await act(async () => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         expect(coordinator.state.contentConflict).toBeDefined();
         const before = coordinator.getCurrentArticle();
-        act(() => fieldAi.applyGeneratedValues({title: "Another AI title"}, source));
+        act(() => fieldAi.applyGeneratedValues({ title: "Another AI title" }, source));
         expect(coordinator.getCurrentArticle()).toBe(before);
         expect(mockArticlePost).not.toHaveBeenCalled();
     });
@@ -748,14 +780,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("reloads the assistant's saved article and preserves the streaming conversation", async () => {
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);
-        const updated = {...initialArticle, title: "AI title", markdown: "AI body", version: 4, rubbish: false};
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
-        const conversation = [{role: "assistant" as const, content: "Still writing", thinking: false}];
+        const updated = { ...initialArticle, title: "AI title", markdown: "AI body", version: 4, rubbish: false };
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        const conversation = [{ role: "assistant" as const, content: "Still writing", thinking: false }];
         act(() => coordinator.updateAiMessageCache(conversation, 7));
         await act(async () => {
-            request.resolve({data: {error: 0, data: {...data, article: updated}}});
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
         });
-        expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", {params: {id: 7}});
+        expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", { params: { id: 7 } });
         expect(coordinator.state.article).toEqual(updated);
         expect(coordinator.state.editorVersion).toBe(4);
         expect(coordinator.state.rubbish).toBe(false);
@@ -767,8 +799,8 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             aiMessages: conversation,
         });
         act(() => {
-            coordinator.onArticleUpdated({articleId: 7, version: 4});
-            coordinator.onArticleUpdated({articleId: 8, version: 5});
+            coordinator.onArticleUpdated({ articleId: 7, version: 4 });
+            coordinator.onArticleUpdated({ articleId: 8, version: 5 });
         });
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
     });
@@ -778,13 +810,13 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         remountWith(data, "?id=7");
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);
-        act(() => coordinator.handleValuesChange({title: "AI title"}));
+        act(() => coordinator.handleValuesChange({ title: "AI title" }));
         expect(coordinator.state.contentSource).toBe("localEdit");
         const local = coordinator.state.article;
-        const updated = {...local, version: 4, lastUpdateDate: 456};
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        const updated = { ...local, version: 4, lastUpdateDate: 456 };
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         await act(async () => {
-            request.resolve({data: {error: 0, data: {...data, article: updated}}});
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
         });
         expect(coordinator.state.article).toEqual(updated);
         expect(coordinator.state.editorVersion).toBe(4);
@@ -793,22 +825,22 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(coordinator.state.contentConflict).toBeUndefined();
         expect(removeArticleCache).toHaveBeenCalledWith(local);
         expect(mockArticlePost).not.toHaveBeenCalled();
-        act(() => coordinator.handleValuesChange({digest: "New local edit"}));
-        expect(coordinator.state.article).toEqual({...updated, digest: "New local edit"});
+        act(() => coordinator.handleValuesChange({ digest: "New local edit" }));
+        expect(coordinator.state.article).toEqual({ ...updated, digest: "New local edit" });
         expect(coordinator.state.contentSource).toBe("localEdit");
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
         expect(coordinator.state.contentSource).toBe("localEdit");
         expect(coordinator.state.article.digest).toBe("New local edit");
         mockArticlePost.mockResolvedValue({
-            data: {error: 0, data: {...data, article: {...coordinator.state.article, version: 5}}},
+            data: { error: 0, data: { ...data, article: { ...coordinator.state.article, version: 5 } } },
         });
         await act(async () => {
             await coordinator.onSubmit(coordinator.state.article, false, false, false);
         });
         expect(mockArticlePost).toHaveBeenCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({logId: 7, version: 4, digest: "New local edit"}),
+            expect.objectContaining({ logId: 7, version: 4, digest: "New local edit" }),
             undefined
         );
     });
@@ -816,26 +848,26 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("coalesces duplicate and older notifications while a newer refresh is pending", async () => {
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 5}));
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 5}));
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
-        const updated = {...initialArticle, title: "Latest saved title", version: 5};
+        const updated = { ...initialArticle, title: "Latest saved title", version: 5 };
         await act(async () => {
-            request.resolve({data: {error: 0, data: {...data, article: updated}}});
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
         });
         expect(coordinator.state.article).toEqual(updated);
         expect(coordinator.restoreInputRevision).toBe(1);
         expect(mockDraftSyncApi!.receiveServerArticle).toHaveBeenCalledTimes(1);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
     });
 
     it.each([-1, 1.5, NaN, undefined])(
         "ignores invalid notification version %s before reserving a created article",
         (version) => {
-            remountWith({...data, article: {title: "", version: -1, rubbish: true}});
-            act(() => coordinator.onArticleUpdated({articleId: 18, version: version as number, created: true}));
+            remountWith({ ...data, article: { title: "", version: -1, rubbish: true } });
+            act(() => coordinator.onArticleUpdated({ articleId: 18, version: version as number, created: true }));
             expect(mockArticleGet).not.toHaveBeenCalled();
             expect(coordinator.state.article.logId).toBeUndefined();
         }
@@ -845,31 +877,31 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         "does not acknowledge response version %s for a version 5 notification",
         async (version) => {
             mockArticleGet.mockResolvedValueOnce({
-                data: {error: 0, data: {...data, article: {...initialArticle, title: "Stale response", version}}},
+                data: { error: 0, data: { ...data, article: { ...initialArticle, title: "Stale response", version } } },
             });
-            await act(async () => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+            await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
             expect(coordinator.state.article).toEqual(initialArticle);
             expect(mockDraftSyncApi!.receiveServerArticle).not.toHaveBeenCalled();
             expect(coordinator.restoreInputRevision).toBe(0);
-            const updated = {...initialArticle, title: "Fresh response", version: 5};
-            mockArticleGet.mockResolvedValueOnce({data: {error: 0, data: {...data, article: updated}}});
-            await act(async () => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+            const updated = { ...initialArticle, title: "Fresh response", version: 5 };
+            mockArticleGet.mockResolvedValueOnce({ data: { error: 0, data: { ...data, article: updated } } });
+            await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
             expect(coordinator.state.article).toEqual(updated);
             expect(mockDraftSyncApi!.receiveServerArticle).toHaveBeenCalledTimes(1);
         }
     );
 
     it("retains the newest notified version after a read failure and retries without repeating the write", async () => {
-        mockArticleGet.mockResolvedValueOnce({data: {error: 1, message: "Read failed"}});
-        await act(async () => coordinator.onArticleUpdated({articleId: 7, version: 5}));
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        mockArticleGet.mockResolvedValueOnce({ data: { error: 1, message: "Read failed" } });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
-        const updated = {...initialArticle, version: 6};
-        mockArticleGet.mockResolvedValueOnce({data: {error: 0, data: {...data, article: updated}}});
-        await act(async () => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+        const updated = { ...initialArticle, version: 6 };
+        mockArticleGet.mockResolvedValueOnce({ data: { error: 0, data: { ...data, article: updated } } });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
         expect(coordinator.state.article.version).toBe(6);
         expect(mockDraftSyncApi!.receiveServerArticle).toHaveBeenCalledTimes(1);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 6}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 6 }));
         expect(mockArticleGet).toHaveBeenCalledTimes(2);
         expect(mockArticlePost).not.toHaveBeenCalled();
     });
@@ -881,10 +913,10 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => {
             pending = coordinator.onSubmit(initialArticle, false, false, false);
         });
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
-        const updated = {...initialArticle, title: "Saved locally", version: 5};
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        const updated = { ...initialArticle, title: "Saved locally", version: 5 };
         await act(async () => {
-            saving.resolve({data: {error: 0, data: {...data, article: updated}}});
+            saving.resolve({ data: { error: 0, data: { ...data, article: updated } } });
             await pending;
         });
         expect(mockArticleGet).not.toHaveBeenCalled();
@@ -897,16 +929,16 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         const saving = deferred<any>();
         mockArticleGet.mockReturnValue(reading.promise);
         mockArticlePost.mockReturnValue(saving.promise);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         let pending!: Promise<boolean>;
         act(() => {
             pending = coordinator.onSubmit(initialArticle, false, false, false);
         });
-        const updated = {...initialArticle, title: "Manual save", version};
+        const updated = { ...initialArticle, title: "Manual save", version };
         await act(async () => {
-            saving.resolve({data: {error: 0, data: {...data, article: updated}}});
+            saving.resolve({ data: { error: 0, data: { ...data, article: updated } } });
             await pending;
-            reading.resolve({data: {error: 0, data: {...data, article: {...initialArticle, version: 4}}}});
+            reading.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
         });
         expect(coordinator.state.article).toMatchObject(updated);
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
@@ -917,59 +949,59 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("does not restore an older page snapshot after applying an AI update", async () => {
         mockUseRealDraftSync = true;
         remountWith(data, "?id=7");
-        const updated = {...initialArticle, title: "AI saved title", version: 5};
-        mockArticleGet.mockResolvedValue({data: {error: 0, data: {...data, article: updated}}});
-        await act(async () => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+        const updated = { ...initialArticle, title: "AI saved title", version: 5 };
+        mockArticleGet.mockResolvedValue({ data: { error: 0, data: { ...data, article: updated } } });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
         act(() => {
-            harnessData = {...data, article: {...initialArticle}};
-            root.render(<Harness/>);
+            harnessData = { ...data, article: { ...initialArticle } };
+            root.render(<Harness />);
         });
         expect(coordinator.state.article).toEqual(updated);
         expect(coordinator.state.editorVersion).toBe(5);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
     });
 
     it("loads an AI-created draft, migrates the editor session, and updates it on the next save", async () => {
-        const draft = {...data, article: {title: "", version: -1, rubbish: true}};
+        const draft = { ...data, article: { title: "", version: -1, rubbish: true } };
         remountWith(draft);
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);
-        const conversation = [{role: "assistant" as const, content: "Draft saved", thinking: false}];
+        const conversation = [{ role: "assistant" as const, content: "Draft saved", thinking: false }];
         act(() => coordinator.updateAiMessageCache(conversation, 0));
-        act(() => coordinator.onArticleUpdated({articleId: 18, version: 0, created: true}));
+        act(() => coordinator.onArticleUpdated({ articleId: 18, version: 0, created: true }));
         expect(coordinator.state.article.logId).toBe(18);
-        const created = {...initialArticle, logId: 18, title: "AI draft", markdown: "AI body", version: 0};
+        const created = { ...initialArticle, logId: 18, title: "AI draft", markdown: "AI body", version: 0 };
         navigate.mockImplementation(() => {
             expect(mockPageCache.get("/article-edit?id=18")?.article).toEqual(created);
         });
-        await act(async () => request.resolve({data: {error: 0, data: {...data, article: created}}}));
-        expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", {params: {id: 18}});
+        await act(async () => request.resolve({ data: { error: 0, data: { ...data, article: created } } }));
+        expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", { params: { id: 18 } });
         expect(coordinator.state.article).toEqual(created);
         expect(coordinator.state.aiMessages).toEqual(conversation);
         expect(coordinator.restoreInputRevision).toBe(1);
         expect(migrateUiStateToArticle).toHaveBeenCalledWith(18);
         expect(navigate).toHaveBeenCalledWith("/article-edit?id=18", {
             replace: true,
-            state: {articleCreatedFrom: "draft-location"},
+            state: { articleCreatedFrom: "draft-location" },
         });
         expect(mockPageCache.get("/article-edit?id=18")?.aiMessages).toEqual(conversation);
         expect(mockPageCache.has("/article-edit")).toBe(false);
         mockArticlePost.mockResolvedValue({
-            data: {error: 0, data: {...data, article: {...created, version: 1}}},
+            data: { error: 0, data: { ...data, article: { ...created, version: 1 } } },
         });
         await act(async () => {
             await coordinator.onSubmit(coordinator.state.article, false, false, false);
         });
         expect(mockArticlePost).toHaveBeenCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({logId: 18, version: 0}),
+            expect.objectContaining({ logId: 18, version: 0 }),
             undefined
         );
     });
 
     it("does not switch an existing article to an AI-created article", () => {
-        act(() => coordinator.onArticleUpdated({articleId: 18, version: 0, created: true}));
+        act(() => coordinator.onArticleUpdated({ articleId: 18, version: 0, created: true }));
         expect(mockArticleGet).not.toHaveBeenCalled();
         expect(coordinator.state.article.logId).toBe(7);
         expect(navigate).not.toHaveBeenCalled();
@@ -978,12 +1010,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("preserves edits made during the read as a conflict instead of autosaving over the AI update", async () => {
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
-        const localArticle = {...initialArticle, title: "Local edit"};
-        mockDraftSyncApi!.receiveServerArticle.mockReturnValue({article: localArticle, revision: 1, updatedAt: 123});
-        const updated = {...initialArticle, title: "AI title", version: 4};
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        const localArticle = { ...initialArticle, title: "Local edit" };
+        mockDraftSyncApi!.receiveServerArticle.mockReturnValue({ article: localArticle, revision: 1, updatedAt: 123 });
+        const updated = { ...initialArticle, title: "AI title", version: 4 };
         await act(async () => {
-            request.resolve({data: {error: 0, data: {...data, article: updated}}});
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
         });
         expect(coordinator.state.article).toEqual(updated);
         expect(coordinator.state.contentConflict).toEqual({
@@ -1000,15 +1032,15 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         const first = deferred<any>();
         const second = deferred<any>();
         mockArticleGet.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
         await act(async () => {
             second.resolve({
                 data: {
                     error: 0,
                     data: {
                         ...data,
-                        article: {...initialArticle, title: "Latest", version: 5},
+                        article: { ...initialArticle, title: "Latest", version: 5 },
                     },
                 },
             });
@@ -1019,7 +1051,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     error: 0,
                     data: {
                         ...data,
-                        article: {...initialArticle, title: "Old", version: 4},
+                        article: { ...initialArticle, title: "Old", version: 4 },
                     },
                 },
             });
@@ -1032,15 +1064,15 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("ignores refresh responses after leaving the article", async () => {
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 4}));
-        remountWith({...data, article: {...initialArticle, logId: 8}}, "?id=8");
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        remountWith({ ...data, article: { ...initialArticle, logId: 8 } }, "?id=8");
         await act(async () => {
             request.resolve({
                 data: {
                     error: 0,
                     data: {
                         ...data,
-                        article: {...initialArticle, title: "AI title", version: 4},
+                        article: { ...initialArticle, title: "AI title", version: 4 },
                     },
                 },
             });
@@ -1056,11 +1088,11 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => {
             pending = coordinator.onSubmit(coordinator.state.article, false, false, false);
         });
-        act(() => coordinator.onArticleUpdated({articleId: 7, version: 5}));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
         expect(mockArticleGet).not.toHaveBeenCalled();
-        mockArticleGet.mockResolvedValue({data: {error: 1, message: "Read failed"}});
+        mockArticleGet.mockResolvedValue({ data: { error: 1, message: "Read failed" } });
         await act(async () => {
-            saving.resolve({data: {error: 0, data: {...data, article: {...initialArticle, version: 4}}}});
+            saving.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
             await pending;
         });
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
@@ -1071,21 +1103,21 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
 
     it("uses the acknowledged rollback version for the next save without waiting for page cache hydration", async () => {
         mockArticlePost.mockResolvedValueOnce({
-            data: {error: 0, data: {...data, article: {...initialArticle, version: 4}}},
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } },
         });
         await act(async () => {
             await coordinator.onRollback(1);
         });
         expect(coordinator.state.article.version).toBe(4);
         mockArticlePost.mockResolvedValueOnce({
-            data: {error: 0, data: {...data, article: {...initialArticle, version: 5}}},
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 5 } } },
         });
         await act(async () => {
             await coordinator.onSubmit(coordinator.state.article, false, false, false);
         });
         expect(mockArticlePost).toHaveBeenLastCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({version: 4}),
+            expect.objectContaining({ version: 4 }),
             undefined
         );
     });
@@ -1094,7 +1126,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         const saving = deferred<any>();
         mockArticlePost.mockImplementationOnce(async () => saving.promise);
         mockArticlePost.mockResolvedValueOnce({
-            data: {error: 0, data: {...data, article: {...initialArticle, title: "Manual", version: 5}}},
+            data: { error: 0, data: { ...data, article: { ...initialArticle, title: "Manual", version: 5 } } },
         });
         let automatic!: Promise<boolean>;
         let manual!: Promise<boolean>;
@@ -1102,30 +1134,30 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             automatic = coordinator.onSubmit(initialArticle, false, false, true);
         });
         await act(async () => {
-            manual = coordinator.onSubmit({...initialArticle, title: "Manual"}, false, false, false);
+            manual = coordinator.onSubmit({ ...initialArticle, title: "Manual" }, false, false, false);
         });
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
         await act(async () => {
-            saving.resolve({data: {error: 0, data: {...data, article: {...initialArticle, version: 4}}}});
+            saving.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
             await automatic;
             await manual;
         });
         expect(mockArticlePost).toHaveBeenLastCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({title: "Manual", version: 4}),
+            expect.objectContaining({ title: "Manual", version: 4 }),
             undefined
         );
         expect(coordinator.state.article.version).toBe(5);
     });
 
     it("uses the created identity for a save queued while the initial draft create is pending", async () => {
-        remountWith({...data, article: {...initialArticle, logId: undefined, version: -1}});
+        remountWith({ ...data, article: { ...initialArticle, logId: undefined, version: -1 } });
         const creating = deferred<any>();
         mockArticlePost.mockImplementationOnce(async () => creating.promise);
         mockArticlePost.mockResolvedValueOnce({
             data: {
                 error: 0,
-                data: {...data, article: {...initialArticle, title: "Latest", logId: 42, version: 1}},
+                data: { ...data, article: { ...initialArticle, title: "Latest", logId: 42, version: 1 } },
             },
         });
         let first!: Promise<boolean>;
@@ -1134,23 +1166,23 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             first = coordinator.onSubmit(coordinator.state.article, false, false, true);
         });
         await act(async () => {
-            second = coordinator.onSubmit({...coordinator.state.article, title: "Latest"}, false, false, false);
+            second = coordinator.onSubmit({ ...coordinator.state.article, title: "Latest" }, false, false, false);
         });
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
         await act(async () => {
             creating.resolve({
-                data: {error: 0, data: {...data, article: {...initialArticle, logId: 42, version: 0}}},
+                data: { error: 0, data: { ...data, article: { ...initialArticle, logId: 42, version: 0 } } },
             });
             await first;
             await second;
         });
         expect(mockArticlePost).toHaveBeenLastCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({logId: 42, title: "Latest", version: 0}),
+            expect.objectContaining({ logId: 42, title: "Latest", version: 0 }),
             undefined
         );
         expect(mockPageCache.get("/article-edit?id=42")?.article).toEqual(
-            expect.objectContaining({title: "Latest", version: 1})
+            expect.objectContaining({ title: "Latest", version: 1 })
         );
         expect(mockPageCache.has("/article-edit")).toBe(false);
     });
@@ -1159,7 +1191,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         const saving = deferred<any>();
         mockArticlePost.mockImplementationOnce(async () => saving.promise);
         mockArticlePost.mockResolvedValueOnce({
-            data: {error: 0, data: {...data, article: {...initialArticle, version: 5}}},
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 5 } } },
         });
         let first!: Promise<boolean>;
         let rollback!: Promise<void>;
@@ -1171,7 +1203,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         });
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
         await act(async () => {
-            saving.resolve({data: {error: 0, data: {...data, article: {...initialArticle, version: 4}}}});
+            saving.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
             await first;
             await rollback;
         });
@@ -1182,14 +1214,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         });
         mockPostPublish.mockResolvedValueOnce({
             error: 0,
-            data: {...data, article: {...initialArticle, rubbish: false, version: 6}},
+            data: { ...data, article: { ...initialArticle, rubbish: false, version: 6 } },
         });
         await act(async () => {
             await coordinator.onSubmit(coordinator.state.article, true, false, false);
         });
         expect(mockPostPublish).toHaveBeenLastCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({version: 5, rubbish: false})
+            expect.objectContaining({ version: 5, rubbish: false })
         );
     });
 
@@ -1201,21 +1233,21 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             );
         });
         mockArticlePost.mockResolvedValueOnce({
-            data: {error: 0, data: {...data, article: {...initialArticle, version: 4}}},
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } },
         });
         await act(async () => {
             await coordinator.onSubmit(coordinator.state.article, false, false, false);
         });
         expect(mockArticlePost).toHaveBeenLastCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({version: 3}),
+            expect.objectContaining({ version: 3 }),
             undefined
         );
     });
 
     it.each([false, true])("preserves edits made while a manual save is pending (publish=%s)", async (publish) => {
         const saving = deferred<any>();
-        const acknowledged = {...initialArticle, version: 4, rubbish: !publish};
+        const acknowledged = { ...initialArticle, version: 4, rubbish: !publish };
         if (publish) {
             mockPostPublish.mockReturnValueOnce(saving.promise);
         } else {
@@ -1231,13 +1263,13 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             markdown: "Newer body",
             content: "<p>Newer body</p>",
         };
-        mockDraftSyncApi!.applyPatch.mockReturnValueOnce({article: edited, revision: 1, updatedAt: 100});
+        mockDraftSyncApi!.applyPatch.mockReturnValueOnce({ article: edited, revision: 1, updatedAt: 100 });
         act(() => {
-            coordinator.handleValuesChange({title: edited.title, markdown: edited.markdown, content: edited.content});
+            coordinator.handleValuesChange({ title: edited.title, markdown: edited.markdown, content: edited.content });
         });
         await act(async () => {
-            const response = {error: 0, data: {...data, article: acknowledged}};
-            saving.resolve(publish ? response : {data: response});
+            const response = { error: 0, data: { ...data, article: acknowledged } };
+            saving.resolve(publish ? response : { data: response });
             await pending;
         });
         expect(coordinator.state.article).toEqual(
@@ -1252,13 +1284,13 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(coordinator.state.contentSource).toBe("localEdit");
         expect(mockDraftSyncApi!.markCommitted).not.toHaveBeenCalled();
         expect(mockDraftSyncApi!.markSynced).toHaveBeenCalledWith(
-            {article: expect.objectContaining({title: initialArticle.title}), revision: 0},
+            { article: expect.objectContaining({ title: initialArticle.title }), revision: 0 },
             acknowledged
         );
     });
 
     it("preserves the draft state when publishing returns a business error", async () => {
-        mockPostPublish.mockResolvedValueOnce({error: 9001, message: "Database rejected the update"});
+        mockPostPublish.mockResolvedValueOnce({ error: 9001, message: "Database rejected the update" });
 
         let saved = true;
         await act(async () => {
@@ -1312,7 +1344,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     });
 
     it("migrates the editor UI scope before navigating a newly published article", async () => {
-        remountWith({...data, article: {...initialArticle, logId: undefined, version: -1}});
+        remountWith({ ...data, article: { ...initialArticle, logId: undefined, version: -1 } });
         const publishCheckMessage = {
             role: "assistant",
             content: "Publish check result",
@@ -1340,13 +1372,13 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         });
 
         await act(async () => {
-            await coordinator.onSubmit({...coordinator.state.article, logId: undefined}, true, false, false);
+            await coordinator.onSubmit({ ...coordinator.state.article, logId: undefined }, true, false, false);
         });
 
         expect(migrateUiStateToArticle).toHaveBeenCalledWith(42);
         expect(navigate).toHaveBeenCalledWith("/article-edit?id=42", {
             replace: true,
-            state: {articleCreatedFrom: "draft-location"},
+            state: { articleCreatedFrom: "draft-location" },
         });
         expect(migrateUiStateToArticle.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
         expect(
@@ -1377,14 +1409,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         } as ToolAwareAIContent;
         harnessData = {
             ...data,
-            article: {...data.article, logId: 42},
+            article: { ...data.article, logId: 42 },
             aiMessages: [existingMessage],
         };
-        harnessLocation = {pathname: "/article-edit", search: "?id=42", key: "saved-location"};
+        harnessLocation = { pathname: "/article-edit", search: "?id=42", key: "saved-location" };
         mockPageCache.set("/article-edit?id=42", harnessData);
         window.history.replaceState({}, "", "/article-edit?id=42");
         root = createRoot(container);
-        act(() => root.render(<Harness/>));
+        act(() => root.render(<Harness />));
 
         act(() => coordinator.updateAiMessageCache([existingMessage, laterMessage]));
         act(() => updateFromStartedPublish((current) => [...current, publishCheckMessage], 42));
@@ -1404,7 +1436,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("keeps a request callback bound to its starting route when the browser route changes", () => {
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
             aiMessages: [],
         };
         remountWith(draftData, "?intent=create&typeId=3");
@@ -1419,7 +1451,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => updateFromDraftRequest([draftMessage], 0));
 
         expect(jest.mocked(updateCache)).toHaveBeenCalledWith(
-            expect.objectContaining({aiMessages: [draftMessage]}),
+            expect.objectContaining({ aiMessages: [draftMessage] }),
             "/article-edit?intent=create&typeId=3"
         );
         expect(mockPageCache.has("/article-edit?id=42&intent=edit&typeId=9")).toBe(false);
@@ -1442,9 +1474,9 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => coordinator.updateAiMessageCache([staleMessage]));
         act(() => root.unmount());
         mockPageCache.delete("/article-edit?id=7");
-        harnessData = {...data, aiMessages: [freshMessage]};
+        harnessData = { ...data, aiMessages: [freshMessage] };
         root = createRoot(container);
-        act(() => root.render(<Harness/>));
+        act(() => root.render(<Harness />));
 
         expect(coordinator.state.aiMessages).toEqual([freshMessage]);
     });
@@ -1505,7 +1537,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 title: "Imported draft",
                 preserveDraftAiMessages: true,
             }),
-            {showError: false}
+            { showError: false }
         );
         expect(draftAiSaveGate.tryBeginAiRequest(0)).toBeUndefined();
         const existingArticleAiRelease = draftAiSaveGate.tryBeginAiRequest(7);
@@ -1517,7 +1549,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 data: {
                     error: 0,
                     data: {
-                        article: {...initialArticle, title: "Imported draft", logId: 42, version: 0},
+                        article: { ...initialArticle, title: "Imported draft", logId: 42, version: 0 },
                         aiMessages: [],
                     },
                 },
@@ -1540,7 +1572,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         {
             name: "business failure",
             settle: (request: Deferred<any>) =>
-                request.resolve({data: {error: 1, message: "Rejected", data: undefined}}),
+                request.resolve({ data: { error: 1, message: "Rejected", data: undefined } }),
             expectedMessage: "Rejected",
         },
         {
@@ -1548,7 +1580,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             settle: (request: Deferred<any>) => request.reject(new Error("Connection failed")),
             expectedMessage: "Imported draft result unknown",
         },
-    ])("releases an imported draft create lease after $name", async ({settle, expectedMessage}) => {
+    ])("releases an imported draft create lease after $name", async ({ settle, expectedMessage }) => {
         const request = deferred<any>();
         mockArticlePost.mockImplementationOnce(async () => request.promise);
 
@@ -1581,7 +1613,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             data: {
                 error: 0,
                 data: {
-                    article: {...initialArticle, title: "Imported draft", logId: 42, version: 0},
+                    article: { ...initialArticle, title: "Imported draft", logId: 42, version: 0 },
                     aiMessages: [],
                 },
             },
@@ -1612,7 +1644,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("holds a draft AI lease while applying a generated cover and releases it on success", async () => {
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
         };
         remountWith(draftData);
         const request = deferred<any>();
@@ -1635,7 +1667,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(draftAiSaveGate.tryBeginCreate(0)).toBeUndefined();
 
         await act(async () => {
-            request.resolve({data: {error: 0, data: {url: "/attached/cover.png"}}});
+            request.resolve({ data: { error: 0, data: { url: "/attached/cover.png" } } });
             expect(await coverPromise!).toBe("/attached/cover.png");
         });
 
@@ -1649,7 +1681,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("releases a generated-cover draft lease after failure and rejects cover writes during create", async () => {
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
         };
         remountWith(draftData);
         const request = deferred<any>();
@@ -1657,7 +1689,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
 
         let coverPromise: Promise<string | undefined>;
         act(() => {
-            coverPromise = coordinator.applyGeneratedCover({dataUrl: "data:image/png;base64,cover"});
+            coverPromise = coordinator.applyGeneratedCover({ dataUrl: "data:image/png;base64,cover" });
         });
         await act(async () => {
             request.reject(new Error("Cover request failed"));
@@ -1668,7 +1700,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(releaseCreate).toBeDefined();
         const callsBeforeBlockedCover = mockArticlePost.mock.calls.length;
         await act(async () => {
-            expect(await coordinator.applyGeneratedCover({dataUrl: "data:image/png;base64,blocked"})).toBeUndefined();
+            expect(await coordinator.applyGeneratedCover({ dataUrl: "data:image/png;base64,blocked" })).toBeUndefined();
         });
         expect(mockArticlePost).toHaveBeenCalledTimes(callsBeforeBlockedCover);
         expect(messageApi.warning).toHaveBeenCalledWith("Save in progress");
@@ -1678,7 +1710,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("does not create a new article while a draft AI request is pending", async () => {
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
         };
         remountWith(draftData);
         let releaseAi: (() => void) | undefined;
@@ -1701,14 +1733,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("holds the synchronous create gate before rendering content or starting the request", async () => {
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
         };
         remountWith(draftData);
         mockArticlePost.mockResolvedValueOnce({
             data: {
                 error: 0,
                 message: "Saved",
-                data: {article: {...draftData.article, logId: 42, version: 0}, aiMessages: []},
+                data: { article: { ...draftData.article, logId: 42, version: 0 }, aiMessages: [] },
             },
         });
 
@@ -1729,7 +1761,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         try {
             const draftData = {
                 ...data,
-                article: {...initialArticle, logId: undefined, version: -1},
+                article: { ...initialArticle, logId: undefined, version: -1 },
             };
             remountWith(draftData);
             mockArticlePost.mockResolvedValueOnce({
@@ -1737,7 +1769,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     error: 0,
                     message: "Saved",
                     data: {
-                        article: {...draftData.article, title: "Latest revision", logId: 42, version: 0},
+                        article: { ...draftData.article, title: "Latest revision", logId: 42, version: 0 },
                         aiMessages: [],
                     },
                 },
@@ -1748,11 +1780,11 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 releaseFirst = draftAiSaveGate.tryBeginAiRequest(0);
                 releaseSecond = draftAiSaveGate.tryBeginAiRequest(0);
                 mockDraftSyncOptions.onRequestSync({
-                    article: {...draftData.article, title: "Older revision"},
+                    article: { ...draftData.article, title: "Older revision" },
                     revision: 1,
                 });
                 mockDraftSyncOptions.onRequestSync({
-                    article: {...draftData.article, title: "Latest revision"},
+                    article: { ...draftData.article, title: "Latest revision" },
                     revision: 2,
                 });
             });
@@ -1775,8 +1807,8 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             });
 
             expect(mockArticlePost).toHaveBeenCalledTimes(1);
-            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({title: "Latest revision"});
-            expect(mockDraftSyncApi?.markSyncing).toHaveBeenCalledWith(expect.objectContaining({revision: 2}));
+            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({ title: "Latest revision" });
+            expect(mockDraftSyncApi?.markSyncing).toHaveBeenCalledWith(expect.objectContaining({ revision: 2 }));
             expect(mockDraftSyncApi?.markDeferred).not.toHaveBeenCalled();
         } finally {
             jest.useRealTimers();
@@ -1789,7 +1821,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             data: {
                 error: 0,
                 message: "Saved",
-                data: {article: {...initialArticle, version: 4}, aiMessages: []},
+                data: { article: { ...initialArticle, version: 4 }, aiMessages: [] },
             },
         });
 
@@ -1801,7 +1833,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(saved).toBe(true);
         expect(mockArticlePost).toHaveBeenCalledWith(
             "/api/admin/article/update",
-            expect.objectContaining({logId: 7}),
+            expect.objectContaining({ logId: 7 }),
             undefined
         );
         releaseDraftCreate?.();
@@ -1820,7 +1852,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         } as ToolAwareAIContent;
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
             aiMessages: [draftMessage],
         };
         mockPageCache.set("/article-edit", draftData);
@@ -1832,7 +1864,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     error: 0,
                     message: "Saved",
                     data: {
-                        article: {...draftData.article, logId: 42, version: 0},
+                        article: { ...draftData.article, logId: 42, version: 0 },
                         aiMessages: [draftMessage],
                     },
                 },
@@ -1855,7 +1887,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 ?.aiMessages.map((message) => (message as ToolAwareAIContent).messageId)
         ).toEqual(["draft-message", "publish-check-message"]);
 
-        const nextDraftData = {...draftData, aiMessages: []};
+        const nextDraftData = { ...draftData, aiMessages: [] };
         remountWith(nextDraftData);
         expect(coordinator.state.aiMessages).toEqual([]);
     });
@@ -1873,7 +1905,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         } as ToolAwareAIContent;
         const draftData = {
             ...data,
-            article: {...initialArticle, logId: undefined, version: -1},
+            article: { ...initialArticle, logId: undefined, version: -1 },
             aiMessages: [firstLocalQuestion, secondLocalQuestion],
         };
         const sourceCacheKey = "/article-edit?intent=duplicate-merge";
@@ -1884,7 +1916,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 error: 0,
                 message: "Saved",
                 data: {
-                    article: {...draftData.article, logId: 42, version: 0},
+                    article: { ...draftData.article, logId: 42, version: 0 },
                     aiMessages: [
                         {
                             role: "user",
@@ -1908,20 +1940,20 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         const migratedEntry = Array.from(mockPageCache.entries()).find(([cacheKey]) => cacheKey.includes("id=42"));
         const migratedMessages = migratedEntry?.[1].aiMessages as ToolAwareAIContent[];
         expect(migratedMessages).toHaveLength(2);
-        expect(migratedMessages.map(({content}) => content)).toEqual([
+        expect(migratedMessages.map(({ content }) => content)).toEqual([
             "Please review this draft",
             "Please review this draft",
         ]);
-        expect(migratedMessages.map(({messageId}) => messageId)).toEqual(["server-question-1", "server-question-2"]);
+        expect(migratedMessages.map(({ messageId }) => messageId)).toEqual(["server-question-1", "server-question-2"]);
         expect(mockPageCache.has(sourceCacheKey)).toBe(false);
     });
     it.each(["manual", "automatic", "publish"])(
         "pauses %s save conflicts and prevents queued stale writes",
         async (mode) => {
-            const latest = {...initialArticle, title: "Newest local input"};
-            mockDraftSyncApi!.pauseForConflict.mockReturnValue({article: latest, revision: 2, updatedAt: 200});
-            mockArticlePost.mockResolvedValue({data: {error: 9094}});
-            mockPostPublish.mockResolvedValue({error: 9094});
+            const latest = { ...initialArticle, title: "Newest local input" };
+            mockDraftSyncApi!.pauseForConflict.mockReturnValue({ article: latest, revision: 2, updatedAt: 200 });
+            mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
+            mockPostPublish.mockResolvedValue({ error: 9094 });
             const read = deferred<any>();
             mockArticleGet.mockReturnValue(read.promise);
             let save!: Promise<boolean>;
@@ -1932,12 +1964,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             });
             expect(coordinator.state.contentConflict).toMatchObject({
                 loading: true,
-                localArticle: {title: latest.title},
+                localArticle: { title: latest.title },
                 baseArticle: initialArticle,
             });
-            const server = {...initialArticle, version: 4, markdown: "Remote text"};
+            const server = { ...initialArticle, version: 4, markdown: "Remote text" };
             await act(async () => {
-                read.resolve({data: {error: 0, data: {...data, article: server}}});
+                read.resolve({ data: { error: 0, data: { ...data, article: server } } });
                 expect(await save).toBe(false);
                 expect(await queued).toBe(false);
             });
@@ -1946,32 +1978,32 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 loading: false,
                 localVersion: 3,
                 serverVersion: 4,
-                localArticle: {title: latest.title, rubbish: mode !== "publish"},
+                localArticle: { title: latest.title, rubbish: mode !== "publish" },
             });
             expect(modal.error).not.toHaveBeenCalled();
         }
     );
 
     it("retains the resolved candidate if another client writes during conflict resolution", async () => {
-        mockArticlePost.mockResolvedValue({data: {error: 9094}});
-        const remote = {...initialArticle, title: "Other writer", version: 4};
-        mockArticleGet.mockResolvedValue({data: {error: 0, data: {...data, article: remote}}});
+        mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
+        const remote = { ...initialArticle, title: "Other writer", version: 4 };
+        mockArticleGet.mockResolvedValue({ data: { error: 0, data: { ...data, article: remote } } });
         await act(async () => {
             await coordinator.onSubmit(initialArticle, false, false, false);
         });
-        const merged = {...remote, title: "My combined result"};
-        mockDraftSyncApi!.resolveConflict.mockReturnValue({article: merged, revision: 2, updatedAt: 200});
-        mockDraftSyncApi!.pauseForConflict.mockImplementation((article) => ({article, revision: 2, updatedAt: 200}));
+        const merged = { ...remote, title: "My combined result" };
+        mockDraftSyncApi!.resolveConflict.mockReturnValue({ article: merged, revision: 2, updatedAt: 200 });
+        mockDraftSyncApi!.pauseForConflict.mockImplementation((article) => ({ article, revision: 2, updatedAt: 200 }));
         mockArticleGet.mockResolvedValue({
-            data: {error: 0, data: {...data, article: {...remote, version: 5, title: "Third writer"}}},
+            data: { error: 0, data: { ...data, article: { ...remote, version: 5, title: "Third writer" } } },
         });
         await act(async () => {
             expect(await coordinator.saveMergedConflict(merged)).toBe(false);
         });
         expect(mockDraftSyncApi!.resolveConflict).toHaveBeenCalledWith(merged, false);
-        expect(mockArticlePost.mock.calls[1][1]).toMatchObject({version: 4, title: merged.title});
+        expect(mockArticlePost.mock.calls[1][1]).toMatchObject({ version: 4, title: merged.title });
         expect(coordinator.state.contentConflict).toMatchObject({
-            localArticle: {title: merged.title},
+            localArticle: { title: merged.title },
             localVersion: 4,
             serverVersion: 5,
             baseArticle: remote,
@@ -1981,55 +2013,55 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it.each([2, NaN])(
         "rejects conflict snapshot version %s without rolling back the local version",
         async (version) => {
-            mockArticlePost.mockResolvedValue({data: {error: 9094}});
+            mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
             mockArticleGet.mockResolvedValue({
-                data: {error: 0, data: {...data, article: {...initialArticle, version}}},
+                data: { error: 0, data: { ...data, article: { ...initialArticle, version } } },
             });
-            const local = {...initialArticle, title: "Keep local edits"};
+            const local = { ...initialArticle, title: "Keep local edits" };
             await act(async () => {
                 await coordinator.onSubmit(local, false, false, false);
             });
             expect(coordinator.state.article.version).toBe(3);
             expect(coordinator.state.contentConflict).toMatchObject({
                 loadError: true,
-                localArticle: {title: local.title},
+                localArticle: { title: local.title },
                 localVersion: 3,
             });
         }
     );
 
     it("keeps local input when reading the conflict fails and retries without writing", async () => {
-        mockArticlePost.mockResolvedValue({data: {error: 9094}});
+        mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
         mockArticleGet.mockRejectedValueOnce(new Error("offline"));
-        const local = {...initialArticle, markdown: "Keep offline changes"};
+        const local = { ...initialArticle, markdown: "Keep offline changes" };
         await act(async () => {
             await coordinator.onSubmit(local, false, false, false);
         });
         expect(coordinator.state.contentConflict).toMatchObject({
             loadError: true,
-            localArticle: {markdown: local.markdown},
+            localArticle: { markdown: local.markdown },
         });
-        const remote = {...initialArticle, version: 4};
-        mockArticleGet.mockResolvedValue({data: {error: 0, data: {...data, article: remote}}});
+        const remote = { ...initialArticle, version: 4 };
+        mockArticleGet.mockResolvedValue({ data: { error: 0, data: { ...data, article: remote } } });
         await act(async () => coordinator.retryConflictRead());
         expect(mockArticlePost).toHaveBeenCalledTimes(1);
         expect(coordinator.state.contentConflict).toMatchObject({
             loading: false,
-            localArticle: {markdown: local.markdown},
+            localArticle: { markdown: local.markdown },
             serverVersion: 4,
         });
     });
     it("never publishes an automatic synchronization even if its snapshot is published", async () => {
         jest.useFakeTimers();
         try {
-            const published = {...initialArticle, rubbish: false};
-            remountWith({...data, article: published}, "?id=7");
+            const published = { ...initialArticle, rubbish: false };
+            remountWith({ ...data, article: published }, "?id=7");
             mockArticlePost.mockResolvedValue({
-                data: {error: 0, data: {...data, article: {...published, rubbish: true, version: 4}}},
+                data: { error: 0, data: { ...data, article: { ...published, rubbish: true, version: 4 } } },
             });
-            act(() => mockDraftSyncOptions.onRequestSync({article: published, revision: 1}));
+            act(() => mockDraftSyncOptions.onRequestSync({ article: published, revision: 1 }));
             await act(async () => jest.advanceTimersByTime(5000));
-            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({rubbish: true, transparentPublish: false});
+            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({ rubbish: true, transparentPublish: false });
             expect(coordinator.state.rubbish).toBe(true);
             expect(coordinator.state.article.rubbish).toBe(true);
             expect(coordinator.isSaving).toBe(false);

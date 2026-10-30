@@ -19,6 +19,7 @@ import java.util.function.Supplier;
 public interface AutomationComponent {
     com.zrlog.admin.web.controller.api.AutomationController controller();
     AutomationService tasks();
+    ArticlePublicationScheduleService publicationScheduler();
     AutomationEngine engine();
     AutomationSettingsService settings();
     AutomationTickService ticks();

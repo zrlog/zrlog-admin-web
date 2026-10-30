@@ -13,12 +13,14 @@ export default function ArticleChoice({
     onChange,
     title,
     version,
+    readOnly = false,
     onConfirm,
 }: {
     value?: number;
     onChange?: (id: number | null) => void;
     title?: string;
     version?: number;
+    readOnly?: boolean;
     onConfirm: (title?: string, version?: number) => void;
 }) {
     const active = useRef(true);
@@ -63,7 +65,7 @@ export default function ArticleChoice({
             {holder}
             <Space wrap>
                 <InputNumber
-                    disabled={busy}
+                    disabled={busy || readOnly}
                     aria-label={res.articleId}
                     value={value}
                     min={1}

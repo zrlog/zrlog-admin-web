@@ -80,8 +80,9 @@ public class AIScheduledTaskTest {
         plan.schedule.intervalMinutes = 10080;
         plan.schedule.at = System.currentTimeMillis() + 60000;
         plan.parameters.addProperty("goal", "Review my writing and prepare a useful draft when authorized.");
-        plan.authorizedActions = allowDraft ? List.of("article.create") : List.of();
-        return component.tasks().save(actor, plan);
+        var credential = allowDraft ? actor : actor.restrictActions(List.of(
+                "account.session", "article.assist", "article.read", "taxonomy.read"));
+        return component.tasks().save(credential, plan);
     }
 
     private AutomationModels.Run run(StoredTask task) throws Exception {

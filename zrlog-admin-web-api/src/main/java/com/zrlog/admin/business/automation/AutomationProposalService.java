@@ -34,7 +34,7 @@ public final class AutomationProposalService {
         TaskAuthority.require(actor, AccountAction.ARTICLE_ASSIST.getId());
         var source = assistant.get();
         if (source == null || !source.available(actor)) throw new IllegalStateException("automation.aiUnavailable");
-        List<AutomationModels.Definition> definitions = tasks.definitions(actor).stream().filter(item -> item.available)
+        List<AutomationModels.Definition> definitions = tasks.definitions(actor).stream().filter(item -> item.available && !item.systemTask)
                 .map(definition -> {
                     var copy = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(definition), AutomationModels.Definition.class);
                     copy.title = com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(copy.titleKey);
@@ -59,7 +59,7 @@ public final class AutomationProposalService {
         result.explanation = proposal.explanation;
         for (var candidate : proposal.plans) {
             if (candidate == null) throw invalid();
-            var definition = definitions.stream().filter(item -> item.available && item.type.equals(candidate.type))
+            var definition = definitions.stream().filter(item -> item.available && !item.systemTask && item.type.equals(candidate.type))
                     .findFirst().orElseThrow(AutomationProposalService::invalid);
             if (candidate.name == null || candidate.name.isBlank() || candidate.name.length() > 160
                     || candidate.parameters == null || candidate.parameters.toString().length() > 16000) throw invalid();
@@ -70,7 +70,6 @@ public final class AutomationProposalService {
             plan.type = definition.type;
             plan.name = candidate.name;
             plan.enabled = false;
-            plan.authorizedActions = new ArrayList<>();
             plan.schedule = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(candidate.schedule), AutomationModels.Schedule.class);
             plan.parameters = new JsonObject();
             for (var field : definition.fields) {

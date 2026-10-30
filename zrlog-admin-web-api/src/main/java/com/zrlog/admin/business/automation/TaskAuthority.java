@@ -27,41 +27,45 @@ public final class TaskAuthority {
     }
 
     public AccountAccess current(AccountAccess actor) {
-        actor = identities.revalidate(actor);
-        require(actor, AccountAction.SESSION.getId());
-        return actor;
+        // Entry points declare their access action; business operations check the task's own actions.
+        return identities.revalidate(actor);
     }
 
     public AccountAccess restore(StoredTask task) throws SQLException {
-        AccountAccess actor = AccountAccess.from(users.get().loadById(task.ownerId));
-        if (!actor.isEnabled() || actor.getAuthVersion() != task.ownerAuthVersion
-                || !actor.getRole().equals(task.ownerRole)) throw new PermissionErrorException();
-        return actor.restrictActions(task.authorizedActions);
+        // Site configuration is independent of its editor. Use the current real owner account,
+        // so all existing data-layer permission and conditional-write checks still apply.
+        AccountAccess actor = task.ownerId == 0 ? siteActor() : AccountAccess.from(users.get().loadById(task.ownerId));
+        if (!actor.isEnabled()) throw new PermissionErrorException();
+        return actor.restrictActions(task.executionActions);
     }
 
-    public List<String> grants(AccountAccess actor, AutomationModels.Definition definition, List<String> requested) {
-        Set<String> grants = new LinkedHashSet<>(definition.requiredActions);
-        if (requested == null) requested = List.of();
-        if (definition.requiresAuthorization && !requested.containsAll(definition.requiredActions)) {
-            throw new IllegalArgumentException("automation.authorizationRequired");
-        }
-        for (String action : requested) {
-            if (!definition.requiredActions.contains(action) && !definition.optionalActions.contains(action)) {
-                throw new IllegalArgumentException("automation.invalidAuthorization");
+    public void revalidateExecution(AccountAccess actor) { identities.revalidate(actor); }
+
+    public AccountAccess siteActor() throws SQLException {
+        AccountAccess actor = AccountAccess.from(users.get().queryFirstWithParams(
+                "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));
+        if (!actor.isOwner()) throw new PermissionErrorException();
+        return actor;
+    }
+
+    /** Derived from the authenticated account, never from a second assistant grant form. */
+    public List<String> actions(AccountAccess actor, AutomationModels.Definition definition) {
+        definition.requiredActions.forEach(action -> require(actor, action));
+        Set<String> actions = new LinkedHashSet<>(definition.requiredActions);
+        for (String action : definition.optionalActions) {
+            for (AccountAction candidate : AccountAction.values()) {
+                if (candidate.getId().equals(action) && candidate.allowed(actor)) actions.add(action);
             }
-            grants.add(action);
         }
-        grants.forEach(action -> require(actor, action));
-        return new ArrayList<>(grants);
+        return new ArrayList<>(actions);
+    }
+
+    public void access(AccountAccess actor, StoredTask task, AutomationModels.Definition definition) {
+        if (task.ownerId != 0 && task.ownerId != actor.getUserId()) throw new PermissionErrorException();
+        definition.requiredActions.forEach(action -> require(actor, action));
     }
 
     public static void require(AccountAccess actor, String actionId) {
-        for (AccountAction action : AccountAction.values()) {
-            if (action.getId().equals(actionId)) {
-                if (!action.allowed(actor)) throw new PermissionErrorException();
-                return;
-            }
-        }
-        throw new IllegalArgumentException("automation.invalidAuthorization");
+        com.zrlog.admin.business.service.AccountPermissionService.requireAction(actor, actionId);
     }
 }

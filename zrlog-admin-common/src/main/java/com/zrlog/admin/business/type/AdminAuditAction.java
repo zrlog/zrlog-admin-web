@@ -2,6 +2,14 @@ package com.zrlog.admin.business.type;
 
 public enum AdminAuditAction {
 
+    CONFIGURE_ASSISTANT_TASK("admin.audit.action.configureAssistantTask", "system"),
+    ENABLE_ASSISTANT_TASK("admin.audit.action.enableAssistantTask", "system"),
+    PAUSE_ASSISTANT_TASK("admin.audit.action.pauseAssistantTask", "system"),
+    DELETE_ASSISTANT_TASK("admin.audit.action.deleteAssistantTask", "system"),
+    RUN_ASSISTANT_TASK("admin.audit.action.runAssistantTask", "system"),
+    UPDATE_ASSISTANT_SETTINGS("admin.audit.action.updateAssistantSettings", "system"),
+    ROTATE_ASSISTANT_TOKEN("admin.audit.action.rotateAssistantToken", "security"),
+    REVOKE_ASSISTANT_TOKEN("admin.audit.action.revokeAssistantToken", "security"),
     UPDATE_MEMBER("admin.audit.action.updateMember", "security"),
     TRANSFER_OWNERSHIP("admin.audit.action.transferOwnership", "security"),
     AUTHORIZE_APPLICATION("admin.audit.action.authorizeApplication", "security"),
