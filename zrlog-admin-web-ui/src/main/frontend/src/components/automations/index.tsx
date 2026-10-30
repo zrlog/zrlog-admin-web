@@ -7,7 +7,6 @@ import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
 import PersonalTasks from "./PersonalTasks";
-import AddIcon from "@zrlog/ui/icons/add";
 import SettingsIcon from "@zrlog/ui/icons/settings";
 import RefreshIcon from "@zrlog/ui/icons/refresh";
 import { useAssistantStyles } from "./assistant-styles";
@@ -172,7 +171,7 @@ export default function Automations({
     return (
         <div className={styles.page}>
             <div className={styles.header}>
-                <div>
+                <div className={styles.headerText}>
                     <Typography.Title level={2} style={{ margin: 0 }}>
                         {res.title}
                     </Typography.Title>
@@ -180,19 +179,17 @@ export default function Automations({
                         {res.intro}
                     </Typography.Paragraph>
                 </div>
-                <Space wrap>
-                    {canAccessPage("/website/assistant") && (
-                        <Link className={styles.settingsLink} to={getRealRouteUrl("/website/assistant")}>
+                {canAccessPage("/website/assistant") && (
+                    <Tooltip title={getRes().websiteAssistant.title} trigger={["hover", "focus"]}>
+                        <Link
+                            className={styles.settingsLink}
+                            to={getRealRouteUrl("/website/assistant")}
+                            aria-label={getRes().websiteAssistant.title}
+                        >
                             <SettingsIcon aria-hidden="true" />
-                            {getRes().websiteAssistant.title}
                         </Link>
-                    )}
-                    {tab === "tasks" && (
-                        <Button type="primary" icon={<AddIcon />} disabled={disabled} onClick={() => setEditing({})}>
-                            {res.create}
-                        </Button>
-                    )}
-                </Space>
+                    </Tooltip>
+                )}
             </div>
             {(offline || offlineData) && <Alert type="info" title={res.offline} />}
             <Tabs

@@ -13,9 +13,12 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: ${token.marginLG}px;
-        flex-wrap: wrap;
+        gap: ${token.marginSM}px;
         margin-bottom: ${token.marginLG}px;
+    `,
+    headerText: css`
+        flex: 1;
+        min-width: 0;
     `,
     workspace: css`
         display: grid;
@@ -29,8 +32,21 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
     settingsLink: css`
         display: inline-flex;
         align-items: center;
-        gap: ${token.marginXS}px;
-        padding: ${token.paddingXS}px;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: ${token.controlHeightLG}px;
+        height: ${token.controlHeightLG}px;
+        color: ${token.colorLink};
+        font-size: ${token.fontSizeHeading4}px;
+        border-radius: ${token.borderRadius}px;
+        &:hover {
+            color: ${token.colorLinkHover};
+            background: ${token.colorFillTertiary};
+        }
+        &:focus-visible {
+            outline: ${token.lineWidthBold}px solid ${token.colorPrimary};
+            outline-offset: ${token.lineWidthBold}px;
+        }
     `,
     panel: css`
         min-width: 0;
