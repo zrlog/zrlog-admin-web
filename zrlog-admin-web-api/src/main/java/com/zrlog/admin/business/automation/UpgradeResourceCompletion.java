@@ -131,6 +131,10 @@ final class UpgradeResourceCompletion {
                         || !Objects.equals(task.value.lastRunAt, run.startedAt)) break;
                 var next = task.copy(StoredTask.class);
                 next.lastStatus = run.status;
+                if (complete && next.enabled && next.nextRunAt != null && next.nextRunAt <= clock.getAsLong()) {
+                    next.nextRunAt = TaskSchedule.nextAfter(next.schedule, clock.getAsLong());
+                    if (next.nextRunAt == null) next.enabled = false;
+                }
                 if (store.replaceTask(task, next, null)) break;
             }
             return;

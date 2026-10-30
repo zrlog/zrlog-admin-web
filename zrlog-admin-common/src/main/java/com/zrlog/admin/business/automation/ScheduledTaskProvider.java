@@ -15,6 +15,9 @@ public interface ScheduledTaskProvider {
     /** Optional cohesive identity: one plan per account and business object. */
     default String instanceKey(String type, JsonObject parameters) { return null; }
 
+    /** Read-only guard while a submitted execution is being completed outside its original process. */
+    default boolean awaitingCompletion(String type, JsonObject parameters) throws java.sql.SQLException { return false; }
+
     /** The provider owns its cohesive workflow, child steps and final outcome; the scheduler executes only this task. */
     AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception;
 

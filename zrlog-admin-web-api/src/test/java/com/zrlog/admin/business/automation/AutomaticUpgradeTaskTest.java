@@ -240,6 +240,27 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
+    public void unfinishedResourcesDoNotCreateAnotherRunWhenTheNextScheduleArrives() throws Exception {
+        var task = service.save(actor, plan());
+        now.addAndGet(1000);
+        engine.tick("internal", 660000);
+        operations.currentBuild = "new-build";
+        operations.beforeSync = () -> { throw new IllegalStateException("delivery unavailable"); };
+        now.addAndGet(3600000);
+        assertEquals(0, ticks.tick("external", "fixture-trigger", 660000).executed);
+        assertEquals(1, service.runs(actor, task.id, 20, 0).size());
+        assertThrows(IllegalStateException.class, () -> engine.runNow(actor, task.id, task.revision, 660000));
+        assertEquals(1, service.runs(actor, task.id, 20, 0).size());
+        operations.beforeSync = () -> { };
+        now.addAndGet(60000);
+        ticks.tick("external", "fixture-trigger", 660000);
+        assertEquals(1, service.runs(actor, task.id, 20, 0).size());
+        assertTrue(service.runs(actor, task.id, 20, 0).stream().allMatch(run -> "success".equals(run.status)));
+        assertEquals("success", store.task(task.id).value.lastStatus);
+        assertEquals(1, operations.submits);
+    }
+
+    @Test
     public void expiredCompletionCanBeTakenOverAndItsOldWriterIsFenced() throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);

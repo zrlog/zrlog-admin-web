@@ -84,6 +84,13 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
+    public boolean awaitingCompletion(String type, JsonObject parameters) throws SQLException {
+        var receipt = store.read(KEY, Receipt.class);
+        return receipt != null && "assistant".equals(receipt.value.source)
+                && !"confirmed".equals(receipt.value.state) && installed(receipt.value);
+    }
+
+    @Override
     public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
         context.checkActive();
         TaskAuthority.require(context.actor(), AccountAction.SYSTEM_MANAGE.getId());

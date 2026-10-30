@@ -47,6 +47,10 @@ public final class AutomationEngine {
             TaskRegistry.Entry entry = null;
             try { entry = registry.require(row.value.type); }
             catch (IllegalArgumentException ignored) { /* Missing provider is a visible, durable result. */ }
+            if (entry != null && entry.provider.awaitingCompletion(row.value.type, row.value.parameters.deepCopy())) {
+                summary.skipped++;
+                continue;
+            }
             long requiredMillis = entry == null ? 0 : entry.definition.timeoutSeconds * 1000L + RESULT_RESERVE_MILLIS;
             if (entry != null && requiredMillis > deadline - clock.getAsLong()) {
                 summary.budgetExhausted = true;
@@ -77,6 +81,8 @@ public final class AutomationEngine {
             throw new IllegalStateException("automation.reviewRequired");
         }
         TaskRegistry.Entry entry = registry.require(row.value.type);
+        if (entry.provider.awaitingCompletion(row.value.type, row.value.parameters.deepCopy()))
+            throw new IllegalStateException("automation.taskChanged");
         if (budgetMillis < entry.definition.timeoutSeconds * 1000L + RESULT_RESERVE_MILLIS || budgetMillis > 660000) {
             throw new IllegalArgumentException("automation.insufficientBudget");
         }
