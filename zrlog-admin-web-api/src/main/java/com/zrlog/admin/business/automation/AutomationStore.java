@@ -163,6 +163,8 @@ public final class AutomationStore {
 
     /** Bounded retention sweep; active executions and another account's history are never removed. */
     public int pruneRuns(int ownerId, long now) throws SQLException {
+        var upgrade = read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
+        String pendingUpgrade = upgrade != null && !"confirmed".equals(upgrade.value.state) ? upgrade.value.runId : null;
         String prefix = RUN_PREFIX + ownerPrefix(ownerId);
         List<Snapshot<AutomationModels.Run>> candidates = rows(websites.get().queryListWithParams(
                 "SELECT name,value FROM website WHERE name>=? AND name<? ORDER BY name DESC LIMIT ?",
@@ -171,7 +173,8 @@ public final class AutomationStore {
         int removed = 0;
         long oldest = now - java.time.Duration.ofDays(90).toMillis();
         for (Snapshot<AutomationModels.Run> row : candidates) {
-            if ("running".equals(row.value.status) || row.value.finishedAt == null) continue;
+            if ("running".equals(row.value.status) || row.value.finishedAt == null
+                    || Objects.equals(row.value.id, pendingUpgrade)) continue;
             completed++;
             if (completed <= 500 && row.value.finishedAt >= oldest) continue;
             if (websites.get().execute("DELETE FROM website WHERE name=? AND value=?", row.key, row.raw)) {

@@ -26,16 +26,18 @@ public final class HostAutomaticUpgradeOperations implements AutomaticUpgradeTas
     private final Supplier<Updater> updater;
     private final BooleanSupplier faas;
     private final AdminAuditService audit;
+    private final HostUpgradeResourceSync resources;
 
     public HostAutomaticUpgradeOperations(UpgradeService upgrades, WebsiteKvService settings,
                                           Supplier<UpdateVersionInfoPlugin> updates, Supplier<Updater> updater,
-                                          BooleanSupplier faas, AdminAuditService audit) {
+                                          BooleanSupplier faas, AdminAuditService audit, HostUpgradeResourceSync resources) {
         this.upgrades = upgrades;
         this.settings = settings;
         this.updates = updates;
         this.updater = updater;
         this.faas = faas;
         this.audit = audit;
+        this.resources = resources;
     }
 
     @Override
@@ -57,6 +59,11 @@ public final class HostAutomaticUpgradeOperations implements AutomaticUpgradeTas
 
     @Override
     public PreCheckVersionResponse check() { return upgrades.preUpgradeVersion(true, updates.get()); }
+
+    @Override
+    public void synchronizeResources(TaskExecutionContext context) throws Exception {
+        resources.synchronize(context);
+    }
 
     @Override
     public boolean submit(Version target, TaskExecutionContext context) throws Exception {

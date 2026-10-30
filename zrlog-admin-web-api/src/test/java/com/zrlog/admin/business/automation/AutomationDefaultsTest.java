@@ -37,6 +37,7 @@ public class AutomationDefaultsTest {
             public String channel() { return "release"; }
             public String currentBuildId() { return "old"; }
             public PreCheckVersionResponse check() { throw new AssertionError("Initialization must not check or upgrade"); }
+            public void synchronizeResources(TaskExecutionContext context) { throw new AssertionError("Initialization must not synchronize resources"); }
             public boolean submit(Version target, TaskExecutionContext context) { throw new AssertionError("Initialization must not upgrade"); }
         }, System::currentTimeMillis);
         var registry = new TaskRegistry(() -> List.of(new HostMaintenanceTaskProvider(null, null, () -> null),

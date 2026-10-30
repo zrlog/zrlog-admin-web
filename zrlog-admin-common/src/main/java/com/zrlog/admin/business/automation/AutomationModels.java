@@ -76,6 +76,7 @@ public final class AutomationModels {
     public static class ChildResult {
         public String id;
         public String name;
+        public String nameKey;
         public String status;
         public String messageKey;
         public String summary;

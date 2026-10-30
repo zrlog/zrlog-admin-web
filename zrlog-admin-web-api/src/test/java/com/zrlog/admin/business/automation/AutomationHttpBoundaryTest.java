@@ -34,6 +34,54 @@ import static org.junit.Assert.*;
 
 public class AutomationHttpBoundaryTest {
     @Test
+    public void authenticatedTriggerFinishesAnInstalledUpgradeThroughTheProductionAssembly() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
+            db.loadAdminWebModules();
+            var component = db.component(AutomationComponent.class);
+            component.defaults().initialize();
+            var store = component.store();
+            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var task = store.task(AutomationDefaults.systemId("system.auto-upgrade"));
+            var run = new AutomationModels.Run();
+            run.id = AutomationStore.ownerPrefix(0) + AutomationStore.timeKey(System.currentTimeMillis()) + "." + UUID.randomUUID();
+            run.taskId = task.value.id;
+            run.taskType = task.value.type;
+            run.startedAt = System.currentTimeMillis();
+            run.scheduledAt = run.startedAt;
+            run.trigger = "external";
+            run.status = "running";
+            store.insertRun(run);
+            var active = task.copy(StoredTask.class);
+            active.activeRun = run;
+            active.leaseUntil = run.startedAt + 660000;
+            assertTrue(store.replaceTask(task, active, actor));
+            var receipt = new AutomaticUpgradeTaskProvider.Receipt();
+            receipt.source = "assistant";
+            receipt.state = "pending";
+            receipt.runId = run.id;
+            receipt.buildId = com.zrlog.util.BlogBuildInfoUtil.getBuildId();
+            assertTrue(store.writeAuthorized(AutomaticUpgradeTaskProvider.KEY, null, receipt, actor));
+            var issued = component.settings().rotate(actor, 0);
+            var result = new AtomicReference<Object>();
+            HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(),
+                    new Class[]{HttpResponse.class}, (proxy, method, args) -> {
+                        if (method.getName().equals("renderJson")) result.set(args[0]);
+                        if (method.getName().equals("renderCode")) fail("Trigger rejected: " + args[0]);
+                        return null;
+                    });
+            new AutomationTickInterceptor(component.settings(), component.ticks()).doInterceptor(
+                    request(HttpMethod.POST, AutomationTickInterceptor.PATH, issued.token), response);
+            assertTrue(result.get() instanceof ApiStandardResponse);
+            assertEquals("success", store.run(run.id).value.status);
+            assertEquals("success", store.run(run.id).value.result.children.get(1).status);
+            assertNull(store.task(run.taskId).value.activeRun);
+            assertFalse(store.task(run.taskId).value.enabled);
+            assertEquals("confirmed", store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class).value.state);
+        }
+    }
+
+    @Test
     public void historyDefaultsToTwentyRowsAndPagesWithoutRepeatingOrExposingOtherAccounts() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();

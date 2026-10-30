@@ -226,6 +226,10 @@ public final class AutomationEngine {
     }
 
     private void release(String id, AutomationModels.Run run) throws SQLException {
+        release(store, clock, id, run);
+    }
+
+    static void release(AutomationStore store, LongSupplier clock, String id, AutomationModels.Run run) throws SQLException {
         for (int attempt = 0; attempt < 3; attempt++) {
             AutomationStore.Snapshot<StoredTask> row = store.task(id);
             if (row == null || row.value.activeRun == null || !Objects.equals(row.value.activeRun.id, run.id)) return;

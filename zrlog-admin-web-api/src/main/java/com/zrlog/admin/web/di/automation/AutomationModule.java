@@ -32,8 +32,11 @@ public final class AutomationModule {
     }
 
     @Provides @Singleton
-    static AutomationTickService ticks(AutomationEngine engine, AutomationStore store, AutomationDefaults defaults) {
-        return new AutomationTickService(engine, store, System::currentTimeMillis, defaults);
+    static AutomationTickService ticks(AutomationEngine engine, AutomationStore store, AutomationDefaults defaults,
+                                       TaskRegistry registry, TaskAuthority authority) {
+        return new AutomationTickService(engine, store, System::currentTimeMillis, defaults, budget ->
+                ((AutomaticUpgradeTaskProvider) registry.require("system.auto-upgrade").provider)
+                        .completeInstalled(authority, budget));
     }
 
     @Provides @Singleton
