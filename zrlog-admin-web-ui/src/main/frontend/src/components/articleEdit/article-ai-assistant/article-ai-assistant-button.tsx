@@ -1082,7 +1082,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
 
     if (!aiConfigured) {
         return (
-            <AIButton dark={getAppState().dark} configUrl={getRealRouteUrl("/website/assistant?section=ai")}>
+            <AIButton dark={getAppState().dark} configUrl={getRealRouteUrl("/website/ai")}>
                 {trigger}
             </AIButton>
         );

@@ -1588,12 +1588,14 @@ const zhCN = {
             "xssTips": "此输入区域支持 HTML 内容，HTML 中的 JavaScript 也将被执行，请确保输入内容安全"
         }
     },
-    "websiteAi": {
+    "websiteAssistant": {
         "title": "助手设置",
-        "label": "AI 助手",
-        "summary": "管理全站助手的执行方式与可选 AI 能力；未配置 AI 时，基础任务仍可运行",
-        "configuration": "AI 配置",
-        "aiUnavailable": "当前未启用 AI 模块，基础任务和执行设置仍可使用",
+        "summary": "管理助手的定时执行与外部触发，无需配置 AI"
+    },
+    "websiteAi": {
+        "title": "AI 设置",
+        "label": "AI",
+        "summary": "配置全站共用的 AI 提供方、模型、接口和提示词",
         "privacyBoundaryTitle": "外部 AI 请求边界",
         "privacyBoundaryDesc": "文章助手、封面生成和提示词建议会把本次请求所需的内容发送给所选 AI 提供方，可能包含对话、文章上下文和经授权读取的数据；API Key 只在服务端使用，不会写入 AI 对话或导出文件",
         "aiApiKey": "API Key",
@@ -3833,12 +3835,14 @@ const enUS: AdminI18nResource = {
             "xssTips": "This input area supports HTML. JavaScript in HTML will also execute; make sure the content is safe"
         }
     },
-    "websiteAi": {
+    "websiteAssistant": {
         "title": "Assistant settings",
-        "label": "AI Assistant",
-        "summary": "Manage site-wide assistant execution and optional AI capabilities. Basic tasks work without AI configuration",
-        "configuration": "AI configuration",
-        "aiUnavailable": "The AI module is disabled. Basic tasks and execution settings remain available",
+        "summary": "Manage scheduled execution and external triggers. No AI configuration required"
+    },
+    "websiteAi": {
+        "title": "AI settings",
+        "label": "AI",
+        "summary": "Configure site-wide AI providers, models, endpoints and prompts",
         "privacyBoundaryTitle": "External AI request boundary",
         "privacyBoundaryDesc": "The article assistant, cover generation, and prompt suggestions send the content needed for each request to the selected AI provider. This may include conversations, article context, and data read with authorization. API keys are only used on the server and are not written to AI chat or export files",
         "aiApiKey": "API Key",

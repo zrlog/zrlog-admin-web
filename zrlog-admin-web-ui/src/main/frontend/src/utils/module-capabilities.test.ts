@@ -17,11 +17,13 @@ describe("enabled backend modules", () => {
     it("hides AI pages independently from application access and ordinary account preferences", () => {
         setRes({ capabilities: { ai: false, access: true } });
         expect(isFeaturePathEnabled("website/assistant.html")).toBe(true);
+        expect(isFeaturePathEnabled("website/ai.html")).toBe(false);
         expect(isFeaturePathEnabled("/user/preferences/assistant?v=1")).toBe(false);
         expect(isFeaturePathEnabled("/user/preferences/writing")).toBe(true);
         expect(isFeaturePathEnabled("/user/applications/tokens")).toBe(true);
         setRes({ capabilities: { ai: true, access: false } });
         expect(isFeaturePathEnabled("/website/assistant")).toBe(true);
+        expect(isFeaturePathEnabled("/website/ai")).toBe(true);
         expect(isFeaturePathEnabled("user/applications/authorize.html?request_id=1")).toBe(false);
         expect(isFeaturePathEnabled("/website/webhook")).toBe(false);
         expect(isFeaturePathEnabled("/user/security")).toBe(true);

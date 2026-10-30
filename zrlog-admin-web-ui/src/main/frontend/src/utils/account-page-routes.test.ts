@@ -88,12 +88,14 @@ describe("account page routing", () => {
             expect(redirect?.lazy).not.toBe(routes.find((route) => route.paths.includes(`system/${page}`))?.lazy);
         }
     });
-    it("loads unified assistant settings through the host API for dynamic and static pages", async () => {
+    it("loads assistant and AI settings as independent dynamic and static pages", async () => {
         const get = jest.fn<Promise<any>, any[]>().mockImplementation(async () => ({ data: { error: 0, data: {} } }));
-        await getCsrData("/website/assistant.html?section=ai", 0, { get } as unknown as AxiosInstance);
-        expect(get).toHaveBeenCalledWith("/api/admin/website/assistant?section=ai");
-        const route = createAdminDashboardRoutes().find((route) => route.paths.includes("website/assistant"));
-        expect(route?.paths).toContain("website/assistant.html");
-        expect(route?.props).toEqual({ activeKey: "assistant" });
+        for (const key of ["assistant", "ai"]) {
+            await getCsrData(`/website/${key}.html`, 0, { get } as unknown as AxiosInstance);
+            expect(get).toHaveBeenLastCalledWith(`/api/admin/website/${key}`);
+            const route = createAdminDashboardRoutes().find((route) => route.paths.includes(`website/${key}`));
+            expect(route?.paths).toContain(`website/${key}.html`);
+            expect(route?.props).toEqual({ activeKey: key });
+        }
     });
 });

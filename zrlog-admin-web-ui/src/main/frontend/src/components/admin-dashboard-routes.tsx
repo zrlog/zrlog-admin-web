@@ -356,9 +356,23 @@ export const createAdminDashboardRoutes = (
         search: [
             {
                 id: "website_assistant",
+                title: () => getRes().websiteAssistant.title,
+                iconKey: "robot",
+                keywords: ["assistant", "settings", "schedule", "助手", "执行设置", "定时"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/ai"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "ai" } as WebSiteProps,
+        search: [
+            {
+                id: "website_ai",
                 title: () => getRes().websiteAi.title,
                 iconKey: "robot",
-                keywords: ["assistant", "settings", "ai", "gemini", "chatgpt", "助手", "执行设置", "人工智能"],
+                keywords: ["ai", "settings", "model", "gemini", "chatgpt", "模型", "人工智能"],
             },
         ],
     },

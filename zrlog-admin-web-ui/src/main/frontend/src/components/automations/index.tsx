@@ -293,7 +293,7 @@ export default function Automations({
                         {res.reload}
                     </Button>
                     {canAccessPage("/website/assistant") && (
-                        <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAi.title}</Link>
+                        <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAssistant.title}</Link>
                     )}
                 </Space>
                 <Tabs

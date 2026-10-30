@@ -12,7 +12,7 @@ export const isFeaturePathEnabled = (raw: string): boolean => {
             .split("?")[0]
             .replace(/\.html$/, "")
             .replace(/^\//, "");
-    if (path === "/user/preferences/assistant") return isModuleEnabled("ai");
+    if (path === "/website/ai" || path === "/user/preferences/assistant") return isModuleEnabled("ai");
     if (path.startsWith("/user/applications/") || path === "/website/webhook") return isModuleEnabled("access");
     if (path.startsWith("/user") || path === "/website/members") return isModuleEnabled("account");
     if (path.startsWith("/file-manager")) return isModuleEnabled("assets");
