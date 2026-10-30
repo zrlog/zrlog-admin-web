@@ -46,8 +46,8 @@ jobs:
         run: python3 scripts/test-snapshot-deploy.py
 
       - name: Run tests and generate coverage
-        # Keep a fresh JVM per test class for static application state, but run two at a time.
-        run: ./mvnw -q -U -DskipTests=false -Dmaven.test.skip=false -Djacoco.append=true -DforkCount=2 -DreuseForks=false org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
+        # Keep a fresh JVM per test class for static application state.
+        run: ./mvnw -q -U -Pcoverage -DskipTests=false -Dmaven.test.skip=false -Djacoco.append=true -DforkCount=1 -DreuseForks=false test jacoco:report
 
       - name: Record test timings
         if: always()
