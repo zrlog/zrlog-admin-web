@@ -104,7 +104,7 @@ export const getWebsiteSettingsItems = () => {
             text: getRes().websiteAi.title,
             summary: getRes().websiteAi.summary,
             group: getRes().website.nav.feature,
-            iconKey: "robot",
+            iconKey: "cpu",
         },
         {
             key: "lab",

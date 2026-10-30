@@ -16,6 +16,7 @@ import LinkIcon from "@zrlog/ui/icons/link";
 import LockIcon from "@zrlog/ui/icons/lock";
 import MessageIcon from "@zrlog/ui/icons/message";
 import ReadIcon from "@zrlog/ui/icons/read";
+import CpuIcon from "@zrlog/ui/icons/cpu";
 import RobotIcon from "@zrlog/ui/icons/robot";
 import SecurityIcon from "@zrlog/ui/icons/security";
 import SearchIcon from "@zrlog/ui/icons/search";
@@ -111,6 +112,7 @@ export type AdminDashboardRouteIconKey =
     | "link"
     | "lock"
     | "read"
+    | "cpu"
     | "robot"
     | "safety-certificate"
     | "search"
@@ -163,6 +165,8 @@ export const renderAdminDashboardRouteIcon = (
             return <LockIcon selected={selected} style={style} />;
         case "read":
             return <ReadIcon selected={selected} style={style} />;
+        case "cpu":
+            return <CpuIcon selected={selected} style={style} />;
         case "robot":
             return <RobotIcon selected={selected} style={style} />;
         case "safety-certificate":
@@ -371,7 +375,7 @@ export const createAdminDashboardRoutes = (
             {
                 id: "website_ai",
                 title: () => getRes().websiteAi.title,
-                iconKey: "robot",
+                iconKey: "cpu",
                 keywords: ["ai", "settings", "model", "gemini", "chatgpt", "模型", "人工智能"],
             },
         ],
