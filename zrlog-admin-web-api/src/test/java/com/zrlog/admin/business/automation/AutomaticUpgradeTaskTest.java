@@ -80,6 +80,24 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
+    public void externalTriggerRequiresEnoughBudgetAndConfirmsOnlyTheInstalledBuild() throws Exception {
+        var task = service.save(actor, plan());
+        now.addAndGet(1000);
+        var shortTick = engine.tick("external", 60000);
+        assertEquals(0, shortTick.executed);
+        assertEquals(0, operations.submits);
+        assertNull(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+        assertEquals(1, engine.tick("external", 660000).executed);
+        assertEquals("submitted", service.runs(actor, task.id, 20, 0).get(0).status);
+        provider.confirmInstalled();
+        assertEquals("submitted", service.runs(actor, task.id, 20, 0).get(0).status);
+        operations.currentBuild = "new-build";
+        provider.confirmInstalled();
+        assertEquals("success", service.runs(actor, task.id, 20, 0).get(0).status);
+        assertEquals(1, operations.submits);
+    }
+
+    @Test
     public void storesTheExactBuildBeforeSubmittingAndDoesNotSubmitTwice() throws Exception {
         var first = service.save(actor, plan());
         now.addAndGet(1000);
