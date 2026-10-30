@@ -19,6 +19,7 @@ public final class AutomationNativeImageUtils {
                 AutomationViews.Runs.class,
                 AutomationViews.Run.class,
                 AutomationViews.Settings.class,
+                AutomationViews.Configuration.class,
                 AutomationViews.Change.class,
                 AutomationViews.SettingsChange.class,
                 StoredTask.class,

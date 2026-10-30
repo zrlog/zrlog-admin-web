@@ -1,13 +1,13 @@
-import {beforeEach, describe, expect, it} from "@jest/globals";
-import {actionForPath, hasAction} from "./account-access";
-import {addToCache, cacheUserInfo, getCacheByKey} from "./cache";
-import {BasicUserInfo} from "../type";
+import { beforeEach, describe, expect, it } from "@jest/globals";
+import { actionForPath, hasAction, canAccessPage } from "./account-access";
+import { addToCache, cacheUserInfo, getCacheByKey } from "./cache";
+import { BasicUserInfo } from "../type";
 
 describe("account permission and cache boundary", () => {
     beforeEach(() => {
         localStorage.clear();
         window.__SS_DATA__ = {
-            user: {actions: ["article.read"]} as BasicUserInfo,
+            user: { actions: ["article.read"] } as BasicUserInfo,
             key: "one",
             pageBuildId: "test",
             systemNotification: "",
@@ -33,40 +33,49 @@ describe("account permission and cache boundary", () => {
         expect(actionForPath("/system/upgrade.html?v=1")).toBe("site.configure");
     });
     it("does not reuse another signed-in session's article or grant cache", () => {
-        addToCache("/article", {privateText: "first session"});
-        addToCache("/user/applications/grants", {grants: ["first session"]});
+        addToCache("/article", { privateText: "first session" });
+        addToCache("/user/applications/grants", { grants: ["first session"] });
         window.__SS_DATA__!.key = "two";
         expect(getCacheByKey("/article")).toBeUndefined();
         expect(getCacheByKey("/user/applications/grants")).toBeUndefined();
     });
+    it("opens assistant configuration for either existing management permission without granting the other", () => {
+        expect(canAccessPage("/website/assistant")).toBe(false);
+        window.__SS_DATA__!.user!.actions = ["system.manage"];
+        expect(canAccessPage("/website/assistant.html?section=execution")).toBe(true);
+        expect(hasAction("site.configure")).toBe(false);
+        window.__SS_DATA__!.user!.actions = ["site.configure"];
+        expect(canAccessPage("/website/assistant?section=ai")).toBe(true);
+        expect(hasAction("system.manage")).toBe(false);
+    });
     it("refreshes account fields without dropping the cached profile or mixing sessions", () => {
-        const user: BasicUserInfo = {userId: 1, userName: "owner", header: "", key: "one", language: "zh_CN"};
-        addToCache("/user", {...user, email: "owner@example.com"});
-        cacheUserInfo({...user, language: "en_US", appearance: {theme: "desk"}});
+        const user: BasicUserInfo = { userId: 1, userName: "owner", header: "", key: "one", language: "zh_CN" };
+        addToCache("/user", { ...user, email: "owner@example.com" });
+        cacheUserInfo({ ...user, language: "en_US", appearance: { theme: "desk" } });
         expect(getCacheByKey("/user")).toMatchObject({
             email: "owner@example.com",
             language: "en_US",
-            appearance: {theme: "desk"},
+            appearance: { theme: "desk" },
         });
         window.__SS_DATA__!.key = "two";
-        cacheUserInfo({...user, userId: 2, key: "two", language: "zh_CN"});
+        cacheUserInfo({ ...user, userId: 2, key: "two", language: "zh_CN" });
         expect(getCacheByKey("/user").email).toBeUndefined();
         expect(getCacheByKey("/user").language).toBe("zh_CN");
     });
     it("keeps consent state out of persistent browser storage", () => {
-        addToCache("/user/applications/authorize?request_id=example", {csrf: "csrf-example"});
+        addToCache("/user/applications/authorize?request_id=example", { csrf: "csrf-example" });
         expect(getCacheByKey("/user/applications/authorize?request_id=example").csrf).toBe("csrf-example");
         expect(JSON.stringify(localStorage)).not.toContain("csrf-example");
     });
     it("keeps deployment proxy settings only in the current session", () => {
-        addToCache("/system/proxy", {url: "http://private-proxy.example:3128"});
+        addToCache("/system/proxy", { url: "http://private-proxy.example:3128" });
         expect(getCacheByKey("/system/proxy").url).toContain("private-proxy");
         expect(JSON.stringify(localStorage)).not.toContain("private-proxy");
         window.__SS_DATA__!.key = "two";
         expect(getCacheByKey("/system/proxy")).toBeUndefined();
     });
     it("keeps site member data in the current session only", () => {
-        addToCache("/website/members", {members: ["member-cache-example"]});
+        addToCache("/website/members", { members: ["member-cache-example"] });
         expect(getCacheByKey("/website/members").members).toEqual(["member-cache-example"]);
         expect(JSON.stringify(localStorage)).not.toContain("member-cache-example");
         window.__SS_DATA__!.key = "two";
@@ -75,13 +84,13 @@ describe("account permission and cache boundary", () => {
     it("isolates independent page caches and keeps all application pages out of persistent storage", () => {
         for (const page of ["tokens", "grants", "clients"]) {
             const key = `/user/applications/${page}`;
-            addToCache(key, {marker: `private-${page}`});
-            expect(getCacheByKey(key)).toEqual({marker: `private-${page}`});
+            addToCache(key, { marker: `private-${page}` });
+            expect(getCacheByKey(key)).toEqual({ marker: `private-${page}` });
             expect(JSON.stringify(localStorage)).not.toContain(`private-${page}`);
         }
-        addToCache("/user/preferences", {userName: "obsolete-profile-cache"});
+        addToCache("/user/preferences", { userName: "obsolete-profile-cache" });
         expect(getCacheByKey("/user/preferences/appearance")).toBeUndefined();
-        addToCache("/user/preferences/appearance", {marker: "appearance-cache"});
+        addToCache("/user/preferences/appearance", { marker: "appearance-cache" });
         expect(getCacheByKey("/user/preferences/writing")).toBeUndefined();
         expect(actionForPath("/user/applications/clients.html?v=1")).toBe("oauth.client.manage");
         expect(actionForPath("/user/applications/grants")).toBe("oauth.grant.manage");

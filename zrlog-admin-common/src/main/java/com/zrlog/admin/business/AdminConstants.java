@@ -51,7 +51,7 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/template", "admin.website.template.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/other", "admin.website.other.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/upgrade", "admin.website.upgrade.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/ai", "admin.website.ai.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/assistant", "admin.website.ai.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/article-edit", "admin.website.articleEdit.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/content-protector", "admin.website.contentProtector.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/webhook", "admin.website.webhook.manage");

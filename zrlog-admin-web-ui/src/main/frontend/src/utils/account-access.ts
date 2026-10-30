@@ -1,8 +1,13 @@
-import {getSsDate} from "../base/SsData";
-import {getAccountPage} from "./account-page-routes";
+import { getSsDate } from "../base/SsData";
+import { getAccountPage } from "./account-page-routes";
 
 export type AccountRole = "owner" | "admin" | "editor" | "author" | "contributor";
 export const hasAction = (action: string) => getSsDate().user?.actions?.includes(action) === true;
+export const canAccessPage = (raw: string): boolean => {
+    const path = raw.split("?")[0].replace(/\.html$/, "");
+    if (path === "/website/assistant") return hasAction("system.manage") || hasAction("site.configure");
+    return hasAction(actionForPath(raw));
+};
 export const actionForPath = (raw: string): string => {
     const path = raw.split("?")[0].replace(/\.html$/, "");
     const accountPage = getAccountPage(path);

@@ -11,7 +11,7 @@ import { FunctionComponent, useState } from "react";
 import { AdminCommonProps, AIProviderType } from "../../type";
 import { getPageDataCacheKeyByPath } from "../../utils/cache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import AIForm from "./AIForm";
+import AssistantSettings, { AssistantConfiguration } from "./AssistantSettings";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
 import ArticleEditForm from "./ArticleEditForm";
 import FeatureLabForm from "./FeatureLabForm";
@@ -156,6 +156,7 @@ export type WebSiteEntry =
     | Other
     | Blog
     | AI
+    | AssistantConfiguration
     | ArticleEditSetting
     | FeatureLab
     | ContentProtector
@@ -391,19 +392,13 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
                         <PrivacyForm offlineData={offlineData} offline={offline} data={data as PersonalDataPreview} />
                     </div>
                 );
-            } else if (activeKey === "ai") {
+            } else if (activeKey === "assistant") {
                 return (
-                    <div style={layoutSurface.formContainer}>
-                        <AIForm
-                            loading={loading}
-                            offlineData={offlineData}
-                            onSubmit={(newData) => {
-                                void onSubmit(newData);
-                            }}
-                            offline={offline}
-                            data={data as AI}
-                        />
-                    </div>
+                    <AssistantSettings
+                        data={data as AssistantConfiguration}
+                        offline={offline}
+                        offlineData={offlineData}
+                    />
                 );
             }
             return <></>;

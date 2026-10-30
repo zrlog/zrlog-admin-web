@@ -230,7 +230,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         if (pathname.startsWith("/website/upgrade")) {
             return { title: getRes().websiteUpgrade.title, subtitle: navigationSubtitle };
         }
-        if (pathname.startsWith("/website/ai")) {
+        if (pathname.startsWith("/website/assistant")) {
             return { title: getRes().websiteAi.title, subtitle: navigationSubtitle };
         }
         if (pathname.startsWith("/website/webhook")) {
