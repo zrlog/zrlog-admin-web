@@ -84,24 +84,24 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
+    public boolean awaitingCompletion(String type, JsonObject parameters) throws SQLException {
+        var receipt = store.read(KEY, Receipt.class);
+        return receipt != null && "assistant".equals(receipt.value.source)
+                && !"confirmed".equals(receipt.value.state) && installed(receipt.value);
+    }
+
+    @Override
     public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
         context.checkActive();
         TaskAuthority.require(context.actor(), AccountAction.SYSTEM_MANAGE.getId());
         if (!operations.available()) return attention("unsupported");
         if (!Objects.equals(parameters.get("channel").getAsString(), operations.channel())) return attention("channelChanged");
         var before = store.read(KEY, Receipt.class);
-        if (before != null && !"confirmed".equals(before.value.state)) {
+        if (before != null && !"confirmed".equals(before.value.state)
+                && !("manual".equals(before.value.source) && installed(before.value))) {
             Receipt previous = before.value;
             if (installed(previous)) {
-                Receipt confirmed = before.copy(Receipt.class);
-                confirmed.state = "confirmed";
-                if (!store.writeAuthorized(KEY, before, confirmed, context.actor())) return attention("pending");
-                confirmRun(previous);
-                // Confirm the prior submission first; the next cycle can check for another release.
-                var result = confirmed(previous);
-                // The original submission owns the notification; the confirming tick is quiet.
-                result.notifyOwner = false;
-                return result;
+                return UpgradeResourceCompletion.result(previous, false);
             }
             boolean retry = parameters.has("retryReceiptId")
                     && previous.runId.equals(parameters.get("retryReceiptId").getAsString())
@@ -126,6 +126,8 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         }
         Version version = check.getVersion();
         if (version == null || version.getBuildId() == null || version.getBuildId().isBlank()) return attention("targetUnknown");
+        if (version.getBuildId().equals(operations.currentBuildId()))
+            return AutomationModels.Result.success("admin.automation.version.current");
         Receipt receipt = new Receipt();
         receipt.runId = context.runId();
         receipt.ownerId = context.actor().getUserId();
@@ -145,7 +147,8 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     public AutomationModels.Result recover(String type, JsonObject parameters, String runId, AccountAccess actor) throws SQLException {
         TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
         var receipt = store.read(KEY, Receipt.class);
-        return receipt != null && receipt.value.runId.equals(runId) && installed(receipt.value) ? confirmed(receipt.value) : null;
+        return receipt != null && receipt.value.runId.equals(runId) && installed(receipt.value)
+                && "confirmed".equals(receipt.value.state) ? UpgradeResourceCompletion.result(receipt.value, true) : null;
     }
 
     private boolean canRetry(Receipt receipt, AccountAccess actor) throws SQLException {
@@ -161,28 +164,9 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         return receipt.buildId != null && !receipt.buildId.isBlank() && receipt.buildId.equals(operations.currentBuildId());
     }
 
-    private void confirmRun(Receipt receipt) throws SQLException {
-        var run = store.run(receipt.runId);
-        if (run == null || !"submitted".equals(run.value.status)) return;
-        var confirmed = run.copy(AutomationModels.Run.class);
-        confirmed.status = "success";
-        confirmed.finishedAt = clock.getAsLong();
-        confirmed.result = confirmed(receipt);
-        if (store.replaceRun(run, confirmed)) {
-            var task = store.task(run.value.taskId);
-            if (task != null && task.value.activeRun == null && "submitted".equals(task.value.lastStatus)
-                    && Objects.equals(task.value.lastRunAt, run.value.startedAt)) {
-                var completed = task.copy(StoredTask.class);
-                completed.lastStatus = "success";
-                store.replaceTask(task, completed, null);
-            }
-        }
-    }
-
-    /** Local version proof also completes one-shot submissions after the application restarts. */
-    public void confirmInstalled() throws SQLException {
-        var receipt = store.read(KEY, Receipt.class);
-        if (receipt != null && installed(receipt.value)) confirmRun(receipt.value);
+    /** Complete the original execution independently of its next schedule or enabled state. */
+    public void completeInstalled(TaskAuthority authority, long budgetMillis) throws SQLException {
+        new UpgradeResourceCompletion(store, authority, operations, clock).complete(budgetMillis);
     }
 
     private static AutomationModels.Result submitted(Receipt receipt) {
@@ -190,14 +174,6 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         result.status = "submitted";
         result.text = receipt.version;
         result.externalRunId = receipt.runId;
-        result.actionPath = "/upgrade";
-        return result;
-    }
-
-    private static AutomationModels.Result confirmed(Receipt receipt) {
-        var result = AutomationModels.Result.success("admin.automation.upgrade.confirmed");
-        result.notifyOwner = true;
-        result.text = receipt.version;
         result.actionPath = "/upgrade";
         return result;
     }
@@ -214,6 +190,7 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         String currentBuildId();
         PreCheckVersionResponse check();
         boolean submit(Version target, TaskExecutionContext context) throws Exception;
+        void synchronizeResources(TaskExecutionContext context) throws Exception;
     }
 
     public static class Receipt {
@@ -229,5 +206,11 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         public String runtimeId;
         public Long finishedAt;
         public long startedAt;
+        public String completionId;
+        public long completionLeaseUntil;
+        public long nextCompletionAt;
+        public String resourceStatus;
+        public Long resourceStartedAt;
+        public Long resourceFinishedAt;
     }
 }

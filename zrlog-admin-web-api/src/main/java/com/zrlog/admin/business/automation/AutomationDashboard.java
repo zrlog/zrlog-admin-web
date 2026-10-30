@@ -97,6 +97,7 @@ public final class AutomationDashboard {
     private static void localizeChildren(List<AutomationModels.ChildResult> children) {
         if (children == null) return;
         for (AutomationModels.ChildResult child : children) {
+            if (child.nameKey != null) child.name = text(child.nameKey);
             child.summary = child.messageKey == null ? null : text(child.messageKey);
             child.actionLabel = text(child.actionLabelKey);
             localizeChildren(child.children);

@@ -92,6 +92,21 @@ public class UpgradeExecutionCoordinatorTest {
         assertFalse(coordinator.view(actor).canRetry);
     }
 
+    @Test public void installedAutomaticUpgradeKeepsItsClaimUntilResourcesAreReady() throws Exception {
+        store.writeAuthorized(AutomaticUpgradeTaskProvider.KEY, null, automatic("auto-run"), actor);
+        installed.set("new-build");
+        assertFalse(coordinator.view(actor).confirmed);
+        assertFalse(coordinator.view(actor).canRetry);
+        assertThrows(UpgradeExecutionCoordinator.Conflict.class,
+                () -> coordinator.claimManual(actor, target(), null, "release", null));
+        var row = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
+        var receipt = row.copy(AutomaticUpgradeTaskProvider.Receipt.class);
+        receipt.state = "confirmed";
+        store.write(AutomaticUpgradeTaskProvider.KEY, row, receipt);
+        assertTrue(coordinator.view(actor).confirmed);
+        assertEquals("manual", coordinator.claimManual(actor, target(), null, "release", null).source);
+    }
+
     @Test public void dockerRetryKeepsItsIdentityAndRejectsChangedTargetOrChannel() throws Exception {
         var first = coordinator.claimManual(actor, target(), "docker-1234567890", "release", null);
         assertEquals(first.runId, coordinator.claimManual(actor, target(), "docker-1234567890", "release", null).runId);
@@ -121,7 +136,7 @@ public class UpgradeExecutionCoordinatorTest {
         var receipt = new AutomaticUpgradeTaskProvider.Receipt();
         receipt.runId = AutomationStore.ownerPrefix(1) + AutomationStore.timeKey(now.get()) + ".00000000-0000-0000-0000-000000000001";
         receipt.ownerId = 1; receipt.buildId = "new-build"; receipt.version = "4.2.0";
-        receipt.state = "pending"; receipt.startedAt = now.get(); return receipt;
+        receipt.source = "assistant"; receipt.state = "pending"; receipt.startedAt = now.get(); return receipt;
     }
     private Version target() { var target = new Version(); target.setBuildId("new-build"); target.setVersion("4.2.0"); return target; }
 }

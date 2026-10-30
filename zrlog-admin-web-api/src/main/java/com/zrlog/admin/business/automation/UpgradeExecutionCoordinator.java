@@ -45,7 +45,7 @@ public final class UpgradeExecutionCoordinator {
         if (target == null || target.getBuildId() == null || target.getBuildId().isBlank())
             throw new IllegalArgumentException("automation.upgrade.targetUnknown");
         var before = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
-        if (before != null && !installed(before.value) && !"confirmed".equals(before.value.state)) {
+        if (before != null && !complete(before.value)) {
             var previous = before.value;
             // Docker owns idempotency for resubmitting exactly the same target and request identity.
             if (dockerRequestId != null && "manual".equals(previous.source)
@@ -88,7 +88,7 @@ public final class UpgradeExecutionCoordinator {
         var view = new View();
         view.id = receipt.runId; view.source = Objects.toString(receipt.source, "assistant");
         view.version = receipt.version; view.buildId = receipt.buildId; view.startedAt = receipt.startedAt;
-        view.confirmed = "confirmed".equals(receipt.state) || installed(receipt);
+        view.confirmed = complete(receipt);
         view.canRetry = !view.confirmed && canRetry(receipt, actor);
         view.state = view.confirmed ? "confirmed" : view.canRetry ? "needs_review" : "pending";
         return view;
@@ -110,6 +110,10 @@ public final class UpgradeExecutionCoordinator {
 
     private boolean installed(AutomaticUpgradeTaskProvider.Receipt receipt) {
         return receipt.buildId != null && !receipt.buildId.isBlank() && receipt.buildId.equals(currentBuild.get());
+    }
+
+    private boolean complete(AutomaticUpgradeTaskProvider.Receipt receipt) {
+        return "confirmed".equals(receipt.state) || "manual".equals(receipt.source) && installed(receipt);
     }
 
     public static final class View {

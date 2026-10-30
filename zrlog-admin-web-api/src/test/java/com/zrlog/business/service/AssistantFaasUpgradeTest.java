@@ -140,7 +140,7 @@ public class AssistantFaasUpgradeTest {
         };
         var catalog = new UpdateVersionInfoPlugin(notices, () -> "en_US", updater, settings);
         return new HostAutomaticUpgradeOperations(upgrades, settings, () -> hasCatalog ? catalog : null,
-                () -> updater, () -> true, new AdminAuditService(settings));
+                () -> updater, () -> true, new AdminAuditService(settings), null);
     }
 
     private static Version target() {

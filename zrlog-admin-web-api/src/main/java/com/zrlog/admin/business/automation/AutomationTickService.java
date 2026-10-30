@@ -11,17 +11,26 @@ public final class AutomationTickService {
     private final AutomationStore store;
     private final LongSupplier clock;
     private final AutomationDefaults defaults;
+    private final Completion completion;
 
     public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock) {
         this(engine, store, clock, null);
     }
 
     public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock, AutomationDefaults defaults) {
+        this(engine, store, clock, defaults, budget -> { });
+    }
+
+    public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock,
+                                 AutomationDefaults defaults, Completion completion) {
         this.engine = engine; this.store = store; this.clock = clock; this.defaults = defaults;
+        this.completion = completion;
     }
 
     public AutomationModels.TickResult tick(String source, String credentialId, long budgetMillis) throws SQLException {
-        if (!List.of("internal", "external").contains(source)) throw new IllegalArgumentException("automation.invalidTrigger");
+        if (!List.of("internal", "external").contains(source) || budgetMillis < 1 || budgetMillis > 660000)
+            throw new IllegalArgumentException("automation.invalidTrigger");
+        long deadline = Math.addExact(clock.getAsLong(), budgetMillis);
         if (defaults != null) { defaults.initialize(); defaults.initializePluginTrigger(); }
         String key = "assistant.v1.tick:" + source;
         Health health = new Health();
@@ -33,7 +42,10 @@ public final class AutomationTickService {
         AutomationStore.Snapshot<Health> before = store.read(key, Health.class);
         store.write(key, before, health);
         try {
-            health.result = engine.tick(source, budgetMillis);
+            completion.run(Math.max(0, deadline - clock.getAsLong()));
+            long remaining = deadline - clock.getAsLong();
+            health.result = remaining > 0 ? engine.tick(source, remaining) : new AutomationModels.TickResult();
+            if (remaining <= 0) health.result.budgetExhausted = true;
             health.status = "success";
             return health.result;
         } catch (SQLException | RuntimeException error) {
@@ -61,4 +73,7 @@ public final class AutomationTickService {
         public String status;
         public AutomationModels.TickResult result;
     }
+
+    @FunctionalInterface
+    public interface Completion { void run(long budgetMillis) throws SQLException; }
 }

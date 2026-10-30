@@ -107,7 +107,7 @@ public class HostAutomaticUpgradeOperationsTest {
             var docker = new DockerImageUpdater(host);
             var updater = UpdaterHosts.adapt(new UpdateSession(host, docker));
             var operations = new HostAutomaticUpgradeOperations(null, settings, () -> null, () -> updater,
-                    () -> false, new AdminAuditService(settings));
+                    () -> false, new AdminAuditService(settings), null);
             var manifest = new Version();
             manifest.setVersion(artifactVersion);
             manifest.setArtifactVersion(artifactVersion);

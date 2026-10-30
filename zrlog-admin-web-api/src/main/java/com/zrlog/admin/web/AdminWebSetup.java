@@ -127,7 +127,15 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                     new HostAutomaticUpgradeOperations(r.get(ServiceComponent.class).upgrades(),
                                             r.get(ServiceComponent.class).websiteKv(),
                                             () -> zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class), zrLogConfig::getUpdater,
-                                            EnvKit::isFaaSMode, new AdminAuditService(r.get(ServiceComponent.class).websiteKv())),
+                                            EnvKit::isFaaSMode, new AdminAuditService(r.get(ServiceComponent.class).websiteKv()),
+                                            new HostUpgradeResourceSync(r.get(CacheRefreshService.class),
+                                                    () -> zrLogConfig.getPluginsByClazz(StaticSitePlugin.class),
+                                                    () -> zrLogConfig.getWebSetup(AdminResourceProvider.class) != null,
+                                                    () -> HostUpgradeResourceSync.request(siteInfo().getHost(),
+                                                            r.get(ServiceComponent.class).websiteKv().getString("admin_static_resource_base_url"),
+                                                            zrLogConfig.getRequestConfig(),
+                                                            new com.hibegin.http.server.ApplicationContext(zrLogConfig.getServerConfig())),
+                                                    new AdminAuditService(r.get(ServiceComponent.class).websiteKv()))),
                                     System::currentTimeMillis));
                             if (zrLogConfig.getWebSetup(AttachmentStorage.class) != null) {
                                 providers.add(r.get(com.zrlog.admin.web.di.assets.AssetsComponent.class).cleanupTasks());
@@ -365,8 +373,6 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
         try {
             var automations = zrLogConfig.getServerConfig().getBindings().build().get(AutomationComponent.class);
             automations.defaults().initialize();
-            ((com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider)
-                    automations.registry().require("system.auto-upgrade").provider).confirmInstalled();
         } catch (java.sql.SQLException error) {
             throw new IllegalStateException("Unable to migrate assistant maintenance tasks", error);
         }
