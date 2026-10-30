@@ -71,17 +71,6 @@ public final class AutomationDashboard {
         return response;
     }
 
-    public AutomationViews.Configuration configuration(AccountAccess actor) {
-        actor = authority.current(actor);
-        AutomationViews.Configuration response = new AutomationViews.Configuration();
-        response.canManageScheduler = AccountAction.SYSTEM_MANAGE.allowed(actor);
-        response.canConfigureAi = AccountAction.SITE_CONFIGURE.allowed(actor);
-        if (!response.canManageScheduler && !response.canConfigureAi) {
-            throw new com.zrlog.admin.business.exception.PermissionErrorException();
-        }
-        return response;
-    }
-
     public static AutomationViews.Task task(StoredTask task) {
         AutomationViews.Task view = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationViews.Task.class);
         view.systemTask = task.ownerId == 0;

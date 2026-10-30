@@ -5,8 +5,16 @@ import { getBackendServerUrl, getRes } from "../../utils/constants";
 import { formatDateTime } from "../../utils/date-time";
 import type { Request, Settings, SettingsPage } from "./types";
 
-export default function TaskSettings({ request, disabled }: { request: Request; disabled: boolean }) {
-    const [page, setPage] = useState<SettingsPage>();
+export default function TaskSettings({
+    request,
+    disabled,
+    initialPage,
+}: {
+    request: Request;
+    disabled: boolean;
+    initialPage?: SettingsPage;
+}) {
+    const [page, setPage] = useState<SettingsPage | undefined>(initialPage);
     const [busy, setBusy] = useState(false);
     const [loadError, setLoadError] = useState<string>();
     const [secret, setSecret] = useState<string>();
@@ -22,8 +30,9 @@ export default function TaskSettings({ request, disabled }: { request: Request; 
         }
     }, [request, res.failedRequest]);
     useEffect(() => {
-        void load().catch(() => undefined);
-    }, [load]);
+        if (initialPage) setPage(initialPage);
+        else void load().catch(() => undefined);
+    }, [load, initialPage]);
     const change = async (path: string, extra: Record<string, unknown> = {}) => {
         if (!page || busy || disabled) return false;
         setBusy(true);

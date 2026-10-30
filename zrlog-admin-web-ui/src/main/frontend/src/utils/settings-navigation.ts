@@ -11,6 +11,7 @@ export type WebsiteSettingsPage =
     | "admin"
     | "blog"
     | "assistant"
+    | "ai"
     | "article-edit"
     | "content-protector"
     | "lab"
@@ -93,6 +94,13 @@ export const getWebsiteSettingsItems = () => {
         },
         {
             key: "assistant",
+            text: getRes().websiteAssistant.title,
+            summary: getRes().websiteAssistant.summary,
+            group: getRes().website.nav.feature,
+            iconKey: "robot",
+        },
+        {
+            key: "ai",
             text: getRes().websiteAi.title,
             summary: getRes().websiteAi.summary,
             group: getRes().website.nav.feature,

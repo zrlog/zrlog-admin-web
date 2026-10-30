@@ -73,11 +73,10 @@ public final class AutomationController extends BaseController {
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
-    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.settings",
-            conditional = {AccountAction.SYSTEM_MANAGE, AccountAction.SITE_CONFIGURE})
-    public AdminPageDataResponse<AutomationViews.Configuration> configuration() throws Exception {
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "automation.settings")
+    public AdminPageDataResponse<AutomationViews.Settings> configuration() throws Exception {
         var actor = identities.current();
-        return pages.response(actor, dashboard.configuration(actor), "", "/admin/website/assistant");
+        return pages.response(actor, dashboard.settings(actor), "", "/admin/website/assistant");
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
@@ -129,7 +128,7 @@ public final class AutomationController extends BaseController {
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.runs")
     public ApiStandardResponse<AutomationViews.Runs> runs() throws Exception {
         return new ApiStandardResponse<>(dashboard.runs(identities.current(), request.getParaToStr("taskId"),
-                request.getParaToInt("page", 1), request.getParaToInt("pageSize", 20)));
+                request.getParaToInt("page", 1), Integer.parseInt(request.getParaToStr("pageSize", "20"))));
     }
 
     @ResponseBody @RequestMethod(method = HttpMethod.GET)

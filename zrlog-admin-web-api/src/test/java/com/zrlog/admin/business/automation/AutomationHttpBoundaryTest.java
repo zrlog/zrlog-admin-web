@@ -1,8 +1,12 @@
 package com.zrlog.admin.business.automation;
 
 import com.hibegin.http.HttpMethod;
+import com.hibegin.http.server.ApplicationContext;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.config.RequestConfig;
+import com.hibegin.http.server.impl.HttpRequestDecoderImpl;
+import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -17,15 +21,67 @@ import com.zrlog.model.User;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 
 public class AutomationHttpBoundaryTest {
+    @Test
+    public void historyDefaultsToTwentyRowsAndPagesWithoutRepeatingOrExposingOtherAccounts() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            var store = db.component(AutomationComponent.class).store();
+            String taskId = AutomationStore.ownerPrefix(1) + UUID.randomUUID();
+            long now = System.currentTimeMillis();
+            for (int i = 0; i < 28; i++) {
+                var run = new AutomationModels.Run();
+                run.ownerId = i < 25 ? 1 : 2;
+                run.id = AutomationStore.ownerPrefix(run.ownerId) + AutomationStore.timeKey(now + i) + "." + UUID.randomUUID();
+                run.taskId = run.ownerId == 1 ? taskId : AutomationStore.ownerPrefix(2) + UUID.randomUUID();
+                run.taskName = "History " + i;
+                run.status = "success";
+                run.startedAt = now + i;
+                store.insertRun(run);
+            }
+            var first = history(db, "?page=1&taskId=");
+            assertEquals(20, first.pageSize);
+            assertEquals(25, first.total);
+            assertEquals(20, first.items.size());
+            assertEquals("History 24", first.items.get(0).taskName);
+            assertEquals("History 5", first.items.get(19).taskName);
+            var second = history(db, "?page=2&taskId=");
+            assertEquals(2, second.page);
+            assertEquals(20, second.pageSize);
+            assertEquals(25, second.total);
+            assertEquals(5, second.items.size());
+            assertEquals("History 4", second.items.get(0).taskName);
+            assertEquals("History 0", second.items.get(4).taskName);
+            assertEquals(20, history(db, "?taskId=" + taskId).items.size());
+            assertEquals(1, history(db, "?pageSize=1").items.size());
+            assertEquals(100, history(db, "?pageSize=999").pageSize);
+            assertThrows(NumberFormatException.class, () -> history(db, "?pageSize=invalid"));
+        }
+    }
+
+    private AutomationViews.Runs history(InMemoryZrLogDatabase db, String query) throws Exception {
+        var config = db.config().getServerConfig();
+        var decoder = new HttpRequestDecoderImpl(new RequestConfig(), new ApplicationContext(config), null);
+        assertTrue(decoder.doDecode(ByteBuffer.wrap(("GET /api/admin/assistant/runs" + query
+                + " HTTP/1.1\r\nHost: localhost\r\n\r\n").getBytes(StandardCharsets.UTF_8))).getKey());
+        var request = decoder.getRequest();
+        var route = config.getRouter().getMethod(request.getUri(), HttpMethod.GET);
+        var controller = (com.zrlog.admin.web.controller.api.AutomationController)
+                Controller.buildController(route, request, null);
+        return controller.runs().getData();
+    }
+
     @Test
     public void actualAssemblyRegistersTriggerBeforeBrowserAuthAndManagementRequiresSession() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -40,8 +96,7 @@ public class AutomationHttpBoundaryTest {
             assertNotNull(configurationRoute);
             assertNull(config.getRouter().getMethod("/api/admin/website/assistant", HttpMethod.POST));
             var configuration = tasks.controller().configuration().getData();
-            assertTrue(configuration.canManageScheduler);
-            assertTrue(configuration.canConfigureAi);
+            assertTrue(configuration.settings.internalEnabled);
             assertNotNull(config.getRouter().getMethod("/api/admin/assistant", HttpMethod.GET));
             assertNotNull(config.getRouter().getMethod("/api/admin/assistant/notices", HttpMethod.GET));
             assertNotNull(config.getRouter().getMethod("/api/admin/assistant/readNotice", HttpMethod.POST));
@@ -67,29 +122,24 @@ public class AutomationHttpBoundaryTest {
     }
 
     @Test
-    public void unifiedSettingsKeepExecutionAndAiPermissionsSeparate() throws Exception {
+    public void assistantSettingsRequireSystemManagementIndependentlyOfAiConfiguration() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             var tasks = db.component(AutomationComponent.class);
-            for (AccountAction action : new AccountAction[]{AccountAction.SYSTEM_MANAGE, AccountAction.SITE_CONFIGURE}) {
-                DelegatedAccess.withPermissions(Set.of(AccountAction.SESSION.getId(), action.getId()), false, () -> {
-                    var configuration = tasks.controller().configuration().getData();
-                    assertEquals(action == AccountAction.SYSTEM_MANAGE, configuration.canManageScheduler);
-                    assertEquals(action == AccountAction.SITE_CONFIGURE, configuration.canConfigureAi);
-                    var actor = AccountAccess.from(new User(db.dataSource()).loadById(1))
-                            .restrictActions(Set.of(action.getId()));
-                    if (action == AccountAction.SITE_CONFIGURE) {
-                        assertThrows(PermissionErrorException.class, () -> tasks.settings().read(actor));
-                    } else {
-                        assertTrue(tasks.settings().read(actor).internalEnabled);
-                    }
+            assertEquals(AccountAction.SYSTEM_MANAGE,
+                    com.zrlog.admin.web.controller.api.AutomationController.class.getMethod("configuration")
+                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+            DelegatedAccess.withPermissions(Set.of(AccountAction.SESSION.getId(), AccountAction.SYSTEM_MANAGE.getId()), false, () -> {
+                assertTrue(tasks.controller().configuration().getData().settings.internalEnabled);
+                return null;
+            });
+            for (var actions : java.util.List.of(Set.of(AccountAction.SESSION.getId(), AccountAction.SITE_CONFIGURE.getId()),
+                    Set.of(AccountAction.SESSION.getId()))) {
+                DelegatedAccess.withPermissions(actions, false, () -> {
+                    assertThrows(PermissionErrorException.class, () -> tasks.controller().configuration());
                     return null;
                 });
             }
-            DelegatedAccess.withPermissions(Set.of(AccountAction.SESSION.getId()), false, () -> {
-                assertThrows(PermissionErrorException.class, () -> tasks.controller().configuration());
-                return null;
-            });
         }
     }
 

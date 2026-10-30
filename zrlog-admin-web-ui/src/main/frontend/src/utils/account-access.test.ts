@@ -39,14 +39,15 @@ describe("account permission and cache boundary", () => {
         expect(getCacheByKey("/article")).toBeUndefined();
         expect(getCacheByKey("/user/applications/grants")).toBeUndefined();
     });
-    it("opens assistant configuration for either existing management permission without granting the other", () => {
+    it("checks assistant and AI settings against their own permissions", () => {
         expect(canAccessPage("/website/assistant")).toBe(false);
+        expect(canAccessPage("/website/ai")).toBe(false);
         window.__SS_DATA__!.user!.actions = ["system.manage"];
-        expect(canAccessPage("/website/assistant.html?section=execution")).toBe(true);
-        expect(hasAction("site.configure")).toBe(false);
+        expect(canAccessPage("/website/assistant.html?v=1")).toBe(true);
+        expect(canAccessPage("/website/ai")).toBe(false);
         window.__SS_DATA__!.user!.actions = ["site.configure"];
-        expect(canAccessPage("/website/assistant?section=ai")).toBe(true);
-        expect(hasAction("system.manage")).toBe(false);
+        expect(canAccessPage("/website/assistant")).toBe(false);
+        expect(canAccessPage("/website/ai.html?v=1")).toBe(true);
     });
     it("refreshes account fields without dropping the cached profile or mixing sessions", () => {
         const user: BasicUserInfo = { userId: 1, userName: "owner", header: "", key: "one", language: "zh_CN" };
@@ -73,6 +74,14 @@ describe("account permission and cache boundary", () => {
         expect(JSON.stringify(localStorage)).not.toContain("private-proxy");
         window.__SS_DATA__!.key = "two";
         expect(getCacheByKey("/system/proxy")).toBeUndefined();
+    });
+    it("keeps assistant execution configuration in the current session only", () => {
+        const path = "/website/assistant.html?v=1";
+        addToCache(path, { settings: { tokenPreview: "private-trigger-preview" } });
+        expect(getCacheByKey(path).settings.tokenPreview).toBe("private-trigger-preview");
+        expect(JSON.stringify(localStorage)).not.toContain("private-trigger-preview");
+        window.__SS_DATA__!.key = "two";
+        expect(getCacheByKey(path)).toBeUndefined();
     });
     it("keeps site member data in the current session only", () => {
         addToCache("/website/members", { members: ["member-cache-example"] });

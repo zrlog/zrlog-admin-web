@@ -46,11 +46,6 @@ public final class AutomationViews {
         public AutomationTickService.Health external;
     }
 
-    public static class Configuration {
-        public boolean canManageScheduler;
-        public boolean canConfigureAi;
-    }
-
     public static class Change implements Validator {
         public String id;
         public Long revision;
