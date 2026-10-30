@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getBackendServerUrl, getRes } from "../../utils/constants";
 import { formatDateTime } from "../../utils/date-time";
 import type { Request, Settings, SettingsPage } from "./types";
+import ExternalTriggerGuide from "./ExternalTriggerGuide";
 
 export default function TaskSettings({
     request,
@@ -147,10 +148,10 @@ export default function TaskSettings({
             </Typography.Paragraph>
             <Typography.Paragraph type="secondary">{res.tokenHelp}</Typography.Paragraph>
             <Space wrap>
-                <Popconfirm title={res.rotateHelp} onConfirm={() => change("token/rotate")}>
+                <Popconfirm title={res.rotateHelp} okText={res.rotate} onConfirm={() => change("token/rotate")}>
                     <Button disabled={disabled || busy}>{res.rotate}</Button>
                 </Popconfirm>
-                <Popconfirm title={res.revokeHelp} onConfirm={() => change("token/revoke")}>
+                <Popconfirm title={res.revokeHelp} okText={res.revoke} onConfirm={() => change("token/revoke")}>
                     <Button danger disabled={disabled || busy || !settings.tokenConfigured}>
                         {res.revoke}
                     </Button>
@@ -170,10 +171,7 @@ export default function TaskSettings({
                     onClose={() => setSecret(undefined)}
                 />
             )}
-            <Typography.Title level={4}>{res.example}</Typography.Title>
-            <Typography.Paragraph copyable={{ text: example }}>
-                <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{example}</pre>
-            </Typography.Paragraph>
+            <ExternalTriggerGuide endpoint={endpoint} curlExample={example} />
         </Space>
     );
 }
