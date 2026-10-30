@@ -1,18 +1,18 @@
-import {encodeAiFiles} from "./article-ai-files";
-import {Alert, Button, Space, Typography} from "antd";
+import { encodeAiFiles } from "./article-ai-files";
+import { Alert, Button, Space, Typography } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
-import {useUiApp} from "@zrlog/ui/feedback";
+import { useUiApp } from "@zrlog/ui/feedback";
 import RobotIcon from "@zrlog/ui/icons/robot";
-import {ApplyAiValues, SkillContextRevision} from "../use-article-field-ai";
+import { ApplyAiValues, SkillContextRevision } from "../use-article-field-ai";
 
-import {isChatMessage, renderChatMessage, useArticleChat} from "./use-article-chat";
+import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
 import ArticleAiApproval from "./article-ai-approval";
 import ArticleAiInput from "./article-ai-input";
-import {canApplySkillValues, editorContextRevision} from "./article-ai-skill-contract";
+import { canApplySkillValues, editorContextRevision } from "./article-ai-skill-contract";
 import ArticleAiReasoning from "./article-ai-reasoning";
 
-import {cloneElement, FunctionComponent, isValidElement, useEffect, useMemo, useRef, useState} from "react";
-import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
+import { cloneElement, FunctionComponent, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import AIButton, {
     AIButtonRenderMessageOptions,
     AIStateCache,
@@ -21,7 +21,7 @@ import AIButton, {
 import AIIcon from "../../../icons/AIProviderIcon";
 import useArticleEditorScreens from "../use-article-editor-screens";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
-import {AxiosInstance} from "axios";
+import { AxiosInstance } from "axios";
 import {
     formatLabelValue,
     getLabelValueSeparator,
@@ -29,14 +29,14 @@ import {
     getRes,
     tryAppendBackendServerUrl,
 } from "../../../utils/constants";
-import {getSsDate} from "../../../base/SsData";
-import {getAppState} from "../../../base/ConfigProviderApp";
-import {ArticleChangeableValue, ArticleEditState} from "../index.types";
-import {useTheme} from "antd-style";
-import {addToCache, getCacheByKey} from "../../../utils/cache";
+import { getSsDate } from "../../../base/SsData";
+import { getAppState } from "../../../base/ConfigProviderApp";
+import { ArticleChangeableValue, ArticleEditState } from "../index.types";
+import { useTheme } from "antd-style";
+import { addToCache, getCacheByKey } from "../../../utils/cache";
 import ImageCropper from "../../../common/ImageCropper";
-import {parseCoverAspectRatio} from "../cover-aspect-ratio";
-import {resolveBackendCropImageUrl} from "../../../utils/crop-image-url";
+import { parseCoverAspectRatio } from "../cover-aspect-ratio";
+import { resolveBackendCropImageUrl } from "../../../utils/crop-image-url";
 import {
     ArticleAiErrorMeta,
     ArticleAiMessageExportResponse,
@@ -46,15 +46,15 @@ import {
     isAssistantTool,
     ToolAwareAIContent,
 } from "./article-ai-assistant.types";
-import {parseSseResponse} from "./article-ai-assistant-sse";
-import {getAssistantToolLabel} from "./tool/article-ai-assistant-tools";
+import { parseSseResponse } from "./article-ai-assistant-sse";
+import { getAssistantToolLabel } from "./tool/article-ai-assistant-tools";
 import ArticleAiAssistantToolContent from "./tool/article-ai-assistant-tool-content";
 import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content";
-import {getShortcutTitle, isTouchLikeDevice} from "../shortcut-utils";
-import {ApiResponse} from "../../../type";
-import {DraftAiSaveGate} from "../draft-ai-save-gate";
-import {useArticleAiQueue} from "./use-article-ai-queue";
-import type {AiMentionInput} from "./article-ai-mentions";
+import { getShortcutTitle, isTouchLikeDevice } from "../shortcut-utils";
+import { ApiResponse } from "../../../type";
+import { DraftAiSaveGate } from "../draft-ai-save-gate";
+import { useArticleAiQueue } from "./use-article-ai-queue";
+import type { AiMentionInput } from "./article-ai-mentions";
 
 type ArticleAiAssistantConfigProps = {
     data: ArticleEditState;
@@ -95,16 +95,16 @@ let articleAiAssistantDrawerOpen = false;
 export const getArticleAiAssistantDrawerOpen = () => articleAiAssistantDrawerOpen || getAIButtonDrawerOpen();
 
 export const useArticleAiAssistantConfig = ({
-                                                data,
-                                                draftAiSaveGate,
-                                                offline,
-                                                axiosInstance,
-                                                onAiMessagesChange,
-                                                onArticleUpdated,
-                                                onApplyValues,
-                                                getSkillContextRevision,
-                                                onApplyGeneratedCover,
-                                            }: ArticleAiAssistantConfigProps) => {
+    data,
+    draftAiSaveGate,
+    offline,
+    axiosInstance,
+    onAiMessagesChange,
+    onArticleUpdated,
+    onApplyValues,
+    getSkillContextRevision,
+    onApplyGeneratedCover,
+}: ArticleAiAssistantConfigProps) => {
     const [loadingKey, setLoadingKey] = useState<string>();
     const [cropModalOpen, setCropModalOpen] = useState<boolean>(false);
     const [croppingImageUrl, setCroppingImageUrl] = useState<string>("");
@@ -113,7 +113,7 @@ export const useArticleAiAssistantConfig = ({
     const [selectedTitles, setSelectedTitles] = useState<Record<number, string>>({});
     const [aiMessagesExporting, setAiMessagesExporting] = useState(false);
     const [aiMessagesClearing, setAiMessagesClearing] = useState(false);
-    const {message} = useUiApp();
+    const { message } = useUiApp();
     const theme = useTheme();
     const latestDataRef = useRef(data);
     latestDataRef.current = data;
@@ -134,7 +134,7 @@ export const useArticleAiAssistantConfig = ({
             if (!data.article.logId && event.created) migrateQueue.current?.(`${getSsDate().key}/${event.articleId}`);
             onArticleUpdated?.(event);
         },
-        {articleId: data.article.logId || 0, messages: aiMessages}
+        { articleId: data.article.logId || 0, messages: aiMessages }
     );
     const visibleMessages = aiMessages;
     const activeRun = aiMessages.some(
@@ -152,7 +152,7 @@ export const useArticleAiAssistantConfig = ({
     const queue = useArticleAiQueue(
         scope,
         offline || data.aiConfigured !== true || busy || activeRun || aiMessagesClearing,
-        ({input, tool, selectedText, files, references}) => sendMessage(input, tool, selectedText, files, references)
+        ({ input, tool, selectedText, files, references }) => sendMessage(input, tool, selectedText, files, references)
     );
     migrateQueue.current = queue.migrate;
 
@@ -230,7 +230,7 @@ export const useArticleAiAssistantConfig = ({
         }
         setAiMessagesExporting(true);
         try {
-            const {data: response} = await axiosInstance.get<ApiResponse<ArticleAiMessageExportResponse>>(
+            const { data: response } = await axiosInstance.get<ApiResponse<ArticleAiMessageExportResponse>>(
                 `/api/admin/article/ai/messages/export?id=${getArticleIdParam()}`
             );
             if (response.error) {
@@ -258,7 +258,7 @@ export const useArticleAiAssistantConfig = ({
         }
         try {
             setAiMessagesClearing(true);
-            const {data: response} = await axiosInstance.post<ApiResponse<boolean>>(
+            const { data: response } = await axiosInstance.post<ApiResponse<boolean>>(
                 `/api/admin/article/ai/messages/clear?id=${articleId}`
             );
             if (response.error) {
@@ -283,12 +283,12 @@ export const useArticleAiAssistantConfig = ({
         if (!toolPayload) {
             return;
         }
-        setToolPayloads((prevState) => ({...prevState, [messageIndex]: toolPayload}));
+        setToolPayloads((prevState) => ({ ...prevState, [messageIndex]: toolPayload }));
         if (toolPayload.tool === "title") {
             const firstTitle = toolPayload.payload.titles?.[0] || "";
             if (firstTitle) {
                 setSelectedTitles((prevState) =>
-                    prevState[messageIndex] ? prevState : {...prevState, [messageIndex]: firstTitle}
+                    prevState[messageIndex] ? prevState : { ...prevState, [messageIndex]: firstTitle }
                 );
             }
         }
@@ -305,9 +305,9 @@ export const useArticleAiAssistantConfig = ({
         ...baseContent,
         content,
         thinking,
-        ...(reasoningContent ? {reasoningContent} : {}),
-        ...(messageId ? {messageId} : {}),
-        ...(toolPayload ? {tool: toolPayload.tool, payload: toolPayload.payload} : {}),
+        ...(reasoningContent ? { reasoningContent } : {}),
+        ...(messageId ? { messageId } : {}),
+        ...(toolPayload ? { tool: toolPayload.tool, payload: toolPayload.payload } : {}),
     });
 
     const buildErrorContent = (
@@ -330,7 +330,7 @@ export const useArticleAiAssistantConfig = ({
     const getToolPayload = (content: AIContent, messageIndex: number): AssistantToolPayload | undefined => {
         const toolAwareContent = content as ToolAwareAIContent;
         if (isAssistantTool(toolAwareContent.tool) && toolAwareContent.payload) {
-            return {tool: toolAwareContent.tool, payload: toolAwareContent.payload} as AssistantToolPayload;
+            return { tool: toolAwareContent.tool, payload: toolAwareContent.payload } as AssistantToolPayload;
         }
         return toolPayloads[messageIndex];
     };
@@ -349,7 +349,7 @@ export const useArticleAiAssistantConfig = ({
             return;
         }
         try {
-            setToolPayloads((prevState) => ({...prevState, [messageIndex]: toolPayload}));
+            setToolPayloads((prevState) => ({ ...prevState, [messageIndex]: toolPayload }));
             onAiMessagesChange?.(
                 aiMessages.map((content, index) => {
                     if (index !== messageIndex) {
@@ -388,7 +388,7 @@ export const useArticleAiAssistantConfig = ({
         const blob = await (await fetch(dataUrl)).blob();
         const formData = new FormData();
         formData.append("imgFile", blob, "ai-cover-crop.png");
-        const {data: response} = await axiosInstance.post("/api/admin/upload?dir=ai-cover&temporary=true", formData);
+        const { data: response } = await axiosInstance.post("/api/admin/upload?dir=ai-cover&temporary=true", formData);
         if (response.error) {
             throw new Error(response.message || getRes().error.unknown);
         }
@@ -459,7 +459,7 @@ export const useArticleAiAssistantConfig = ({
             role: "user",
             content: normalizedInput,
             thinking: false,
-            ...(tool ? {tool} : {}),
+            ...(tool ? { tool } : {}),
         };
         const assistantContent: AIContent = {
             role: "assistant",
@@ -488,7 +488,7 @@ export const useArticleAiAssistantConfig = ({
                 query.set("tool", tool);
             }
             let currentContent = "";
-            const {data: responseData, status} = await axiosInstance.post(
+            const { data: responseData, status } = await axiosInstance.post(
                 `/api/admin/article/ai?${query.toString()}`,
                 tool ? getArticleAiRequestBody(selectedText) : null,
                 {
@@ -630,7 +630,7 @@ export const useArticleAiAssistantConfig = ({
         const errorTypeLabel = getErrorTypeLabel(errorMeta?.errorType);
         const errorSuggestion = getErrorSuggestion(errorMeta?.errorType);
         return (
-            <div style={{display: "flex", justifyContent: "center"}}>
+            <div style={{ display: "flex", justifyContent: "center" }}>
                 <Alert
                     type="error"
                     showIcon
@@ -681,26 +681,26 @@ export const useArticleAiAssistantConfig = ({
                             </Space>
                         </Space>
                     }
-                    style={{maxWidth: "90%"}}
+                    style={{ maxWidth: "90%" }}
                 />
             </div>
         );
     };
 
-    const renderMessage = ({content, index, defaultNode}: AIButtonRenderMessageOptions) => {
+    const renderMessage = ({ content, index, defaultNode }: AIButtonRenderMessageOptions) => {
         const status =
             busy && index === aiMessages.length - 1 && content.role === "assistant"
                 ? chat.status ||
-                (content.content
-                    ? getRes().articleEdit.knowledge.generating
-                    : (content as ToolAwareAIContent).reasoningContent
-                        ? getRes().articleEdit.knowledge.thinking
-                        : getRes().articleEdit.knowledge.waitingForResponse)
+                  (content.content
+                      ? getRes().articleEdit.knowledge.generating
+                      : (content as ToolAwareAIContent).reasoningContent
+                      ? getRes().articleEdit.knowledge.thinking
+                      : getRes().articleEdit.knowledge.waitingForResponse)
                 : undefined;
         // The host owns progress; avoid the editor's second spinner/empty thinking label.
         if (status && isValidElement<{ content: AIContent }>(defaultNode)) {
             defaultNode = content.content
-                ? cloneElement(defaultNode, {content: {...content, thinking: false}})
+                ? cloneElement(defaultNode, { content: { ...content, thinking: false } })
                 : null;
         }
         if (isChatMessage(content) && content.run) {
@@ -756,7 +756,7 @@ export const useArticleAiAssistantConfig = ({
             );
         }
         if (isChatMessage(content))
-            return renderChatMessage({content, index, defaultNode}, status, {
+            return renderChatMessage({ content, index, defaultNode }, status, {
                 api: axiosInstance,
                 articleId: data.article.logId || 0,
             });
@@ -790,7 +790,7 @@ export const useArticleAiAssistantConfig = ({
                     !Array.isArray(contract.applicableFields) ||
                     !/^[a-f0-9]{32}$/.test(contract.contextRevision))
             )
-                return <Alert type="warning" title={getRes().articleEdit.interaction.invalidResult}/>;
+                return <Alert type="warning" title={getRes().articleEdit.interaction.invalidResult} />;
             const stale = contract && contract.contextRevision !== getSkillContextRevision(toolAwareContent);
             const applyDisabled = Boolean(contract && (stale || activeRun || busy));
             const applyValues = (values: ArticleChangeableValue) => {
@@ -889,7 +889,7 @@ export const useArticleAiAssistantConfig = ({
                     />
                 )}
                 {messageTool && (
-                    <Space style={{display: "flex", justifyContent: "flex-end"}}>
+                    <Space style={{ display: "flex", justifyContent: "flex-end" }}>
                         <Tag color="processing">{getAssistantToolLabel(messageTool)}</Tag>
                     </Space>
                 )}
@@ -990,22 +990,22 @@ export const useArticleAiAssistantConfig = ({
 };
 
 const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps> = ({
-                                                                                        data,
-                                                                                        draftAiSaveGate,
-                                                                                        offline,
-                                                                                        axiosInstance,
-                                                                                        onAiMessagesChange,
-                                                                                        onArticleUpdated,
-                                                                                        onApplyValues,
-                                                                                        getSkillContextRevision,
-                                                                                        onApplyGeneratedCover,
-                                                                                        getContainer,
-                                                                                        aiDrawerWidth,
-                                                                                        stateCache,
-                                                                                        open,
-                                                                                        onOpenChange,
-                                                                                        onAiDrawerSizeChange,
-                                                                                    }) => {
+    data,
+    draftAiSaveGate,
+    offline,
+    axiosInstance,
+    onAiMessagesChange,
+    onArticleUpdated,
+    onApplyValues,
+    getSkillContextRevision,
+    onApplyGeneratedCover,
+    getContainer,
+    aiDrawerWidth,
+    stateCache,
+    open,
+    onOpenChange,
+    onAiDrawerSizeChange,
+}) => {
     const [innerOpen, setInnerOpen] = useState(false);
     const screens = useArticleEditorScreens();
     const theme = useTheme();
@@ -1072,7 +1072,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
                 border: "none",
             }}
             onClick={aiConfigured ? () => updateOpen(true) : undefined}
-            icon={aiConfigured ? <AIIcon name={data.aiProvider}/> : <RobotIcon/>}
+            icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotIcon />}
             title={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
             aria-label={getRes().websiteAi.label}
         >
@@ -1082,7 +1082,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
 
     if (!aiConfigured) {
         return (
-            <AIButton dark={getAppState().dark} configUrl={getRealRouteUrl("/website/ai")}>
+            <AIButton dark={getAppState().dark} configUrl={getRealRouteUrl("/website/assistant?section=ai")}>
                 {trigger}
             </AIButton>
         );

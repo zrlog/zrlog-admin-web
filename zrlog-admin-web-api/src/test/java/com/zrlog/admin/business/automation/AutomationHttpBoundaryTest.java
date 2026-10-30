@@ -4,6 +4,7 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.automation.AutomationComponent;
@@ -11,12 +12,14 @@ import com.zrlog.admin.web.interceptor.AdminInterceptor;
 import com.zrlog.admin.web.interceptor.AutomationTickInterceptor;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.User;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,6 +36,12 @@ public class AutomationHttpBoundaryTest {
             assertTrue(interceptors.indexOf(AutomationTickInterceptor.class) < interceptors.indexOf(AdminInterceptor.class));
             var accounts = db.component(AccountComponent.class);
             var tasks = db.component(AutomationComponent.class);
+            var configurationRoute = config.getRouter().getMethod("/api/admin/website/assistant", HttpMethod.GET);
+            assertNotNull(configurationRoute);
+            assertNull(config.getRouter().getMethod("/api/admin/website/assistant", HttpMethod.POST));
+            var configuration = tasks.controller().configuration().getData();
+            assertTrue(configuration.canManageScheduler);
+            assertTrue(configuration.canConfigureAi);
             assertNotNull(config.getRouter().getMethod("/api/admin/assistant", HttpMethod.GET));
             assertNotNull(config.getRouter().getMethod("/api/admin/assistant/notices", HttpMethod.GET));
             assertNotNull(config.getRouter().getMethod("/api/admin/assistant/readNotice", HttpMethod.POST));
@@ -52,6 +61,35 @@ public class AutomationHttpBoundaryTest {
             AccountAccess author = AccountAccess.from(new User(db.dataSource()).loadById(2));
             assertThrows(PermissionErrorException.class, () -> tasks.settings().read(author));
             assertTrue(tasks.tasks().definitions(author).stream().noneMatch(item -> item.requiredActions.contains("system.manage")));
+            db.execute("UPDATE user SET role=? WHERE userId=?", "author", 1);
+            assertThrows(PermissionErrorException.class, () -> tasks.controller().configuration());
+        }
+    }
+
+    @Test
+    public void unifiedSettingsKeepExecutionAndAiPermissionsSeparate() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            var tasks = db.component(AutomationComponent.class);
+            for (AccountAction action : new AccountAction[]{AccountAction.SYSTEM_MANAGE, AccountAction.SITE_CONFIGURE}) {
+                DelegatedAccess.withPermissions(Set.of(AccountAction.SESSION.getId(), action.getId()), false, () -> {
+                    var configuration = tasks.controller().configuration().getData();
+                    assertEquals(action == AccountAction.SYSTEM_MANAGE, configuration.canManageScheduler);
+                    assertEquals(action == AccountAction.SITE_CONFIGURE, configuration.canConfigureAi);
+                    var actor = AccountAccess.from(new User(db.dataSource()).loadById(1))
+                            .restrictActions(Set.of(action.getId()));
+                    if (action == AccountAction.SITE_CONFIGURE) {
+                        assertThrows(PermissionErrorException.class, () -> tasks.settings().read(actor));
+                    } else {
+                        assertTrue(tasks.settings().read(actor).internalEnabled);
+                    }
+                    return null;
+                });
+            }
+            DelegatedAccess.withPermissions(Set.of(AccountAction.SESSION.getId()), false, () -> {
+                assertThrows(PermissionErrorException.class, () -> tasks.controller().configuration());
+                return null;
+            });
         }
     }
 

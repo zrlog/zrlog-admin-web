@@ -8,15 +8,24 @@ import type { Request, Settings, SettingsPage } from "./types";
 export default function TaskSettings({ request, disabled }: { request: Request; disabled: boolean }) {
     const [page, setPage] = useState<SettingsPage>();
     const [busy, setBusy] = useState(false);
+    const [loadError, setLoadError] = useState<string>();
     const [secret, setSecret] = useState<string>();
     const [budget, setBudget] = useState<number | null>(null);
     const res = getRes().automations;
-    const load = useCallback(async () => setPage(await request<SettingsPage>("settings")), [request]);
+    const load = useCallback(async () => {
+        setLoadError(undefined);
+        try {
+            setPage(await request<SettingsPage>("settings"));
+        } catch (error) {
+            setLoadError(error instanceof Error ? error.message : res.failedRequest);
+            throw error;
+        }
+    }, [request, res.failedRequest]);
     useEffect(() => {
         void load().catch(() => undefined);
     }, [load]);
     const change = async (path: string, extra: Record<string, unknown> = {}) => {
-        if (!page || busy || disabled) return;
+        if (!page || busy || disabled) return false;
         setBusy(true);
         try {
             const result = await request<Settings | { token: string; settings: Settings }>(path, {
@@ -25,8 +34,10 @@ export default function TaskSettings({ request, disabled }: { request: Request; 
             });
             setSecret("token" in result ? result.token : undefined);
             await load();
+            return true;
         } catch {
             /* The request boundary displays the error. */
+            return false;
         } finally {
             setBusy(false);
         }
@@ -34,7 +45,7 @@ export default function TaskSettings({ request, disabled }: { request: Request; 
     if (!page)
         return (
             <Space>
-                <Spin />
+                {loadError ? <Alert type="error" showIcon title={loadError} /> : <Spin />}
                 <Button onClick={() => void load().catch(() => undefined)}>{res.reload}</Button>
             </Space>
         );
@@ -82,11 +93,11 @@ export default function TaskSettings({ request, disabled }: { request: Request; 
                 <Button
                     disabled={busy || disabled || budget === null || budget === settings.externalBudgetSeconds}
                     onClick={async () => {
-                        await change("settings/save", { ...settings, externalBudgetSeconds: budget });
-                        setBudget(null);
+                        if (await change("settings/save", { ...settings, externalBudgetSeconds: budget }))
+                            setBudget(null);
                     }}
                 >
-                    {res.save}
+                    {res.saveSettings}
                 </Button>
             </Space>
             <Typography.Paragraph type="secondary">{res.externalBudgetHelp}</Typography.Paragraph>

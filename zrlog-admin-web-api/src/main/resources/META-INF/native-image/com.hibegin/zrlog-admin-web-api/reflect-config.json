@@ -229,6 +229,10 @@
     "name": "com.zrlog.admin.web.controller.api.AutomationController",
     "methods": [
       {
+        "name": "configuration",
+        "parameterTypes": []
+      },
+      {
         "name": "propose",
         "parameterTypes": []
       },

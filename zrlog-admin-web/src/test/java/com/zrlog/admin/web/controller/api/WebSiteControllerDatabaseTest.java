@@ -417,6 +417,8 @@ public class WebSiteControllerDatabaseTest {
             assertEquals("false", value(db, "ai_reasoning_enabled"));
             assertEquals("", value(db, "ai_base_url"));
             assertEquals("", value(db, "ai_image_base_url"));
+            assertTrue(String.valueOf(value(db, "admin_audit_log"))
+                    .contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.website.ai.manage")));
         }
     }
 

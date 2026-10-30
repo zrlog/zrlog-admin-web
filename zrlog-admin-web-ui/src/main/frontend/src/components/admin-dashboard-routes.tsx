@@ -33,7 +33,7 @@ import {
     USER_ROUTES,
     WEBSITE_ROUTES,
 } from "../utils/account-page-routes";
-import { actionForPath, hasAction } from "../utils/account-access";
+import { canAccessPage } from "../utils/account-access";
 import type { ComponentType, ReactNode } from "react";
 import { lazy } from "react";
 
@@ -349,16 +349,16 @@ export const createAdminDashboardRoutes = (
         ],
     },
     {
-        paths: buildUriPaths("website/ai"),
+        paths: buildUriPaths("website/assistant"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
-        props: { activeKey: "ai" } as WebSiteProps,
+        props: { activeKey: "assistant" } as WebSiteProps,
         search: [
             {
-                id: "website_ai",
+                id: "website_assistant",
                 title: () => getRes().websiteAi.title,
                 iconKey: "robot",
-                keywords: ["ai", "gemini", "chatgpt", "人工智能"],
+                keywords: ["assistant", "settings", "ai", "gemini", "chatgpt", "助手", "执行设置", "人工智能"],
             },
         ],
     },
@@ -773,7 +773,7 @@ export const getAdminDashboardRouteSearchItems = (): AdminDashboardRouteSearchIt
                 (search) =>
                     (!search.visible || search.visible()) &&
                     isFeaturePathEnabled(toSearchPath(route, search)) &&
-                    hasAction(actionForPath(toSearchPath(route, search)))
+                    canAccessPage(toSearchPath(route, search))
             )
             .map((search) => ({
                 id: search.id,

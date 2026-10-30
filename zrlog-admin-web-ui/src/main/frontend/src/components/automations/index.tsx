@@ -16,20 +16,18 @@ import {
     Typography,
 } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
-import { useUiMessage } from "@zrlog/ui/feedback";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getSsDate } from "../../base/SsData";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
 import SystemTasks from "./SystemTasks";
 import RunChildren from "./RunChildren";
-import TaskSettings from "./TaskSettings";
+import { useAssistantRequest } from "./use-assistant-request";
+import { canAccessPage } from "../../utils/account-access";
 import ProposalForm from "./ProposalForm";
-import type { Overview, Plan, Request, Run, Runs, Task } from "./types";
+import type { Overview, Plan, Run, Runs, Task } from "./types";
 
 export default function Automations({
     data,
@@ -50,28 +48,10 @@ export default function Automations({
     useEffect(() => {
         if (searchParams.get("tab") === "system") setTab("system");
     }, [searchParams]);
-    const [notice, contextHolder] = useUiMessage();
-    const api = useAxiosBaseInstance();
     const res = getRes().automations;
     const disabled = offline || offlineData || busy;
     useEffect(() => setOverview(data), [data]);
-    const request: Request = useCallback(
-        async <T,>(path: string, body?: unknown): Promise<T> => {
-            const session = getSsDate().key;
-            try {
-                const url = `/api/admin/assistant${path ? (path.startsWith("?") ? path : "/" + path) : ""}`;
-                const response = body === undefined ? await api.get(url) : await api.post(url, body);
-                if (session !== getSsDate().key) throw new Error(res.failedRequest);
-                if (response.data.error) throw new Error(response.data.message || res.failedRequest);
-                return response.data.data as T;
-            } catch (error) {
-                if (session === getSsDate().key)
-                    notice.error(error instanceof Error ? error.message : res.failedRequest);
-                throw error;
-            }
-        },
-        [api, notice, res.failedRequest]
-    );
+    const request = useAssistantRequest();
     const reload = useCallback(
         async () => setOverview(await request<Overview>(`?offset=${(taskPage - 1) * 100}`)),
         [request, taskPage]
@@ -302,7 +282,6 @@ export default function Automations({
     );
     return (
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: 16 }}>
-            {contextHolder}
             <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                 <div>
                     <Typography.Title level={2}>{res.title}</Typography.Title>
@@ -313,6 +292,9 @@ export default function Automations({
                     <Button disabled={disabled} onClick={() => void reload().catch(() => undefined)}>
                         {res.reload}
                     </Button>
+                    {canAccessPage("/website/assistant") && (
+                        <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAi.title}</Link>
+                    )}
                 </Space>
                 <Tabs
                     activeKey={tab}
@@ -344,15 +326,6 @@ export default function Automations({
                               ]
                             : []),
                         { key: "history", label: res.history, children: history },
-                        ...(overview.canManageScheduler
-                            ? [
-                                  {
-                                      key: "settings",
-                                      label: res.settings,
-                                      children: <TaskSettings request={request} disabled={disabled} />,
-                                  },
-                              ]
-                            : []),
                     ]}
                 />
             </Space>

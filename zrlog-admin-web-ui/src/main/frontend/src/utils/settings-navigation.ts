@@ -1,8 +1,8 @@
-import {getRes, isServerDevelopmentMode} from "./constants";
-import {WEBSITE_ROUTES} from "./account-page-routes";
-import {actionForPath, hasAction} from "./account-access";
-import {isFeaturePathEnabled} from "./module-capabilities";
-import type {AdminDashboardRouteIconKey} from "../components/admin-dashboard-routes";
+import { getRes, isServerDevelopmentMode } from "./constants";
+import { WEBSITE_ROUTES } from "./account-page-routes";
+import { canAccessPage } from "./account-access";
+import { isFeaturePathEnabled } from "./module-capabilities";
+import type { AdminDashboardRouteIconKey } from "../components/admin-dashboard-routes";
 
 export type WebsiteSettingsPage =
     | "basic"
@@ -10,7 +10,7 @@ export type WebsiteSettingsPage =
     | "upgrade"
     | "admin"
     | "blog"
-    | "ai"
+    | "assistant"
     | "article-edit"
     | "content-protector"
     | "lab"
@@ -92,7 +92,7 @@ export const getWebsiteSettingsItems = () => {
             iconKey: "copyright",
         },
         {
-            key: "ai",
+            key: "assistant",
             text: getRes().websiteAi.title,
             summary: getRes().websiteAi.summary,
             group: getRes().website.nav.feature,
@@ -119,10 +119,10 @@ export const getWebsiteSettingsItems = () => {
             item.key === "members"
                 ? WEBSITE_ROUTES.members
                 : item.key === "basic"
-                    ? "/website"
-                    : item.key === "upgrade"
-                        ? "/system/upgrade"
-                        : "/website/" + item.key,
+                ? "/website"
+                : item.key === "upgrade"
+                ? "/system/upgrade"
+                : "/website/" + item.key,
     }));
 };
 
@@ -168,7 +168,7 @@ export const getAdminSettingsItems = (): SettingsItem[] => {
 
 export const getVisibleSettingsItems = (activeKey?: AdminSettingsPage) =>
     getAdminSettingsItems().filter((item) => {
-        if (!isFeaturePathEnabled(item.path) || !hasAction(actionForPath(item.path))) return false;
+        if (!isFeaturePathEnabled(item.path) || !canAccessPage(item.path)) return false;
         if (item.key === "dev") return isServerDevelopmentMode();
         if (item.key === "webhook") return activeKey === "webhook";
         if (item.key === "privacy") return getRes().feature_personal_data_enabled === true;

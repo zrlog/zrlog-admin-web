@@ -44,7 +44,7 @@ admin/500
 admin/login
 admin/website/version
 admin/static-site
-admin/website/ai
+admin/website/assistant
 admin/file-manager
 admin/website/article-edit
 admin/website/lab

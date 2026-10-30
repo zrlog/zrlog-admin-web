@@ -9,6 +9,7 @@ public class AdminRouters {
 
     public static void configAdminRoute(Router router) {
         router.addMapper("/api/admin/assistant", AutomationController.class, "index");
+        router.addMapper("/api/admin/website/assistant", AutomationController.class, "configuration");
         router.addMapper("/api/admin/assistant/save", AutomationController.class, "save");
         router.addMapper("/api/admin/assistant/propose", AutomationController.class, "propose");
         router.addMapper("/api/admin/assistant/enabled", AutomationController.class, "enabled");

@@ -72,6 +72,14 @@ public final class AutomationController extends BaseController {
         return pages.response(actor, dashboard.overview(actor, request.getParaToInt("offset", 0)), "", "/admin/assistant");
     }
 
+    @ResponseBody @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.settings",
+            conditional = {AccountAction.SYSTEM_MANAGE, AccountAction.SITE_CONFIGURE})
+    public AdminPageDataResponse<AutomationViews.Configuration> configuration() throws Exception {
+        var actor = identities.current();
+        return pages.response(actor, dashboard.configuration(actor), "", "/admin/website/assistant");
+    }
+
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.save")
     public ApiStandardResponse<AutomationViews.Task> save() throws Exception {
