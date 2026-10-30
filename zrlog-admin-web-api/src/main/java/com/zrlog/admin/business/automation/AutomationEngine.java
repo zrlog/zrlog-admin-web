@@ -8,9 +8,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.LongSupplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Request-bounded execution, shared by external ticks, resident scheduling and manual runs. */
 public final class AutomationEngine {
+    private static final Logger LOGGER = Logger.getLogger(AutomationEngine.class.getName());
     private static final long RESULT_RESERVE_MILLIS = 5000;
     private static final Set<String> RESULTS = Set.of("success", "submitted", "failed", "needs_attention", "uncertain");
     private final AutomationStore store;
@@ -143,6 +146,8 @@ public final class AutomationEngine {
                 run.status = "needs_attention";
                 run.errorCode = "automation.permissionChanged";
             } catch (Exception error) {
+                LOGGER.log(Level.WARNING,
+                        "Assistant task execution failed: type=" + task.type + ", run=" + run.id, error);
                 // A thrown exception cannot prove that an external side effect did not happen.
                 run.status = "uncertain";
                 run.errorCode = "automation.executionUncertain";
@@ -160,8 +165,7 @@ public final class AutomationEngine {
         release(task.id, run);
         try { store.pruneRuns(task.ownerId, clock.getAsLong()); }
         catch (SQLException error) {
-            java.util.logging.Logger.getLogger(AutomationEngine.class.getName()).log(
-                    java.util.logging.Level.WARNING, "Assistant history retention failed", error);
+            LOGGER.log(Level.WARNING, "Assistant history retention failed", error);
         }
         return run;
     }

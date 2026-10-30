@@ -105,6 +105,32 @@ public class AutomationEngineTest {
         assertEquals("success", store.run(run.id).value.result.children.get(0).status);
     }
 
+    @Test
+    public void uncertainFailureLogsItsCauseAndRunIdentityWithoutExposingItInTheResult() throws Exception {
+        var cause = new IllegalStateException("private execution diagnostic");
+        var records = new java.util.ArrayList<java.util.logging.LogRecord>();
+        var logger = java.util.logging.Logger.getLogger(AutomationEngine.class.getName());
+        var handler = new java.util.logging.Handler() {
+            public void publish(java.util.logging.LogRecord record) { records.add(record); }
+            public void flush() { }
+            public void close() { }
+        };
+        logger.addHandler(handler);
+        try {
+            action = () -> { throw cause; };
+            var task = service.save(actor, plan("interval"));
+            var run = engine().runNow(actor, task.id, task.revision, 60000);
+            assertEquals("uncertain", run.status);
+            assertEquals("automation.executionUncertain", run.errorCode);
+            assertFalse(store.task(task.id).value.enabled);
+            assertTrue(records.stream().anyMatch(record -> record.getThrown() == cause
+                    && record.getMessage().contains(run.id) && record.getMessage().contains(task.type)));
+            assertFalse(AutomationStore.JSON.toJson(run).contains(cause.getMessage()));
+        } finally {
+            logger.removeHandler(handler);
+        }
+    }
+
     private AutomationModels.Plan plan(String kind) {
         AutomationModels.Plan plan = new AutomationModels.Plan();
         plan.type = definition.type;
