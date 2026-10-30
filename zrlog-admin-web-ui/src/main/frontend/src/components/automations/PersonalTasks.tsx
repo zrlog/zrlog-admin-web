@@ -43,23 +43,24 @@ export default function PersonalTasks({
         <div className={styles.workspace}>
             <section className={styles.panel} aria-label={res.scheduledTasks}>
                 <div className={styles.panelHeader}>
-                    <Typography.Title level={4} style={{ margin: 0 }}>
-                        {res.scheduledTasks}
-                    </Typography.Title>
-                    <Typography.Text type="secondary">
-                        {res.taskCount.replace("{count}", String(overview.total))}
-                    </Typography.Text>
+                    <Space orientation="vertical" size={0}>
+                        <Typography.Title level={4} style={{ margin: 0 }}>
+                            {res.scheduledTasks}
+                        </Typography.Title>
+                        <Typography.Text type="secondary">
+                            {res.taskCount.replace("{count}", String(overview.total))}
+                        </Typography.Text>
+                    </Space>
+                    <Button type="primary" icon={<AddIcon />} disabled={disabled} onClick={() => onEdit({})}>
+                        {res.create}
+                    </Button>
                 </div>
                 {!overview.tasks.length && (
                     <div className={styles.taskRow}>
                         <Empty
                             image={<CalendarIcon style={{ fontSize: theme.fontSizeHeading1 }} />}
                             description={res.empty}
-                        >
-                            <Button disabled={disabled} onClick={() => onEdit({})}>
-                                {res.create}
-                            </Button>
-                        </Empty>
+                        />
                     </div>
                 )}
                 {overview.tasks.map((task) => {
