@@ -16,7 +16,7 @@ import {
     Typography,
 } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { formatDateTime } from "../../utils/date-time";
@@ -24,6 +24,7 @@ import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
 import SystemTasks from "./SystemTasks";
 import RunChildren from "./RunChildren";
+import RunHistory from "./RunHistory";
 import { useAssistantRequest } from "./use-assistant-request";
 import { canAccessPage } from "../../utils/account-access";
 import ProposalForm from "./ProposalForm";
@@ -43,6 +44,17 @@ export default function Automations({
     const [runs, setRuns] = useState<Runs>({ items: [], total: 0, page: 1, pageSize: 20 });
     const [filter, setFilter] = useState<string>();
     const [detail, setDetail] = useState<Run>();
+    const historyTrigger = useRef<HTMLElement | null>(null);
+    useEffect(() => {
+        if (detail || !historyTrigger.current) return;
+        const trigger = historyTrigger.current;
+        historyTrigger.current = null;
+        // Also restore focus when Escape interrupts the opening animation.
+        const frame = requestAnimationFrame(() => {
+            if (trigger.isConnected) trigger.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [detail]);
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedRun = searchParams.get("runId");
     useEffect(() => {
@@ -242,6 +254,7 @@ export default function Automations({
                     allowClear
                     style={{ minWidth: 240, maxWidth: "100%" }}
                     placeholder={res.allTasks}
+                    aria-label={res.allTasks}
                     value={filter}
                     onChange={setFilter}
                     options={[...(overview.systemTasks ?? []), ...overview.tasks].map((task) => ({
@@ -252,24 +265,14 @@ export default function Automations({
                 <Button onClick={() => void loadRuns(runs.page).catch(() => undefined)}>{res.reload}</Button>
             </Space>
             <Typography.Text type="secondary">{res.retention}</Typography.Text>
-            <List
-                dataSource={runs.items}
-                locale={{ emptyText: <Empty description={res.emptyRuns} /> }}
-                renderItem={(run) => (
-                    <List.Item>
-                        <Space orientation="vertical" style={{ width: "100%" }}>
-                            <Space wrap>
-                                <Typography.Text strong>{run.taskName}</Typography.Text>
-                                {status(run.status)}
-                            </Space>
-                            <Typography.Text type="secondary">{date(run.startedAt)}</Typography.Text>
-                            <Typography.Text>{run.summary}</Typography.Text>
-                            <Button style={{ alignSelf: "start" }} onClick={() => setDetail(run)}>
-                                {res.detail}
-                            </Button>
-                        </Space>
-                    </List.Item>
-                )}
+            <RunHistory
+                runs={runs.items}
+                onDetail={(run) => {
+                    historyTrigger.current =
+                        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+                    setDetail(run);
+                }}
+                renderStatus={status}
             />
             <Pagination
                 current={runs.page}
@@ -352,6 +355,7 @@ export default function Automations({
             <Drawer
                 title={res.detail}
                 open={!!detail}
+                focusable={{ focusTriggerAfterClose: !historyTrigger.current }}
                 onClose={() => {
                     setDetail(undefined);
                     if (selectedRun)
