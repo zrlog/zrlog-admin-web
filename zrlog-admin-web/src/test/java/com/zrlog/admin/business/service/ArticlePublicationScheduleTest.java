@@ -87,6 +87,29 @@ public class ArticlePublicationScheduleTest {
         assertFalse(automations.store().task(task.id).value.enabled);
     }
 
+    @Test public void existingDraftCanBeScheduledAndPublishesTheSavedVersion() throws Exception {
+        String title = "桂林3天2晚🛶照片像壁纸，鞋一直是湿的";
+        var draft = body(new CreateArticleRequest()); draft.setRubbish(true);
+        draft.setTitle(title);
+        var saved = content.publishing().create(actor, draft, audit);
+        var request = update(saved.getLogId(), saved.getVersion()); request.setPublishAt(later);
+        request.setTitle(title);
+        var scheduled = content.publishing().update(actor, request, audit);
+        assertEquals(saved.getLogId(), scheduled.getLogId());
+        assertTrue(scheduled.getRubbish());
+        assertEquals("scheduled", scheduled.getPublicationSchedule().state);
+        var task = automations.store().task(scheduled.getPublicationSchedule().taskId).value;
+        assertEquals(title, task.name);
+        assertEquals(title, task.parameters.get("title").getAsString());
+        assertEquals(scheduled.getVersion(), task.parameters.get("version").getAsInt());
+        assertEquals(1, engine().tick("external", 60000).executed);
+        assertFalse(AccountAccess.truth(new Log(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
+        var run = automations.tasks().runs(actor, task.id, 10, 0).get(0);
+        assertEquals("success", run.status);
+        assertEquals(title, run.taskName);
+        assertEquals(title, run.result.text);
+    }
+
     @Test public void laterDraftEditsInvalidateTheReviewedVersion() throws Exception {
         var saved = content.publishing().create(actor, scheduled(), audit);
         var edit = update(saved.getLogId(), saved.getVersion()); edit.setRubbish(true); edit.setContent("Changed after scheduling");
