@@ -42,6 +42,14 @@ public class AdminAuditService {
     }
 
     public void record(AdminAuditContext context, AdminAuditAction action, String content) {
+        record(context, action, content, null);
+    }
+
+    public void recordLocalized(AdminAuditContext context, AdminAuditAction action, String contentKey) {
+        record(context, action, "", contentKey);
+    }
+
+    private void record(AdminAuditContext context, AdminAuditAction action, String content, String contentKey) {
         try {
             WebsiteKvService kvService = this.websiteKvService;
             String json = kvService.getString(AUDIT_LOG_KEY);
@@ -54,6 +62,7 @@ public class AdminAuditService {
             newLog.setAction(action.name());
             newLog.setType(action.getType());
             newLog.setContent(sanitizeContent(action, content));
+            if (!"security".equals(action.getType())) newLog.setContentKey(contentKey);
 
             boolean assistantRequest = context.getUri() != null && context.getUri().startsWith("/assistant/run/");
             if (assistantRequest) {
@@ -150,7 +159,8 @@ public class AdminAuditService {
         displayLog.setIp(log.getIp());
         displayLog.setAction(action);
         displayLog.setType(log.getType());
-        displayLog.setContent(log.getContent());
+        displayLog.setContent(log.getContentKey() == null ? log.getContent()
+                : I18nUtil.getAdminBackendStringFromRes(log.getContentKey()));
         displayLog.setOs(knownDevice(log.getOs()));
         displayLog.setBrowser(knownDevice(log.getBrowser()));
         displayLog.setCrawler(log.getCrawler());
@@ -234,6 +244,7 @@ public class AdminAuditService {
         entry.setAction(toStringValue(log.get("action")));
         entry.setType(toStringValue(log.get("type")));
         entry.setContent(toStringValue(log.get("content")));
+        entry.setContentKey(toStringValue(log.get("contentKey")));
         entry.setOs(toStringValue(log.get("os")));
         entry.setBrowser(toStringValue(log.get("browser")));
         entry.setAgentName(toStringValue(log.get("agentName")));

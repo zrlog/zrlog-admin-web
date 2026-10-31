@@ -143,8 +143,8 @@ final class UpgradeResourceCompletion {
     }
 
     static AutomationModels.Result result(AutomaticUpgradeTaskProvider.Receipt receipt, boolean complete) {
-        var result = AutomationModels.Result.success(complete ? "admin.automation.upgrade.confirmed"
-                : "admin.automation.upgrade.resourcesPending");
+        var result = AutomationModels.Result.success(complete ? "admin.assistant.upgrade.status.confirmed"
+                : "admin.assistant.upgrade.status.resourcesPending");
         result.status = complete ? "success" : "submitted";
         result.notifyOwner = complete;
         result.text = receipt.version;
@@ -152,17 +152,17 @@ final class UpgradeResourceCompletion {
         result.actionPath = "/upgrade";
         var installed = new AutomationModels.ChildResult();
         installed.id = "installed";
-        installed.nameKey = "admin.automation.upgrade.installedStep";
+        installed.nameKey = "admin.assistant.upgrade.installedStep";
         installed.status = "success";
-        installed.messageKey = "admin.automation.upgrade.installed";
+        installed.messageKey = "admin.assistant.upgrade.status.installed";
         installed.text = receipt.version;
         var resources = new AutomationModels.ChildResult();
         resources.id = "resources";
-        resources.nameKey = "admin.automation.upgrade.resourcesStep";
+        resources.nameKey = "admin.assistant.upgrade.resourcesStep";
         resources.status = Objects.toString(receipt.resourceStatus, "running");
-        resources.messageKey = "success".equals(resources.status) ? "admin.automation.upgrade.resourcesSynced"
-                : "failed".equals(resources.status) ? "admin.automation.upgrade.resourcesFailed"
-                : "admin.automation.upgrade.resourcesPending";
+        resources.messageKey = "success".equals(resources.status) ? "admin.assistant.upgrade.status.resourcesSynced"
+                : "failed".equals(resources.status) ? "admin.assistant.upgrade.status.resourcesFailed"
+                : "admin.assistant.upgrade.status.resourcesPending";
         resources.startedAt = receipt.resourceStartedAt;
         resources.finishedAt = receipt.resourceFinishedAt;
         result.children = List.of(installed, resources);

@@ -4,7 +4,6 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.User;
-import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -73,7 +72,8 @@ public final class AutomationDefaults {
     private StoredTask fresh(State state, AutomationModels.Definition definition) {
         if (definition.defaultSchedule == null || "once".equals(definition.defaultSchedule.kind)) throw new IllegalStateException("automation.invalidDefinition");
         StoredTask task = new StoredTask();
-        task.name = I18nUtil.getAdminBackendStringFromRes(definition.titleKey);
+        task.name = definition.type;
+        task.nameKey = definition.titleKey;
         task.type = definition.type; task.enabled = definition.enabledByDefault;
         task.createdAt = state.createdAt; task.updatedAt = state.createdAt;
         task.parameters = definition.defaultParameters.deepCopy();

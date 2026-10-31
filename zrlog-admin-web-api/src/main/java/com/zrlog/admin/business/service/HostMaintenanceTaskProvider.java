@@ -29,15 +29,15 @@ public final class HostMaintenanceTaskProvider implements ScheduledTaskProvider 
         AutomationModels.Definition cache = definition("site.refresh-cache", "cache", 30);
         AutomationModels.Definition version = definition("system.check-version", "version", 50);
         version.available = updates.get() != null;
-        version.unavailableReasonKey = "admin.automation.taskUnavailable";
+        version.unavailableReasonKey = "admin.assistant.error.taskUnavailable";
         return List.of(cache, version);
     }
 
     private static AutomationModels.Definition definition(String type, String key, int seconds) {
         AutomationModels.Definition definition = new AutomationModels.Definition();
         definition.type = type;
-        definition.titleKey = "admin.automation." + key + ".title";
-        definition.descriptionKey = "admin.automation." + key + ".description";
+        definition.titleKey = "admin.assistant." + key + ".title";
+        definition.descriptionKey = "admin.assistant." + key + ".description";
         definition.category = "maintenance";
         definition.systemTask = true;
         definition.enabledByDefault = true;
@@ -61,19 +61,19 @@ public final class HostMaintenanceTaskProvider implements ScheduledTaskProvider 
         context.checkActive();
         if ("site.refresh-cache".equals(type)) {
             cache.refreshInitData();
-            return AutomationModels.Result.success("admin.automation.cache.completed");
+            return AutomationModels.Result.success("admin.assistant.cache.success.completed");
         }
         CheckVersionResponse check;
         try {
             check = services.upgrades().getCheckVersionResponse(true, updates.get());
         } catch (com.zrlog.business.exception.CheckUpgradeVersionException error) {
-            AutomationModels.Result failed = AutomationModels.Result.success("admin.automation.version.failed");
+            AutomationModels.Result failed = AutomationModels.Result.success("admin.assistant.version.error.failed");
             failed.status = "failed";
             failed.actionPath = "/upgrade";
             return failed;
         }
         AutomationModels.Result result = AutomationModels.Result.success(Boolean.TRUE.equals(check.getUpgrade())
-                ? "admin.automation.version.available" : "admin.automation.version.current");
+                ? "admin.assistant.version.status.available" : "admin.assistant.version.status.current");
         result.actionPath = "/upgrade";
         if (check.getVersion() != null) result.text = check.getVersion().getVersion();
         return result;

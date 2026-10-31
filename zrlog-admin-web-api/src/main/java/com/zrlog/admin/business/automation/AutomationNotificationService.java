@@ -44,14 +44,14 @@ public final class AutomationNotificationService {
                 if (shared ? store.read(readKey(actor, run.id), Long.class) != null : run.noticeReadAt != null) continue;
                 AutomationViews.Run view = AutomationDashboard.run(run);
                 MessageCenterNoticeResponse.OperationTaskPayload payload = new MessageCenterNoticeResponse.OperationTaskPayload();
-                payload.setTitle(run.taskName);
+                payload.setTitle(view.taskName);
                 String description = Objects.toString(view.summary, "");
                 if (run.result != null && run.result.text != null && !run.result.text.isBlank()) {
                     description += (description.isEmpty() ? "" : "\n") + run.result.text;
                 }
                 payload.setDescription(description.length() > 1000 ? description.substring(0, 1000) + "…" : description);
-                payload.setSource(I18nUtil.getAdminBackendStringFromRes("admin.automation.title"));
-                payload.setActionLabel(I18nUtil.getAdminBackendStringFromRes("admin.automation.notice.detail"));
+                payload.setSource(I18nUtil.getAdminBackendStringFromRes("admin.assistant.manage"));
+                payload.setActionLabel(I18nUtil.getAdminBackendStringFromRes("admin.assistant.notice.detail"));
                 payload.setActionPath("/assistant?runId=" + run.id);
                 payload.setClosable(true);
                 String status = "failed".equals(run.status) ? "error" : ATTENTION.contains(run.status) ? "warning" : "notice";

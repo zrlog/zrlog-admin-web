@@ -8,7 +8,7 @@ export default function TaskPermissions({ actions, compact = false }: { actions:
     if (compact)
         return (
             <Typography.Text type="secondary">
-                {res.automations.requiredPermissions}:{" "}
+                {res.assistant.requiredPermissions}:{" "}
                 {actions
                     .map((action) => res.access.actions[action as keyof typeof res.access.actions] ?? action)
                     .join(" / ")}
@@ -16,7 +16,7 @@ export default function TaskPermissions({ actions, compact = false }: { actions:
         );
     return (
         <Space wrap>
-            <Typography.Text type="secondary">{res.automations.requiredPermissions}</Typography.Text>
+            <Typography.Text type="secondary">{res.assistant.requiredPermissions}</Typography.Text>
             {actions.map((action) => (
                 <Tag key={action}>{res.access.actions[action as keyof typeof res.access.actions] ?? action}</Tag>
             ))}

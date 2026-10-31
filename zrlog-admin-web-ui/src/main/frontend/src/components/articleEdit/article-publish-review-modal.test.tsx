@@ -117,16 +117,16 @@ jest.mock("../../utils/constants", () => ({
         cancel: "Cancel",
         close: "Close",
         edit: "Edit",
-        automations: {
-            publicationTime: "Publication time",
-            publishNow: "Publish now",
-            publishLater: "Schedule publication",
-            schedulePublication: "Save and schedule",
-            publicationTimeHelp: "Review the saved version",
-            futureTimeRequired: "Choose a future time",
-        },
         article: { previewSnapshot: { digest: "Summary", empty: "Empty", keywords: "Tags" } },
         articleEdit: {
+            publication: {
+                publicationTime: "Publication time",
+                publishNow: "Publish now",
+                publishLater: "Schedule publication",
+                schedulePublication: "Save and schedule",
+                publicationTimeHelp: "Review the saved version",
+                futureTimeRequired: "Choose a future time",
+            },
             publishReview: {
                 title: "Pre-publish Review",
                 metadata: "Publish Checks",

@@ -117,7 +117,7 @@ public class UpgradeController extends BaseController {
             // Keep a business rejection distinguishable from a stream interrupted by process replacement.
             var result = new ApiStandardResponse<>(conflict.execution);
             result.setError(409);
-            result.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.automation.upgrade.pending"));
+            result.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.assistant.upgrade.status.pending"));
             response.renderJson(result);
         }
     }
@@ -165,7 +165,7 @@ public class UpgradeController extends BaseController {
                 upgradeProcessResponse = executeClaimedUpgrade(target, receipt, UpgradeProgressListener.NONE, backend);
                 this.messageCenterOperationService.recordUpgradeResult(upgradeProcessResponse);
             } catch (RuntimeException e) {
-                this.messageCenterOperationService.recordUpgradeError(e.getMessage());
+                this.messageCenterOperationService.recordUpgradeError();
                 throw e;
             }
             recordUpgradeAudit(target);
@@ -184,7 +184,7 @@ public class UpgradeController extends BaseController {
                         this.messageCenterOperationService.recordUpgradeResult(
                                 upgradeProcessResponse);
                     } catch (Exception e) {
-                        this.messageCenterOperationService.recordUpgradeError(e.getMessage());
+                        this.messageCenterOperationService.recordUpgradeError();
                         throw e;
                     }
                     recordUpgradeAudit(target);

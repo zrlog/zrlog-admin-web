@@ -81,12 +81,12 @@ public class AutomationProposalTest {
 
     private static AutomationModels.Definition definition() {
         var definition = new AutomationModels.Definition(); definition.type = "personal.reminder";
-        definition.titleKey = "admin.automation.reminder.title"; definition.descriptionKey = "admin.automation.reminder.description";
+        definition.titleKey = "admin.assistant.reminder.title"; definition.descriptionKey = "admin.assistant.reminder.description";
         definition.fields.add(field("text", "textarea")); return definition;
     }
 
     private static AutomationModels.Field field(String name, String type) {
-        var field = new AutomationModels.Field(); field.name = name; field.type = type; field.labelKey = "admin.automation.reminder.text"; return field;
+        var field = new AutomationModels.Field(); field.name = name; field.type = type; field.labelKey = "admin.assistant.reminder.text"; return field;
     }
 
     private static AutomationAssistant.Proposal proposal() {

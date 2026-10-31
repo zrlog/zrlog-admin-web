@@ -20,7 +20,7 @@ export default function TaskSettings({
     const [loadError, setLoadError] = useState<string>();
     const [secret, setSecret] = useState<string>();
     const [budget, setBudget] = useState<number | null>(null);
-    const res = getRes().automations;
+    const res = getRes().websiteAssistant;
     const load = useCallback(async () => {
         setLoadError(undefined);
         try {

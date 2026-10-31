@@ -174,7 +174,7 @@ public class AIWebSetup implements ArticleAssistant {
                         .recordPublishCheckError(
                                 publishCheckTask.getArticleId(),
                                 publishCheckTask.getArticleTitle(),
-                                message);
+                                "admin.article.publishCheck.error.failed");
             }
             emitter.send("publish-check-error", AdminSsePayloads.message(message));
         } catch (CancellationException e) {
@@ -205,7 +205,7 @@ public class AIWebSetup implements ArticleAssistant {
                     .recordPublishCheckError(
                             publishCheckTask.getArticleId(),
                             publishCheckTask.getArticleTitle(),
-                            message);
+                            messageKey);
         }
         emitter.send("publish-check-error", AdminSsePayloads.message(message));
     }

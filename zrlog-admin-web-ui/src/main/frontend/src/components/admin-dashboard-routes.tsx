@@ -214,7 +214,7 @@ export const createAdminDashboardRoutes = (
         search: [
             {
                 id: "assistant",
-                title: () => getRes().automations.title,
+                title: () => getRes().assistant.title,
                 iconKey: "robot",
                 keywords: ["assistant", "schedule", "automations", "助手", "定时", "计划", "自动升级"],
             },

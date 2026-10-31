@@ -103,7 +103,7 @@ public class ScheduledPublicationTest {
             var result = provider.execute("article.publish", provider.prepare("article.publish", parameters(id, 0), actor), context(actor));
             assertEquals("needs_attention", result.status);
             assertFalse(AccountAccess.truth(db.scalar("SELECT rubbish FROM log WHERE logId=?", id)));
-            assertEquals("admin.automation.publicationRefreshFailed", result.messageKey);
+            assertEquals("admin.assistant.error.publicationRefreshFailed", result.messageKey);
         }
     }
 }

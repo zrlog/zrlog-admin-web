@@ -24,7 +24,7 @@ export default function SystemTasks({
     onEnabled: (task: Task, enabled: boolean) => void;
     onHistory: (task: Task) => void;
 }) {
-    const res = getRes().automations;
+    const res = getRes().assistant;
     const { styles } = useAssistantStyles();
     const theme = useTheme();
     const date = (time?: number) => (time ? formatDateTime(time) : res.none);

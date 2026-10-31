@@ -48,7 +48,7 @@ export default function Automations({
     useEffect(() => {
         if (searchParams.get("tab") === "system") setTab("system");
     }, [searchParams]);
-    const res = getRes().automations;
+    const res = getRes().assistant;
     const { styles, cx } = useAssistantStyles();
     const disabled = offline || offlineData || busy;
     useEffect(() => setOverview(data), [data]);

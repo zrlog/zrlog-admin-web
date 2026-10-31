@@ -164,7 +164,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
             return { title: getRes().index.title, subtitle: getRes().common.management };
         }
         if (pathname === "/assistant") {
-            return { title: getRes().automations.title, subtitle: getRes().websiteTitle };
+            return { title: getRes().assistant.title, subtitle: getRes().websiteTitle };
         }
         const navigationGroup = getAdminNavigationGroup(pathname);
         const navigationSubtitle = navigationGroup ? getAdminNavigationGroupLabel(navigationGroup) : undefined;

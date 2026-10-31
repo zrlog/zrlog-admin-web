@@ -30,15 +30,15 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
     public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = "article.publish";
-        definition.titleKey = "admin.automation.publish.title";
-        definition.descriptionKey = "admin.automation.publish.description";
+        definition.titleKey = "admin.assistant.publish.title";
+        definition.descriptionKey = "admin.assistant.publish.description";
         definition.category = "content";
         definition.timeoutSeconds = 50;
         definition.requiredActions = List.of(AccountAction.ARTICLE_READ.getId(), AccountAction.ARTICLE_UPDATE.getId(), AccountAction.ARTICLE_PUBLISH.getId());
         var article = new AutomationModels.Field();
         article.name = "articleId";
         article.type = "article";
-        article.labelKey = "admin.automation.publish.article";
+        article.labelKey = "admin.assistant.publish.article";
         article.required = true;
         article.minimum = 1L;
         definition.fields = List.of(article);
@@ -71,7 +71,7 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
         int version = integer(parameters, "version", 0);
         ContentToolModels.ArticleDetails current = content.details(context.actor(), id, SCOPES);
         if (current.version != version || !"draft".equals(current.status)) {
-            return attention(id, "admin.automation.articleChanged");
+            return attention(id, "admin.assistant.error.articleChanged");
         }
         JsonObject args = new JsonObject();
         args.addProperty("id", id);
@@ -84,10 +84,10 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
                 catch (Exception error) { throw new IllegalStateException("automation.publicationRefreshFailed", error); }
             });
         } catch (UpdateArticleExpireException changed) {
-            return attention(id, "admin.automation.articleChanged");
+            return attention(id, "admin.assistant.error.articleChanged");
         }
-        var result = "failed".equals(saved.refreshStatus) ? attention(id, "admin.automation.publicationRefreshFailed")
-                : AutomationModels.Result.success("admin.automation.publish.completed");
+        var result = "failed".equals(saved.refreshStatus) ? attention(id, "admin.assistant.error.publicationRefreshFailed")
+                : AutomationModels.Result.success("admin.assistant.publish.success.completed");
         result.actionPath = "/article-edit?id=" + id;
         result.text = current.title;
         result.notifyOwner = "success".equals(result.status);

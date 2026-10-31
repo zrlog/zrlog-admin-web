@@ -125,7 +125,7 @@ public class AIScheduledTaskTest {
         };
         var run = run(task);
         assertEquals("success", run.status);
-        assertEquals("admin.automation.ai.draftsSaved", run.result.messageKey);
+        assertEquals("admin.assistant.ai.success.draftsSaved", run.result.messageKey);
         assertEquals(1, countDrafts());
         assertTrue(names(requests.get(0)).contains("create_article"));
         assertFalse(names(requests.get(0)).contains("update_article"));
@@ -172,7 +172,7 @@ public class AIScheduledTaskTest {
         var task = task(true);
         var run = run(task);
         assertEquals("needs_attention", run.status);
-        assertEquals("admin.automation.ai.partial", run.result.messageKey);
+        assertEquals("admin.assistant.ai.status.partial", run.result.messageKey);
         assertEquals(1, countDrafts());
         assertEquals("success", component.store().run(run.id).value.result.children.get(0).status);
         assertFalse(component.store().task(task.id).value.enabled);

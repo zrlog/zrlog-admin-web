@@ -74,7 +74,7 @@ const UpgradeSettingForm = ({
             if (data.data.upgrade && data.data.version) {
                 modal.info({
                     width: narrow ? "calc(100vw - 32px)" : 682,
-                    title: `${getRes().upgrade.detectedPrefix}${data.data.version.type}`,
+                    title: getRes().upgrade.detectedVersion.replace("{version}", data.data.version.version),
                     content: (
                         <div
                             style={{
@@ -98,10 +98,8 @@ const UpgradeSettingForm = ({
                     await messageApi.info(data.message);
                 }
             }
-        } catch (e) {
-            if (!axios.isCancel(e)) {
-                throw e;
-            }
+        } catch {
+            // The shared request interceptor reports failures; cancelled checks need no message.
         } finally {
             setChecking(false);
         }
@@ -165,9 +163,11 @@ const UpgradeSettingForm = ({
                 <Form.Item label={getRes().websiteUpgrade.autoCheckCycle} style={formItemStyle}>
                     <Button
                         disabled={offline || offlineData}
+                        block={narrow}
+                        style={narrow ? { whiteSpace: "normal", height: "auto", textAlign: "left" } : undefined}
                         onClick={() => navigate(getRealRouteUrl("/assistant") + "?tab=system")}
                     >
-                        {getRes().automations.manageUpdates}
+                        {getRes().websiteUpgrade.manageUpdates}
                     </Button>
                 </Form.Item>
             ) : (

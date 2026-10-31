@@ -120,7 +120,7 @@ public class AutomationNotificationTest {
         run.startedAt = now;
         run.finishedAt = "running".equals(status) ? null : now;
         run.status = status;
-        run.result = AutomationModels.Result.success("admin.automation.reminder.completed");
+        run.result = AutomationModels.Result.success("admin.assistant.reminder.success.completed");
         run.result.notifyOwner = notify;
         store.insertRun(run);
         return run;

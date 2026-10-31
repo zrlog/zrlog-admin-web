@@ -81,7 +81,8 @@ public class AdminStaticSiteSsePublisherTest {
             String body = capturedResponse.body();
             assertTrue(body.contains("event: article"));
             assertTrue(body.contains("event: static-error"));
-            assertTrue(body.contains("static sync failed"));
+            assertFalse(body.contains("static sync failed"));
+            assertTrue(body.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.staticSite.sync.error")));
             assertFalse(body.contains("event: publish-error"));
             assertFalse(body.contains("event: static-sync-skipped"));
             assertFalse(body.contains("event: publish-complete"));
@@ -113,9 +114,30 @@ public class AdminStaticSiteSsePublisherTest {
             assertEquals(1, cacheRuns.get());
             assertTrue(body.contains("event: response"));
             assertTrue(body.contains("event: static-error"));
-            assertTrue(body.contains("refresh failed"));
+            assertFalse(body.contains("refresh failed"));
+            assertTrue(body.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.staticSite.sync.error")));
             assertFalse(body.contains("event: refresh-complete"));
         }
+    }
+
+    @Test
+    public void asyncCacheWorkAndErrorsUseTheInitiatingLanguage() throws Exception {
+        CapturedResponse response = new CapturedResponse();
+        var observed = new java.util.concurrent.atomic.AtomicReference<String>();
+        var publisher = new AdminStaticSiteSsePublisher(() -> false, new AdminStaticSiteProgress(List::of));
+        String previous = com.zrlog.util.I18nUtil.getCurrentLocale();
+        try (var ignored = AdminLanguageContext.open("en_US")) {
+            publisher.write(response.response(), "english-cache", List.of(StaticSiteType.ADMIN), emitter -> { }, () -> {
+                observed.set(com.zrlog.util.I18nUtil.getCurrentLocale());
+                throw new IllegalStateException("private provider diagnostic");
+            }, emitter -> emitter.send("unexpected-success", true));
+        }
+        String body = response.body();
+        assertEquals("en_US", observed.get());
+        assertTrue(body.contains("Static resource sync failed"));
+        assertFalse(body.contains("private provider diagnostic"));
+        assertFalse(body.contains("unexpected-success"));
+        assertEquals(previous, com.zrlog.util.I18nUtil.getCurrentLocale());
     }
 
     private static class DisabledStaticConfig extends ZrLogConfig {

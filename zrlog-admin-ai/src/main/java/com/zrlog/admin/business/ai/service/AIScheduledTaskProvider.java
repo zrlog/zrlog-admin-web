@@ -56,8 +56,8 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
     @Override public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = TYPE;
-        definition.titleKey = "admin.automation.ai.title";
-        definition.descriptionKey = "admin.automation.ai.description";
+        definition.titleKey = "admin.assistant.ai.title";
+        definition.descriptionKey = "admin.assistant.ai.description";
         definition.category = "personal";
         definition.requiresAi = true;
         definition.timeoutSeconds = 120;
@@ -66,7 +66,7 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
         try { AIService.checkAiConfig(config.ai()); }
         catch (com.zrlog.common.exception.ArgsException error) {
             definition.available = false;
-            definition.unavailableReasonKey = "admin.automation.ai.unavailable";
+            definition.unavailableReasonKey = "admin.assistant.ai.status.unavailable";
         }
         definition.fields = List.of(field("goal", "textarea", true), field("includeDrafts", "boolean", false),
                 field("includePrivate", "boolean", false));
@@ -80,7 +80,7 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
     private static AutomationModels.Field field(String name, String type, boolean required) {
         var field = new AutomationModels.Field();
         field.name = name; field.type = type; field.required = required;
-        field.labelKey = "admin.automation.ai." + name;
+        field.labelKey = "admin.assistant.ai." + name;
         return field;
     }
 
@@ -122,7 +122,7 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
 
     private AutomationModels.Result executeGoal(String goal, AccountAccess actor, AIWebSiteInfo info, ToolProvider tools,
                                                 boolean draftsAllowed, TaskExecutionContext context, String language) throws Exception {
-        AutomationModels.Result result = AutomationModels.Result.success("admin.automation.ai.completed");
+        AutomationModels.Result result = AutomationModels.Result.success("admin.assistant.ai.success.completed");
         result.notifyOwner = true;
         ExecutionDeadline deadline = ExecutionDeadline.afterMillis(context.remainingMillis()).reserveMillis(1000);
         List<Tool> definitions = tools.definitions(language).stream()
@@ -164,7 +164,7 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
                             || reply.getContent() == null || reply.getContent().isBlank() || reply.getContent().length() > 64000)
                         throw new AIResponseException("Incomplete scheduled answer");
                     result.text = reply.getContent();
-                    result.messageKey = savedDraft ? "admin.automation.ai.draftsSaved" : "admin.automation.ai.completed";
+                    result.messageKey = savedDraft ? "admin.assistant.ai.success.draftsSaved" : "admin.assistant.ai.success.completed";
                     return result;
                 }
                 if (offered.isEmpty() || reply.toolCalls.size() > 8 - calls
@@ -206,16 +206,16 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
                     Object output = tools.call(definition.name, args);
                     if (output instanceof KnowledgeModels.ToolError) throw new AIResponseException("Scheduled tool failed");
                     current.status = "success";
-                    current.messageKey = "admin.automation.ai.stepCompleted";
+                    current.messageKey = "admin.assistant.ai.status.stepCompleted";
                     current.finishedAt = System.currentTimeMillis();
                     if (output instanceof SavedArticle) {
                         SavedArticle saved = (SavedArticle) output;
                         if (!"draft".equals(saved.status)) throw new AIResponseException("Unexpected saved status");
                         savedDraft = true;
                         current.actionPath = "/article-edit?id=" + saved.id;
-                        current.actionLabelKey = "admin.automation.ai.openDraft";
+                        current.actionLabelKey = "admin.assistant.ai.openDraft";
                         current.text = args.get("title").getAsString();
-                        current.messageKey = "admin.automation.ai.draftSaved";
+                        current.messageKey = "admin.assistant.ai.success.draftSaved";
                     }
                     context.checkpoint(result);
                     writeStarted = false;
@@ -232,13 +232,13 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
             if (error instanceof InterruptedException) Thread.currentThread().interrupt();
             if (current != null && "running".equals(current.status)) {
                 current.status = writeStarted ? "uncertain" : "failed";
-                current.messageKey = "admin.automation.ai.stepIncomplete";
+                current.messageKey = "admin.assistant.ai.status.stepIncomplete";
                 current.finishedAt = System.currentTimeMillis();
             }
             result.status = writeStarted ? "uncertain" : savedDraft || error instanceof PermissionErrorException ? "needs_attention" : "failed";
-            result.messageKey = writeStarted ? "admin.automation.ai.writeUncertain"
-                    : savedDraft ? "admin.automation.ai.partial" : error instanceof PermissionErrorException
-                        ? "admin.automation.ai.actionNotAllowed" : "admin.automation.ai.failed";
+            result.messageKey = writeStarted ? "admin.assistant.ai.status.writeUncertain"
+                    : savedDraft ? "admin.assistant.ai.status.partial" : error instanceof PermissionErrorException
+                        ? "admin.assistant.ai.status.actionNotAllowed" : "admin.assistant.ai.error.failed";
             return result;
         }
     }

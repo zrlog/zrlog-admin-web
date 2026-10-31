@@ -8,7 +8,7 @@ import { useUiApp } from "@zrlog/ui/feedback";
 export function useAssistantRequest(): Request {
     const api = useAxiosBaseInstance();
     const { message } = useUiApp();
-    const failed = getRes().automations.failedRequest;
+    const failed = getRes().assistant.failedRequest;
     return useCallback(
         async <T>(path: string, body?: unknown): Promise<T> => {
             const session = getSsDate().key;

@@ -26,8 +26,8 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
     public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = "system.cleanup-temporary";
-        definition.titleKey = "admin.automation.cleanup.title";
-        definition.descriptionKey = "admin.automation.cleanup.description";
+        definition.titleKey = "admin.assistant.cleanup.title";
+        definition.descriptionKey = "admin.assistant.cleanup.description";
         definition.category = "maintenance";
         definition.systemTask = true;
         definition.enabledByDefault = true;
@@ -40,7 +40,7 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
         var days = new AutomationModels.Field();
         days.name = "retentionDays";
         days.type = "number";
-        days.labelKey = "admin.automation.cleanup.days";
+        days.labelKey = "admin.assistant.cleanup.days";
         days.required = true;
         days.minimum = 1L;
         days.maximum = 3650L;
@@ -69,7 +69,7 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
         var batch = files.cleanupTemporary(parameters.get("retentionDays").getAsInt(), stored == null ? "" : stored.toString(), context);
         context.checkActive();
         websites.get().updateByKV(cursorKey, batch.cursor);
-        var result = AutomationModels.Result.success("admin.automation.cleanup.completed");
+        var result = AutomationModels.Result.success("admin.assistant.cleanup.success.completed");
         result.messageArguments = List.of(Integer.toString(batch.removed), Integer.toString(batch.scanned));
         return result;
     }

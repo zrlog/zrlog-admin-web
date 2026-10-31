@@ -28,7 +28,7 @@ function CodeExample({ label, value }: { label: string; value: string }) {
 }
 
 export default function ExternalTriggerGuide({ endpoint, curlExample }: { endpoint: string; curlExample: string }) {
-    const res = getRes().automations;
+    const res = getRes().websiteAssistant;
     return (
         <section aria-label={res.example} style={{ width: "100%", minWidth: 0 }}>
             <Typography.Title level={4}>{res.example}</Typography.Title>

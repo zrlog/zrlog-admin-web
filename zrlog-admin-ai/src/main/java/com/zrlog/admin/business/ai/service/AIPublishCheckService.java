@@ -81,10 +81,10 @@ public class AIPublishCheckService {
         context.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled(Boolean.TRUE.equals(blog.getGenerator_html_status()), blog.getHost()));
     }
 
-    public void recordPublishCheckError(Long articleId, String articleTitle, String message) {
+    public void recordPublishCheckError(Long articleId, String articleTitle, String messageKey) {
         try {
             this.messageCenterOperationService.recordPublishCheckError(
-                    articleId, articleTitle, message);
+                    articleId, articleTitle, messageKey);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Record publish check error notice failed", e);
         }

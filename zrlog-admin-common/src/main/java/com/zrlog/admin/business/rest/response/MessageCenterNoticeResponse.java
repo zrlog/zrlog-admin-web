@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.common.vo.Version;
+import com.zrlog.util.I18nUtil;
 
 public class MessageCenterNoticeResponse {
 
@@ -34,11 +35,15 @@ public class MessageCenterNoticeResponse {
 
     public static OperationTaskPayload operationPayload(MessageCenterOperationNoticeEntry notice) {
         OperationTaskPayload payload = new OperationTaskPayload();
-        payload.setTitle(notice.getTitle());
-        payload.setDescription(notice.getDescription());
-        payload.setActionLabel(notice.getActionLabel());
+        payload.setTitle(I18nUtil.getAdminBackendStringFromRes(notice.getTitleKey()));
+        String description = I18nUtil.getAdminBackendStringFromRes(notice.getDescriptionKey());
+        for (var argument : notice.getDescriptionArguments().entrySet()) {
+            description = description.replace("{" + argument.getKey() + "}", argument.getValue());
+        }
+        payload.setDescription(description);
+        payload.setActionLabel(I18nUtil.getAdminBackendStringFromRes(notice.getActionLabelKey()));
         payload.setActionPath(notice.getActionPath());
-        payload.setSource(notice.getSource());
+        payload.setSource(I18nUtil.getAdminBackendStringFromRes(notice.getSourceKey()));
         payload.setClosable(notice.getClosable());
         payload.setPayload(notice.getPayload());
         return payload;

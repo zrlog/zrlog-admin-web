@@ -328,20 +328,20 @@ public class AdminDtoContractTest {
         assertSame(noticePayload, webhookPayload.getPayload());
 
         MessageCenterOperationNoticeEntry operationNotice = new MessageCenterOperationNoticeEntry();
-        operationNotice.setTitle("Operation");
-        operationNotice.setDescription("task finished");
-        operationNotice.setActionLabel("Review");
+        operationNotice.setTitleKey("admin.messageCenter.operation.publishCheck.title");
+        operationNotice.setDescriptionKey("admin.messageCenter.operation.publishCheck.errorDescription");
+        operationNotice.setActionLabelKey("admin.messageCenter.operation.articleEdit.action");
         operationNotice.setActionPath("/admin/tasks");
-        operationNotice.setSource("system");
+        operationNotice.setSourceKey("admin.article.edit.manage");
         operationNotice.setClosable(false);
         operationNotice.setPayload(noticePayload);
         MessageCenterNoticeResponse.OperationTaskPayload operationPayload =
                 MessageCenterNoticeResponse.operationPayload(operationNotice);
-        assertEquals("Operation", operationPayload.getTitle());
-        assertEquals("task finished", operationPayload.getDescription());
-        assertEquals("Review", operationPayload.getActionLabel());
+        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.messageCenter.operation.publishCheck.title"), operationPayload.getTitle());
+        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.messageCenter.operation.publishCheck.errorDescription"), operationPayload.getDescription());
+        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.messageCenter.operation.articleEdit.action"), operationPayload.getActionLabel());
         assertEquals("/admin/tasks", operationPayload.getActionPath());
-        assertEquals("system", operationPayload.getSource());
+        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.article.edit.manage"), operationPayload.getSource());
         assertEquals(Boolean.FALSE, operationPayload.getClosable());
         assertSame(noticePayload, operationPayload.getPayload());
 
