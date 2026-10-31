@@ -15,7 +15,7 @@ export default function RunHistory({
     onDetail: (run: Run) => void;
     renderStatus: (status: string) => ReactNode;
 }) {
-    const res = getRes().automations;
+    const res = getRes().assistant;
     const screens = Grid.useBreakpoint();
     const theme = useTheme();
     const detail = (run: Run) => (

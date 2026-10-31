@@ -73,6 +73,7 @@ public final class AutomationDashboard {
 
     public static AutomationViews.Task task(StoredTask task) {
         AutomationViews.Task view = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationViews.Task.class);
+        if (task.nameKey != null) view.name = text(task.nameKey);
         view.systemTask = task.ownerId == 0;
         view.activeRunId = task.activeRun == null ? null : task.activeRun.id;
         return view;
@@ -80,7 +81,11 @@ public final class AutomationDashboard {
 
     public static AutomationViews.Run run(AutomationModels.Run run) {
         AutomationViews.Run view = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(run), AutomationViews.Run.class);
-        if (run.errorCode != null) view.summary = text("admin." + run.errorCode);
+        if (run.taskNameKey != null) {
+            view.taskName = text(run.taskNameKey);
+            if (view.planSnapshot != null) view.planSnapshot.name = view.taskName;
+        }
+        if (run.errorCode != null) view.summary = text(AutomationMessages.errorKey(run.errorCode));
         else if (run.result != null && run.result.messageKey != null) {
             view.summary = text(run.result.messageKey);
             for (int i = 0; i < run.result.messageArguments.size(); i++) {

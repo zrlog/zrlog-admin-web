@@ -56,7 +56,7 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
     const theme = useTheme();
     const screens = Grid.useBreakpoint();
     const res = getRes().articleEdit.publishReview;
-    const timing = getRes().automations;
+    const timing = getRes().articleEdit.publication;
     const [publishLater, setPublishLater] = useState(false);
     const [publicationTime, setPublicationTime] = useState("");
     const publishAt = publicationTime ? new Date(publicationTime).getTime() : undefined;

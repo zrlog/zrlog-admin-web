@@ -1,33 +1,19 @@
-import {useUiApp} from "@zrlog/ui/feedback";
-import {Route, Routes, useNavigate} from "react-router-dom";
-import {lazy, Suspense, useMemo} from "react";
-import {Spin} from "antd";
-import axios, {AxiosError, AxiosInstance} from "axios";
-import {API_DO_UPGRADE_PATH, API_VERSION_PATH} from "../api";
+import { useUiApp } from "@zrlog/ui/feedback";
+import { Route, Routes, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useMemo } from "react";
+import { Spin } from "antd";
+import axios, { AxiosError, AxiosInstance } from "axios";
+import { API_DO_UPGRADE_PATH, API_VERSION_PATH } from "../api";
 import ErrorBoundary from "../common/ErrorBoundary";
-import {getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage} from "../utils/constants";
+import { getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../utils/constants";
 import AdminDashboardPage from "../components/admin-dashboard-page";
-import {NavigateFunction} from "react-router";
-import {syncMessageCenterStatus} from "../utils/message-center-status";
-import {ADMIN_ERROR_CODE} from "../common/admin-error-code";
+import { NavigateFunction } from "react-router";
+import { syncMessageCenterStatus } from "../utils/message-center-status";
+import { ADMIN_ERROR_CODE } from "../common/admin-error-code";
 
 const AsyncLogin = lazy(() => import("components/login"));
 
 const errorCountMap = new Map<number, number>();
-
-const formatErrorResponseData = (data: unknown): string => {
-    if (typeof data === "string") {
-        return data;
-    }
-    if (data === null || data === undefined) {
-        return "";
-    }
-    try {
-        return JSON.stringify(data, null, 2);
-    } catch {
-        return String(data);
-    }
-};
 
 export const jumpToLoginPage = (navigate: NavigateFunction): void => {
     if (!window.location.search.includes("redirectFrom")) {
@@ -37,13 +23,13 @@ export const jumpToLoginPage = (navigate: NavigateFunction): void => {
                     window.location.pathname.split(".html")[0]
                 )}${encodeURIComponent(window.location.search)}`
             ),
-            {replace: true}
+            { replace: true }
         );
     }
 };
 
 export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosInstance => {
-    const {modal, message} = useUiApp();
+    const { modal, message } = useUiApp();
     const navigate = useNavigate();
 
     return useMemo(() => {
@@ -59,48 +45,27 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
                     return Promise.reject(error);
                 }
                 if (error.config.url.includes(API_VERSION_PATH)) {
-                    return Promise.reject(error.message);
+                    return Promise.reject(new Error(getRes().error.requestFailed));
                 }
                 if (error.config.url.includes(API_DO_UPGRADE_PATH)) {
-                    return Promise.reject(error.message);
+                    return Promise.reject(new Error(getRes().error.requestFailed));
                 }
             }
-            if (error && error.response) {
-                if (error.response.status) {
-                    modal.error({
-                        title: `${getRes().error.serviceException}[${error.response.status}]`,
-                        content: (
-                            <div
-                                style={{
-                                    paddingTop: 20,
-                                    overflow: "auto",
-                                    whiteSpace: "pre-wrap",
-                                    wordBreak: "break-word",
-                                }}
-                            >
-                                {formatErrorResponseData(error.response.data)}
-                            </div>
-                        ),
-                        getContainer: getContainer ? getContainer() : undefined,
-                    });
-                    return Promise.reject(error.response);
-                }
+            if (!navigator.onLine) {
+                message.error(getRes().error.networkOffline);
             } else {
-                if ((error as AxiosError) && error.config && error.config.url) {
-                    if (navigator.onLine) {
-                        modal.error({
-                            title: `${getRes().error.requestError}: ${error.config.url}`,
-                            content: error.message,
-                            getContainer: getContainer ? getContainer() : undefined,
-                        });
-                    } else {
-                        message.error(
-                            `${getRes().error.requestError}: ${error.config.url} ${error.toString()} ${
-                                getRes().error.networkOffline
-                            }`
-                        );
-                    }
-                }
+                const status = error?.response?.status;
+                const content =
+                    status === 403
+                        ? getRes().error.accessDenied
+                        : status === 404
+                        ? getRes().error.resourceMissing
+                        : getRes().error.requestFailed;
+                modal.error({
+                    title: getRes().error.requestError,
+                    content,
+                    getContainer: getContainer ? getContainer() : undefined,
+                });
             }
             return Promise.reject(error);
         };
@@ -119,11 +84,13 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
                     if (count === 0) {
                         errorCountMap.set(errorCode, count + 1);
                         modal.error({
-                            title: response.data.error,
-                            content: response.data.message,
+                            title: getRes().error.sessionExpiredTitle,
+                            content: getRes().error.sessionExpired,
+                            okText: getRes().error.signIn,
                             getContainer: getContainer ? getContainer() : undefined,
                             onOk: () => {
                                 errorCountMap.set(errorCode, 0);
+                                jumpToLoginPage(navigate);
                             },
                         });
                     }
@@ -147,7 +114,7 @@ export const buildUriPaths = (uri: string) => {
     return [uri, uri + ".html"];
 };
 
-const AppBase = ({offline}: { offline: boolean }) => {
+const AppBase = ({ offline }: { offline: boolean }) => {
     return (
         <Routes>
             {buildUriPaths("login").map((e) => {
@@ -157,8 +124,8 @@ const AppBase = ({offline}: { offline: boolean }) => {
                         path={e}
                         element={
                             <ErrorBoundary>
-                                <Suspense fallback={<Spin spinning={true} fullscreen delay={1000}/>}>
-                                    <AsyncLogin offline={offline}/>
+                                <Suspense fallback={<Spin spinning={true} fullscreen delay={1000} />}>
+                                    <AsyncLogin offline={offline} />
                                 </Suspense>
                             </ErrorBoundary>
                         }
@@ -170,8 +137,8 @@ const AppBase = ({offline}: { offline: boolean }) => {
                 path={"logout"}
                 element={
                     <ErrorBoundary>
-                        <Suspense fallback={<Spin spinning={true} fullscreen delay={1000}/>}>
-                            <AsyncLogin offline={offline}/>
+                        <Suspense fallback={<Spin spinning={true} fullscreen delay={1000} />}>
+                            <AsyncLogin offline={offline} />
                         </Suspense>
                     </ErrorBoundary>
                 }
@@ -181,7 +148,7 @@ const AppBase = ({offline}: { offline: boolean }) => {
                 element={
                     <ErrorBoundary>
                         <Suspense>
-                            <AdminDashboardPage offline={offline}/>
+                            <AdminDashboardPage offline={offline} />
                         </Suspense>
                     </ErrorBoundary>
                 }

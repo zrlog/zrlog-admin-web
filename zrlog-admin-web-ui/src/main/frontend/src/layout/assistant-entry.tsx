@@ -8,7 +8,7 @@ export default function AssistantEntry() {
     const [modal, contextHolder] = Modal.useModal();
     const location = useLocation();
     const selected = location.pathname.replace(/\.html$/, "") === "/assistant";
-    const title = getRes().automations.title;
+    const title = getRes().assistant.title;
 
     return (
         <>

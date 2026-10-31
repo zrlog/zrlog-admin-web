@@ -85,7 +85,7 @@ public final class AutomationController extends BaseController {
         AutomationModels.Plan plan = getRequestBodyWithNullCheck(AutomationModels.Plan.class);
         return result(() -> {
             var saved = tasks.save(identities.current(), plan);
-            record(AdminAuditAction.CONFIGURE_ASSISTANT_TASK, saved.name);
+            record(AdminAuditAction.CONFIGURE_ASSISTANT_TASK, saved.name, saved.nameKey);
             return AutomationDashboard.task(saved);
         });
     }
@@ -97,7 +97,7 @@ public final class AutomationController extends BaseController {
         if (change.enabled == null) throw new IllegalArgumentException("automation.invalidPlan");
         return result(() -> {
             var saved = tasks.setEnabled(identities.current(), change.id, change.revision, change.enabled);
-            record(change.enabled ? AdminAuditAction.ENABLE_ASSISTANT_TASK : AdminAuditAction.PAUSE_ASSISTANT_TASK, saved.name);
+            record(change.enabled ? AdminAuditAction.ENABLE_ASSISTANT_TASK : AdminAuditAction.PAUSE_ASSISTANT_TASK, saved.name, saved.nameKey);
             return AutomationDashboard.task(saved);
         });
     }
@@ -108,7 +108,7 @@ public final class AutomationController extends BaseController {
         AutomationViews.Change change = getRequestBodyWithNullCheck(AutomationViews.Change.class);
         return result(() -> {
             var deleted = tasks.delete(identities.current(), change.id, change.revision);
-            record(AdminAuditAction.DELETE_ASSISTANT_TASK, deleted.name);
+            record(AdminAuditAction.DELETE_ASSISTANT_TASK, deleted.name, deleted.nameKey);
             return true;
         });
     }
@@ -119,7 +119,7 @@ public final class AutomationController extends BaseController {
         AutomationViews.Change change = getRequestBodyWithNullCheck(AutomationViews.Change.class);
         return result(() -> {
             var run = engine.runNow(identities.current(), change.id, change.revision, settings.manualBudgetMillis());
-            record(AdminAuditAction.RUN_ASSISTANT_TASK, run.taskName);
+            record(AdminAuditAction.RUN_ASSISTANT_TASK, run.taskName, run.taskNameKey);
             return AutomationDashboard.run(run);
         });
     }
@@ -179,6 +179,11 @@ public final class AutomationController extends BaseController {
         audit.record(AdminAuditContexts.from(request, identities.current().getUserId()), action, content);
     }
 
+    private void record(AdminAuditAction action, String content, String contentKey) {
+        if (contentKey == null) record(action, content);
+        else audit.recordLocalized(AdminAuditContexts.from(request, identities.current().getUserId()), action, contentKey);
+    }
+
     private <T> ApiStandardResponse<T> result(Operation<T> operation) throws Exception {
         try { return new ApiStandardResponse<>(operation.run()); }
         catch (IllegalArgumentException | IllegalStateException error) {
@@ -186,7 +191,7 @@ public final class AutomationController extends BaseController {
             if (key == null || !key.startsWith("automation.")) throw error;
             ApiStandardResponse<T> result = new ApiStandardResponse<>();
             result.setError(400);
-            result.setMessage(I18nUtil.getAdminBackendStringFromRes("admin." + key));
+            result.setMessage(I18nUtil.getAdminBackendStringFromRes(AutomationMessages.errorKey(key)));
             return result;
         }
     }

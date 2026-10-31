@@ -1,21 +1,32 @@
 package com.zrlog.admin.business.rest.response;
 
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 public class MessageCenterOperationNoticeEntry {
 
     private String taskKey;
-    private String title;
-    private String description;
-    private String actionLabel;
+    private String titleKey;
+    private String descriptionKey;
+    private String actionLabelKey;
     private String actionPath;
-    private String source;
+    private String sourceKey;
     private String status;
     private Boolean closable;
     private Long createdAt;
     private Long updatedAt;
     private Long readAt;
     private Object payload;
+    private Map<String, String> descriptionArguments = new LinkedHashMap<>();
+
+    public Map<String, String> getDescriptionArguments() {
+        return descriptionArguments;
+    }
+
+    public void setDescriptionArguments(Map<String, String> arguments) {
+        descriptionArguments = arguments;
+    }
 
     public String getTaskKey() {
         return taskKey;
@@ -25,28 +36,28 @@ public class MessageCenterOperationNoticeEntry {
         this.taskKey = taskKey;
     }
 
-    public String getTitle() {
-        return title;
+    public String getTitleKey() {
+        return titleKey;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setTitleKey(String titleKey) {
+        this.titleKey = titleKey;
     }
 
-    public String getDescription() {
-        return description;
+    public String getDescriptionKey() {
+        return descriptionKey;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setDescriptionKey(String descriptionKey) {
+        this.descriptionKey = descriptionKey;
     }
 
-    public String getActionLabel() {
-        return actionLabel;
+    public String getActionLabelKey() {
+        return actionLabelKey;
     }
 
-    public void setActionLabel(String actionLabel) {
-        this.actionLabel = actionLabel;
+    public void setActionLabelKey(String actionLabelKey) {
+        this.actionLabelKey = actionLabelKey;
     }
 
     public String getActionPath() {
@@ -57,12 +68,12 @@ public class MessageCenterOperationNoticeEntry {
         this.actionPath = actionPath;
     }
 
-    public String getSource() {
-        return source;
+    public String getSourceKey() {
+        return sourceKey;
     }
 
-    public void setSource(String source) {
-        this.source = source;
+    public void setSourceKey(String sourceKey) {
+        this.sourceKey = sourceKey;
     }
 
     public String getStatus() {
@@ -187,14 +198,12 @@ public class MessageCenterOperationNoticeEntry {
     public static class UpgradePayload {
 
         private Boolean finish;
-        private String message;
 
         public UpgradePayload() {
         }
 
-        public UpgradePayload(Boolean finish, String message) {
+        public UpgradePayload(Boolean finish) {
             this.finish = finish;
-            this.message = message;
         }
 
         public Boolean getFinish() {
@@ -205,13 +214,6 @@ public class MessageCenterOperationNoticeEntry {
             this.finish = finish;
         }
 
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
     }
 
     public static class UpgradeRestartPayload {

@@ -58,7 +58,8 @@ public class AdminSseEmitterTest {
 
         String body = capturedResponse.body();
         assertTrue(body.contains("event: admin-error"));
-        assertTrue(body.contains("\"message\":\"boom\""));
+        assertTrue(body.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.common.request.error")));
+        org.junit.Assert.assertFalse(body.contains("boom"));
     }
 
     @Test

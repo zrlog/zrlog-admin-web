@@ -113,6 +113,7 @@ public final class AutomationEngine {
         run.taskId = task.id;
         run.ownerId = task.ownerId;
         run.taskName = task.name;
+        run.taskNameKey = task.nameKey;
         run.taskType = task.type;
         run.taskRevision = task.revision;
         run.planSnapshot = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationModels.Plan.class);

@@ -181,7 +181,7 @@ public class ArticlePublishingService {
         detail.getData().setPublicationSchedule(saveResponse.getPublicationSchedule());
         if (saveResponse.getPublicationSchedule() != null) {
             detail.setMessage(I18nUtil.getAdminBackendStringFromRes("scheduled".equals(saveResponse.getPublicationSchedule().state)
-                    ? "admin.automation.publish.scheduled" : "admin.automation.publish.scheduleFailed"));
+                    ? "admin.assistant.publish.success.scheduled" : "admin.assistant.publish.error.scheduleFailed"));
             return detail;
         }
         boolean saved = Objects.equals(saveResponse.getRubbish(), true)
@@ -194,19 +194,19 @@ public class ArticlePublishingService {
     public void updateBlogCacheWithStaticSyncNotice(HttpRequest request) {
         try {
             cacheRefresh.updateCacheSynchronouslyOrThrow(request, List.of(StaticSiteType.BLOG));
-            recordBlogStaticSiteSync(true, "");
+            recordBlogStaticSiteSync(true);
         } catch (RuntimeException e) {
-            recordBlogStaticSiteSync(false, e.getMessage());
+            recordBlogStaticSiteSync(false);
             throw e;
         }
     }
 
-    private void recordBlogStaticSiteSync(boolean synced, String message) {
+    private void recordBlogStaticSiteSync(boolean synced) {
         if (cacheRefresh.isStaticSiteDisabled()) {
             return;
         }
         try {
-            this.messageCenterOperationService.recordBlogStaticSiteSync(synced, message);
+            this.messageCenterOperationService.recordBlogStaticSiteSync(synced);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Record blog static sync notice failed", e);
         }

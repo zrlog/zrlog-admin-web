@@ -2,6 +2,7 @@ package com.zrlog.admin.util;
 
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.business.plugin.type.StaticSiteType;
+import com.zrlog.util.I18nUtil;
 
 import java.io.IOException;
 import java.util.List;
@@ -66,7 +67,12 @@ public class AdminStaticSiteSsePublisher {
                     emitter.send("static-sync-skipped", progress.snapshot(siteTypes));
                 } else {
                     emitter.send("static-sync-start", progress.snapshot(siteTypes));
-                    CompletableFuture<Void> cacheFuture = CompletableFuture.runAsync(cacheTask::run);
+                    String language = I18nUtil.getCurrentLocale();
+                    CompletableFuture<Void> cacheFuture = CompletableFuture.runAsync(() -> {
+                        try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
+                            cacheTask.run();
+                        }
+                    });
                     while (!cacheFuture.isDone()) {
                         duringCacheTask.write(emitter);
                         emitter.send("static-progress", progress.snapshot(siteTypes));

@@ -122,6 +122,7 @@ public final class AutomationModels {
         public String taskId;
         public int ownerId;
         public String taskName;
+        public String taskNameKey;
         public String taskType;
         public long taskRevision;
         public Plan planSnapshot;

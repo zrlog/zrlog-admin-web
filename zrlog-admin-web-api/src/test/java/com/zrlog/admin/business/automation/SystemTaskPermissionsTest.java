@@ -45,7 +45,7 @@ public class SystemTaskPermissionsTest {
         db.execute("INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)", 3, "writer", "author", true, 0);
         store = new AutomationStore(() -> new WebSite(db.dataSource()));
         authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-        definition.type = "system.test-maintenance"; definition.titleKey = "admin.automation.cache.title";
+        definition.type = "system.test-maintenance"; definition.titleKey = "admin.assistant.cache.title";
         definition.systemTask = true; definition.enabledByDefault = true;
         definition.requiredActions = List.of("system.manage");
         definition.defaultSchedule = new AutomationModels.Schedule(); definition.defaultSchedule.kind = "interval";
@@ -58,7 +58,7 @@ public class SystemTaskPermissionsTest {
             public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
                 context.checkActive(); AccountPermissionService.requireActions(context.actor(), definition.requiredActions);
                 effects.incrementAndGet();
-                var result = AutomationModels.Result.success("admin.automation.cache.completed"); result.notifyOwner = true; return result;
+                var result = AutomationModels.Result.success("admin.assistant.cache.success.completed"); result.notifyOwner = true; return result;
             }
         };
         var registry = new TaskRegistry(() -> List.of(provider, new ReminderTaskProvider()));
@@ -71,6 +71,28 @@ public class SystemTaskPermissionsTest {
     private AccountAccess actor(int id) throws Exception { return AccountAccess.from(new User(db.dataSource()).loadById(id)); }
     private StoredTask task() throws Exception { return service.systemTasks(actor(1)).get(0); }
     private AutomationModels.Plan plan(StoredTask task) { return AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationModels.Plan.class); }
+
+    @Test public void sharedRunNamesAndInboxTitlesAreLocalizedAtReadTime() throws Exception {
+        var task = task();
+        AutomationModels.Run run;
+        try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+            run = engine.runNow(actor(1), task.id, task.revision, 120000);
+        }
+        var stored = store.run(run.id).value;
+        assertEquals("admin.assistant.cache.title", stored.taskNameKey);
+        var inbox = new AutomationNotificationService(store, authority, service);
+        try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
+            assertEquals("Keep article caches fresh", AutomationDashboard.run(stored).taskName);
+            var payload = (com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.OperationTaskPayload)
+                    inbox.list(actor(2)).get(0).getPayload();
+            assertEquals("Keep article caches fresh", payload.getTitle());
+        }
+        try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+            assertFalse(AutomationDashboard.run(stored).taskName.contains("Keep"));
+        }
+        assertEquals(stored.taskNameKey, store.run(run.id).value.taskNameKey);
+        assertEquals(task.type, stored.taskName);
+    }
 
     @Test public void adminsShareOneConfigurationWithRevisionChecksAndNoExtraGrant() throws Exception {
         var task = task(); var admin = actor(2);

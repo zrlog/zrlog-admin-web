@@ -4,6 +4,7 @@ package com.zrlog.admin.business.automation;
 public final class StoredTask extends AutomationModels.Plan {
     /** Zero denotes a site task; positive IDs denote personal tasks. */
     public int ownerId;
+    public String nameKey;
     public Integer updatedBy;
     /** Server-derived ceiling; never accepted from the editable plan. */
     public java.util.List<String> executionActions = new java.util.ArrayList<>();

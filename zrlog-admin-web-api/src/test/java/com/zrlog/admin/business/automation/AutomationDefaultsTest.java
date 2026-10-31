@@ -66,6 +66,38 @@ public class AutomationDefaultsTest {
     }
 
     @Test
+    public void systemNamesAndRunSnapshotsFollowTheViewerLanguage() throws Exception {
+        try (var db = open()) {
+            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+                assertTrue(defaults(db, store).initialize());
+            }
+            var task = store.task(AutomationDefaults.systemId("system.cleanup-temporary")).value;
+            assertEquals(task.type, task.name);
+            assertEquals("admin.assistant.cleanup.title", task.nameKey);
+            var run = new AutomationModels.Run();
+            run.taskNameKey = task.nameKey;
+            run.planSnapshot = new AutomationModels.Plan();
+            run.taskName = null;
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
+                assertEquals("Clean up temporary resources", AutomationDashboard.task(task).name);
+                assertEquals("Clean up temporary resources", AutomationDashboard.run(run).taskName);
+                assertEquals("Clean up temporary resources", AutomationDashboard.run(run).planSnapshot.name);
+            }
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+                assertFalse(AutomationDashboard.run(run).taskName.contains("Clean"));
+            }
+            run.taskNameKey = null;
+            run.taskName = "My original task 🌿";
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+                assertEquals(run.taskName, AutomationDashboard.run(run).taskName);
+            }
+            assertEquals(task.type, task.name);
+            assertNull(run.planSnapshot.name);
+        }
+    }
+
+    @Test
     public void repeatedInitializationPreservesUserSettingsAndIgnoresOldDevelopmentStorage() throws Exception {
         try (var db = open()) {
             var store = new AutomationStore(() -> new WebSite(db.dataSource()));

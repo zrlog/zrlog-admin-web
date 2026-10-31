@@ -83,7 +83,8 @@ public final class AutomationService {
         task.createdAt = previous == null ? now : previous.value.createdAt;
         task.updatedAt = now;
         task.revision = previous == null ? 1L : previous.value.revision + 1;
-        task.name = entry.definition.systemTask ? previous.value.name : plan.name.trim();
+        task.name = entry.definition.systemTask ? entry.definition.type : plan.name.trim();
+        task.nameKey = entry.definition.systemTask ? entry.definition.titleKey : null;
         task.type = entry.definition.type;
         task.enabled = plan.enabled;
         task.executionActions = authority.actions(actor, entry.definition);

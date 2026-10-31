@@ -7,7 +7,7 @@ import type { ChildResult } from "./types";
 
 /** Children belong to this execution; they never appear as independent assistant plans. */
 export default function RunChildren({ children, nested = false }: { children?: ChildResult[]; nested?: boolean }) {
-    const res = getRes().automations;
+    const res = getRes().assistant;
     if (!children?.length) return null;
     const date = (value?: number) => (value ? formatDateTime(value) : "—");
     return (

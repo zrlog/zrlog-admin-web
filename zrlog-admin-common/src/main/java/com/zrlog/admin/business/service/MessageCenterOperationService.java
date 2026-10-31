@@ -5,7 +5,6 @@ import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
-import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -15,7 +14,7 @@ import java.util.*;
 @Singleton
 public class MessageCenterOperationService {
 
-    private static final String OPERATION_NOTICE_KEY = "message_center_operation_notices";
+    private static final String OPERATION_NOTICE_KEY = "message_center_operation_notices_v2";
     private static final String OPERATION_TYPE = "operationTask";
     private static final String REPLACE_ARTICLE_RESOURCE_URL_ACTION = "replaceArticleResourceUrl";
     private static final String PUBLISH_CHECK_ACTION = "publishCheck";
@@ -41,14 +40,13 @@ public class MessageCenterOperationService {
         long now = System.currentTimeMillis();
         MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
         notice.setTaskKey(buildTaskKey(REPLACE_ARTICLE_RESOURCE_URL_ACTION, now));
-        notice.setTitle(adminMessage("admin.messageCenter.operation.replaceArticleResourceUrl.title"));
-        notice.setDescription(adminMessage("admin.messageCenter.operation.replaceArticleResourceUrl.description")
-                .replace("{articles}", String.valueOf(updatedArticles))
-                .replace("{fields}", String.valueOf(updatedFields))
-                .replace("{scanned}", String.valueOf(scannedArticles)));
-        notice.setActionLabel(adminMessage("admin.messageCenter.operation.fileManager.action"));
+        notice.setTitleKey("admin.messageCenter.operation.replaceArticleResourceUrl.title");
+        notice.setDescriptionKey("admin.messageCenter.operation.replaceArticleResourceUrl.description");
+        notice.setDescriptionArguments(Map.of("articles", String.valueOf(updatedArticles),
+                "fields", String.valueOf(updatedFields), "scanned", String.valueOf(scannedArticles)));
+        notice.setActionLabelKey("admin.messageCenter.operation.fileManager.action");
         notice.setActionPath("/file-manager?resourceType=external");
-        notice.setSource(adminMessage("admin.fileManager.title"));
+        notice.setSourceKey("admin.fileManager.title");
         notice.setStatus(updatedArticles > 0 ? "success" : "warning");
         notice.setClosable(true);
         notice.setCreatedAt(now);
@@ -62,15 +60,15 @@ public class MessageCenterOperationService {
         long now = System.currentTimeMillis();
         MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
         notice.setTaskKey(buildTaskKey(STATIC_SITE_SYNC_ACTION, now));
-        notice.setTitle(adminMessage(synced
+        notice.setTitleKey(synced
                 ? "admin.messageCenter.operation.staticSiteSync.title"
-                : "admin.messageCenter.operation.staticSiteSync.warningTitle"));
-        notice.setDescription(adminMessage(synced
+                : "admin.messageCenter.operation.staticSiteSync.warningTitle");
+        notice.setDescriptionKey(synced
                 ? "admin.messageCenter.operation.staticSiteSync.description"
-                : "admin.messageCenter.operation.staticSiteSync.warningDescription"));
-        notice.setActionLabel(adminMessage("admin.messageCenter.operation.staticSiteSync.action"));
+                : "admin.messageCenter.operation.staticSiteSync.warningDescription");
+        notice.setActionLabelKey("admin.messageCenter.operation.staticSiteSync.action");
         notice.setActionPath("/website/upgrade");
-        notice.setSource(adminMessage("admin.website.upgrade.manage"));
+        notice.setSourceKey("admin.website.upgrade.manage");
         notice.setStatus(synced ? "success" : "warning");
         notice.setClosable(true);
         notice.setCreatedAt(now);
@@ -83,23 +81,18 @@ public class MessageCenterOperationService {
         saveNotice(notice);
     }
 
-    public void recordBlogStaticSiteSync(boolean synced, String message) {
+    public void recordBlogStaticSiteSync(boolean synced) {
         long now = System.currentTimeMillis();
-        String description = Objects.toString(message, "").trim();
-        if (description.isEmpty()) {
-            description = adminMessage(synced
-                    ? "admin.messageCenter.operation.blogStaticSiteSync.description"
-                    : "admin.messageCenter.operation.blogStaticSiteSync.errorDescription");
-        }
         MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
         notice.setTaskKey(buildTaskKey(BLOG_STATIC_SITE_SYNC_ACTION, now));
-        notice.setTitle(adminMessage(synced
+        notice.setTitleKey(synced
                 ? "admin.messageCenter.operation.blogStaticSiteSync.title"
-                : "admin.messageCenter.operation.blogStaticSiteSync.errorTitle"));
-        notice.setDescription(description);
-        notice.setActionLabel(adminMessage("admin.messageCenter.operation.articleManage.action"));
+                : "admin.messageCenter.operation.blogStaticSiteSync.errorTitle");
+        notice.setDescriptionKey(synced ? "admin.messageCenter.operation.blogStaticSiteSync.description"
+                : "admin.messageCenter.operation.blogStaticSiteSync.errorDescription");
+        notice.setActionLabelKey("admin.messageCenter.operation.articleManage.action");
         notice.setActionPath("/article");
-        notice.setSource(adminMessage("admin.article.manage"));
+        notice.setSourceKey("admin.article.manage");
         notice.setStatus(synced ? "success" : "error");
         notice.setClosable(true);
         notice.setCreatedAt(now);
@@ -111,7 +104,6 @@ public class MessageCenterOperationService {
 
     public void recordUpgradeResult(UpgradeProcessResponse response) {
         boolean finish = Boolean.TRUE.equals(response.getFinish());
-        String message = Objects.toString(response.getMessage(), "").trim();
         String defaultDescriptionKey = finish
                 ? "admin.messageCenter.operation.upgrade.description"
                 : "admin.messageCenter.operation.upgrade.warningDescription";
@@ -119,24 +111,18 @@ public class MessageCenterOperationService {
                 finish
                         ? "admin.messageCenter.operation.upgrade.title"
                         : "admin.messageCenter.operation.upgrade.warningTitle",
-                message.isEmpty() ? adminMessage(defaultDescriptionKey) : message,
+                defaultDescriptionKey,
                 finish ? "success" : "warning",
-                finish,
-                message
+                finish
         );
     }
 
-    public void recordUpgradeError(String message) {
-        String description = Objects.toString(message, "").trim();
-        if (description.isEmpty()) {
-            description = adminMessage("admin.messageCenter.operation.upgrade.errorDescription");
-        }
+    public void recordUpgradeError() {
         recordUpgradeNotice(
                 "admin.messageCenter.operation.upgrade.errorTitle",
-                description,
+                "admin.messageCenter.operation.upgrade.errorDescription",
                 "error",
-                false,
-                description
+                false
         );
     }
 
@@ -158,12 +144,12 @@ public class MessageCenterOperationService {
         long now = System.currentTimeMillis();
         MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
         notice.setTaskKey(buildTaskKey(UPGRADE_RESTART_ACTION, now));
-        notice.setTitle(adminMessage(titleKey));
-        notice.setDescription(adminMessage(descriptionKey)
-                .replace("{buildId}", buildIdText.isEmpty() ? "-" : buildIdText));
-        notice.setActionLabel(adminMessage("admin.messageCenter.operation.upgrade.action"));
+        notice.setTitleKey(titleKey);
+        notice.setDescriptionKey(descriptionKey);
+        notice.setDescriptionArguments(Map.of("buildId", buildIdText.isEmpty() ? "-" : buildIdText));
+        notice.setActionLabelKey("admin.messageCenter.operation.upgrade.action");
         notice.setActionPath("/upgrade");
-        notice.setSource(adminMessage("admin.upgrade.wizard.manage"));
+        notice.setSourceKey("admin.upgrade.wizard.manage");
         notice.setStatus(normalizedStatus);
         notice.setClosable(true);
         notice.setCreatedAt(now);
@@ -178,28 +164,27 @@ public class MessageCenterOperationService {
                 PUBLISH_CHECK_ACTION,
                 now,
                 "admin.messageCenter.operation.publishCheck.title",
-                adminMessage("admin.messageCenter.operation.publishCheck.description")
-                        .replace("{score}", score == null ? "-" : String.valueOf(score))
-                        .replace("{items}", String.valueOf(itemCount)),
+                "admin.messageCenter.operation.publishCheck.description",
                 score != null && score >= PUBLISH_CHECK_SUCCESS_SCORE ? "success" : "warning",
                 articleId
         );
+        notice.setDescriptionArguments(Map.of("score", score == null ? "-" : String.valueOf(score),
+                "items", String.valueOf(itemCount)));
         notice.setPayload(new MessageCenterOperationNoticeEntry.PublishCheckPayload(
                 articleId, articleTitle, score, itemCount));
         saveNotice(notice);
     }
 
-    public void recordPublishCheckError(Long articleId, String articleTitle, String message) {
+    public void recordPublishCheckError(Long articleId, String articleTitle, String messageKey) {
         long now = System.currentTimeMillis();
-        String description = Objects.toString(message, "").trim();
-        if (description.isEmpty()) {
-            description = adminMessage("admin.messageCenter.operation.publishCheck.errorDescription");
-        }
+        String descriptionKey = Set.of("admin.article.publishCheck.error.failed", "admin.article.publishCheck.error.cancelled",
+                "admin.article.publishCheck.error.timeout", "admin.article.publishCheck.error.interrupted").contains(
+                Objects.toString(messageKey, "")) ? messageKey : "admin.messageCenter.operation.publishCheck.errorDescription";
         MessageCenterOperationNoticeEntry notice = buildArticleOperationNotice(
                 PUBLISH_CHECK_ACTION,
                 now,
                 "admin.messageCenter.operation.publishCheck.errorTitle",
-                description,
+                descriptionKey,
                 "error",
                 articleId
         );
@@ -273,33 +258,33 @@ public class MessageCenterOperationService {
         return "server.operation." + action + "." + timestamp + "." + UUID.randomUUID().toString().substring(0, 8);
     }
 
-    private void recordUpgradeNotice(String titleKey, String description, String status, boolean finish, String message) {
+    private void recordUpgradeNotice(String titleKey, String descriptionKey, String status, boolean finish) {
         long now = System.currentTimeMillis();
         MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
         notice.setTaskKey(buildTaskKey(UPGRADE_ACTION, now));
-        notice.setTitle(adminMessage(titleKey));
-        notice.setDescription(description);
-        notice.setActionLabel(adminMessage("admin.messageCenter.operation.upgrade.action"));
+        notice.setTitleKey(titleKey);
+        notice.setDescriptionKey(descriptionKey);
+        notice.setActionLabelKey("admin.messageCenter.operation.upgrade.action");
         notice.setActionPath("/upgrade");
-        notice.setSource(adminMessage("admin.upgrade.wizard.manage"));
+        notice.setSourceKey("admin.upgrade.wizard.manage");
         notice.setStatus(status);
         notice.setClosable(true);
         notice.setCreatedAt(now);
         notice.setUpdatedAt(now);
-        notice.setPayload(new MessageCenterOperationNoticeEntry.UpgradePayload(finish, message));
+        notice.setPayload(new MessageCenterOperationNoticeEntry.UpgradePayload(finish));
         saveNotice(notice);
     }
 
     private MessageCenterOperationNoticeEntry buildArticleOperationNotice(String action, long now, String titleKey,
-                                                                          String description, String status,
+                                                                          String descriptionKey, String status,
                                                                           Long articleId) {
         MessageCenterOperationNoticeEntry notice = new MessageCenterOperationNoticeEntry();
         notice.setTaskKey(buildTaskKey(action, now));
-        notice.setTitle(adminMessage(titleKey));
-        notice.setDescription(description);
-        notice.setActionLabel(adminMessage("admin.messageCenter.operation.articleEdit.action"));
+        notice.setTitleKey(titleKey);
+        notice.setDescriptionKey(descriptionKey);
+        notice.setActionLabelKey("admin.messageCenter.operation.articleEdit.action");
         notice.setActionPath("/article-edit?id=" + articleId);
-        notice.setSource(adminMessage("admin.article.edit.manage"));
+        notice.setSourceKey("admin.article.edit.manage");
         notice.setStatus(status);
         notice.setClosable(true);
         notice.setCreatedAt(now);
@@ -311,7 +296,4 @@ public class MessageCenterOperationService {
         return status != null && FINISH_STATUSES.contains(status) ? status : "notice";
     }
 
-    private String adminMessage(String key) {
-        return I18nUtil.getAdminBackendStringFromRes(key);
-    }
 }

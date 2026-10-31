@@ -34,7 +34,7 @@ export default function ArticleChoice({
     const [busy, setBusy] = useState(false);
     const [excerpt, setExcerpt] = useState("");
     const [message, holder] = useUiMessage();
-    const res = getRes().automations;
+    const res = getRes().assistant;
     const load = async () => {
         if (!value || busy) return;
         setBusy(true);

@@ -31,7 +31,7 @@ export default function TaskForm({
     const articleVersion = Form.useWatch(["parameters", "version"], form);
     const kind = Form.useWatch(["schedule", "kind"], form);
     const definition = definitions.find((item) => item.type === type);
-    const res = getRes().automations;
+    const res = getRes().assistant;
     useEffect(() => {
         form.resetFields();
         const defaults = definitions.find((item) => item.type === plan.type)?.defaultParameters ?? {};

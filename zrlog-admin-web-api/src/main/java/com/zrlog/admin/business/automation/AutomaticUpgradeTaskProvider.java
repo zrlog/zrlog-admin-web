@@ -28,24 +28,24 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = "system.auto-upgrade";
-        definition.titleKey = "admin.automation.upgrade.title";
-        definition.descriptionKey = "admin.automation.upgrade.description";
+        definition.titleKey = "admin.assistant.upgrade.title";
+        definition.descriptionKey = "admin.assistant.upgrade.description";
         definition.category = "maintenance";
         definition.systemTask = true;
         definition.enabledByDefault = false;
         definition.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
         definition.timeoutSeconds = 600;
         definition.available = operations.available();
-        definition.unavailableReasonKey = "admin.automation.upgrade.unsupported";
+        definition.unavailableReasonKey = "admin.assistant.upgrade.status.unsupported";
         var retry = new AutomationModels.Field();
         retry.name = "retryUnconfirmed";
         retry.type = "boolean";
         retry.requiresConfirmation = true;
-        retry.labelKey = "admin.automation.upgrade.retry";
+        retry.labelKey = "admin.assistant.upgrade.retry";
         var channel = new AutomationModels.Field();
         channel.name = "channel";
         channel.type = "text";
-        channel.labelKey = "admin.automation.upgrade.channel";
+        channel.labelKey = "admin.assistant.upgrade.channel";
         channel.required = true;
         channel.readOnly = true;
         // Retrying a particular attempt is not part of enabling the recurring policy.
@@ -114,13 +114,13 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         PreCheckVersionResponse check;
         try { check = operations.check(); }
         catch (RuntimeException error) {
-            var failed = AutomationModels.Result.success("admin.automation.version.failed");
+            var failed = AutomationModels.Result.success("admin.assistant.version.error.failed");
             failed.status = "failed";
             return failed;
         }
         context.checkActive();
         if (!Objects.equals(parameters.get("channel").getAsString(), operations.channel())) return attention("channelChanged");
-        if (!Boolean.TRUE.equals(check.getUpgrade())) return AutomationModels.Result.success("admin.automation.version.current");
+        if (!Boolean.TRUE.equals(check.getUpgrade())) return AutomationModels.Result.success("admin.assistant.version.status.current");
         if (!Boolean.TRUE.equals(check.getOnlineUpgradable())) return attention("unsupported");
         if (check.getBackupProtection() != null && Boolean.TRUE.equals(check.getBackupProtection().getRequiresRiskAcceptance())) {
             return attention("backupReview");
@@ -128,7 +128,7 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         Version version = check.getVersion();
         if (version == null || version.getBuildId() == null || version.getBuildId().isBlank()) return attention("targetUnknown");
         if (version.getBuildId().equals(operations.currentBuildId()))
-            return AutomationModels.Result.success("admin.automation.version.current");
+            return AutomationModels.Result.success("admin.assistant.version.status.current");
         Receipt receipt = new Receipt();
         receipt.runId = context.runId();
         receipt.ownerId = context.actor().getUserId();
@@ -179,7 +179,7 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     private static AutomationModels.Result submitted(Receipt receipt) {
-        var result = AutomationModels.Result.success("admin.automation.upgrade.submitted");
+        var result = AutomationModels.Result.success("admin.assistant.upgrade.status.submitted");
         result.status = "submitted";
         result.text = receipt.version;
         result.externalRunId = receipt.runId;
@@ -188,7 +188,7 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     private static AutomationModels.Result attention(String reason) {
-        var result = AutomationModels.Result.attention("admin.automation.upgrade." + reason);
+        var result = AutomationModels.Result.attention("admin.assistant.upgrade.status." + reason);
         result.actionPath = "/upgrade";
         return result;
     }

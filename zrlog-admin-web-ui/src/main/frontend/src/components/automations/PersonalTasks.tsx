@@ -34,7 +34,7 @@ export default function PersonalTasks({
     onMutate: (path: string, body: unknown) => Promise<void>;
     renderStatus: (status?: string) => ReactNode;
 }) {
-    const res = getRes().automations;
+    const res = getRes().assistant;
     const { styles, cx } = useAssistantStyles();
     const { modal } = useUiApp();
     const theme = useTheme();

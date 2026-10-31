@@ -49,6 +49,20 @@ public class AdminAuditServiceTest {
         assertEquals(Integer.valueOf(2), display.getActorUserId());
     }
 
+    @Test
+    public void fixedAuditContentUsesTheReaderLanguageAndPersonalContentStaysLiteral() {
+        var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        var raw = service.readLogs("[{\"action\":\"CONFIGURE_ASSISTANT_TASK\",\"contentKey\":\"admin.assistant.cleanup.title\"}]").get(0);
+        try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
+            assertEquals("Clean up temporary resources", service.toDisplayLog(raw).getContent());
+        }
+        try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+            assertTrue(service.toDisplayLog(raw).getContent().contains("清理"));
+            assertEquals("admin.assistant.cleanup.title", service.toDisplayLog(
+                    entry("CONFIGURE_ASSISTANT_TASK", "system", "admin.assistant.cleanup.title")).getContent());
+        }
+    }
+
     private static AdminAuditLogEntryResponse entry(String action, String type, String content) {
         AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
         entry.setAction(action);

@@ -17,7 +17,7 @@ export default function ProposalForm({
     onClose: () => void;
     onChoose: (plan: Plan) => void;
 }) {
-    const res = getRes().automations;
+    const res = getRes().assistant;
     const [input, setInput] = useState("");
     const [pending, setPending] = useState(false);
     const [proposal, setProposal] = useState<Proposal>();

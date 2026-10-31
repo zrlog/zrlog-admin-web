@@ -7,6 +7,10 @@ public class AdminAuditLogEntryResponse {
     private String action;
     private String type;
     private String content;
+    private String contentKey;
+
+    public String getContentKey() { return contentKey; }
+    public void setContentKey(String contentKey) { this.contentKey = contentKey; }
     private String os;
     private String browser;
     private Boolean crawler;

@@ -12,15 +12,15 @@ public final class ReminderTaskProvider implements ScheduledTaskProvider {
     public List<AutomationModels.Definition> definitions() {
         AutomationModels.Definition definition = new AutomationModels.Definition();
         definition.type = "assistant.reminder";
-        definition.titleKey = "admin.automation.reminder.title";
-        definition.descriptionKey = "admin.automation.reminder.description";
+        definition.titleKey = "admin.assistant.reminder.title";
+        definition.descriptionKey = "admin.assistant.reminder.description";
         definition.category = "personal";
         definition.timeoutSeconds = 1;
         definition.requiredActions = List.of(AccountAction.SESSION.getId());
         AutomationModels.Field text = new AutomationModels.Field();
         text.name = "text";
         text.type = "textarea";
-        text.labelKey = "admin.automation.reminder.text";
+        text.labelKey = "admin.assistant.reminder.text";
         text.required = true;
         definition.fields = List.of(text);
         return List.of(definition);
@@ -41,7 +41,7 @@ public final class ReminderTaskProvider implements ScheduledTaskProvider {
     @Override
     public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
         context.checkActive();
-        AutomationModels.Result result = AutomationModels.Result.success("admin.automation.reminder.completed");
+        AutomationModels.Result result = AutomationModels.Result.success("admin.assistant.reminder.success.completed");
         result.text = parameters.get("text").getAsString();
         result.notifyOwner = true;
         return result;

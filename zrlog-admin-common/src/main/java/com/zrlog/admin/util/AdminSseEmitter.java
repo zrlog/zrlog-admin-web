@@ -4,16 +4,19 @@ import com.google.gson.Gson;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.rest.response.AdminSsePayloads;
+import com.zrlog.util.I18nUtil;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class AdminSseEmitter {
 
     private static final Gson GSON = new Gson();
+    private static final Logger LOGGER = Logger.getLogger(AdminSseEmitter.class.getName());
     private final PipedOutputStream outputStream;
 
     public AdminSseEmitter(PipedOutputStream outputStream) {
@@ -37,16 +40,19 @@ public class AdminSseEmitter {
         PipedInputStream inputStream = new PipedInputStream();
         PipedOutputStream outputStream = new PipedOutputStream(inputStream);
         com.zrlog.common.vo.AdminTokenVO actor = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
+        String language = I18nUtil.getCurrentLocale();
         AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
         java.util.concurrent.Callable<Void> streamWriter = com.zrlog.admin.business.security.DelegatedAccess.capture(() -> {
             writer.write(emitter);
             return null;
         });
         Thread streamThread = new Thread(() -> {
-            try {
-                com.zrlog.admin.web.token.AdminTokenThreadLocal.withUser(actor, streamWriter);
-            } catch (Exception e) {
-                emitter.sendError(errorEvent, e);
+            try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
+                try {
+                    com.zrlog.admin.web.token.AdminTokenThreadLocal.withUser(actor, streamWriter);
+                } catch (Exception e) {
+                    emitter.sendError(errorEvent, e);
+                }
             } finally {
                 emitter.close();
             }
@@ -62,12 +68,17 @@ public class AdminSseEmitter {
     }
 
     public void sendError(String event, Exception e) {
+        LOGGER.log(Level.WARNING, "Admin stream step failed: " + event, e);
         try {
-            if (e instanceof AbstractAdminBusinessException) {
-                AbstractAdminBusinessException businessError = (AbstractAdminBusinessException) e;
-                send(event, AdminSsePayloads.error(businessError.getError(), businessError.getMessage()));
+            Throwable cause = AdminErrorMessages.unwrap(e);
+            String fallbackKey = "static-error".equals(event) ? "admin.staticSite.sync.error"
+                    : "publish-error".equals(event) ? "admin.article.publish.error" : "admin.common.request.error";
+            String message = AdminErrorMessages.message(cause, fallbackKey);
+            if (cause instanceof AbstractAdminBusinessException) {
+                AbstractAdminBusinessException businessError = (AbstractAdminBusinessException) cause;
+                send(event, AdminSsePayloads.error(businessError.getError(), message));
             } else {
-                send(event, AdminSsePayloads.message(Objects.requireNonNullElse(e.getMessage(), "")));
+                send(event, AdminSsePayloads.message(message));
             }
         } catch (IOException ignored) {
             // Client connection may already be closed.
