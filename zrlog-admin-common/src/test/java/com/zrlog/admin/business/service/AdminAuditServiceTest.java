@@ -98,6 +98,11 @@ public class AdminAuditServiceTest {
         assertEquals("", byType.getContent());
         assertEquals("", byAction.getContent());
         assertEquals("cache", regular.getContent());
+        var upgrade = entry("EXECUTE_UPGRADE", "system", "upgradeRiskAccepted");
+        assertEquals("", service.toDisplayLog(upgrade).getContent());
+        assertEquals("upgradeRiskAccepted", upgrade.getContent());
+        assertEquals("upgradeRiskAccepted", service.toDisplayLog(
+                entry("CREATE_ARTICLE", "article", "upgradeRiskAccepted")).getContent());
     }
 
     @Test
