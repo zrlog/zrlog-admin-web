@@ -104,6 +104,9 @@ export type PublicVersionResponse = {
 };
 
 export type AdminAuditLogEntry = {
+    source?: "assistant" | "mcp" | "client" | "unknown";
+    sourceLabel?: string;
+    assistantRunId?: string;
     timestamp: number;
     ip: string;
     action: string;

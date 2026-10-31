@@ -19,7 +19,7 @@ export type WebsiteSettingsPage =
     | "privacy"
     | "members";
 
-export type AdminSettingsPage = WebsiteSettingsPage | "system" | "proxy" | "dev";
+export type AdminSettingsPage = WebsiteSettingsPage | "system" | "proxy" | "audit" | "dev";
 
 export const getWebsiteSettingsItems = () => {
     const navItems: Array<{
@@ -170,6 +170,14 @@ export const getAdminSettingsItems = (): SettingsItem[] => {
             group: res.website.nav.system,
             iconKey: "experiment",
             path: "/dev",
+        },
+        {
+            key: "audit",
+            text: res.system.audit.title,
+            summary: res.system.audit.summary,
+            group: res.website.nav.system,
+            iconKey: "history",
+            path: "/system/audit",
         },
     ];
 };

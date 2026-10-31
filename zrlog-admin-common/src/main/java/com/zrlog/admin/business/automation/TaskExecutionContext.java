@@ -34,7 +34,7 @@ public final class TaskExecutionContext {
     public AccountAccess actor() { return actor; }
     public long remainingMillis() { return Math.max(0, deadline - clock.getAsLong()); }
     public AdminAuditContext audit() {
-        return new AdminAuditContext(actor.getUserId(), "", "/assistant/run/" + runId, "ZrLog Assistant");
+        return new AdminAuditContext(actor.getUserId(), "", "/assistant/run/" + runId, null);
     }
 
     /** Providers call before side effects and between chunks of resumable work. */

@@ -238,6 +238,7 @@ const zhCN = {
             "system.syncAdmin": "重新生成后台静态页面",
             "system.adminSyncStatus": "读取后台静态页面同步状态",
             "system.status": "读取系统运行信息",
+            "system.audit": "查看操作日志",
             "system.proxy": "读取或保存本地 HTTP 代理配置",
             "system.testProxy": "测试尚未生效的 HTTP 代理配置",
             "tag.list": "读取标签列表和文章数量",
@@ -622,10 +623,7 @@ const zhCN = {
         },
         "audit": {
             "label": "最近操作",
-            "more": "查看更多",
-            "full": "操作审计（最近 100 条）",
-            "empty": "暂无审计日志",
-            "crawler": "爬虫"
+            "more": "查看更多"
         },
         "insight": {
             "empty": {
@@ -1866,6 +1864,17 @@ const zhCN = {
         "passkeyRemoveFailed": "无法删除通行密钥，请重试"
     },
     "system": {
+        "audit": {
+            "title": "操作日志",
+            "summary": "查看站点管理操作及执行来源，保留最近 100 条记录",
+            "empty": "暂无操作记录",
+            "noResults": "没有匹配的操作记录",
+            "search": "搜索操作、内容或来源",
+            "refresh": "刷新日志",
+            "refreshFailed": "日志加载失败，请重试",
+            "viewExecution": "查看执行记录",
+            "crawler": "爬虫"
+        },
         "version": {
             "title": "构建信息",
             "summary": "查看当前安装包的更新记录，以及打包时的环境信息",
@@ -2508,6 +2517,7 @@ const enUS: AdminI18nResource = {
             "system.syncAdmin": "Regenerate static admin pages",
             "system.adminSyncStatus": "Read static admin page synchronization status",
             "system.status": "Read system runtime information",
+            "system.audit": "View operation logs",
             "system.proxy": "Read or save local HTTP proxy settings",
             "system.testProxy": "Test pending HTTP proxy settings",
             "tag.list": "List tags and article counts",
@@ -2892,10 +2902,7 @@ const enUS: AdminI18nResource = {
         },
         "audit": {
             "label": "Recent Operations",
-            "more": "View more",
-            "full": "Operation Audit (Latest 100)",
-            "empty": "No audit logs yet",
-            "crawler": "Crawler"
+            "more": "View more"
         },
         "insight": {
             "empty": {
@@ -4137,6 +4144,17 @@ const enUS: AdminI18nResource = {
         "passkeyRemoveFailed": "Could not remove the passkey. Try again"
     },
     "system": {
+        "audit": {
+            "title": "Operation log",
+            "summary": "Review site administration activity and its source. The latest 100 records are retained.",
+            "empty": "No operations yet",
+            "noResults": "No matching operations",
+            "search": "Search actions, content or sources",
+            "refresh": "Refresh log",
+            "refreshFailed": "Could not load the log. Please try again.",
+            "viewExecution": "View execution",
+            "crawler": "Crawler"
+        },
         "version": {
             "title": "Build Information",
             "summary": "View the current package's changelog and the environment used to build it",

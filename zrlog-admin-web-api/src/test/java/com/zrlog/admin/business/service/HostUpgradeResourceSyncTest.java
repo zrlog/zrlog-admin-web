@@ -123,7 +123,9 @@ public class HostUpgradeResourceSyncTest {
         assertEquals(List.of("refresh", "generate", "deliver"), events);
         assertEquals(delivered.get(), settings.getString("admin_static_version"));
         assertTrue(settings.getString("admin_audit_log").contains("SYNC_ADMIN_STATIC_SITE"));
-        assertTrue(settings.getString("admin_audit_log").contains("upgrade:upgrade-run"));
+        var log = new AdminAuditService(settings).getRecentLogs().get(0);
+        assertEquals("upgrade-run", log.getAssistantRunId());
+        assertEquals("", log.getContent());
     }
 
     @Test public void failedDeliveryAndUnconfirmedPublicResourcesNeverStampSuccess() throws Exception {

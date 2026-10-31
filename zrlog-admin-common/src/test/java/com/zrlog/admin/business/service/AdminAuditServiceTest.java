@@ -12,6 +12,43 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminAuditServiceTest {
 
+    @Test
+    public void existingAssistantReferencesBecomeLinksWithoutChangingStoredHistory() {
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        String runId = "0000000000.00000001793405016977.2e28cb7f-7ecb-4545-908c-085adaf3e485";
+        for (var action : List.of(AdminAuditAction.EXECUTE_UPGRADE, AdminAuditAction.SYNC_ADMIN_STATIC_SITE)) {
+            String prefix = action == AdminAuditAction.EXECUTE_UPGRADE ? "assistant:" : "upgrade:";
+            var raw = entry(action.name(), "system", prefix + runId);
+            raw.setActorUserId(1);
+            raw.setBrowser("Assistant");
+            raw.setOs("Unknown");
+            raw.setAgentName("ZrLog Assistant");
+            var display = service.toDisplayLog(raw);
+            assertEquals(runId, display.getAssistantRunId());
+            assertEquals(Integer.valueOf(1), display.getActorUserId());
+            assertEquals("", display.getContent());
+            assertEquals(null, display.getOs());
+            assertEquals(null, display.getBrowser());
+            assertEquals(null, display.getAgentName());
+            assertEquals(prefix + runId, raw.getContent());
+        }
+        var article = entry("CREATE_ARTICLE", "article", "assistant:" + runId);
+        article.setBrowser("Assistant");
+        assertEquals(article.getContent(), service.toDisplayLog(article).getContent());
+        assertEquals(null, service.toDisplayLog(article).getAssistantRunId());
+    }
+
+    @Test
+    public void assistantAuditReferenceSurvivesReadAndDisplayWithoutReplacingArticleTitle() {
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        var raw = service.readLogs("[{\"action\":\"CREATE_ARTICLE\",\"type\":\"article\","
+                + "\"content\":\"Scheduled article\",\"assistantRunId\":\"article-run\",\"actorUserId\":2}]").get(0);
+        var display = service.toDisplayLog(raw);
+        assertEquals("article-run", display.getAssistantRunId());
+        assertEquals("Scheduled article", display.getContent());
+        assertEquals(Integer.valueOf(2), display.getActorUserId());
+    }
+
     private static AdminAuditLogEntryResponse entry(String action, String type, String content) {
         AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
         entry.setAction(action);

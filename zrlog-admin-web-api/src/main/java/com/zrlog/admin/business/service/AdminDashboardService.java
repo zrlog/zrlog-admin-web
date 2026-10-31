@@ -7,6 +7,9 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.BlogBuildInfoUtil;
@@ -81,12 +84,13 @@ public class AdminDashboardService {
         List<String> tips = loadWelcomeTips();
         Collections.shuffle(tips);
         AdminDashboardConfigResponse config = getConfig(request, adminTokenVO, true);
+        AccountAccess actor = adminTokenVO == null ? null : DelegatedAccess.restrict(identities.account(adminTokenVO));
         boolean auditTrailEnabled = layout.isCardEnabled(config, "auditTrail");
         boolean activityEnabled = layout.isCardEnabled(config, "activity");
         ExecutorService executor = ThreadUtils.newFixedThreadPool(20);
         try {
             CompletableFuture<StatisticsInfoResponse> statistics =
-                    statisticsService.statisticsInfo(executor, auditTrailEnabled);
+                    statisticsService.statisticsInfo(executor, auditTrailEnabled, actor);
             CompletableFuture<List<ArticleActivityData>> activity = activityEnabled
                     ? articleService.activityDataList(executor)
                     : CompletableFuture.completedFuture(Collections.emptyList());
@@ -150,6 +154,10 @@ public class AdminDashboardService {
         }
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         config.setCards(layout.toItems(cards, pluginPanels));
+        AccountAccess actor = adminTokenVO == null ? null : DelegatedAccess.restrict(identities.account(adminTokenVO));
+        if (actor == null || !AccountAction.SYSTEM_MANAGE.allowed(actor)) {
+            config.getCards().removeIf(item -> "auditTrail".equals(item.getId()));
+        }
         layout.fillRefreshConfig(config, savedConfig);
         return config;
     }

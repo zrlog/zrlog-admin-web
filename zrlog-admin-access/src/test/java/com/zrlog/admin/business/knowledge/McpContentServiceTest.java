@@ -256,8 +256,8 @@ public class McpContentServiceTest {
             SavedArticle draft = (SavedArticle) tools.call("create_article", create);
             assertEquals("draft", draft.status);
             assertEquals(title, db.scalar("select title from log where logId=?", draft.id));
-            assertEquals(2, audit.getRecentLogs().size());
-            assertEquals(title, audit.getRecentLogs().get(0).getContent());
+            assertEquals(2, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).size());
+            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(0).getContent());
 
             SavedArticle published = (SavedArticle) tools.call("publish_article",
                     args("{\"id\":" + draft.id + ",\"version\":0}"));
@@ -271,9 +271,9 @@ public class McpContentServiceTest {
             assertEquals(title, stored.get(0).getAsJsonObject().get("content").getAsString());
             assertEquals(title, stored.get(1).getAsJsonObject().get("content").getAsString());
             assertEquals("Original", stored.get(2).getAsJsonObject().get("content").getAsString());
-            assertEquals(title, audit.getRecentLogs().get(0).getContent());
-            assertEquals(title, audit.getRecentLogs().get(1).getContent());
-            assertEquals("MCP", audit.getRecentLogs().get(0).getBrowser());
+            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(0).getContent());
+            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(1).getContent());
+            assertEquals("MCP", audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(0).getBrowser());
             assertFalse(logs.contains(Level.WARNING, "Record admin audit log failed"));
         }
     }
@@ -379,7 +379,7 @@ public class McpContentServiceTest {
             assertEquals(
                     "MCP",
                     new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
-                            .getRecentLogs()
+                            .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1)))
                             .get(0)
                             .getBrowser());
             for (int version : new int[]{0, 1, 99})

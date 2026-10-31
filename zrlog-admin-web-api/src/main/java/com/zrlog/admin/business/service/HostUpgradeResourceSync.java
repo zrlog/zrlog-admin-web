@@ -48,7 +48,7 @@ public final class HostUpgradeResourceSync {
                     catch (Exception error) { throw new IllegalStateException("automation.executionExpired", error); }
                 });
         context.checkActive();
-        audit.record(context.audit(), AdminAuditAction.SYNC_ADMIN_STATIC_SITE, "upgrade:" + context.runId());
+        audit.record(context.audit(), AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
     }
 
     /** A trigger may arrive at a different backend origin; verify the configured public static site. */

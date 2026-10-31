@@ -91,7 +91,8 @@ public class AdminSystemAndStaticSiteControllerTest {
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
                                     ApplicationServicesFixture.messages(ignored.dataSource())),
-                            AccountServicesFixture.component(ignored.dataSource()).requestIdentity());
+                            AccountServicesFixture.component(ignored.dataSource()).requestIdentity(),
+                            ApplicationServicesFixture.audit(ignored.dataSource()));
             setControllerFields(controller, request("/api/admin/system", Map.of()), response());
 
             AdminPageDataResponse<SystemResponse> response = controller.index();

@@ -182,7 +182,7 @@ public class AIChatToolParityTest {
             assertTrue(auditJson.contains("CREATE_ARTICLE"));
             assertTrue(auditJson.contains("PUBLISH_ARTICLE"));
             var audit =
-                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource())).getRecentLogs();
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource())).getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1)));
             assertFalse(audit.isEmpty());
             assertTrue(audit.stream().allMatch(entry -> entry.getActorUserId() == 1));
             assertSame(token, AdminTokenThreadLocal.getUser());

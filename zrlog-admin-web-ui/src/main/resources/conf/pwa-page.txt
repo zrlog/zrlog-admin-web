@@ -33,6 +33,7 @@ admin/website/members
 admin/plugin
 admin/upgrade
 admin/system
+admin/system/audit
 admin/system/proxy
 admin/system/upgrade
 admin/system/version

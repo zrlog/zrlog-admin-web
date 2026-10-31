@@ -85,6 +85,10 @@
       {
         "name": "index",
         "parameterTypes": []
+      },
+      {
+        "name": "audit",
+        "parameterTypes": []
       }
     ]
   },

@@ -10,6 +10,8 @@ import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.UserAgentUtils;
 import jakarta.inject.Inject;
@@ -53,15 +55,19 @@ public class AdminAuditService {
             newLog.setType(action.getType());
             newLog.setContent(sanitizeContent(action, content));
 
+            boolean assistantRequest = context.getUri() != null && context.getUri().startsWith("/assistant/run/");
+            if (assistantRequest) {
+                newLog.setAssistantRunId(context.getUri().substring("/assistant/run/".length()));
+            }
             boolean mcpRequest = "/mcp".equals(context.getUri());
             String uaString = context.getUserAgent();
-            if (uaString != null && !uaString.isBlank()) {
+            if (!assistantRequest && uaString != null && !uaString.isBlank()) {
                 UserAgentUtils.UserAgentInfo uaInfo = UserAgentUtils.parse(uaString);
-                newLog.setOs(uaInfo.getOs());
-                newLog.setBrowser(uaInfo.getFullBrowser());
+                newLog.setOs(knownDevice(uaInfo.getOs()));
+                newLog.setBrowser(knownDevice(uaInfo.getFullBrowser()));
                 newLog.setCrawler(uaInfo.isCrawler());
-                newLog.setAgentName(uaInfo.getAgentName());
-                newLog.setAgentVersion(uaInfo.getAgentVersion());
+                newLog.setAgentName(knownDevice(uaInfo.getAgentName()));
+                newLog.setAgentVersion(knownDevice(uaInfo.getAgentVersion()));
                 if (mcpRequest && uaInfo.getAgentName() == null && !"Unknown".equals(uaInfo.getBrowser())) {
                     newLog.setAgentName(uaInfo.getBrowser());
                     if (!"Unknown".equals(uaInfo.getBrowserVersion())) {
@@ -74,10 +80,9 @@ public class AdminAuditService {
                 newLog.setBrowser("MCP");
             }
 
-            if (context.getUri() != null && context.getUri().startsWith("/assistant/run/")) {
-                newLog.setBrowser("Assistant");
-                newLog.setAgentName("ZrLog Assistant");
-            }
+            // Store stable source identifiers; labels are resolved for the reader's language.
+            newLog.setSource(assistantRequest ? "assistant" : mcpRequest ? "mcp"
+                    : newLog.getBrowser() != null || newLog.getAgentName() != null ? "client" : "unknown");
             logs.add(0, newLog); // Add to the beginning
 
             if (logs.size() > MAX_LOG_SIZE) {
@@ -118,7 +123,12 @@ public class AdminAuditService {
         return content == null ? "" : content;
     }
 
-    public List<AdminAuditLogEntryResponse> getRecentLogs() {
+    public List<AdminAuditLogEntryResponse> getRecentLogs(AccountAccess actor) {
+        AccountPermissionService.requireAction(actor, AccountAction.SYSTEM_MANAGE.getId());
+        return getRecentLogs();
+    }
+
+    List<AdminAuditLogEntryResponse> getRecentLogs() {
         String json = this.websiteKvService.getString(AUDIT_LOG_KEY);
         List<AdminAuditLogEntryResponse> logs = readLogs(json);
         if (logs.isEmpty()) {
@@ -141,11 +151,41 @@ public class AdminAuditService {
         displayLog.setAction(action);
         displayLog.setType(log.getType());
         displayLog.setContent(log.getContent());
-        displayLog.setOs(log.getOs());
-        displayLog.setBrowser(log.getBrowser());
+        displayLog.setOs(knownDevice(log.getOs()));
+        displayLog.setBrowser(knownDevice(log.getBrowser()));
         displayLog.setCrawler(log.getCrawler());
         displayLog.setAgentName(log.getAgentName());
         displayLog.setAgentVersion(log.getAgentVersion());
+        displayLog.setAssistantRunId(log.getAssistantRunId());
+        // Existing assistant audit entries used content for the execution reference.
+        // Keep those entries readable without rewriting stored history.
+        String referencePrefix = auditAction == AdminAuditAction.EXECUTE_UPGRADE ? "assistant:"
+                : auditAction == AdminAuditAction.SYNC_ADMIN_STATIC_SITE ? "upgrade:" : null;
+        if (displayLog.getAssistantRunId() == null && "Assistant".equals(log.getBrowser())
+                && referencePrefix != null && log.getContent() != null
+                && log.getContent().startsWith(referencePrefix)) {
+            String runId = log.getContent().substring(referencePrefix.length());
+            if (runId.matches("[0-9]{10}\\.[0-9]{20}\\.[0-9a-f-]{36}")) {
+                displayLog.setAssistantRunId(runId);
+                displayLog.setContent("");
+            }
+        }
+        if (displayLog.getAssistantRunId() != null) {
+            displayLog.setOs(null);
+            displayLog.setBrowser(null);
+            displayLog.setAgentName(null);
+            displayLog.setAgentVersion(null);
+            displayLog.setCrawler(false);
+        }
+        String source = log.getSource();
+        if (displayLog.getAssistantRunId() != null) source = "assistant";
+        if (source == null) {
+            source = "MCP".equals(displayLog.getBrowser()) ? "mcp"
+                    : displayLog.getBrowser() != null || displayLog.getAgentName() != null ? "client" : "unknown";
+        }
+        if (!List.of("assistant", "mcp", "client", "unknown").contains(source)) source = "unknown";
+        displayLog.setSource(source);
+        displayLog.setSourceLabel(I18nUtil.getAdminBackendStringFromRes("admin.audit.source." + source));
         if (isSecurityLog(log, auditAction)) {
             displayLog.setContent("");
         }
@@ -155,6 +195,10 @@ public class AdminAuditService {
         String label = I18nUtil.getAdminBackendStringFromRes(auditAction.getI18nKey());
         displayLog.setAction(StringUtils.isEmpty(label) ? action : label);
         return displayLog;
+    }
+
+    private static String knownDevice(String value) {
+        return value == null || value.isBlank() || "Unknown".equalsIgnoreCase(value) ? null : value;
     }
 
     List<AdminAuditLogEntryResponse> readLogs(String json) {
@@ -191,6 +235,8 @@ public class AdminAuditService {
         entry.setBrowser(toStringValue(log.get("browser")));
         entry.setAgentName(toStringValue(log.get("agentName")));
         entry.setAgentVersion(toStringValue(log.get("agentVersion")));
+        entry.setAssistantRunId(toStringValue(log.get("assistantRunId")));
+        entry.setSource(toStringValue(log.get("source")));
         entry.setCrawler(toBoolean(log.get("crawler")));
         return entry;
     }

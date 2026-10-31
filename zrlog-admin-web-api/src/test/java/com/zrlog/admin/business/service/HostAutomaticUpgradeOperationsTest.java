@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpServer;
 import com.zrlog.admin.business.automation.TaskExecutionContext;
+import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
@@ -125,7 +126,15 @@ public class HostAutomaticUpgradeOperationsTest {
             assertNotNull(request);
             assertEquals(artifactVersion, request.version);
             DockerControl.requestId(request.requestId);
-            assertTrue(settings.getString("admin_audit_log").contains(RUN_ID));
+            var logged = JSON.fromJson(settings.getString("admin_audit_log"), AdminAuditLogEntryResponse[].class)[0];
+            assertEquals(RUN_ID, logged.getAssistantRunId());
+            assertEquals(Integer.valueOf(1), logged.getActorUserId());
+            assertEquals(displayed.getVersion(), logged.getContent());
+            assertNull(logged.getBrowser());
+            assertNull(logged.getOs());
+            var visible = new AdminAuditService(settings).getRecentLogs().get(0);
+            assertEquals(RUN_ID, visible.getAssistantRunId());
+            assertEquals(displayed.getVersion(), visible.getContent());
         } finally {
             server.stop(0);
         }

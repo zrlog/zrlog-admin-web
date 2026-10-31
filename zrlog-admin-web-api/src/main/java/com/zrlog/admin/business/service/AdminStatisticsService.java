@@ -3,8 +3,12 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.util.LoggerUtil;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.util.ServerInfo;
+import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.common.CacheService;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
 import jakarta.inject.Inject;
@@ -64,10 +68,15 @@ public class AdminStatisticsService {
     }
 
     public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor) {
-        return statisticsInfo(executor, true);
+        return statisticsInfo(executor, false);
     }
 
     public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor, boolean includeAuditLogs) {
+        return statisticsInfo(executor, includeAuditLogs, null);
+    }
+
+    public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor, boolean includeAuditLogs, AccountAccess actor) {
+        String language = I18nUtil.getCurrentLocale();
         return CompletableFuture.supplyAsync(
                 () -> {
                     StatisticsInfoResponse info = new StatisticsInfoResponse();
@@ -88,12 +97,15 @@ public class AdminStatisticsService {
                             CompletableFuture.runAsync(() -> fillCommentCounts(info), executor));
                     futures.add(
                             CompletableFuture.runAsync(() -> fillArticleCounts(info), executor));
-                    if (includeAuditLogs) {
+                    if (includeAuditLogs && actor != null && AccountAction.SYSTEM_MANAGE.allowed(actor)) {
                         futures.add(
                                 CompletableFuture.runAsync(
                                         () -> {
-                                            info.setAuditLogs(
-                                                    this.adminAuditService.getRecentLogs());
+                                            try (var ignored = AdminLanguageContext.open(language)) {
+                                                info.setAuditLogs(
+                                                        this.adminAuditService.getRecentLogs(actor).stream().limit(3)
+                                                                .collect(java.util.stream.Collectors.toList()));
+                                            }
                                         },
                                         executor));
                     }

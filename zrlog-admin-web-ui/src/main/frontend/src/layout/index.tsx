@@ -212,6 +212,9 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         if (pathname.startsWith("/system/upgrade")) {
             return { title: getRes().websiteUpgrade.title, subtitle: navigationSubtitle };
         }
+        if (pathname.startsWith("/system/audit")) {
+            return { title: getRes().system.audit.title, subtitle: navigationSubtitle };
+        }
         if (pathname.startsWith("/system")) {
             return { title: getRes().system.title, subtitle: navigationSubtitle };
         }
