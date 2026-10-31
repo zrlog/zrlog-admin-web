@@ -22,6 +22,7 @@ describe("account permission and cache boundary", () => {
         expect(actionForPath("/user/preferences/appearance")).toBe("account.self");
         expect(actionForPath("/user/applications/authorize?request_id=example")).toBe("oauth.grant.manage");
         expect(actionForPath("/system/proxy.html?v=1")).toBe("system.manage");
+        expect(actionForPath("/system/audit.html?v=1")).toBe("system.manage");
         for (const path of ["/system", "/dev", "/upgrade"]) {
             expect(actionForPath(path)).toBe("system.manage");
             expect(actionForPath(path + ".html?v=1")).toBe("system.manage");
@@ -74,6 +75,14 @@ describe("account permission and cache boundary", () => {
         expect(JSON.stringify(localStorage)).not.toContain("private-proxy");
         window.__SS_DATA__!.key = "two";
         expect(getCacheByKey("/system/proxy")).toBeUndefined();
+    });
+    it("keeps operation logs only in the current session", () => {
+        const path = "/system/audit.html?v=1";
+        addToCache(path, [{content: "private-audit-content"}]);
+        expect(getCacheByKey(path)[0].content).toBe("private-audit-content");
+        expect(JSON.stringify(localStorage)).not.toContain("private-audit-content");
+        window.__SS_DATA__!.key = "two";
+        expect(getCacheByKey(path)).toBeUndefined();
     });
     it("keeps assistant execution configuration in the current session only", () => {
         const path = "/website/assistant.html?v=1";

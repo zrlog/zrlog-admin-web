@@ -50,11 +50,47 @@ public class AdminAuditAgentDatabaseTest {
             assertEquals(Integer.valueOf(2), logs.get(0).getActorUserId());
             assertEquals("", logs.get(0).getContent());
             assertEquals(Integer.valueOf(1), logs.get(1).getActorUserId());
-            assertEquals("Assistant", logs.get(1).getBrowser());
-            assertEquals("ZrLog Assistant", logs.get(1).getAgentName());
+            assertEquals("test-run", logs.get(1).getAssistantRunId());
+            assertNull(logs.get(1).getBrowser());
+            assertNull(logs.get(1).getAgentName());
             assertEquals("Scheduled draft", logs.get(1).getContent());
             var stored = db.scalar("select value from website where name='admin_audit_log'").toString();
             org.junit.Assert.assertFalse(stored.contains("secret-token"));
+        }
+    }
+
+    @Test
+    public void storesSourceCodesAndResolvesLabelsForEachReaderWithoutChangingHistory() throws Exception {
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
+            var context = new com.zrlog.admin.business.audit.AdminAuditContext(1, "", "/assistant/run/localized", null);
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
+                service.record(context, AdminAuditAction.EXECUTE_UPGRADE, "4.0.2-SNAPSHOT");
+                service.record(AdminAuditContexts.from(request("client/"), 1), AdminAuditAction.REFRESH_CACHE);
+            }
+            String stored = db.scalar("select value from website where name='admin_audit_log'").toString();
+            var entries = JsonParser.parseString(stored).getAsJsonArray();
+            assertEquals("unknown", entries.get(0).getAsJsonObject().get("source").getAsString());
+            assertEquals("assistant", entries.get(1).getAsJsonObject().get("source").getAsString());
+            assertEquals("EXECUTE_UPGRADE", entries.get(1).getAsJsonObject().get("action").getAsString());
+            org.junit.Assert.assertFalse(stored.contains("sourceLabel"));
+            org.junit.Assert.assertFalse(stored.contains("Unknown"));
+            org.junit.Assert.assertFalse(stored.contains("ZrLog Assistant"));
+            for (String language : new String[]{"zh_CN", "en_US", "zh_CN"}) {
+                try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+                    var logs = service.getRecentLogs();
+                    assertEquals("unknown", logs.get(0).getSource());
+                    assertEquals("zh_CN".equals(language) ? "未知来源" : "Unknown source", logs.get(0).getSourceLabel());
+                    assertEquals("assistant", logs.get(1).getSource());
+                    assertEquals("zh_CN".equals(language) ? "助手执行" : "Run by assistant", logs.get(1).getSourceLabel());
+                    assertEquals("zh_CN".equals(language) ? "执行系统更新" : "Executed system update", logs.get(1).getAction());
+                    assertNull(logs.get(0).getOs());
+                    assertNull(logs.get(0).getBrowser());
+                }
+                assertEquals(stored, db.scalar("select value from website where name='admin_audit_log'").toString());
+            }
+            service.record(context, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+            org.junit.Assert.assertFalse(db.scalar("select value from website where name='admin_audit_log'").toString().contains("sourceLabel"));
         }
     }
 

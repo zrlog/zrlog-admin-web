@@ -70,7 +70,7 @@ public final class HostAutomaticUpgradeOperations implements AutomaticUpgradeTas
         context.checkActive();
         // A changed Lambda configuration must not turn manual instructions into an accepted upgrade.
         if (faas.getAsBoolean() && !supportsFaas(updater.get())) return false;
-        audit.record(context.audit(), AdminAuditAction.EXECUTE_UPGRADE, "assistant:" + context.runId());
+        audit.record(context.audit(), AdminAuditAction.EXECUTE_UPGRADE, target.getVersion());
         if (updater.get().getType() == UpdaterTypeEnum.DOCKER) {
             var request = new DockerUpdaterProtocol.UpgradeRequest();
             request.requestId = "assistant_" + context.runId().replace('.', '_');

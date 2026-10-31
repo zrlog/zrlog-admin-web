@@ -111,7 +111,7 @@ public class AdminResourceImplTest {
             assertFalse(resource.getAdminStaticResourceUris().isEmpty());
             assertTrue(pageUris.stream().allMatch(uri -> uri.startsWith("/blog/admin/")));
             assertTrue(pageUris.contains("/blog/admin/index"));
-            for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
+            for (String page : java.util.List.of("/admin/system/audit", "/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
                 assertTrue(pageUris.contains("/blog" + page));
                 assertTrue(cacheUris.contains("/blog" + page));
                 assertFalse(apiUris.contains("/api" + page));

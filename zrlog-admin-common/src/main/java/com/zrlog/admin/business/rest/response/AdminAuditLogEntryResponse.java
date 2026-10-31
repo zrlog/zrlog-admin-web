@@ -12,6 +12,22 @@ public class AdminAuditLogEntryResponse {
     private Boolean crawler;
     private String agentName;
     private String agentVersion;
+    private String assistantRunId;
+    private String source;
+    private String sourceLabel;
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+    public String getSourceLabel() { return sourceLabel; }
+    public void setSourceLabel(String sourceLabel) { this.sourceLabel = sourceLabel; }
+
+    public String getAssistantRunId() {
+        return assistantRunId;
+    }
+
+    public void setAssistantRunId(String assistantRunId) {
+        this.assistantRunId = assistantRunId;
+    }
 
     public Integer getActorUserId() {
         return actorUserId;

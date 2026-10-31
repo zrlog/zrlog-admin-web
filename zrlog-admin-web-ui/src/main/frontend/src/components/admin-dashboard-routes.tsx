@@ -12,6 +12,7 @@ import FileTextIcon from "@zrlog/ui/icons/file-text";
 import FolderIcon from "@zrlog/ui/icons/folder";
 import HomeIcon from "@zrlog/ui/icons/home";
 import InfoIcon from "@zrlog/ui/icons/info";
+import HistoryIcon from "@zrlog/ui/icons/history";
 import LinkIcon from "@zrlog/ui/icons/link";
 import LockIcon from "@zrlog/ui/icons/lock";
 import MessageIcon from "@zrlog/ui/icons/message";
@@ -69,6 +70,7 @@ const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
 const AsyncSystem = lazy(() => import("components/system"));
+const AsyncAudit = lazy(() => import("components/system/Audit"));
 const AsyncProxy = lazy(() => import("components/system/Proxy"));
 const AsyncVersion = lazy(() => import("components/system/Version"));
 const AsyncLegacySystemSettings = lazy(() => import("components/website/system-settings-redirect"));
@@ -109,6 +111,7 @@ export type AdminDashboardRouteIconKey =
     | "folder"
     | "home"
     | "info"
+    | "history"
     | "link"
     | "lock"
     | "read"
@@ -159,6 +162,8 @@ export const renderAdminDashboardRouteIcon = (
             return <HomeIcon selected={selected} style={style} />;
         case "info":
             return <InfoIcon selected={selected} style={style} />;
+        case "history":
+            return <HistoryIcon selected={selected} style={style} />;
         case "link":
             return <LinkIcon selected={selected} style={style} />;
         case "lock":
@@ -730,6 +735,19 @@ export const createAdminDashboardRoutes = (
                 title: () => getRes().system.proxy.title,
                 iconKey: "link",
                 keywords: ["proxy", "network", "代理", "网络"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("system/audit"),
+        lazy: AsyncAudit,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "system_audit",
+                title: () => getRes().system.audit.title,
+                iconKey: "history",
+                keywords: ["audit", "log", "operations", "操作日志", "审计", "记录"],
             },
         ],
     },

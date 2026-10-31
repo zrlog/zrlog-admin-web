@@ -279,12 +279,12 @@ public class McpInterceptorTest {
             call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}", db.dataSource());
             String[][] clients = {
                     {"codex/0.42.0-beta.1 (Linux; x86_64)", "Linux", "codex", "0.42.0-beta.1"},
-                    {"openai-mcp/1.0.0", "Unknown", "openai-mcp", "1.0.0"},
-                    {"custom-agent", "Unknown", "custom-agent", null},
-                    {"zrlogctl/0.1.42 dot/1.2-beta.1", "Unknown", "dot", "1.2-beta.1"},
-                    {"zrlogctl/0.1.42 muse", "Unknown", "muse", null},
+                    {"openai-mcp/1.0.0", null, "openai-mcp", "1.0.0"},
+                    {"custom-agent", null, "custom-agent", null},
+                    {"zrlogctl/0.1.42 dot/1.2-beta.1", null, "dot", "1.2-beta.1"},
+                    {"zrlogctl/0.1.42 muse", null, "muse", null},
                     {"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36", "Linux", "Chrome", "146.0.0.0"},
-                    {"client/", "Unknown", null, null},
+                    {"client/", null, null, null},
                     {null, null, null, null},
                     {"   ", null, null, null}
             };
@@ -306,13 +306,14 @@ public class McpInterceptorTest {
                     assertEquals(1, entry.get("actorUserId").getAsInt());
                     assertEquals("127.0.0.1", entry.get("ip").getAsString());
                     assertEquals("MCP", entry.get("browser").getAsString());
-                    if (client[1] != null) assertEquals(client[1], entry.get("os").getAsString());
+                    assertEquals(client[1], entry.has("os") ? entry.get("os").getAsString() : null);
+                    assertEquals("mcp", entry.get("source").getAsString());
                     assertEquals(client[2], entry.has("agentName") ? entry.get("agentName").getAsString() : null);
                     assertEquals(client[3], entry.has("agentVersion") ? entry.get("agentVersion").getAsString() : null);
                 }
                 var displayed =
                         new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
-                                .getRecentLogs()
+                                .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1)))
                                 .get(0);
                 assertEquals("MCP", displayed.getBrowser());
                 assertEquals(client[2], displayed.getAgentName());

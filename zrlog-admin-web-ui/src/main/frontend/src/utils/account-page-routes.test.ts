@@ -70,7 +70,7 @@ describe("account page routing", () => {
 
     it("keeps system settings together without the development-only subdivisions", () => {
         const routes = createAdminDashboardRoutes();
-        for (const path of ["system", "system/proxy", "system/version", "system/upgrade", "dev"]) {
+        for (const path of ["system", "system/proxy", "system/audit", "system/version", "system/upgrade", "dev"]) {
             const route = routes.find((route) => route.paths.includes(path));
             expect(route?.paths).toContain(path + ".html");
             expect(route?.search).toHaveLength(1);
