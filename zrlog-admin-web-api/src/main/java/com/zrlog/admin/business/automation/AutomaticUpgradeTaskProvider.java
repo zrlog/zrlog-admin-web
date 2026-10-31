@@ -48,7 +48,8 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         channel.labelKey = "admin.automation.upgrade.channel";
         channel.required = true;
         channel.readOnly = true;
-        definition.fields = List.of(channel, retry);
+        // Retrying a particular attempt is not part of enabling the recurring policy.
+        definition.fields = retryAvailable() ? List.of(channel, retry) : List.of(channel);
         definition.defaultParameters.addProperty("channel", operations.channel());
         definition.defaultSchedule = new AutomationModels.Schedule();
         definition.defaultSchedule.kind = "daily";
@@ -74,7 +75,7 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
             }
             if (parameters.get("retryUnconfirmed").getAsBoolean()) {
                 var receipt = store.read(KEY, Receipt.class);
-                if (receipt == null || !canRetry(receipt.value, actor)) {
+                if (receipt == null || !canRetry(receipt.value)) {
                     throw new IllegalArgumentException("automation.upgrade.retryUnavailable");
                 }
                 result.addProperty("retryReceiptId", receipt.value.runId);
@@ -105,7 +106,7 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
             }
             boolean retry = parameters.has("retryReceiptId")
                     && previous.runId.equals(parameters.get("retryReceiptId").getAsString())
-                    && canRetry(previous, context.actor());
+                    && canRetry(previous);
             if (!retry) {
                 return clock.getAsLong() - previous.startedAt > 1800000 ? attention("unconfirmed") : submitted(previous);
             }
@@ -151,9 +152,17 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
                 && "confirmed".equals(receipt.value.state) ? UpgradeResourceCompletion.result(receipt.value, true) : null;
     }
 
-    private boolean canRetry(Receipt receipt, AccountAccess actor) throws SQLException {
-        TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
-        if (installed(receipt) || "confirmed".equals(receipt.state)) return false;
+    private boolean retryAvailable() {
+        try {
+            var receipt = store.read(KEY, Receipt.class);
+            return receipt != null && canRetry(receipt.value);
+        } catch (SQLException error) {
+            throw new IllegalStateException("Unable to read automatic upgrade retry state", error);
+        }
+    }
+
+    private boolean canRetry(Receipt receipt) throws SQLException {
+        if (!"assistant".equals(receipt.source) || installed(receipt) || "confirmed".equals(receipt.state)) return false;
         var run = store.run(receipt.runId);
         return run != null && run.value.finishedAt != null
                 && (List.of("uncertain", "needs_attention").contains(run.value.status)

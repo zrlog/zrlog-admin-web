@@ -84,6 +84,60 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
+    public void enablingThePolicyDoesNotRequireAPackageOrAnEarlierUpgradeAttempt() throws Exception {
+        operations.failCheck = true;
+        var initial = store.task(AutomationDefaults.systemId("system.auto-upgrade")).value;
+        assertFalse(initial.enabled);
+        assertFalse(hasRetryField());
+        var enabled = service.setEnabled(actor, initial.id, initial.revision, true);
+        assertTrue(enabled.enabled);
+        var paused = service.setEnabled(actor, enabled.id, enabled.revision, false);
+        assertTrue(service.setEnabled(actor, paused.id, paused.revision, true).enabled);
+        assertTrue(service.save(actor, plan()).enabled);
+        assertEquals(0, operations.checks);
+        assertEquals(0, operations.submits);
+        assertTrue(service.runs(actor, initial.id, 20, 0).isEmpty());
+        assertNull(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+    }
+
+    @Test
+    public void retryOptionAppearsOnlyForAnUnconfirmedAttemptAndDisappearsAfterInstallation() throws Exception {
+        service.save(actor, plan());
+        now.addAndGet(1000);
+        engine.tick("internal", 660000);
+        assertFalse(hasRetryField());
+        now.addAndGet(1800001);
+        assertTrue(hasRetryField());
+        operations.currentBuild = "new-build";
+        assertFalse(hasRetryField());
+        provider.completeInstalled(authority, 660000);
+        assertFalse(hasRetryField());
+        assertEquals(1, operations.checks);
+        assertEquals(1, operations.submits);
+    }
+
+    @Test
+    public void aFailedAttemptOffersRetryButAStaleConfirmationCannotReplayIt() throws Exception {
+        var task = service.save(actor, plan());
+        now.addAndGet(1000);
+        operations.beforeSubmit = () -> { throw new IllegalStateException("submission disconnected"); };
+        engine.tick("internal", 660000);
+        assertTrue(hasRetryField());
+        var retry = plan();
+        retry.parameters.addProperty("retryUnconfirmed", true);
+        operations.currentBuild = "new-build";
+        provider.completeInstalled(authority, 660000);
+        assertFalse(hasRetryField());
+        assertThrows(IllegalArgumentException.class, () -> service.save(actor, retry));
+        assertEquals("success", store.task(task.id).value.lastStatus);
+        assertEquals(1, operations.submits);
+    }
+
+    private boolean hasRetryField() {
+        return provider.definitions().get(0).fields.stream().anyMatch(field -> "retryUnconfirmed".equals(field.name));
+    }
+
+    @Test
     public void externalTriggerRequiresEnoughBudgetAndConfirmsOnlyTheInstalledBuild() throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
