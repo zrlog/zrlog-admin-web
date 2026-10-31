@@ -186,6 +186,9 @@ public class AdminAuditService {
         if (!List.of("assistant", "mcp", "client", "unknown").contains(source)) source = "unknown";
         displayLog.setSource(source);
         displayLog.setSourceLabel(I18nUtil.getAdminBackendStringFromRes("admin.audit.source." + source));
+        if (auditAction == AdminAuditAction.EXECUTE_UPGRADE && "upgradeRiskAccepted".equals(log.getContent())) {
+            displayLog.setContent("");
+        }
         if (isSecurityLog(log, auditAction)) {
             displayLog.setContent("");
         }

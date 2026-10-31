@@ -142,7 +142,7 @@ public class UpgradeController extends BaseController {
             } finally {
                 executions.finish(receipt, submitted);
             }
-            recordUpgradeAudit(upgradeRequest);
+            recordUpgradeAudit(target);
             if (isSseRequest()) {
                 streamDockerUpgrade(client, job);
             } else {
@@ -168,7 +168,7 @@ public class UpgradeController extends BaseController {
                 this.messageCenterOperationService.recordUpgradeError(e.getMessage());
                 throw e;
             }
-            recordUpgradeAudit(upgradeRequest);
+            recordUpgradeAudit(target);
             response.renderJson(new ApiStandardResponse<>(
                     upgradeProcessResponse));
             return;
@@ -187,7 +187,7 @@ public class UpgradeController extends BaseController {
                         this.messageCenterOperationService.recordUpgradeError(e.getMessage());
                         throw e;
                     }
-                    recordUpgradeAudit(upgradeRequest);
+                    recordUpgradeAudit(target);
                     emitter.send("response", new ApiStandardResponse<>(upgradeProcessResponse));
                 });
     }
@@ -256,10 +256,10 @@ public class UpgradeController extends BaseController {
         return Objects.nonNull(accept) && accept.contains("text/event-stream");
     }
 
-    private void recordUpgradeAudit(ExecuteUpgradeRequest requestBody) {
+    private void recordUpgradeAudit(Version target) {
         this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 AdminAuditAction.EXECUTE_UPGRADE,
-                requestBody.isUpgradeRiskAccepted() ? "upgradeRiskAccepted" : "");
+                target == null ? "" : target.getVersion());
     }
 
 }

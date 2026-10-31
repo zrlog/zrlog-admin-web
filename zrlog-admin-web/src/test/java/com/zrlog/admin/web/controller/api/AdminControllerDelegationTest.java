@@ -115,6 +115,14 @@ public class AdminControllerDelegationTest {
                 .contains(expected));
     }
 
+    private static void assertUpgradeAuditContent(InMemoryZrLogDatabase db, String expected) throws SQLException {
+        String stored = String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log").get("value"));
+        var log = com.google.gson.JsonParser.parseString(stored).getAsJsonArray().get(0).getAsJsonObject();
+        assertEquals("EXECUTE_UPGRADE", log.get("action").getAsString());
+        assertEquals(expected, log.get("content").getAsString());
+        assertFalse(stored.contains("upgradeRiskAccepted"));
+    }
+
     private static String currentCode(String secret) throws Exception {
         return MfaTestCodeGenerator.currentCode(secret);
     }
@@ -1041,7 +1049,7 @@ public class AdminControllerDelegationTest {
             assertEquals(Boolean.TRUE, process.getFinish());
             assertTrue(process.getMessage().length() > 0);
             assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
-            assertWebsiteValueContains(db, "admin_audit_log", "upgradeRiskAccepted");
+            assertUpgradeAuditContent(db, "");
             assertNull(upgradeExecutions(db).view(com.zrlog.data.security.AccountAccess.from(new User(db.dataSource()).loadById(1))));
         }
     }
@@ -1220,7 +1228,7 @@ public class AdminControllerDelegationTest {
             controller.doUpgrade();
             assertEquals(1, submissions.get());
             assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
-            assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
+            assertUpgradeAuditContent(db, "4.0.0-SNAPSHOT");
             job.phase = "succeeded";
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/docker-status",
                     Map.of("requestId", job.id), Map.of(), null));
@@ -1234,6 +1242,7 @@ public class AdminControllerDelegationTest {
                         Map.of("Accept", "text/event-stream"), "{\"upgradeRiskAccepted\":true" + docker));
                 if (action.equals("doUpgrade")) {
                     controller.doUpgrade();
+                    assertUpgradeAuditContent(db, "4.0.0-SNAPSHOT");
                 } else {
                     controller.dockerStatus();
                 }
@@ -1314,6 +1323,7 @@ public class AdminControllerDelegationTest {
             assertEquals(1, submissions.get());
             assertEquals(0, ((ApiStandardResponse<?>) recorder.renderedJson).getError());
             assertFalse(executions.view(actor).confirmed);
+            assertUpgradeAuditContent(db, target.getVersion());
 
             var conflict = new ResponseRecorder();
             setControllerResponse(controller, conflict.response());
