@@ -20,7 +20,6 @@ import java.sql.SQLException;
 
 public class UploadController extends Controller {
 
-    //private static final Logger LOGGER = LoggerUtil.getLogger(UploadController.class);
     private final UploadService uploadService;
     private final AdminRequestIdentity requestIdentity;
 
