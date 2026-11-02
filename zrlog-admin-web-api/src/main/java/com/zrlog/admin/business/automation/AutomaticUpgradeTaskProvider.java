@@ -25,6 +25,9 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
+    public List<String> types() { return List.of("system.auto-upgrade"); }
+
+    @Override
     public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = "system.auto-upgrade";
@@ -176,6 +179,11 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     /** Complete the original execution independently of its next schedule or enabled state. */
     public void completeInstalled(TaskAuthority authority, long budgetMillis) throws SQLException {
         new UpgradeResourceCompletion(store, authority, operations, clock).complete(budgetMillis);
+    }
+
+    public void completeInstalled(TaskAuthority authority, long budgetMillis,
+                                  AutomationStore.Snapshot<Receipt> receipt) throws SQLException {
+        new UpgradeResourceCompletion(store, authority, operations, clock).complete(budgetMillis, receipt);
     }
 
     private static AutomationModels.Result submitted(Receipt receipt) {

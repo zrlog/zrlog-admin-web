@@ -18,6 +18,9 @@ public final class PluginScheduledTaskProvider implements ScheduledTaskProvider 
     public PluginScheduledTaskProvider(Supplier<PluginCorePlugin> plugin) { this.plugin = plugin; }
 
     @Override
+    public List<String> types() { return List.of(TYPE); }
+
+    @Override
     public List<AutomationModels.Definition> definitions() {
         AutomationModels.Definition definition = new AutomationModels.Definition();
         definition.type = TYPE;

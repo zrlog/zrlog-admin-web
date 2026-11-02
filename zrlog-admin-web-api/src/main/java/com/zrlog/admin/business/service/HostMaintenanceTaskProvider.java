@@ -25,6 +25,9 @@ public final class HostMaintenanceTaskProvider implements ScheduledTaskProvider 
     }
 
     @Override
+    public List<String> types() { return List.of("site.refresh-cache", "system.check-version"); }
+
+    @Override
     public List<AutomationModels.Definition> definitions() {
         AutomationModels.Definition cache = definition("site.refresh-cache", "cache", 30);
         AutomationModels.Definition version = definition("system.check-version", "version", 50);

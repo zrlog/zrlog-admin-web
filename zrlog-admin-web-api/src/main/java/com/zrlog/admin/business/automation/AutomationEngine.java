@@ -5,6 +5,8 @@ import com.zrlog.data.security.AccountAccess;
 
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.LinkedHashSet;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.LongSupplier;
@@ -34,53 +36,60 @@ public final class AutomationEngine {
         }
         long deadline = Math.addExact(clock.getAsLong(), budgetMillis);
         AutomationModels.TickResult summary = new AutomationModels.TickResult();
-        for (AutomationStore.Snapshot<StoredTask> row : store.due(clock.getAsLong(), 32)) {
-            if (clock.getAsLong() >= deadline) {
-                summary.budgetExhausted = true;
-                break;
-            }
-            if (row.value.activeRun != null) {
-                recover(row);
-                summary.skipped++;
-                continue;
-            }
-            TaskRegistry.Entry entry = null;
-            try { entry = registry.require(row.value.type); }
-            catch (IllegalArgumentException ignored) { /* Missing provider is a visible, durable result. */ }
-            if (entry != null && entry.provider.awaitingCompletion(row.value.type, row.value.parameters.deepCopy())) {
-                summary.skipped++;
-                continue;
-            }
-            long requiredMillis = entry == null ? 0 : entry.definition.timeoutSeconds * 1000L + RESULT_RESERVE_MILLIS;
-            if (entry != null && requiredMillis > deadline - clock.getAsLong()) {
-                summary.budgetExhausted = true;
-                if (requiredMillis > budgetMillis) {
-                    summary.insufficientBudgetTaskIds.add(row.value.id);
-                    summary.requiredBudgetSeconds = Math.max(summary.requiredBudgetSeconds, (int) (requiredMillis / 1000));
+        TaskRegistry.Lookup lookup = registry.lookup();
+        Set<Integer> completedOwners = new LinkedHashSet<>();
+        try {
+            for (AutomationStore.Snapshot<StoredTask> row : store.due(clock.getAsLong(), 32)) {
+                if (clock.getAsLong() >= deadline) {
+                    summary.budgetExhausted = true;
+                    break;
                 }
-                summary.skipped++;
-                continue;
+                if (row.value.activeRun != null) {
+                    recover(row, lookup);
+                    summary.skipped++;
+                    continue;
+                }
+                TaskRegistry.Entry entry = null;
+                try { entry = lookup.require(row.value.type); }
+                catch (IllegalArgumentException ignored) { /* Missing provider is a visible, durable result. */ }
+                if (entry != null && entry.provider.awaitingCompletion(row.value.type, row.value.parameters.deepCopy())) {
+                    summary.skipped++;
+                    continue;
+                }
+                long requiredMillis = entry == null ? 0 : entry.definition.timeoutSeconds * 1000L + RESULT_RESERVE_MILLIS;
+                if (entry != null && requiredMillis > deadline - clock.getAsLong()) {
+                    summary.budgetExhausted = true;
+                    if (requiredMillis > budgetMillis) {
+                        summary.insufficientBudgetTaskIds.add(row.value.id);
+                        summary.requiredBudgetSeconds = Math.max(summary.requiredBudgetSeconds, (int) (requiredMillis / 1000));
+                    }
+                    summary.skipped++;
+                    continue;
+                }
+                AutomationModels.Run run = execute(row, entry, trigger, deadline - RESULT_RESERVE_MILLIS, null);
+                if (run == null) { summary.skipped++; continue; }
+                completedOwners.add(row.value.ownerId);
+                summary.executed++;
+                summary.runIds.add(run.id);
+                if ("failed".equals(run.status) || "uncertain".equals(run.status)) summary.failed++;
+                if ("needs_attention".equals(run.status) || "uncertain".equals(run.status)) summary.needsAttention++;
             }
-            AutomationModels.Run run = execute(row, entry, trigger, deadline - RESULT_RESERVE_MILLIS, null);
-            if (run == null) { summary.skipped++; continue; }
-            summary.executed++;
-            summary.runIds.add(run.id);
-            if ("failed".equals(run.status) || "uncertain".equals(run.status)) summary.failed++;
-            if ("needs_attention".equals(run.status) || "uncertain".equals(run.status)) summary.needsAttention++;
+            return summary;
+        } finally {
+            completedOwners.forEach(this::pruneRuns);
         }
-        return summary;
     }
 
     public AutomationModels.Run runNow(AccountAccess actor, String id, long revision, long budgetMillis) throws SQLException {
         actor = authority.current(actor);
         AutomationStore.Snapshot<StoredTask> row = store.task(id);
         if (row == null) throw new PermissionErrorException();
-        authority.access(actor, row.value, registry.require(row.value.type).definition);
+        TaskRegistry.Entry entry = registry.require(row.value.type);
+        authority.access(actor, row.value, entry.definition);
         if (row.value.revision != revision || row.value.activeRun != null) throw new IllegalStateException("automation.taskChanged");
         if ("uncertain".equals(row.value.lastStatus) || "needs_attention".equals(row.value.lastStatus)) {
             throw new IllegalStateException("automation.reviewRequired");
         }
-        TaskRegistry.Entry entry = registry.require(row.value.type);
         if (entry.provider.awaitingCompletion(row.value.type, row.value.parameters.deepCopy()))
             throw new IllegalStateException("automation.taskChanged");
         if (budgetMillis < entry.definition.timeoutSeconds * 1000L + RESULT_RESERVE_MILLIS || budgetMillis > 660000) {
@@ -90,6 +99,7 @@ public final class AutomationEngine {
         for (String action : row.value.executionActions) TaskAuthority.require(actor, action);
         AutomationModels.Run run = execute(row, entry, "manual", clock.getAsLong() + budgetMillis - RESULT_RESERVE_MILLIS, actor);
         if (run == null) throw new IllegalStateException("automation.taskChanged");
+        pruneRuns(row.value.ownerId);
         return run;
     }
 
@@ -128,18 +138,21 @@ public final class AutomationEngine {
         // The claim includes a recovery copy of the run before a separate run-row insert.
         if (!store.replaceTask(row, task, unavailable == null ? actor : null)) return null;
         store.insertRun(run);
+        var runState = new AtomicReference<>(AutomationStore.Snapshot.capture(AutomationStore.RUN_PREFIX + run.id, run, AutomationModels.Run.class));
+        var taskState = new AtomicReference<>(AutomationStore.Snapshot.capture(row.key, task, StoredTask.class));
         if (unavailable != null) {
             run.result = AutomationModels.Result.attention(unavailable);
             run.status = run.result.status;
         } else {
             final AccountAccess executionActor = actor;
             TaskExecutionContext context = new TaskExecutionContext(run.id, executionActor,
-                    Math.min(requestDeadline, task.leaseUntil - 5000), clock, () -> checkOwnership(task, executionActor), progress -> {
-                var checkpoint = store.run(run.id);
+                    Math.min(requestDeadline, task.leaseUntil - 5000), clock, () -> taskState.set(checkOwnership(task, executionActor)), progress -> {
+                var checkpoint = runState.get();
                 if (checkpoint == null || !"running".equals(checkpoint.value.status)) throw new IllegalStateException("automation.runChanged");
                 var next = checkpoint.copy(AutomationModels.Run.class);
                 next.result = progress;
                 if (!store.replaceRun(checkpoint, next)) throw new IllegalStateException("automation.runChanged");
+                runState.set(AutomationStore.Snapshot.capture(checkpoint.key, next, AutomationModels.Run.class));
             });
             try {
                 context.checkActive();
@@ -161,7 +174,7 @@ public final class AutomationEngine {
             }
         }
         run.finishedAt = clock.getAsLong();
-        AutomationStore.Snapshot<AutomationModels.Run> previous = store.run(run.id);
+        AutomationStore.Snapshot<AutomationModels.Run> previous = runState.get();
         if (run.result == null && previous != null) {
             run.result = previous.value.result;
             if (run.result != null) markUnfinished(run.result.children);
@@ -169,22 +182,27 @@ public final class AutomationEngine {
         if (previous == null || !"running".equals(previous.value.status) || !store.replaceRun(previous, run)) {
             throw new IllegalStateException("automation.runChanged");
         }
-        release(task.id, run);
-        try { store.pruneRuns(task.ownerId, clock.getAsLong()); }
-        catch (SQLException error) {
-            LOGGER.log(Level.WARNING, "Assistant history retention failed", error);
-        }
+        release(store, clock, task.id, run, taskState.get());
         return run;
     }
 
-    private void checkOwnership(StoredTask expected, AccountAccess executionActor) throws Exception {
-        AutomationStore.Snapshot<StoredTask> row = store.task(expected.id);
-        if (row == null || row.value.activeRun == null || !row.value.activeRun.id.equals(expected.activeRun.id)
-                || row.value.leaseUntil <= clock.getAsLong()) throw new IllegalStateException("automation.executionExpired");
-        authority.revalidateExecution(executionActor);
+    private void pruneRuns(int ownerId) {
+        try { store.pruneRuns(ownerId, clock.getAsLong()); }
+        catch (SQLException error) {
+            LOGGER.log(Level.WARNING, "Assistant history retention failed", error);
+        }
     }
 
-    private void recover(AutomationStore.Snapshot<StoredTask> row) throws SQLException {
+    private AutomationStore.Snapshot<StoredTask> checkOwnership(StoredTask expected, AccountAccess executionActor) throws Exception {
+        var state = store.executionState(expected.id, executionActor.getUserId());
+        AutomationStore.Snapshot<StoredTask> row = state == null ? null : state.task();
+        if (row == null || row.value.activeRun == null || !row.value.activeRun.id.equals(expected.activeRun.id)
+                || row.value.leaseUntil <= clock.getAsLong()) throw new IllegalStateException("automation.executionExpired");
+        authority.revalidateExecution(executionActor, state.actor());
+        return row;
+    }
+
+    private void recover(AutomationStore.Snapshot<StoredTask> row, TaskRegistry.Lookup lookup) throws SQLException {
         if (row.value.leaseUntil > clock.getAsLong()) return;
         AutomationModels.Run run = row.value.activeRun;
         AutomationStore.Snapshot<AutomationModels.Run> storedRun = store.run(run.id);
@@ -198,7 +216,7 @@ public final class AutomationEngine {
         run.finishedAt = clock.getAsLong();
         run.errorCode = "automation.executionInterrupted";
         try {
-            TaskRegistry.Entry entry = registry.require(row.value.type);
+            TaskRegistry.Entry entry = lookup.require(row.value.type);
             AutomationModels.Result recovered = entry.provider.recover(row.value.type, row.value.parameters.deepCopy(),
                     run.id, authority.restore(row.value));
             if (recovered != null && "success".equals(recovered.status)) {
@@ -237,8 +255,13 @@ public final class AutomationEngine {
     }
 
     static void release(AutomationStore store, LongSupplier clock, String id, AutomationModels.Run run) throws SQLException {
+        release(store, clock, id, run, store.task(id));
+    }
+
+    private static void release(AutomationStore store, LongSupplier clock, String id, AutomationModels.Run run,
+                                AutomationStore.Snapshot<StoredTask> initial) throws SQLException {
         for (int attempt = 0; attempt < 3; attempt++) {
-            AutomationStore.Snapshot<StoredTask> row = store.task(id);
+            AutomationStore.Snapshot<StoredTask> row = attempt == 0 ? initial : store.task(id);
             if (row == null || row.value.activeRun == null || !Objects.equals(row.value.activeRun.id, run.id)) return;
             StoredTask task = row.copy(StoredTask.class);
             task.activeRun = null;

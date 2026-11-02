@@ -37,11 +37,18 @@ public final class AutomationNotificationService {
         long oldest = System.currentTimeMillis() - java.time.Duration.ofDays(90).toMillis();
         for (int offset = 0; offset < 1000 && notices.size() < 50; offset += 100) {
             var rows = store.visibleRuns(actor.getUserId(), systemIds, null, 100, offset);
+            List<String> readKeys = new ArrayList<>();
+            for (var row : rows) {
+                var run = row.value;
+                if (systemIds.contains(run.taskId) && isNotice(run) && run.finishedAt >= oldest)
+                    readKeys.add(readKey(actor, run.id));
+            }
+            var readStates = store.readBatch(readKeys);
             for (var row : rows) {
                 AutomationModels.Run run = row.value;
                 boolean shared = systemIds.contains(run.taskId);
                 if (!isNotice(run) || run.finishedAt < oldest) continue;
-                if (shared ? store.read(readKey(actor, run.id), Long.class) != null : run.noticeReadAt != null) continue;
+                if (shared ? readStates.get(readKey(actor, run.id), Long.class) != null : run.noticeReadAt != null) continue;
                 AutomationViews.Run view = AutomationDashboard.run(run);
                 MessageCenterNoticeResponse.OperationTaskPayload payload = new MessageCenterNoticeResponse.OperationTaskPayload();
                 payload.setTitle(view.taskName);

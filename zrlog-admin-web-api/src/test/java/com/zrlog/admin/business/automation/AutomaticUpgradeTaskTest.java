@@ -52,7 +52,7 @@ public class AutomaticUpgradeTaskTest {
         service = new AutomationService(store, authority, registry, now::get);
         engine = new AutomationEngine(store, authority, registry, now::get);
         ticks = new AutomationTickService(engine, store, now::get, null,
-                budget -> provider.completeInstalled(authority, budget));
+                (budget, receipt) -> provider.completeInstalled(authority, budget, receipt));
         new AutomationDefaults(store, () -> new User(db.dataSource()),
                 new com.zrlog.business.service.WebsiteKvService(() -> new WebSite(db.dataSource())), registry).initialize();
     }
