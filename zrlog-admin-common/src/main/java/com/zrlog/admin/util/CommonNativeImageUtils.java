@@ -39,7 +39,6 @@ public final class CommonNativeImageUtils {
                 com.zrlog.common.cache.dto.LinkDTO.class,
                 com.zrlog.common.cache.dto.LogNavDTO.class,
                 com.zrlog.common.cache.dto.TypeDTO.class,
-                com.zrlog.data.dto.CommentDTO.class,
                 com.zrlog.common.rest.response.ApiStandardResponse.class,
                 com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.class,
                 com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities.class,

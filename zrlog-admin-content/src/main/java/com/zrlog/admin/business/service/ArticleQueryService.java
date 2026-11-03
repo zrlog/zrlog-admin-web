@@ -23,6 +23,7 @@ import com.zrlog.common.vo.SocialPreviewDTO;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.util.SocialPreviewUtils;
+import com.zrlog.admin.data.dto.ArticleCounts;
 import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
@@ -32,7 +33,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
-import com.zrlog.data.dto.ArticleCounts;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -170,31 +170,7 @@ public class ArticleQueryService {
     private ArticleStatusCountResponse getStatusCounts(Integer authorId, Integer privateOwnerId) {
         ArticleStatusCountResponse counts = new ArticleStatusCountResponse();
         try {
-            AdminLogRepository log = this.logProvider.get();
-            List<Object> countParams = new ArrayList<>(Arrays.asList(false, false, true, true));
-            if (authorId != null) countParams.add(authorId);
-            if (privateOwnerId != null) {
-                countParams.add(false);
-                countParams.add(privateOwnerId);
-            }
-            ArticleCounts row =
-                    log.queryOne(
-                            "SELECT "
-                                    + "count(1) AS totalCount,"
-                                    + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
-                                    + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
-                                    + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount "
-                                    + "FROM "
-                                    + AdminLogRepository.TABLE_NAME
-                                    + " l "
-                                    + "inner join user u on u.userId = l.userId "
-                                    + "inner join type t on t.typeId = l.typeId "
-                                    + "where l.typeId is not null"
-                                    + (authorId == null ? "" : " and l.userId=?")
-                                    + (privateOwnerId == null
-                                    ? ""
-                                    : " and (l.privacy=? or l.userId=?)"),
-                            ArticleCounts.class, countParams.toArray());
+            ArticleCounts row = this.logProvider.get().getCounts(authorId, privateOwnerId);
             counts.setTotal(row.totalCount);
             counts.setPublished(row.publishedCount);
             counts.setPrivateCount(row.privateCount);

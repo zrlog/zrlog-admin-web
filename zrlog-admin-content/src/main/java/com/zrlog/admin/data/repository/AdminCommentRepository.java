@@ -3,7 +3,8 @@ package com.zrlog.admin.data.repository;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
-import com.zrlog.data.dto.CommentDTO;
+import com.zrlog.admin.data.dto.CommentCounts;
+import com.zrlog.admin.data.dto.CommentDTO;
 import com.zrlog.data.exception.DAOException;
 import com.zrlog.data.repository.CommentRepository;
 import com.zrlog.data.util.DateValueFormatUtils;
@@ -34,6 +35,14 @@ public class AdminCommentRepository extends CommentRepository {
             e.setCommTime(DateValueFormatUtils.format(e.getCommTime(), "yyyy-MM-dd HH:mm:ss"));
         });
         return commentDTOPageData;
+    }
+
+    public CommentCounts getCounts(String dayStart) throws SQLException {
+        return queryOne(
+                "SELECT count(1) AS totalCount,"
+                        + "SUM(CASE WHEN commTime > ? THEN 1 ELSE 0 END) AS todayCount "
+                        + "FROM " + tableName,
+                CommentCounts.class, dayStart);
     }
 
     public Long count() throws SQLException {

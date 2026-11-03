@@ -7,6 +7,7 @@ import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.hibegin.common.util.StringUtils;
+import com.zrlog.admin.data.dto.ArticleCounts;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.exception.DAOException;
 import com.zrlog.data.repository.CommentRepository;
@@ -147,6 +148,34 @@ public class AdminLogRepository extends LogRepository {
         return queryPageData(
                 sql, pageRequest,
                 searchParam.toArray(), ArticleBasicDTO.class);
+    }
+
+    public ArticleCounts getCounts() throws SQLException {
+        return getCounts(null, null);
+    }
+
+    public ArticleCounts getCounts(Integer authorId, Integer privateOwnerId) throws SQLException {
+        List<Object> parameters = new ArrayList<>(Arrays.asList(false, false, true, true));
+        if (authorId != null) {
+            parameters.add(authorId);
+        }
+        if (privateOwnerId != null) {
+            parameters.add(false);
+            parameters.add(privateOwnerId);
+        }
+        return queryOne(
+                "SELECT count(1) AS totalCount,"
+                        + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
+                        + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
+                        + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount,"
+                        + "SUM(l.click) AS clickCount "
+                        + "FROM " + tableName + " l "
+                        + "inner join user u on u.userId = l.userId "
+                        + "inner join type t on t.typeId = l.typeId "
+                        + "where l.typeId is not null"
+                        + (authorId == null ? "" : " and l.userId=?")
+                        + (privateOwnerId == null ? "" : " and (l.privacy=? or l.userId=?)"),
+                ArticleCounts.class, parameters.toArray());
     }
 
     public Map<String, Long> getArticleData() throws SQLException {

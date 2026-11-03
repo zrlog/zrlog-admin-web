@@ -6,7 +6,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
-import com.zrlog.data.dto.CommentDTO;
+import com.zrlog.admin.data.dto.CommentDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.admin.data.repository.AdminCommentRepository;

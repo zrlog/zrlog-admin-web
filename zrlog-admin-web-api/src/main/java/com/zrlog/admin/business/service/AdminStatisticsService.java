@@ -2,6 +2,8 @@ package com.zrlog.admin.business.service;
 
 import com.hibegin.common.util.LoggerUtil;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
+import com.zrlog.admin.data.dto.ArticleCounts;
+import com.zrlog.admin.data.dto.CommentCounts;
 import com.zrlog.admin.util.ServerInfo;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.util.I18nUtil;
@@ -9,14 +11,12 @@ import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.common.CacheService;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.repository.CommentRepository;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
-import com.zrlog.data.dto.ArticleCounts;
-import com.zrlog.data.dto.CommentCounts;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -27,8 +27,8 @@ import java.util.logging.Logger;
 public class AdminStatisticsService {
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminStatisticsService.class);
     private final AdminAuditService adminAuditService;
-    private final jakarta.inject.Provider<LogRepository> logProvider;
-    private final jakarta.inject.Provider<CommentRepository> commentProvider;
+    private final jakarta.inject.Provider<AdminLogRepository> logProvider;
+    private final jakarta.inject.Provider<AdminCommentRepository> commentProvider;
     private final CacheService cacheService;
     private final SystemInfoUtils systemInfo;
 
@@ -37,8 +37,8 @@ public class AdminStatisticsService {
             CacheService cacheService,
             SystemInfoUtils systemInfo,
             AdminAuditService adminAuditService,
-            jakarta.inject.Provider<LogRepository> logProvider,
-            jakarta.inject.Provider<CommentRepository> commentProvider) {
+            jakarta.inject.Provider<AdminLogRepository> logProvider,
+            jakarta.inject.Provider<AdminCommentRepository> commentProvider) {
         this.adminAuditService = adminAuditService;
         this.logProvider = logProvider;
         this.commentProvider = commentProvider;
@@ -111,15 +111,8 @@ public class AdminStatisticsService {
 
     private void fillCommentCounts(StatisticsInfoResponse info) {
         try {
-            CommentCounts row =
-                    this.commentProvider
-                            .get()
-                            .queryOne(
-                                    "SELECT count(1) AS totalCount,"
-                                            + "SUM(CASE WHEN commTime > ? THEN 1 ELSE 0 END) AS todayCount "
-                                            + "FROM "
-                                            + CommentRepository.TABLE_NAME,
-                                    CommentCounts.class, new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+            CommentCounts row = this.commentProvider.get()
+                    .getCounts(new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
             info.setCommCount(row.totalCount);
             info.setToDayCommCount(row.todayCount);
         } catch (SQLException e) {
@@ -131,26 +124,7 @@ public class AdminStatisticsService {
 
     private void fillArticleCounts(StatisticsInfoResponse info) {
         try {
-            ArticleCounts row =
-                    this.logProvider
-                            .get()
-                            .queryOne(
-                                    "SELECT "
-                                            + "count(1) AS totalCount,"
-                                            + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
-                                            + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
-                                            + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount,"
-                                            + "SUM(l.click) AS clickCount "
-                                            + "FROM "
-                                            + LogRepository.TABLE_NAME
-                                            + " l "
-                                            + "inner join user u on u.userId = l.userId "
-                                            + "inner join type t on t.typeId = l.typeId "
-                                            + "where l.typeId is not null",
-                                    ArticleCounts.class, false,
-                                    false,
-                                    true,
-                                    true);
+            ArticleCounts row = this.logProvider.get().getCounts();
             info.setArticleCount(row.totalCount);
             info.setDraftCount(row.draftCount);
             info.setPrivateCount(row.privateCount);

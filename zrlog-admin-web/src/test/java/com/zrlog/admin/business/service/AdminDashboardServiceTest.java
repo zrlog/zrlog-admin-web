@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.data.repository.AdminCommentRepository;
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -17,7 +18,6 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.data.repository.CommentRepository;
 import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
@@ -552,7 +552,7 @@ public class AdminDashboardServiceTest {
                                         RuntimeInfoFixture.from(db.config()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
                                         () -> new AdminLogRepository(db.dataSource()),
-                                        () -> new CommentRepository(db.dataSource())),
+                                        () -> new AdminCommentRepository(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
                                         ApplicationServicesFixture.capability(
                                                 db.config(), ArticleAssistant.class),

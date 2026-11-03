@@ -1,12 +1,16 @@
 package com.zrlog.admin.data.repository;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.dao.dto.Direction;
 import com.hibegin.common.dao.dto.OrderBy;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.zrlog.data.dto.ArticleBasicDTO;
-import com.zrlog.data.dto.CommentDTO;
+import com.zrlog.admin.data.dto.ArticleCounts;
+import com.zrlog.admin.data.dto.CommentCounts;
+import com.zrlog.admin.data.dto.CommentDTO;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.repository.TypeRepository;
 import com.zrlog.model.Comment;
@@ -151,6 +155,22 @@ public class AdminContentRepositoryDatabaseTest {
             assertEquals("Own Private", logs.find(page(), null, null, "private", null, 1)
                     .getRows().get(0).getTitle());
             assertEquals(0L, logs.find(page(), null, null, "private", 2, 1).getTotalElements());
+            ArticleCounts own = logs.getCounts(1, 1);
+            assertEquals(3L, own.totalCount);
+            assertEquals(1L, own.publishedCount);
+            assertEquals(1L, own.privateCount);
+            assertEquals(1L, own.draftCount);
+            assertEquals(6L, own.clickCount);
+            ArticleCounts visible = logs.getCounts(null, 1);
+            assertEquals(4L, visible.totalCount);
+            assertEquals(2L, visible.publishedCount);
+            assertEquals(1L, visible.privateCount);
+            assertEquals(1L, visible.draftCount);
+            assertEquals(13L, visible.clickCount);
+            ArticleCounts otherVisible = logs.getCounts(2, 1);
+            assertEquals(1L, otherVisible.totalCount);
+            assertEquals(0L, otherVisible.privateCount);
+            assertEquals(7L, otherVisible.clickCount);
             assertNull(new LogRepository(db.dataSource()).findByIdOrAlias("own-private", true));
         }
     }
@@ -174,6 +194,35 @@ public class AdminContentRepositoryDatabaseTest {
     }
 
     @Test
+    public void shouldAggregateArticleAndCommentCountsForEmptyAndPopulatedTables() throws Exception {
+        try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
+            AdminLogRepository logs = new AdminLogRepository(db.dataSource());
+            AdminCommentRepository comments = new AdminCommentRepository(db.dataSource());
+            ArticleCounts emptyArticles = logs.getCounts();
+            assertEquals(0L, emptyArticles.totalCount);
+            assertEquals(0L, emptyArticles.publishedCount);
+            assertEquals(0L, emptyArticles.privateCount);
+            assertEquals(0L, emptyArticles.draftCount);
+            assertEquals(0L, emptyArticles.clickCount);
+            CommentCounts emptyComments = comments.getCounts("2026-01-15 12:00:00");
+            assertEquals(0L, emptyComments.totalCount);
+            assertEquals(0L, emptyComments.todayCount);
+
+            seedContent(db);
+            db.update("update comment set commTime=? where commentId=?", "2026-01-16 09:00:00", 1);
+            ArticleCounts articleCounts = logs.getCounts();
+            assertEquals(3L, articleCounts.totalCount);
+            assertEquals(2L, articleCounts.publishedCount);
+            assertEquals(0L, articleCounts.privateCount);
+            assertEquals(1L, articleCounts.draftCount);
+            assertEquals(12L, articleCounts.clickCount);
+            CommentCounts commentCounts = comments.getCounts("2026-01-15 12:00:00");
+            assertEquals(2L, commentCounts.totalCount);
+            assertEquals(1L, commentCounts.todayCount);
+        }
+    }
+
+    @Test
     public void shouldQueryModerationViewsAndMarkCommentsRead() throws Exception {
         try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
             seedContent(db);
@@ -185,6 +234,19 @@ public class AdminContentRepositoryDatabaseTest {
             assertEquals(Long.valueOf(1), comments.countToDayComment());
             assertEquals(2L, result.getTotalElements());
             assertEquals(todayAt("09:00:00"), result.getRows().get(0).getCommTime());
+            JsonObject json = new Gson().toJsonTree(result.getRows().get(0)).getAsJsonObject();
+            assertEquals(Set.of("id", "userComment", "header", "commTime", "userMail", "userHome",
+                    "userIp", "userName", "hide", "logId"), json.keySet());
+            assertEquals(1L, json.get("id").getAsLong());
+            assertEquals(1L, json.get("logId").getAsLong());
+            assertEquals("Nice post", json.get("userComment").getAsString());
+            assertEquals("reader@example.com", json.get("userMail").getAsString());
+            assertEquals("127.0.0.1", json.get("userIp").getAsString());
+            assertEquals("https://reader.example.com", json.get("userHome").getAsString());
+            assertEquals("Reader", json.get("userName").getAsString());
+            assertEquals("/reader.png", json.get("header").getAsString());
+            assertEquals(todayAt("09:00:00"), json.get("commTime").getAsString());
+            assertFalse(json.get("hide").getAsBoolean());
             assertEquals(List.of(1L), unread.stream().map(Comment::getId).collect(Collectors.toList()));
             comments.doRead(1);
             assertTrue(ResultValueConvertUtils.toBoolean(

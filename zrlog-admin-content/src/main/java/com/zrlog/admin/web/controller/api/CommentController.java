@@ -16,7 +16,7 @@ import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
-import com.zrlog.data.dto.CommentDTO;
+import com.zrlog.admin.data.dto.CommentDTO;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
 

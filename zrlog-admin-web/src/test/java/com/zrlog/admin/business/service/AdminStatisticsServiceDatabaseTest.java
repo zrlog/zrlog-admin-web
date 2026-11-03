@@ -1,12 +1,12 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.RuntimeInfoFixture;
 import com.zrlog.common.cache.dto.TagDTO;
-import com.zrlog.data.repository.CommentRepository;
-import com.zrlog.data.repository.LogRepository;
 import com.zrlog.test.support.TestLogCapture;
 import org.junit.Test;
 
@@ -56,8 +56,8 @@ public class AdminStatisticsServiceDatabaseTest {
                             db.unitCacheService(),
                             RuntimeInfoFixture.from(db.config()),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            () -> new LogRepository(db.dataSource()),
-                            () -> new CommentRepository(db.dataSource()))
+                            () -> new AdminLogRepository(db.dataSource()),
+                            () -> new AdminCommentRepository(db.dataSource()))
                             .statisticsInfo(DIRECT_EXECUTOR, false)
                             .get();
 
@@ -90,8 +90,8 @@ public class AdminStatisticsServiceDatabaseTest {
                                 db.unitCacheService(),
                                 RuntimeInfoFixture.from(db.config()),
                                 ApplicationServicesFixture.audit(db.dataSource()),
-                                () -> new LogRepository(db.dataSource()),
-                                () -> new CommentRepository(db.dataSource()))
+                                () -> new AdminLogRepository(db.dataSource()),
+                                () -> new AdminCommentRepository(db.dataSource()))
                                 .statisticsInfo(DIRECT_EXECUTOR, false)
                                 .get();
 
