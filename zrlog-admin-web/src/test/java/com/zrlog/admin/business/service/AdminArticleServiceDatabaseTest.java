@@ -20,7 +20,7 @@ import com.zrlog.admin.web.di.ai.AIComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -269,9 +269,9 @@ public class AdminArticleServiceDatabaseTest {
             CreateOrUpdateArticleResponse created = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Pinned", "pinned"));
             CreateOrUpdateArticleResponse other =
                     service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Pinned Other", "pinned-other"));
-            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+            new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                     .pin(created.getLogId());
-            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+            new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                     .pin(other.getLogId());
             UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0,
                     "Pinned Private", "pinned-private");
@@ -282,7 +282,7 @@ public class AdminArticleServiceDatabaseTest {
                     created.getLogId())).intValue());
             assertEquals(
                     1L,
-                    new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                    new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                             .list()
                             .getItems()
                             .get(0)
@@ -290,7 +290,7 @@ public class AdminArticleServiceDatabaseTest {
                             .longValue());
             assertEquals(
                     other.getLogId(),
-                    new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                    new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                             .list()
                             .getItems()
                             .get(0)

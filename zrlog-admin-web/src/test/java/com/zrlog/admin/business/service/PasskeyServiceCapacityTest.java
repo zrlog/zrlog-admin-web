@@ -10,9 +10,9 @@ import com.zrlog.admin.business.rest.response.PasskeySummaryResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.User;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.UserPasskeyChallenge;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.admin.data.repository.UserPasskeyChallengeRepository;
 import com.zrlog.test.support.TestLogCapture;
 import org.junit.Test;
 
@@ -100,7 +100,7 @@ public class PasskeyServiceCapacityTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             long now = System.currentTimeMillis();
             assertTrue(
-                    new UserPasskeyChallenge(db.dataSource())
+                    new UserPasskeyChallengeRepository(db.dataSource())
                             .save("expired", "authentication", null, "{}", now - 1, now - 1_000));
             PasskeyService service =
                     new PasskeyService(
@@ -110,10 +110,10 @@ public class PasskeyServiceCapacityTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component(db.dataSource()).mfa(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new User(db.dataSource())),
-                            () -> new User(db.dataSource()),
-                            () -> new UserPasskey(db.dataSource()),
-                            () -> new UserPasskeyChallenge(db.dataSource()),
+                                    () -> new UserRepository(db.dataSource())),
+                            () -> new UserRepository(db.dataSource()),
+                            () -> new UserPasskeyRepository(db.dataSource()),
+                            () -> new UserPasskeyChallengeRepository(db.dataSource()),
                             ApplicationServicesFixture.locks(db.dataSource()));
 
             List<Object> results = runConcurrently(
@@ -132,7 +132,7 @@ public class PasskeyServiceCapacityTest {
     @Test
     public void shouldKeepConcurrentRegistrationAtPerUserLimit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            UserPasskey passkeyDao = new UserPasskey(db.dataSource());
+            UserPasskeyRepository passkeyDao = new UserPasskeyRepository(db.dataSource());
             for (int index = 0; index < 9; index++) {
                 assertTrue(passkeyDao.save(1, "seed-hash-" + index, "seed-id-" + index,
                         "seed-public-key", 0, "", "Seed " + index, "seed-aaguid", true, false,
@@ -146,10 +146,10 @@ public class PasskeyServiceCapacityTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component(db.dataSource()).mfa(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new User(db.dataSource())),
-                            () -> new User(db.dataSource()),
-                            () -> new UserPasskey(db.dataSource()),
-                            () -> new UserPasskeyChallenge(db.dataSource()),
+                                    () -> new UserRepository(db.dataSource())),
+                            () -> new UserRepository(db.dataSource()),
+                            () -> new UserPasskeyRepository(db.dataSource()),
+                            () -> new UserPasskeyChallengeRepository(db.dataSource()),
                             ApplicationServicesFixture.locks(db.dataSource()));
             PasskeyService.ChallengeState state = new PasskeyService.ChallengeState(
                     "challenge", "localhost", "http://localhost:18080", "user-handle", "Concurrent passkey");

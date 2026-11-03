@@ -15,7 +15,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.web.WebSetup;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -94,7 +94,7 @@ public class AIApprovalTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
             conversations.appendAIMessageEntries(
@@ -171,7 +171,7 @@ public class AIApprovalTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L).getMessages().stream()
@@ -239,7 +239,7 @@ public class AIApprovalTest {
                                     new AIConversationService(
                                             AccountServicesFixture.component(db.dataSource()).security(),
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                            () -> new WebSite(db.dataSource()),
+                                            () -> new WebSiteRepository(db.dataSource()),
                                             new AIFileService(),
                                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                                             .exportAIMessage(7L))
@@ -414,7 +414,7 @@ public class AIApprovalTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .clearAIMessage(7L));
@@ -426,7 +426,7 @@ public class AIApprovalTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .clearAIMessage(7L));
@@ -440,7 +440,7 @@ public class AIApprovalTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
@@ -491,14 +491,14 @@ public class AIApprovalTest {
                             new AIConversationService(
                                     AccountServicesFixture.component(db.dataSource()).security(),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
                                     AIServiceDependencies.approvals(db.dataSource()))
                                     .captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                             new AIConversationService(
                                     AccountServicesFixture.component(db.dataSource()).security(),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
                                     AIServiceDependencies.approvals(db.dataSource()))
                                     .captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())));
@@ -535,7 +535,7 @@ public class AIApprovalTest {
                         new AIConversationService(
                                 AccountServicesFixture.component(db.dataSource()).security(),
                                 ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                () -> new WebSite(db.dataSource()),
+                                () -> new WebSiteRepository(db.dataSource()),
                                 new AIFileService(),
                                 AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                                 .exportAIMessage(7L)

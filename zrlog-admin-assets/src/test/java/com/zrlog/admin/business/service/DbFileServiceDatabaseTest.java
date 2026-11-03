@@ -7,7 +7,7 @@ import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.NotImplementException;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -21,7 +21,7 @@ public class DbFileServiceDatabaseTest {
     public void shouldStoreLoadListAndDeleteDbFilesThroughWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             DbFileService service =
-                    new DbFileService(() -> new WebSite(db.dataSource()));
+                    new DbFileService(() -> new WebSiteRepository(db.dataSource()));
 
             UploadFileResponse uploaded = service.toDbFile("/assets/readme.txt",
                     "hello".getBytes(StandardCharsets.UTF_8));
@@ -61,7 +61,7 @@ public class DbFileServiceDatabaseTest {
             assertThrows(
                     NotImplementException.class,
                     () ->
-                            new DbFileService(() -> new WebSite(ignored.dataSource()))
+                            new DbFileService(() -> new WebSiteRepository(ignored.dataSource()))
                                     .loadDbFile("/missing.txt"));
         }
     }

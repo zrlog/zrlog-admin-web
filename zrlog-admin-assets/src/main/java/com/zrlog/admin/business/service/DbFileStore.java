@@ -2,7 +2,7 @@ package com.zrlog.admin.business.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Provider;
 
 import java.sql.SQLException;
@@ -19,10 +19,10 @@ final class DbFileStore {
     static final long UPLOAD_TIMEOUT = Duration.ofMinutes(30).toMillis();
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().serializeNulls().create();
     private static final String COLUMNS = "name,remark,length(value) AS encodedSize,substr(value,-2) AS tail";
-    private final Provider<WebSite> websites;
+    private final Provider<WebSiteRepository> websites;
     private final LongSupplier clock;
 
-    DbFileStore(Provider<WebSite> websites, LongSupplier clock) {
+    DbFileStore(Provider<WebSiteRepository> websites, LongSupplier clock) {
         this.websites = websites;
         this.clock = clock;
     }
@@ -56,14 +56,14 @@ final class DbFileStore {
         String remark = encode(meta);
         // References and deletion intent share one statement. The aggregate derived table also supports
         // MySQL's restriction on selecting an UPDATE target directly in a subquery.
-        boolean claimed = websites.get().execute("UPDATE website SET remark=? WHERE name=? AND remark=?"
+        boolean claimed = websites.get().execute("UPDATE website SET updatedAt=?,version=version+1,remark=? WHERE name=? AND remark=?"
                         + " AND EXISTS (SELECT 1 FROM user WHERE userId=? AND role=? AND enabled=? AND authVersion=?)"
                         + " AND NOT EXISTS (SELECT 1 FROM log WHERE instr(content,?)>0 OR instr(markdown,?)>0"
                         + " OR instr(thumbnail,?)>0 OR instr(digest,?)>0)"
                         + " AND NOT EXISTS (SELECT 1 FROM log_version WHERE instr(patch_json,?)>0 OR instr(patch_json,?)>0)"
                         + " AND (SELECT reference_count FROM (SELECT count(*) AS reference_count FROM website WHERE name<>?"
                         + " AND NOT (name>=? AND name<?) AND name NOT LIKE 'assistant.cleanup.cursor:%'"
-                        + " AND (instr(value,?)>0 OR instr(value,?)>0)) AS saved_references)=0",
+                        + " AND (instr(value,?)>0 OR instr(value,?)>0)) AS saved_references)=0", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                 remark, row.name, row.remark, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(),
                 path, path, path, path, path, escaped, row.name, FILE_PREFIX, "db_film", path, escaped);
         if (!claimed) return false;
@@ -80,7 +80,7 @@ final class DbFileStore {
         meta.pendingUntil = clock.getAsLong() + UPLOAD_TIMEOUT;
         String remark = encode(meta);
         if (old == null) {
-            websites.get().execute("INSERT INTO website(name,value,remark) VALUES(?,?,?)", FILE_PREFIX + key, "", remark);
+            websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value,remark) VALUES(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), FILE_PREFIX + key, "", remark);
         } else if (!update(old, "remark=?", remark)) {
             throw changed();
         }
@@ -89,7 +89,7 @@ final class DbFileStore {
 
     void chunk(Row claim, int index, byte[] bytes) throws SQLException {
         if (clock.getAsLong() >= claim.meta.pendingUntil) throw changed();
-        if (!websites.get().execute("INSERT INTO website(name,value) SELECT ?,? FROM website WHERE name=? AND remark=?",
+        if (!websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT ?,?,0,?,? FROM website WHERE name=? AND remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                 chunkKey(claim.meta.pendingBatch, index), java.util.Base64.getEncoder().encodeToString(bytes),
                 claim.name, claim.remark)) throw changed();
     }
@@ -183,9 +183,10 @@ final class DbFileStore {
 
     private boolean update(Row row, String assignments, Object... values) throws SQLException {
         java.util.ArrayList<Object> args = new java.util.ArrayList<>(java.util.Arrays.asList(values));
+        args.add(0, new java.sql.Timestamp(System.currentTimeMillis()).toString());
         args.add(row.name);
         if (row.remark != null) args.add(row.remark);
-        return websites.get().execute("UPDATE website SET " + assignments + " WHERE name=? AND "
+        return websites.get().execute("UPDATE website SET updatedAt=?,version=version+1," + assignments + " WHERE name=? AND "
                 + (row.remark == null ? "remark IS NULL" : "remark=?"), args.toArray());
     }
 

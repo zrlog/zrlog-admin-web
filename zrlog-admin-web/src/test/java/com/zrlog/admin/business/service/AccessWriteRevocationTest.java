@@ -47,10 +47,10 @@ public class AccessWriteRevocationTest {
                             prefix = "insert into oauth_client";
                             break;
                         case "consent":
-                            prefix = "update oauth_credential set payload=?";
+                            prefix = "update oauth_credential set updatedAt=?,version=version+1,payload=?";
                             break;
                         case "decision":
-                            prefix = "update oauth_credential set used=?";
+                            prefix = "update oauth_credential set updatedAt=?,version=version+1,used=?";
                             break;
                         case "grant":
                             prefix = "insert into oauth_grant";

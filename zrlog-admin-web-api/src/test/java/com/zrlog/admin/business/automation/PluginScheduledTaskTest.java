@@ -6,8 +6,8 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.plugin.PluginSchedulerTickResult;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -52,9 +52,9 @@ public class PluginScheduledTaskTest {
     private void verify(String childStatus, String expectedParent, boolean paused) throws Exception {
         try (var db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             AtomicInteger invocations = new AtomicInteger();
             PluginCorePlugin core = (PluginCorePlugin) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{PluginCorePlugin.class},
                     (proxy, method, args) -> {
@@ -86,13 +86,13 @@ public class PluginScheduledTaskTest {
             plan.schedule.at = System.currentTimeMillis() + 60000;
             assertEquals("automation.systemTaskManaged", assertThrows(IllegalArgumentException.class, () -> service.save(actor, plan)).getMessage());
             db.execute("UPDATE user SET role=? WHERE userId=?", "owner", actor.getUserId());
-            var defaults = new AutomationDefaults(store, () -> new User(db.dataSource()),
-                    new com.zrlog.business.service.WebsiteKvService(() -> new WebSite(db.dataSource())), registry);
+            var defaults = new AutomationDefaults(store, () -> new UserRepository(db.dataSource()),
+                    new com.zrlog.business.service.WebsiteKvService(() -> new WebSiteRepository(db.dataSource())), registry);
             assertTrue(defaults.initializePluginTrigger());
             var saved = store.tasks(0, 100, 0).get(0).value;
             assertTrue(saved.enabled);
             assertEquals(List.of(AccountAction.PLUGIN_MANAGE.getId()), saved.executionActions);
-            var owner = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var owner = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             var run = engine.runNow(owner, saved.id, saved.revision, 660000);
             assertEquals(expectedParent, run.status);
             assertEquals(run.id, run.result.externalRunId);

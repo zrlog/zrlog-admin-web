@@ -10,7 +10,7 @@ import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.StaticFileCacheUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -232,7 +232,7 @@ public class TemplateServiceTest {
 
                         UpdateRecordResponse response = service.saveAndRecord(templatePath, settings, new AdminAuditContext(1, "127.0.0.1", "/template/config", "test"));
                         Map<String, Object> stored =
-                                new WebSite(db.dataSource()).getTemplateConfigMap(templatePath);
+                                new WebSiteRepository(db.dataSource()).getTemplateConfigMap(templatePath);
 
                         assertNotNull(response.getMessage());
                         assertEquals("blue", stored.get("accent"));

@@ -7,7 +7,7 @@ import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
 import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.exception.UnknownException;
 import com.zrlog.data.service.DistributedLock;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -19,17 +19,17 @@ public class ArticlePinningService {
     static final String LOCK_KEY = "article-sticky-order";
     private static final long LOCK_WAIT_SECONDS = 20L;
     private final DistributedLock.Factory locks;
-    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
     @Inject
     public ArticlePinningService(
-            jakarta.inject.Provider<Log> logProvider, DistributedLock.Factory locks) {
+            jakarta.inject.Provider<LogRepository> logProvider, DistributedLock.Factory locks) {
         this.locks = locks;
 
         this.logProvider = logProvider;
     }
 
     static String buildPersistSql(List<ArticlePinningEntryResponse> items) {
-        StringBuilder sql = new StringBuilder("update ").append(Log.TABLE_NAME)
+        StringBuilder sql = new StringBuilder("update ").append(LogRepository.TABLE_NAME)
                 .append(" set sticky=case when rubbish=? and privacy=? then case logId");
         List<Long> logIds = new ArrayList<>(items.size());
         long priority = items.size();
@@ -178,7 +178,7 @@ public class ArticlePinningService {
                         .get()
                         .queryFirstWithParams(
                                 "select logId,title,sticky from "
-                                        + Log.TABLE_NAME
+                                        + LogRepository.TABLE_NAME
                                         + " where logId=? and rubbish=? and privacy=?",
                                 logId,
                                 false,
@@ -196,7 +196,7 @@ public class ArticlePinningService {
                         .get()
                         .queryListWithParams(
                                 "select logId,title,sticky from "
-                                        + Log.TABLE_NAME
+                                        + LogRepository.TABLE_NAME
                                         + " where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
                                 false,
                                 false,
@@ -210,7 +210,7 @@ public class ArticlePinningService {
         if (items.isEmpty()) {
             this.logProvider
                     .get()
-                    .execute("update " + Log.TABLE_NAME + " set sticky=0 where sticky>0");
+                    .execute("update " + LogRepository.TABLE_NAME + " set sticky=0 where sticky>0");
             return;
         }
         this.logProvider.get().execute(buildPersistSql(items), false, false);

@@ -7,7 +7,7 @@ import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.data.util.WebSiteUtils;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -28,14 +28,14 @@ public class WebSiteService {
     public static final String FEATURE_WEBHOOK_ENABLED_KEY = "feature_webhook_enabled";
     public static final String FEATURE_PERSONAL_DATA_ENABLED_KEY = "feature_personal_data_enabled";
     public static final String FEATURE_ARTICLE_ARRANGEMENT_ENABLED_KEY = "feature_article_arrangement_enabled";
-    private static final List<String> ARTICLE_EDIT_WEBSITE_INFO_KEYS = Arrays.asList(WebSite.article_auto_digest_length,
+    private static final List<String> ARTICLE_EDIT_WEBSITE_INFO_KEYS = Arrays.asList(WebSiteRepository.article_auto_digest_length,
             ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY, ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
             ARTICLE_COVER_ASPECT_RATIO_KEY, ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);
     private final WebsiteKvService websiteKvService;
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     @Inject
     public WebSiteService(
-            WebsiteKvService websiteKvService, jakarta.inject.Provider<WebSite> webSiteProvider) {
+            WebsiteKvService websiteKvService, jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.websiteKvService = websiteKvService;
         this.webSiteProvider = webSiteProvider;
     }
@@ -64,7 +64,7 @@ public class WebSiteService {
     }
 
     public BlogWebSiteInfo blogWebSiteInfo() {
-        BlogWebSiteInfo blog = queryToMap(Arrays.asList(WebSite.generator_html_status, WebSite.host, WebSite.disable_comment_status, WebSite.article_thumbnail_status, WebSite.system_notification), BlogWebSiteInfo.class);
+        BlogWebSiteInfo blog = queryToMap(Arrays.asList(WebSiteRepository.generator_html_status, WebSiteRepository.host, WebSiteRepository.disable_comment_status, WebSiteRepository.article_thumbnail_status, WebSiteRepository.system_notification), BlogWebSiteInfo.class);
         blog.setGenerator_html_status(Objects.equals(blog.getGenerator_html_status(), true));
         blog.setDisable_comment_status(Objects.equals(blog.getDisable_comment_status(), true));
         blog.setArticle_thumbnail_status(Objects.equals(blog.getArticle_thumbnail_status(), true));
@@ -72,19 +72,19 @@ public class WebSiteService {
     }
 
     public BasicWebSiteInfo basicWebSiteInfo() {
-        return queryToMap(Arrays.asList(WebSite.title, WebSite.second_title, WebSite.description, WebSite.keywords, "favicon_ico_base64", WebSite.author), BasicWebSiteInfo.class);
+        return queryToMap(Arrays.asList(WebSiteRepository.title, WebSiteRepository.second_title, WebSiteRepository.description, WebSiteRepository.keywords, "favicon_ico_base64", WebSiteRepository.author), BasicWebSiteInfo.class);
     }
 
     public AdminWebSiteInfo adminWebSiteInfo() {
         AdminWebSiteInfo admin =
                 queryToMap(
                         Arrays.asList(
-                                WebSite.admin_darkMode,
-                                WebSite.admin_compactMode,
-                                WebSite.language,
-                                WebSite.admin_color_primary,
-                                WebSite.admin_theme,
-                                WebSite.session_timeout,
+                                WebSiteRepository.admin_darkMode,
+                                WebSiteRepository.admin_compactMode,
+                                WebSiteRepository.language,
+                                WebSiteRepository.admin_color_primary,
+                                WebSiteRepository.admin_theme,
+                                WebSiteRepository.session_timeout,
                                 "favicon_png_pwa_512_base64",
                                 "favicon_png_pwa_192_base64",
                                 "admin_static_resource_base_url",
@@ -113,8 +113,8 @@ public class WebSiteService {
     }
 
     public ContentProtectorWebSiteInfo contentProtector() {
-        ContentProtectorWebSiteInfo contentProtector = queryToMap(Arrays.asList(WebSite.content_protector_enabled,
-                        WebSite.content_protector_license_type, WebSite.content_protector_template),
+        ContentProtectorWebSiteInfo contentProtector = queryToMap(Arrays.asList(WebSiteRepository.content_protector_enabled,
+                        WebSiteRepository.content_protector_license_type, WebSiteRepository.content_protector_template),
                 ContentProtectorWebSiteInfo.class);
         contentProtector.doValid();
         return contentProtector;
@@ -131,6 +131,6 @@ public class WebSiteService {
     }
 
     public OtherWebSiteInfo other() {
-        return queryToMap(Arrays.asList(WebSite.icp, WebSite.webCm, WebSite.robotRuleContent), OtherWebSiteInfo.class);
+        return queryToMap(Arrays.asList(WebSiteRepository.icp, WebSiteRepository.webCm, WebSiteRepository.robotRuleContent), OtherWebSiteInfo.class);
     }
 }

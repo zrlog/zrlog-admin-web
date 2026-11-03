@@ -9,7 +9,7 @@ import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.util.WebSiteUtils;
-import com.zrlog.model.UserPasskey;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 @Singleton
 public class AdminResourceService {
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminResourceService.class);
-    private final jakarta.inject.Provider<UserPasskey> passkeys;
+    private final jakarta.inject.Provider<UserPasskeyRepository> passkeys;
     private final Supplier<AdminResourceInfoResponse.Capabilities> capabilities;
     private final FeatureLabService features;
     private final Supplier<PublicWebSiteInfo> site;
@@ -37,7 +37,7 @@ public class AdminResourceService {
             FeatureLabService features,
             Supplier<PublicWebSiteInfo> site,
             Supplier<String> staticResourceHost,
-            jakarta.inject.Provider<UserPasskey> passkeys) {
+            jakarta.inject.Provider<UserPasskeyRepository> passkeys) {
         this.passkeys = passkeys;
 
         this.site = Objects.requireNonNull(site);

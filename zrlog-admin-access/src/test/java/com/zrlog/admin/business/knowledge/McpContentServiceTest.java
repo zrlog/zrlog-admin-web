@@ -28,10 +28,10 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
-import com.zrlog.model.Tag;
-import com.zrlog.model.Type;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
+import com.zrlog.data.repository.TagRepository;
+import com.zrlog.data.repository.TypeRepository;
 import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.util.I18nUtil;
 import org.junit.Test;
@@ -163,7 +163,7 @@ public class McpContentServiceTest {
                                                 ::configured,
                                         () -> false,
                                         toolLanguage,
-                                        () -> new Log(testDataSource)),
+                                        () -> new LogRepository(testDataSource)),
                         AccountServicesFixture.component(testDataSource).identities()),
                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                 AccountServicesFixture.component(testDataSource).identities());
@@ -177,8 +177,8 @@ public class McpContentServiceTest {
                         request -> {
                         },
                         AccountServicesFixture.component(testDataSource).permissions(),
-                        () -> new Tag(testDataSource),
-                        () -> new Type(testDataSource)),
+                        () -> new TagRepository(testDataSource),
+                        () -> new TypeRepository(testDataSource)),
                 null, testDataSource);
     }
 
@@ -195,12 +195,12 @@ public class McpContentServiceTest {
                         AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).preferences(),
                         new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
-                                () -> new Log(testDataSource),
-                                () -> new LogVersion(testDataSource)),
+                                () -> new LogRepository(testDataSource),
+                                () -> new LogVersionRepository(testDataSource)),
                         new ArticlePinningService(
-                                () -> new Log(testDataSource),
+                                () -> new LogRepository(testDataSource),
                                 ApplicationServicesFixture.locks(testDataSource)),
-                        () -> new Log(testDataSource),
+                        () -> new LogRepository(testDataSource),
                         ApplicationServicesFixture.locks(testDataSource)),
                 new ArticleQueryService(cache,
                         ApplicationServicesFixture.capability(
@@ -211,7 +211,7 @@ public class McpContentServiceTest {
                                 ApplicationServicesFixture.messages(testDataSource)),
                         AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).preferences(),
-                        () -> new Log(testDataSource)),
+                        () -> new LogRepository(testDataSource)),
                 ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
                 markdown -> null,
                 audit,
@@ -244,8 +244,8 @@ public class McpContentServiceTest {
                             request -> {
                             },
                             AccountServicesFixture.component(db.dataSource()).permissions(),
-                            () -> new Tag(db.dataSource()),
-                            () -> new Type(db.dataSource())),
+                            () -> new TagRepository(db.dataSource()),
+                            () -> new TypeRepository(db.dataSource())),
                     null, db.dataSource());
             tools.call("create_article", args(CREATE));
 
@@ -256,8 +256,8 @@ public class McpContentServiceTest {
             SavedArticle draft = (SavedArticle) tools.call("create_article", create);
             assertEquals("draft", draft.status);
             assertEquals(title, db.scalar("select title from log where logId=?", draft.id));
-            assertEquals(2, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).size());
-            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(0).getContent());
+            assertEquals(2, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1))).size());
+            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1))).get(0).getContent());
 
             SavedArticle published = (SavedArticle) tools.call("publish_article",
                     args("{\"id\":" + draft.id + ",\"version\":0}"));
@@ -271,9 +271,9 @@ public class McpContentServiceTest {
             assertEquals(title, stored.get(0).getAsJsonObject().get("content").getAsString());
             assertEquals(title, stored.get(1).getAsJsonObject().get("content").getAsString());
             assertEquals("Original", stored.get(2).getAsJsonObject().get("content").getAsString());
-            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(0).getContent());
-            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(1).getContent());
-            assertEquals("MCP", audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1))).get(0).getBrowser());
+            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1))).get(0).getContent());
+            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1))).get(1).getContent());
+            assertEquals("MCP", audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1))).get(0).getBrowser());
             assertFalse(logs.contains(Level.WARNING, "Record admin audit log failed"));
         }
     }
@@ -309,8 +309,8 @@ public class McpContentServiceTest {
                             request -> {
                             },
                             AccountServicesFixture.component(db.dataSource()).permissions(),
-                            () -> new Tag(db.dataSource()),
-                            () -> new Type(db.dataSource())),
+                            () -> new TagRepository(db.dataSource()),
+                            () -> new TypeRepository(db.dataSource())),
                     null, db.dataSource());
             SavedArticle draft = (SavedArticle) tools.call("create_article", args(CREATE));
             String previousAudit = auditStore.getString("admin_audit_log");
@@ -343,8 +343,8 @@ public class McpContentServiceTest {
                             new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService(), db.dataSource()),
                                     request -> refreshes.incrementAndGet(),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Tag(db.dataSource()),
-                                    () -> new Type(db.dataSource())),
+                                    () -> new TagRepository(db.dataSource()),
+                                    () -> new TypeRepository(db.dataSource())),
                             null, db.dataSource());
             var browser = AdminTokenThreadLocal.getUser();
             SavedArticle saved = (SavedArticle) tools.call("create_article", args(CREATE));
@@ -379,7 +379,7 @@ public class McpContentServiceTest {
             assertEquals(
                     "MCP",
                     new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
-                            .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1)))
+                            .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1)))
                             .get(0)
                             .getBrowser());
             for (int version : new int[]{0, 1, 99})
@@ -414,8 +414,8 @@ public class McpContentServiceTest {
                                         throw new IllegalStateException("internal detail");
                                     },
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Tag(db.dataSource()),
-                                    () -> new Type(db.dataSource())),
+                                    () -> new TagRepository(db.dataSource()),
+                                    () -> new TypeRepository(db.dataSource())),
                             null, db.dataSource());
             JsonObject input = args(CREATE);
             input.addProperty("status", "published");
@@ -618,13 +618,13 @@ public class McpContentServiceTest {
                                             new ArticleVersionService(AccountServicesFixture.component(
                                                             db.dataSource())
                                                     .permissions(),
-                                                    () -> new Log(db.dataSource()),
-                                                    () -> new LogVersion(db.dataSource())),
+                                                    () -> new LogRepository(db.dataSource()),
+                                                    () -> new LogVersionRepository(db.dataSource())),
                                             new ArticlePinningService(
-                                                    () -> new Log(db.dataSource()),
+                                                    () -> new LogRepository(db.dataSource()),
                                                     ApplicationServicesFixture.locks(
                                                             db.dataSource())),
-                                            () -> new Log(db.dataSource()),
+                                            () -> new LogRepository(db.dataSource()),
                                             ApplicationServicesFixture.locks(
                                                     db.dataSource())),
                                     new com.zrlog.admin.business.service
@@ -644,15 +644,15 @@ public class McpContentServiceTest {
                                             AccountServicesFixture.component(
                                                             db.dataSource())
                                                     .preferences(),
-                                            () -> new Log(db.dataSource())),
+                                            () -> new LogRepository(db.dataSource())),
                                     ApplicationServicesFixture.cacheRefresh(
                                             db.unitCacheService(), db.config()),
                                     markdown -> null,
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.operations(db.dataSource())),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Tag(db.dataSource()),
-                                    () -> new Type(db.dataSource())),
+                                    () -> new TagRepository(db.dataSource()),
+                                    () -> new TypeRepository(db.dataSource())),
                             storage,
                             db.dataSource());
             AdminTokenThreadLocal.remove();
@@ -727,15 +727,15 @@ public class McpContentServiceTest {
                                                 new ArticleVersionService(AccountServicesFixture.component(
                                                                 db.dataSource())
                                                         .permissions(),
-                                                        () -> new Log(db.dataSource()),
+                                                        () -> new LogRepository(db.dataSource()),
                                                         () ->
-                                                                new LogVersion(
+                                                                new LogVersionRepository(
                                                                         db.dataSource())),
                                                 new ArticlePinningService(
-                                                        () -> new Log(db.dataSource()),
+                                                        () -> new LogRepository(db.dataSource()),
                                                         ApplicationServicesFixture.locks(
                                                                 db.dataSource())),
-                                                () -> new Log(db.dataSource()),
+                                                () -> new LogRepository(db.dataSource()),
                                                 ApplicationServicesFixture.locks(
                                                         db.dataSource())),
                                         new com.zrlog.admin.business.service
@@ -755,7 +755,7 @@ public class McpContentServiceTest {
                                                 AccountServicesFixture.component(
                                                                 db.dataSource())
                                                         .preferences(),
-                                                () -> new Log(db.dataSource())),
+                                                () -> new LogRepository(db.dataSource())),
                                         ApplicationServicesFixture.cacheRefresh(
                                                 db.unitCacheService(), applicationConfig),
                                         markdown -> null,
@@ -764,8 +764,8 @@ public class McpContentServiceTest {
                                                 db.dataSource())),
                                         AccountServicesFixture.component(db.dataSource())
                                                 .permissions(),
-                                        () -> new Tag(db.dataSource()),
-                                        () -> new Type(db.dataSource())),
+                                        () -> new TagRepository(db.dataSource()),
+                                        () -> new TypeRepository(db.dataSource())),
                                 null,
                                 db.dataSource());
                 JsonObject result =

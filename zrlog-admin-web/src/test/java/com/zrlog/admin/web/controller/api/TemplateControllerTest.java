@@ -21,7 +21,7 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -280,9 +280,9 @@ public class TemplateControllerTest {
                                 () -> null,
                                 () -> null,
                                 ApplicationServicesFixture.audit(testDataSource),
-                                () -> new WebSite(testDataSource),
+                                () -> new WebSiteRepository(testDataSource),
                                 new TemplatePackageInstaller(new TemplateCatalog()),
-                                new TemplateSettingsService(() -> new WebSite(testDataSource), new InMemoryZrLogDatabase.TestCacheService()),
+                                new TemplateSettingsService(() -> new WebSiteRepository(testDataSource), new InMemoryZrLogDatabase.TestCacheService()),
                                 new TemplateCatalog()),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),

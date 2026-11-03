@@ -8,7 +8,7 @@ import com.zrlog.admin.business.automation.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.automation.AutomationComponent;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -61,7 +61,7 @@ public class AIScheduledTaskTest {
         db.putWebsite("ai_base_url", "http://127.0.0.1:" + provider.getAddress().getPort());
         db.execute("insert into type(typeId,typeName,alias) values(?,?,?)", 301, "Writing", "writing-301");
         db.loadAdminWebModules();
-        actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         component = db.component(AutomationComponent.class);
     }
 

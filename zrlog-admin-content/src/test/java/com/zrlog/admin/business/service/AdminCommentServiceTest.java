@@ -6,7 +6,7 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.Comment;
+import com.zrlog.data.repository.CommentRepository;
 import org.junit.Test;
 
 import java.util.List;
@@ -85,7 +85,7 @@ public class AdminCommentServiceTest {
                     new AdminCommentService(AccountServicesFixture.component(db.dataSource()).permissions(),
                             AccountServicesFixture.component(db.dataSource()).identities(),
                             ApplicationServicesFixture.messages(db.dataSource()),
-                            () -> new Comment(db.dataSource()));
+                            () -> new CommentRepository(db.dataSource()));
             var actor = AccountServicesFixture.component(db.dataSource()).identities().account(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             ReadCommentRequest readRequest = new ReadCommentRequest();
             readRequest.setId(1L);

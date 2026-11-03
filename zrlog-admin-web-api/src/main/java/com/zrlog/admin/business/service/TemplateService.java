@@ -13,7 +13,7 @@ import com.zrlog.business.template.HtmlTemplateProcessor;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.TemplateVO;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.TemplateHelper;
 import jakarta.inject.Inject;
@@ -32,7 +32,7 @@ import java.util.function.Supplier;
 @Singleton
 public class TemplateService {
     private final AdminAuditService adminAuditService;
-    private final Provider<WebSite> webSiteProvider;
+    private final Provider<WebSiteRepository> webSiteProvider;
     private final CacheService cacheService;
     private final Supplier<PluginCorePlugin> pluginCore;
     private final Supplier<TemplateDownloadPlugin> templateDownload;
@@ -43,7 +43,7 @@ public class TemplateService {
     @Inject
     public TemplateService(CacheService cacheService, Supplier<PluginCorePlugin> pluginCore,
                            Supplier<TemplateDownloadPlugin> templateDownload,
-                           AdminAuditService adminAuditService, Provider<WebSite> webSiteProvider,
+                           AdminAuditService adminAuditService, Provider<WebSiteRepository> webSiteProvider,
                            TemplatePackageInstaller installer, TemplateSettingsService settingsService,
                            TemplateCatalog catalog) {
         this.cacheService = cacheService;

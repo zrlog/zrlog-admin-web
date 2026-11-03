@@ -4,7 +4,7 @@ import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -26,7 +26,7 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite("system_notification", "notice");
 
             WebSiteService service =
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()));
             BasicWebSiteInfo basic = service.basicWebSiteInfo();
             BlogWebSiteInfo blog = service.blogWebSiteInfo();
 
@@ -55,7 +55,7 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.ARTICLE_COVER_ASPECT_RATIO_KEY, "bad");
 
             WebSiteService service =
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()));
             AdminWebSiteInfo admin = service.adminWebSiteInfo();
             ArticleEditWebSiteInfo articleEdit = service.articleEditWebSiteInfo();
 
@@ -83,7 +83,7 @@ public class WebSiteServiceDatabaseTest {
                             new WebhookService(
                                     ApplicationServicesFixture.messages(db.dataSource()),
                                     ApplicationServicesFixture.websiteCache(db.dataSource())),
-                            () -> new WebSite(db.dataSource()))
+                            () -> new WebSiteRepository(db.dataSource()))
                             .featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());
@@ -91,10 +91,10 @@ public class WebSiteServiceDatabaseTest {
             assertEquals(Boolean.FALSE, featureLab.getFeature_webhook_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_personal_data_enabled());
             assertTrue(
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()))
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()))
                             .isFeatureResourceReferenceEnabled());
             assertTrue(
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()))
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()))
                             .isFeatureArticleExtensionFilterEnabled());
         }
     }

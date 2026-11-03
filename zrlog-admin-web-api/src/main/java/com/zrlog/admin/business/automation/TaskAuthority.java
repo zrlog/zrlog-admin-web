@@ -4,7 +4,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -18,10 +18,10 @@ import java.util.Set;
 @Singleton
 public final class TaskAuthority {
     private final AccountIdentityService identities;
-    private final Provider<User> users;
+    private final Provider<UserRepository> users;
 
     @Inject
-    public TaskAuthority(AccountIdentityService identities, Provider<User> users) {
+    public TaskAuthority(AccountIdentityService identities, Provider<UserRepository> users) {
         this.identities = identities;
         this.users = users;
     }

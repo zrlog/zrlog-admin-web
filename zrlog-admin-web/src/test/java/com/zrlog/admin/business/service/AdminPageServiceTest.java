@@ -31,8 +31,8 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.WebSite;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.NetworkProxy;
 import org.jsoup.Jsoup;
@@ -382,7 +382,7 @@ public class AdminPageServiceTest {
             assertEquals(0, empty.getAsJsonArray("passkeys").size());
 
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
-            UserPasskey passkeys = new UserPasskey(db.dataSource());
+            UserPasskeyRepository passkeys = new UserPasskeyRepository(db.dataSource());
             passkeys.save(1, "own-hash", "own-credential", "own-public-key", 0, "internal",
                     "Work computer", "aaguid", true, false, "https://example.com", "example.com", 1L);
             passkeys.save(2, "other-hash", "other-credential", "other-public-key", 0, "internal",
@@ -752,10 +752,10 @@ public class AdminPageServiceTest {
                             new WebhookService(
                                     ApplicationServicesFixture.messages(testDataSource),
                                     ApplicationServicesFixture.websiteCache(testDataSource)),
-                            () -> new WebSite(testDataSource)),
+                            () -> new WebSiteRepository(testDataSource)),
                     site,
-                    () -> new WebSite(testDataSource).getStringValueByName("admin_static_resource_base_url"),
-                    () -> new UserPasskey(testDataSource));
+                    () -> new WebSiteRepository(testDataSource).getStringValueByName("admin_static_resource_base_url"),
+                    () -> new UserPasskeyRepository(testDataSource));
         }
         return new AdminResourceService(
                 AdminResourceInfoResponse.Capabilities::new,
@@ -764,10 +764,10 @@ public class AdminPageServiceTest {
                         new WebhookService(
                                 ApplicationServicesFixture.messages(testDataSource),
                                 ApplicationServicesFixture.websiteCache(testDataSource)),
-                        () -> new WebSite(testDataSource)),
+                        () -> new WebSiteRepository(testDataSource)),
                 site,
                 () -> "",
-                () -> new UserPasskey(testDataSource)) {
+                () -> new UserPasskeyRepository(testDataSource)) {
             @Override
             public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
                 AdminResourceInfoResponse response = new AdminResourceInfoResponse();

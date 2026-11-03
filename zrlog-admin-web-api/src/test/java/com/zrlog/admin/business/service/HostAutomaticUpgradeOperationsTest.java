@@ -11,8 +11,8 @@ import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.updater.docker.DockerImageUpdater;
 import com.zrlog.updater.spi.*;
 import org.junit.Test;
@@ -91,7 +91,7 @@ public class HostAutomaticUpgradeOperationsTest {
         });
         server.start();
         try (var db = InMemoryZrLogDatabase.open()) {
-            var settings = new WebsiteKvService(() -> new WebSite(db.dataSource()));
+            var settings = new WebsiteKvService(() -> new WebSiteRepository(db.dataSource()));
             settings.putString("upgradePreview", Boolean.toString("preview".equals(channel)));
             var builder = new UpdateContext.Builder();
             builder.docker = new DockerConnection("http://127.0.0.1:" + server.getAddress().getPort(),
@@ -118,7 +118,7 @@ public class HostAutomaticUpgradeOperationsTest {
             assertEquals(artifactVersion, displayed.getVersion());
             // A presentation change must never alter the identity sent to the updater.
             if (changeDisplayLabel) displayed.setVersion("4.0.2");
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             var context = new TaskExecutionContext(RUN_ID, actor, 600000, () -> 0L, () -> { });
 
             assertTrue(operations.submit(displayed, context));

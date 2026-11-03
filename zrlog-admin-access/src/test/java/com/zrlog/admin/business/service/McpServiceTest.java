@@ -9,8 +9,8 @@ import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.business.knowledge.McpService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -33,7 +33,7 @@ public class McpServiceTest {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.from(new User(testDataSource).loadById(1));
+                        return AccountAccess.from(new UserRepository(testDataSource).loadById(1));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -41,7 +41,7 @@ public class McpServiceTest {
                 Set.of("articles:read"),
                 () -> "https://blog.example",
                 () -> false,
-                () -> new Log(testDataSource));
+                () -> new LogRepository(testDataSource));
     }
 
     private McpService.Reply request(String method, String params, DataSourceWrapper testDataSource) throws Exception {

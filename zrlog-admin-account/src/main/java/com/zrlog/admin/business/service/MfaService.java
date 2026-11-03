@@ -7,7 +7,7 @@ import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.response.MfaStatusResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.util.MfaUtils;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -20,9 +20,9 @@ import java.util.Objects;
 public class MfaService {
     private static final String MFA_ENABLED_COLUMN = "mfaEnabled";
     private static final String MFA_SECRET_COLUMN = "mfaSecret";
-    private final jakarta.inject.Provider<User> userProvider;
+    private final jakarta.inject.Provider<UserRepository> userProvider;
     @Inject
-    public MfaService(jakarta.inject.Provider<User> userProvider) {
+    public MfaService(jakarta.inject.Provider<UserRepository> userProvider) {
         this.userProvider = userProvider;
     }
 
@@ -116,7 +116,7 @@ public class MfaService {
         this.userProvider
                 .get()
                 .execute(
-                        "update user set " + MFA_SECRET_COLUMN + "=? where userId=?",
+                        "update user set updatedAt=?,version=version+1," + MFA_SECRET_COLUMN + "=? where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         secret,
                         userId);
         return secret;
@@ -126,11 +126,11 @@ public class MfaService {
         this.userProvider
                 .get()
                 .execute(
-                        "update user set "
+                        "update user set updatedAt=?,version=version+1,"
                                 + MFA_ENABLED_COLUMN
                                 + "=?, "
                                 + MFA_SECRET_COLUMN
-                                + "=? where userId=?",
+                                + "=? where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         enabled ? 1 : 0,
                         secret,
                         userId);

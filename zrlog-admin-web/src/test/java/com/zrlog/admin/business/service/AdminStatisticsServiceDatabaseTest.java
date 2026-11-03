@@ -5,8 +5,8 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.RuntimeInfoFixture;
 import com.zrlog.common.cache.dto.TagDTO;
-import com.zrlog.model.Comment;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.CommentRepository;
+import com.zrlog.data.repository.LogRepository;
 import com.zrlog.test.support.TestLogCapture;
 import org.junit.Test;
 
@@ -56,8 +56,8 @@ public class AdminStatisticsServiceDatabaseTest {
                             db.unitCacheService(),
                             RuntimeInfoFixture.from(db.config()),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            () -> new Log(db.dataSource()),
-                            () -> new Comment(db.dataSource()))
+                            () -> new LogRepository(db.dataSource()),
+                            () -> new CommentRepository(db.dataSource()))
                             .statisticsInfo(DIRECT_EXECUTOR, false)
                             .get();
 
@@ -90,8 +90,8 @@ public class AdminStatisticsServiceDatabaseTest {
                                 db.unitCacheService(),
                                 RuntimeInfoFixture.from(db.config()),
                                 ApplicationServicesFixture.audit(db.dataSource()),
-                                () -> new Log(db.dataSource()),
-                                () -> new Comment(db.dataSource()))
+                                () -> new LogRepository(db.dataSource()),
+                                () -> new CommentRepository(db.dataSource()))
                                 .statisticsInfo(DIRECT_EXECUTOR, false)
                                 .get();
 

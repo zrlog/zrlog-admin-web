@@ -24,9 +24,9 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.data.service.DistributedLock;
-import com.zrlog.model.User;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.UserPasskeyChallenge;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.admin.data.repository.UserPasskeyChallengeRepository;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -62,9 +62,9 @@ public class PasskeyService {
     private static final List<PublicKeyCredentialParameters> ES256_PARAMETERS = Collections.singletonList(
             new PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, COSEAlgorithmIdentifier.ES256));
     private static final Logger LOGGER = LoggerUtil.getLogger(PasskeyService.class);
-    private final jakarta.inject.Provider<User> userProvider;
-    private final jakarta.inject.Provider<UserPasskey> userPasskeyProvider;
-    private final jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider;
+    private final jakarta.inject.Provider<UserRepository> userProvider;
+    private final jakarta.inject.Provider<UserPasskeyRepository> userPasskeyProvider;
+    private final jakarta.inject.Provider<UserPasskeyChallengeRepository> userPasskeyChallengeProvider;
     private final DistributedLock.Factory locks;
     private final Gson gson = new Gson();
     private final UserService userService;
@@ -75,9 +75,9 @@ public class PasskeyService {
     public PasskeyService(
             @Named("siteHost") Supplier<String> siteHost,
             UserService userService,
-            jakarta.inject.Provider<User> userProvider,
-            jakarta.inject.Provider<UserPasskey> userPasskeyProvider,
-            jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider,
+            jakarta.inject.Provider<UserRepository> userProvider,
+            jakarta.inject.Provider<UserPasskeyRepository> userPasskeyProvider,
+            jakarta.inject.Provider<UserPasskeyChallengeRepository> userPasskeyChallengeProvider,
             DistributedLock.Factory locks) {
         this(
                 MAX_ACTIVE_AUTHENTICATION_CHALLENGES,
@@ -93,9 +93,9 @@ public class PasskeyService {
             int maxActiveAuthenticationChallenges,
             Supplier<String> siteHost,
             UserService userService,
-            jakarta.inject.Provider<User> userProvider,
-            jakarta.inject.Provider<UserPasskey> userPasskeyProvider,
-            jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider,
+            jakarta.inject.Provider<UserRepository> userProvider,
+            jakarta.inject.Provider<UserPasskeyRepository> userPasskeyProvider,
+            jakarta.inject.Provider<UserPasskeyChallengeRepository> userPasskeyChallengeProvider,
             DistributedLock.Factory locks) {
         this.userProvider = userProvider;
         this.userPasskeyProvider = userPasskeyProvider;
@@ -126,7 +126,7 @@ public class PasskeyService {
         }
         Object lastUsedAt = value(row, "lastUsedAt");
         return new PasskeySummaryResponse(longValue(row, "id"), stringValue(row, "name"),
-                longValue(row, "createdAt"), lastUsedAt == null ? null : ((Number) lastUsedAt).longValue(),
+                com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.get("createdAt")), lastUsedAt == null ? null : ((Number) lastUsedAt).longValue(),
                 transportNames(stringValue(row, "transports")));
     }
 
@@ -248,7 +248,7 @@ public class PasskeyService {
             if (!MessageDigest.isEqual(credentialId, decodeRequired(credential.getId()))) {
                 throw new PasskeyVerificationException();
             }
-            UserPasskey passkeyDao = this.userPasskeyProvider.get();
+            UserPasskeyRepository passkeyDao = this.userPasskeyProvider.get();
             Map<String, Object> stored = passkeyDao.findByCredentialIdHash(sha256Hex(credentialId));
             if (stored == null || !MessageDigest.isEqual(credentialId,
                     decodeRequired(stringValue(stored, "credentialId")))) {
@@ -465,7 +465,7 @@ public class PasskeyService {
         withLock(
                 AUTHENTICATION_CHALLENGE_LOCK,
                 () -> {
-                    UserPasskeyChallenge challengeDao = this.userPasskeyChallengeProvider.get();
+                    UserPasskeyChallengeRepository challengeDao = this.userPasskeyChallengeProvider.get();
                     challengeDao.deleteExpired(now);
                     if (challengeDao.countActive(AUTHENTICATION, now)
                             >= maxActiveAuthenticationChallenges) {
@@ -489,7 +489,7 @@ public class PasskeyService {
         return withLock(
                 REGISTRATION_LOCK_PREFIX + userId,
                 () -> {
-                    UserPasskey passkeyDao = this.userPasskeyProvider.get();
+                    UserPasskeyRepository passkeyDao = this.userPasskeyProvider.get();
                     if (passkeyDao.countByUserId(userId) >= MAX_PASSKEYS) {
                         throw new PasskeyLimitExceededException();
                     }
@@ -543,8 +543,8 @@ public class PasskeyService {
         this.userProvider
                 .get()
                 .execute(
-                        "update user set passkeyUserHandle=? where userId=?"
-                                + " and (passkeyUserHandle is null or passkeyUserHandle='')",
+                        "update user set updatedAt=?,version=version+1,passkeyUserHandle=? where userId=?"
+                                + " and (passkeyUserHandle is null or passkeyUserHandle='')", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         candidate,
                         userId);
         return stringValue(this.userProvider.get().loadById(userId), "passkeyUserHandle");

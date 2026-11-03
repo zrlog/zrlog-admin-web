@@ -313,7 +313,7 @@ public class McpInterceptorTest {
                 }
                 var displayed =
                         new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
-                                .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1)))
+                                .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1)))
                                 .get(0);
                 assertEquals("MCP", displayed.getBrowser());
                 assertEquals(client[2], displayed.getAgentName());

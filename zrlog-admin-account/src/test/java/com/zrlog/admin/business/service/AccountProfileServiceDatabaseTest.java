@@ -7,7 +7,7 @@ import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.model.UserPasskey;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -30,7 +30,7 @@ public class AccountProfileServiceDatabaseTest {
     }
 
     private static void addPasskey(InMemoryZrLogDatabase db, int userId, String name) throws Exception {
-        assertTrue(new UserPasskey(db.dataSource()).save(userId, "hash-" + userId,
+        assertTrue(new UserPasskeyRepository(db.dataSource()).save(userId, "hash-" + userId,
                 "credential-" + userId, "public-key", 0, "internal", name, "aaguid", true, false,
                 "https://example.com", "example.com", 1_700_000_000_000L));
     }

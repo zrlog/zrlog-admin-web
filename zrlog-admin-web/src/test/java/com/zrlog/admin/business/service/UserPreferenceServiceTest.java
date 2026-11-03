@@ -14,7 +14,7 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -113,7 +113,7 @@ public class UserPreferenceServiceTest {
             assertEquals("1:1", service.effective(actor(db)).editor.coverAspectRatio);
             assertEquals("draft", service.effective(actor(db)).articleList.status);
             assertTrue(service.effective(actor(db)).articleList.columns.isEmpty());
-            assertEquals(60, new UserPreferenceStore(() -> new User(db.dataSource())).sessionTimeoutMinutes(1, 90));
+            assertEquals(60, new UserPreferenceStore(() -> new UserRepository(db.dataSource())).sessionTimeoutMinutes(1, 90));
             // A stale appearance page must not write its stale session/editor snapshot.
             service.updateBody(actor(db), "{\"appearance\":{\"darkMode\":true},\"session\":{\"timeoutMinutes\":10},\"editor\":{\"autoDigestLength\":99}}", "appearance");
             assertEquals(Long.valueOf(60), service.effective(actor(db)).session.timeoutMinutes);

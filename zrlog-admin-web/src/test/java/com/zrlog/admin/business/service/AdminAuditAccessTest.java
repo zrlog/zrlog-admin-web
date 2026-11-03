@@ -7,7 +7,7 @@ import com.zrlog.admin.web.di.AdminComponent;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.util.List;
@@ -24,7 +24,7 @@ public class AdminAuditAccessTest {
             var component = db.component(AdminComponent.class);
             var settings = db.component(com.zrlog.business.di.ServiceComponent.class).websiteKv();
             settings.putString("admin_audit_log", "[{\"action\":\"EXECUTE_UPGRADE\",\"source\":\"assistant\",\"assistantRunId\":\"localized\"}]");
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             for (String language : new String[]{"en_US", "zh_CN", "en_US"}) {
                 try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
                     var log = component.statistics().statisticsInfo(executor, true, actor).get().getAuditLogs().get(0);
@@ -50,7 +50,7 @@ public class AdminAuditAccessTest {
             var audit = new AdminAuditService(settings);
             for (String role : AccountAccess.ROLES) {
                 db.execute("UPDATE user SET role=? WHERE userId=1", role);
-                var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+                var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
                 if (actor.isAdministrator()) {
                     assertEquals(4, audit.getRecentLogs(actor).size());
                     var summary = component.statistics().statisticsInfo(Runnable::run, true, actor).get().getAuditLogs();
@@ -63,14 +63,17 @@ public class AdminAuditAccessTest {
                 }
             }
             db.execute("UPDATE user SET role='owner' WHERE userId=1");
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             var restricted = actor.restrictActions(List.of(AccountAction.DASHBOARD_READ.getId(), AccountAction.SESSION.getId()));
             assertThrows(PermissionErrorException.class, () -> audit.getRecentLogs(restricted));
             assertNull(component.statistics().statisticsInfo(Runnable::run, true, restricted).get().getAuditLogs());
             var token = new AdminTokenVO();
             token.setUserId(1); token.setAuthVersion(actor.getAuthVersion());
             var config = DelegatedAccess.withPermissions(Set.of(AccountAction.DASHBOARD_READ.getId(), AccountAction.SESSION.getId()),
-                    false, () -> component.dashboard().getConfig(null, token));
+                    false, () -> component.dashboard().getConfig(
+                            new com.zrlog.admin.web.security.AdminRequestIdentity(
+                                    com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities()).account(token),
+                            null, token));
             assertFalse(config.getCards().stream().anyMatch(card -> "auditTrail".equals(card.getId())));
         }
     }

@@ -5,8 +5,8 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -47,9 +47,9 @@ public class AutomationEngineTest {
     public void open() throws Exception {
         db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSite(db.dataSource()));
-        authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-        actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         definition.type = "test.reminder";
         definition.titleKey = "reminder";
         definition.requiredActions = List.of("account.session");
@@ -281,9 +281,9 @@ public class AutomationEngineTest {
         StoredTask task = service.save(actor, plan("interval"));
         AtomicBoolean paused = new AtomicBoolean();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.equals("UPDATE website SET value=?,remark=? WHERE name=? AND value=?")
-                    && (AutomationStore.TASK_PREFIX + task.id).equals(args[2])
-                    && AutomationStore.JSON.fromJson(args[0].toString(), StoredTask.class).activeRun == null
+            if (sql.equals("UPDATE website SET updatedAt=?,version=version+1,value=?,remark=? WHERE name=? AND value=?")
+                    && (AutomationStore.TASK_PREFIX + task.id).equals(args[3])
+                    && AutomationStore.JSON.fromJson(args[1].toString(), StoredTask.class).activeRun == null
                     && paused.compareAndSet(false, true)) {
                 try { service.setEnabled(actor, task.id, task.revision, false); }
                 catch (Exception error) { throw new AssertionError(error); }
@@ -379,7 +379,7 @@ public class AutomationEngineTest {
         StoredTask task = service.save(actor, plan("once"));
         AtomicBoolean changed = new AtomicBoolean();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("UPDATE website SET value=?,remark=?") && changed.compareAndSet(false, true)) {
+            if (sql.startsWith("UPDATE website SET updatedAt=?,version=version+1,value=?,remark=?") && changed.compareAndSet(false, true)) {
                 db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
             }
         });

@@ -26,8 +26,8 @@ import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.WebSite;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import org.junit.Test;
 
@@ -110,12 +110,12 @@ public class WebSiteControllerDatabaseTest {
                                     new WebhookService(
                                             ApplicationServicesFixture.messages(db.dataSource()),
                                             ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    () -> new WebSite(db.dataSource())),
+                                    () -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.site(db.config()),
                             () ->
-                                    new WebSite(db.dataSource())
+                                    new WebSiteRepository(db.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
-                            () -> new UserPasskey(db.dataSource()));
+                            () -> new UserPasskeyRepository(db.dataSource()));
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
@@ -185,7 +185,7 @@ public class WebSiteControllerDatabaseTest {
             assertEquals(address, oauth.metadata().issuer);
             assertEquals(address + "/mcp", oauth.mcpResourceMetadata().resource);
             assertEquals(address + "/api/webhook/message-center/notice", oauth.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()).notificationEndpoint);
-            String publicInfo = new com.google.gson.Gson().toJson(new WebSite(db.dataSource()).getPublicWebSite());
+            String publicInfo = new com.google.gson.Gson().toJson(new WebSiteRepository(db.dataSource()).getPublicWebSite());
             assertFalse(publicInfo.contains("backend_server_url"));
             assertFalse(publicInfo.contains("gateway.example"));
             // Old settings clients must not clear a value they do not know about.
@@ -552,7 +552,7 @@ public class WebSiteControllerDatabaseTest {
                                                 UpdateVersionInfoPlugin.class),
                                 ApplicationServicesFixture.audit(testDataSource),
                                 ApplicationServicesFixture.websiteKv(testDataSource),
-                                () -> new WebSite(testDataSource)),
+                                () -> new WebSiteRepository(testDataSource)),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
@@ -577,7 +577,7 @@ public class WebSiteControllerDatabaseTest {
                                             : config.getPlugin(UpdateVersionInfoPlugin.class),
                             ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
                             ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
-                            () -> new WebSite((DataSourceWrapper) config.getDataSource())),
+                            () -> new WebSiteRepository((DataSourceWrapper) config.getDataSource())),
                     new UpgradeSettingsService(new WebSiteSettingsService(
                             new InMemoryZrLogDatabase.TestCacheService(),
                             config == null ? null : config.getTokenService(),
@@ -588,7 +588,7 @@ public class WebSiteControllerDatabaseTest {
                                             UpdateVersionInfoPlugin.class),
                             ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
                             ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
-                            () -> new WebSite((DataSourceWrapper) config.getDataSource())),
+                            () -> new WebSiteRepository((DataSourceWrapper) config.getDataSource())),
                             () ->
                                     UpdaterHosts.dockerControl(
                                             config == null ? null : config.getUpdater()),
@@ -600,7 +600,7 @@ public class WebSiteControllerDatabaseTest {
                             new WebhookService(
                                     ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
                                     ApplicationServicesFixture.websiteCache((DataSourceWrapper) config.getDataSource())),
-                            () -> new WebSite((DataSourceWrapper) config.getDataSource())),
+                            () -> new WebSiteRepository((DataSourceWrapper) config.getDataSource())),
                     new AdminPageDataFactory(
                             ApplicationServicesFixture.site(config),
                             () -> "test",

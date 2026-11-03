@@ -12,8 +12,8 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.automation.AutomationComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -39,7 +39,7 @@ public class ArticlePublicationScheduleTest {
         db.execute("insert into type(typeId,typeName,alias) values(?,?,?)", 301, "Writing", "writing-301");
         db.loadAdminWebModules();
         content = db.component(ContentComponent.class); automations = db.component(AutomationComponent.class);
-        actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         audit = new AdminAuditContext(1, "127.0.0.1", "/api/admin/article/create", "test");
         later = System.currentTimeMillis() + 3600000;
     }
@@ -53,8 +53,8 @@ public class ArticlePublicationScheduleTest {
         var request = body(new UpdateArticleRequest()); request.setLogId((int) id); request.setVersion(version); return request;
     }
     private AutomationEngine engine() {
-        return new AutomationEngine(automations.store(), new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())),
-                () -> new User(db.dataSource())), automations.registry(), () -> later + 1000);
+        return new AutomationEngine(automations.store(), new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())),
+                () -> new UserRepository(db.dataSource())), automations.registry(), () -> later + 1000);
     }
 
     @Test public void futurePublicationSavesADraftAndRunsTheSameVersionBoundAssistantPlan() throws Exception {
@@ -68,7 +68,7 @@ public class ArticlePublicationScheduleTest {
         assertEquals(saved.getVersion(), task.parameters.get("version").getAsInt());
         assertEquals(saved.getLogId().longValue(), task.parameters.get("articleId").getAsLong());
         assertEquals(1, engine().tick("external", 60000).executed);
-        assertFalse(AccountAccess.truth(new Log(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
+        assertFalse(AccountAccess.truth(new LogRepository(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
         assertEquals(0, engine().tick("external", 60000).executed);
     }
 
@@ -103,7 +103,7 @@ public class ArticlePublicationScheduleTest {
         assertEquals(title, task.parameters.get("title").getAsString());
         assertEquals(scheduled.getVersion(), task.parameters.get("version").getAsInt());
         assertEquals(1, engine().tick("external", 60000).executed);
-        assertFalse(AccountAccess.truth(new Log(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
+        assertFalse(AccountAccess.truth(new LogRepository(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
         var run = automations.tasks().runs(actor, task.id, 10, 0).get(0);
         assertEquals("success", run.status);
         assertEquals(title, run.taskName);
@@ -115,7 +115,7 @@ public class ArticlePublicationScheduleTest {
         var edit = update(saved.getLogId(), saved.getVersion()); edit.setRubbish(true); edit.setContent("Changed after scheduling");
         content.publishing().update(actor, edit, audit);
         assertEquals(1, engine().tick("external", 60000).needsAttention);
-        assertTrue(AccountAccess.truth(new Log(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
+        assertTrue(AccountAccess.truth(new LogRepository(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
         assertFalse(automations.store().task(saved.getPublicationSchedule().taskId).value.enabled);
     }
 
@@ -143,11 +143,11 @@ public class ArticlePublicationScheduleTest {
         };
         var publishing = new ArticlePublishingService(content.articles(), content.queries(), null, text -> text,
                 new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource())), null, () -> failing,
-                new AccountPermissionService(() -> new Log(db.dataSource())));
+                new AccountPermissionService(() -> new LogRepository(db.dataSource())));
         var saved = publishing.create(actor, scheduled(), audit);
         assertTrue(saved.getRubbish()); assertNotNull(saved.getLogId()); assertEquals(0, saved.getVersion());
         assertEquals("failed", saved.getPublicationSchedule().state); assertNull(saved.getPublicationSchedule().taskId);
-        assertTrue(AccountAccess.truth(new Log(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
+        assertTrue(AccountAccess.truth(new LogRepository(db.dataSource()).loadById(saved.getLogId()).get("rubbish")));
         assertEquals(0, automations.store().taskCount(actor.getUserId()));
     }
 
@@ -156,7 +156,7 @@ public class ArticlePublicationScheduleTest {
         assertFalse(live.getRubbish()); assertNull(live.getPublicationSchedule());
         var request = update(live.getLogId(), live.getVersion()); request.setPublishAt(later);
         assertThrows(com.zrlog.common.exception.ArgsException.class, () -> content.publishing().update(actor, request, audit));
-        assertFalse(AccountAccess.truth(new Log(db.dataSource()).loadById(live.getLogId()).get("rubbish")));
+        assertFalse(AccountAccess.truth(new LogRepository(db.dataSource()).loadById(live.getLogId()).get("rubbish")));
         assertEquals(0, automations.store().taskCount(actor.getUserId()));
     }
 }

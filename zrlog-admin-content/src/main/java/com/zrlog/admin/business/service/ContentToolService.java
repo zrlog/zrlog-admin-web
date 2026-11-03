@@ -15,8 +15,8 @@ import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.model.Tag;
-import com.zrlog.model.Type;
+import com.zrlog.data.repository.TagRepository;
+import com.zrlog.data.repository.TypeRepository;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
@@ -34,8 +34,8 @@ import java.util.function.Consumer;
  */
 @Singleton
 public final class ContentToolService {
-    private final jakarta.inject.Provider<Tag> tagProvider;
-    private final jakarta.inject.Provider<Type> typeProvider;
+    private final jakarta.inject.Provider<TagRepository> tagProvider;
+    private final jakarta.inject.Provider<TypeRepository> typeProvider;
 
     private final AccountPermissionService permissionService;
 
@@ -46,8 +46,8 @@ public final class ContentToolService {
     public ContentToolService(
             ArticlePublishingService publishing,
             AccountPermissionService permissionService,
-            jakarta.inject.Provider<Tag> tagProvider,
-            jakarta.inject.Provider<Type> typeProvider) {
+            jakarta.inject.Provider<TagRepository> tagProvider,
+            jakarta.inject.Provider<TypeRepository> typeProvider) {
         this(
                 publishing,
                 publishing::updateBlogCacheWithStaticSyncNotice,
@@ -60,8 +60,8 @@ public final class ContentToolService {
             ArticlePublishingService publishing,
             Consumer<HttpRequest> refresh,
             AccountPermissionService permissionService,
-            jakarta.inject.Provider<Tag> tagProvider,
-            jakarta.inject.Provider<Type> typeProvider) {
+            jakarta.inject.Provider<TagRepository> tagProvider,
+            jakarta.inject.Provider<TypeRepository> typeProvider) {
         this.tagProvider = tagProvider;
         this.typeProvider = typeProvider;
 

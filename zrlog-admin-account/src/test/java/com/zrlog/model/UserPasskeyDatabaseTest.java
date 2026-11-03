@@ -1,5 +1,12 @@
 package com.zrlog.model;
 
+import com.zrlog.admin.data.repository.UserPasskeyChallengeRepository;
+
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+
+
+import com.zrlog.data.repository.*;
+
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
@@ -12,7 +19,7 @@ public class UserPasskeyDatabaseTest {
     @Test
     public void shouldRejectExpiredChallengeAndConsumeValidChallengeOnlyOnce() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            UserPasskeyChallenge challenges = new UserPasskeyChallenge(ignored.dataSource());
+            UserPasskeyChallengeRepository challenges = new UserPasskeyChallengeRepository(ignored.dataSource());
             long now = System.currentTimeMillis();
 
             assertTrue(challenges.save("expired-request", "authentication", null,
@@ -32,7 +39,7 @@ public class UserPasskeyDatabaseTest {
     @Test
     public void shouldConditionallyAdvanceSignatureCounterWithoutRollback() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            UserPasskey passkeys = new UserPasskey(ignored.dataSource());
+            UserPasskeyRepository passkeys = new UserPasskeyRepository(ignored.dataSource());
             long now = System.currentTimeMillis();
 
             assertFalse(passkeys.hasAny());

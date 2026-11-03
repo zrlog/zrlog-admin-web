@@ -3,7 +3,7 @@ package com.zrlog.admin.business.automation;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -19,12 +19,12 @@ public final class AutomationDefaults {
     static final String KEY = "assistant.v1.defaults";
     static final String PLUGIN_KEY = "assistant.v1.plugin-defaults";
     private final AutomationStore store;
-    private final Provider<User> users;
+    private final Provider<UserRepository> users;
     private final WebsiteKvService settings;
     private final TaskRegistry registry;
 
     @Inject
-    public AutomationDefaults(AutomationStore store, Provider<User> users, WebsiteKvService settings, TaskRegistry registry) {
+    public AutomationDefaults(AutomationStore store, Provider<UserRepository> users, WebsiteKvService settings, TaskRegistry registry) {
         this.store = store; this.users = users; this.settings = settings; this.registry = registry;
     }
 

@@ -235,9 +235,9 @@ public final class OAuthService {
         client.clientId = random();
         client.enabled = true;
         store.withSession(c -> {
-            if (store.update(c, "insert into oauth_client (clientId,name,redirectUris,enabled) select ?,?,?,? "
+            if (store.update(c, "insert into oauth_client (clientId,name,redirectUris,enabled,createdAt,updatedAt,version) select ?,?,?,?,?,?,0 "
                             + "where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    client.clientId, client.name.trim(), JSON.toJson(client.redirectUris), true,
+                    client.clientId, client.name.trim(), JSON.toJson(client.redirectUris), true, new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1)
                 throw new PermissionErrorException();
             return null;
@@ -247,9 +247,9 @@ public final class OAuthService {
 
     private void ensureCliClient(SecurityStore.Session c) throws SQLException {
         try {
-            store.update(c, "insert into oauth_client(clientId,name,redirectUris,enabled) select ?,?,?,? "
+            store.update(c, "insert into oauth_client(clientId,name,redirectUris,enabled,createdAt,updatedAt,version) select ?,?,?,?,?,?,0 "
                             + "where not exists(select 1 from oauth_client where clientId=?)",
-                    CLI_CLIENT_ID, "ZrLog CLI", JSON.toJson(List.of(CLI_REDIRECT)), true, CLI_CLIENT_ID);
+                    CLI_CLIENT_ID, "ZrLog CLI", JSON.toJson(List.of(CLI_REDIRECT)), true, new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), CLI_CLIENT_ID);
         } catch (SQLException concurrentInsert) {
             // Another first-time login may have inserted the fixed public client.
             if (store.one(c, "select clientId from oauth_client where clientId=?", CLI_CLIENT_ID) == null)
@@ -373,9 +373,9 @@ public final class OAuthService {
             pending.csrfHash = hash(csrf);
             pending.userId = account.getUserId();
             pending.sessionHash = session;
-            if (store.update(c, "update oauth_credential set payload=? where hash=? and used=? and payload=? and expiresAt>? "
+            if (store.update(c, "update oauth_credential set updatedAt=?,version=version+1,payload=? where hash=? and used=? and payload=? and expiresAt>? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    JSON.toJson(pending), hash(requestId), false, row.get("payload"), System.currentTimeMillis(),
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), JSON.toJson(pending), hash(requestId), false, row.get("payload"), System.currentTimeMillis(),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1)
                 throw new OAuthException("invalid_grant");
             Consent result = new Consent();
@@ -413,17 +413,17 @@ public final class OAuthService {
                     || !availableScopes(account, authority.permitsInheritance(), pending.request.resource).containsAll(selected)))
                 throw new OAuthException("invalid_scope");
             // Validate everything before consuming. The payload comparison also protects a concurrent CSRF/session change.
-            if (store.update(c, "update oauth_credential set used=? where hash=? and used=? and expiresAt>? and payload=? "
+            if (store.update(c, "update oauth_credential set updatedAt=?,version=version+1,used=? where hash=? and used=? and expiresAt>? and payload=? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    true, hash(decision.requestId), false, System.currentTimeMillis(), row.get("payload"),
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, hash(decision.requestId), false, System.currentTimeMillis(), row.get("payload"),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1)
                 throw new OAuthException("invalid_grant");
             if (!decision.approve) return redirect(pending.request, "error", "access_denied");
             String grant = random();
-            if (store.update(c, "insert into oauth_grant (id,userId,clientId,scope,resource,authVersion,createdAt,revoked) "
-                            + "select ?,?,?,?,?,?,?,? where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
+            if (store.update(c, "insert into oauth_grant (id,userId,clientId,scope,resource,authVersion,createdAt,revoked,updatedAt,version) "
+                            + "select ?,?,?,?,?,?,?,?,?,0 where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
                     grant, account.getUserId(), pending.request.client_id, String.join(" ", selected), pending.request.resource,
-                    account.getAuthVersion(), System.currentTimeMillis(), false,
+                    account.getAuthVersion(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), false, new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1)
                 throw new PermissionErrorException();
             String code = issue(c, "code", grant, pending.request, 120_000L);
@@ -439,13 +439,13 @@ public final class OAuthService {
 
     private String issue(SecurityStore.Session c, String kind, String grant, Object payload, long ttl) throws SQLException {
         String value = random();
-        String sql = "insert into oauth_credential (hash,kind,grantId,payload,expiresAt,used) values (?,?,?,?,?,?)";
+        String sql = "insert into oauth_credential (hash,kind,grantId,payload,expiresAt,used,createdAt,updatedAt,version) values (?,?,?,?,?,?,?,?,0)";
         if (c.isWebApi() && "pending".equals(kind)) {
             // D1 serializes this single statement, including the quota check, across clients and processes.
-            sql = "insert into oauth_credential (hash,kind,grantId,payload,expiresAt,used) select ?,?,?,?,?,? "
+            sql = "insert into oauth_credential (hash,kind,grantId,payload,expiresAt,used,createdAt,updatedAt,version) select ?,?,?,?,?,?,?,?,0 "
                     + "where (select count(*) from oauth_credential where kind='pending')<1000";
         }
-        if (store.update(c, sql, hash(value), kind, grant, JSON.toJson(payload), System.currentTimeMillis() + ttl, false) != 1)
+        if (store.update(c, sql, hash(value), kind, grant, JSON.toJson(payload), System.currentTimeMillis() + ttl, false, new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString()) != 1)
             throw new OAuthException("temporarily_unavailable", 503);
         return value;
     }
@@ -500,7 +500,7 @@ public final class OAuthService {
             }
             record = store.one(c, "select * from oauth_credential where hash=?", hash(value));
             if (AccountAccess.truth(record.get("used"))) {
-                store.update(c, "update oauth_grant set revoked=? where id=?", true, grantId);
+                store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, grantId);
                 return null; // commit the revocation before reporting the error
             }
             if (((Number) record.get("expiresAt")).longValue() <= System.currentTimeMillis())
@@ -508,10 +508,10 @@ public final class OAuthService {
             Set<String> authorized = resourceScopes((String) grant.get("scope"), request.resource);
             Set<String> selected = request.scope == null ? authorized : resourceScopes(request.scope, request.resource);
             if (!containsScopes(authorized, selected)) throw new OAuthException("invalid_scope");
-            if (store.update(c, "update oauth_credential set used=? where hash=? and used=? and expiresAt>?",
-                    true, hash(value), false, System.currentTimeMillis()) != 1) {
+            if (store.update(c, "update oauth_credential set updatedAt=?,version=version+1,used=? where hash=? and used=? and expiresAt>?",
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, hash(value), false, System.currentTimeMillis()) != 1) {
                 // Another D1 request can win after our read. Reuse must revoke the winner's tokens too.
-                store.update(c, "update oauth_grant set revoked=? where id=?", true, grantId);
+                store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, grantId);
                 return null;
             }
             TokenResponse token = new TokenResponse();
@@ -569,7 +569,7 @@ public final class OAuthService {
         store.withSession(c -> {
             Map<String, Object> row = store.one(c, "select grantId from oauth_credential where hash=? and (kind=? or kind=?)", hash(token), "access", "refresh");
             if (row != null)
-                store.update(c, "update oauth_grant set revoked=? where id=? and clientId=?", true, row.get("grantId"), clientId);
+                store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=? and clientId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, row.get("grantId"), clientId);
             return null;
         });
     }
@@ -577,9 +577,9 @@ public final class OAuthService {
     public void revokeGrant(AccountAccess actor, String id) throws SQLException {
         AccountAccess account = authorize(actor, AccountAction.OAUTH_GRANT_MANAGE);
         store.withSession(c -> {
-            int changed = store.update(c, "update oauth_grant set revoked=? where id=? and userId=? "
+            int changed = store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=? and userId=? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    true, id, account.getUserId(), account.getUserId(), account.getRole(), true, account.getAuthVersion());
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, id, account.getUserId(), account.getUserId(), account.getRole(), true, account.getAuthVersion());
             if (changed == 0) identities.revalidate(account);
             return null;
         });
@@ -588,11 +588,11 @@ public final class OAuthService {
     public void disableClient(AccountAccess actor, String id) throws SQLException {
         AccountAccess account = authorize(actor, AccountAction.OAUTH_CLIENT_MANAGE);
         store.withSession(c -> {
-            int changed = store.update(c, "update oauth_client set enabled=? where clientId=? "
+            int changed = store.update(c, "update oauth_client set updatedAt=?,version=version+1,enabled=? where clientId=? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    false, id, account.getUserId(), account.getRole(), true, account.getAuthVersion());
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), false, id, account.getUserId(), account.getRole(), true, account.getAuthVersion());
             if (changed == 0) identities.revalidate(account);
-            store.update(c, "update oauth_grant set revoked=? where clientId=?", true, id);
+            store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where clientId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, id);
             return null;
         });
     }
@@ -638,7 +638,7 @@ public final class OAuthService {
                         g.clientName = (String) row.get("name");
                         g.scope = (String) row.get("scope");
                         g.resource = (String) row.get("resource");
-                        g.createdAt = ((Number) row.get("createdAt")).longValue();
+                        g.createdAt = com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.get("createdAt"));
                         g.revoked =
                                 AccountAccess.truth(row.get("revoked"))
                                         || !AccountAccess.truth(row.get("clientEnabled"))

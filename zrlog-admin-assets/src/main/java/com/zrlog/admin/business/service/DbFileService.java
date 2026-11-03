@@ -6,7 +6,7 @@ import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.exception.NotImplementException;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
@@ -26,11 +26,11 @@ public class DbFileService {
     private final LongSupplier clock;
 
     @Inject
-    public DbFileService(Provider<WebSite> websites) {
+    public DbFileService(Provider<WebSiteRepository> websites) {
         this(websites, System::currentTimeMillis);
     }
 
-    DbFileService(Provider<WebSite> websites, LongSupplier clock) {
+    DbFileService(Provider<WebSiteRepository> websites, LongSupplier clock) {
         this.store = new DbFileStore(websites, clock);
         this.clock = clock;
     }

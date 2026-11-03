@@ -74,7 +74,8 @@ public class AdminController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.read")
     public AdminPageDataResponse<IndexResponse> index() throws SQLException {
-        return pages.response(requestIdentity.optional(), dashboardService.loadIndex(request, AdminTokenThreadLocal.getUser()),
+        var actor = requestIdentity.optional();
+        return pages.response(actor, dashboardService.loadIndex(actor, request, AdminTokenThreadLocal.getUser()),
                 "", request.getUri());
     }
 
@@ -86,13 +87,14 @@ public class AdminController extends BaseController {
         if (request.getMethod() == HttpMethod.POST) {
             config =
                     dashboardService.saveConfig(
+                            requestIdentity.optional(),
                             getRequestBodyWithNullCheck(AdminDashboardConfigRequest.class),
                             request,
                             AdminTokenThreadLocal.getUser());
             this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
             message = I18nUtil.getAdminBackendStringFromRes("admin.common.update.success");
         } else {
-            config = dashboardService.getConfig(request, AdminTokenThreadLocal.getUser());
+            config = dashboardService.getConfig(requestIdentity.optional(), request, AdminTokenThreadLocal.getUser());
         }
         return new ApiStandardResponse<>(config, message);
     }

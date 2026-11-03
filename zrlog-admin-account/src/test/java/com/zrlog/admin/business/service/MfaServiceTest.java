@@ -6,7 +6,7 @@ import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.response.MfaStatusResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.MfaTestCodeGenerator;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -87,7 +87,7 @@ public class MfaServiceTest {
     @Test
     public void shouldCreateEnableAndDisableMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            MfaService service = new MfaService(() -> new User(db.dataSource()));
+            MfaService service = new MfaService(() -> new UserRepository(db.dataSource()));
 
             MfaStatusResponse initial = service.getMfaStatus(1, db.unitCacheService().getPublicWebSiteInfo().getTitle());
             String secret = String.valueOf(db.queryOne(
@@ -119,7 +119,7 @@ public class MfaServiceTest {
     @Test
     public void shouldReturnSuccessWhenDisablingAlreadyDisabledMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            MfaService service = new MfaService(() -> new User(ignored.dataSource()));
+            MfaService service = new MfaService(() -> new UserRepository(ignored.dataSource()));
 
             assertEquals(0, service.disableMfa(1, mfaRequest("000000")).getError());
             assertFalse(service.isMfaEnabled(1));

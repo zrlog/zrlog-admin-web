@@ -21,7 +21,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AiNativeImageUtils;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -124,7 +124,7 @@ public class AIWritingToolsTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
@@ -139,7 +139,7 @@ public class AIWritingToolsTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
@@ -217,7 +217,7 @@ public class AIWritingToolsTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .clearAIMessage(7L));

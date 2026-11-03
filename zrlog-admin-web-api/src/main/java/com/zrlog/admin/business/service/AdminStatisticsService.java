@@ -9,8 +9,8 @@ import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.common.CacheService;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.Comment;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.CommentRepository;
+import com.zrlog.data.repository.LogRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -25,8 +25,8 @@ import java.util.logging.Logger;
 public class AdminStatisticsService {
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminStatisticsService.class);
     private final AdminAuditService adminAuditService;
-    private final jakarta.inject.Provider<Log> logProvider;
-    private final jakarta.inject.Provider<Comment> commentProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
+    private final jakarta.inject.Provider<CommentRepository> commentProvider;
     private final CacheService cacheService;
     private final SystemInfoUtils systemInfo;
 
@@ -35,8 +35,8 @@ public class AdminStatisticsService {
             CacheService cacheService,
             SystemInfoUtils systemInfo,
             AdminAuditService adminAuditService,
-            jakarta.inject.Provider<Log> logProvider,
-            jakarta.inject.Provider<Comment> commentProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider,
+            jakarta.inject.Provider<CommentRepository> commentProvider) {
         this.adminAuditService = adminAuditService;
         this.logProvider = logProvider;
         this.commentProvider = commentProvider;
@@ -138,7 +138,7 @@ public class AdminStatisticsService {
                                     "SELECT count(1) AS totalCount,"
                                             + "SUM(CASE WHEN commTime > ? THEN 1 ELSE 0 END) AS todayCount "
                                             + "FROM "
-                                            + Comment.TABLE_NAME,
+                                            + CommentRepository.TABLE_NAME,
                                     new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
             info.setCommCount(toLong(row, "totalCount"));
             info.setToDayCommCount(toLong(row, "todayCount"));
@@ -162,7 +162,7 @@ public class AdminStatisticsService {
                                             + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount,"
                                             + "SUM(l.click) AS clickCount "
                                             + "FROM "
-                                            + Log.TABLE_NAME
+                                            + LogRepository.TABLE_NAME
                                             + " l "
                                             + "inner join user u on u.userId = l.userId "
                                             + "inner join type t on t.typeId = l.typeId "

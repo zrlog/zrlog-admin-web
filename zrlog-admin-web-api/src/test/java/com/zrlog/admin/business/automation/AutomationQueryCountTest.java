@@ -5,7 +5,7 @@ import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.automation.AutomationComponent;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,7 +30,7 @@ public class AutomationQueryCountTest {
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
         component = db.component(AutomationComponent.class);
         component.plugin().stop();
-        actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         component.defaults().initialize();
         component.defaults().initializePluginTrigger();
         db.execute("UPDATE website SET remark=? WHERE name>=? AND name<?", "~", AutomationStore.TASK_PREFIX, "assistant.v1.task;");
@@ -82,7 +82,7 @@ public class AutomationQueryCountTest {
     }
 
     @Test public void sharedNoticesReadAcknowledgementsInOneBatchAndKeepAccountIsolation() throws Exception {
-        var authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
+        var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         var notices = new AutomationNotificationService(component.store(), authority, component.tasks());
         reset();
         assertTrue(notices.list(actor).isEmpty());
@@ -104,7 +104,7 @@ public class AutomationQueryCountTest {
         assertTrue(notices.list(actor).isEmpty());
         assertEquals(8, reads.get());
         db.execute("INSERT INTO user(userId,userName,role) VALUES(?,?,?)", 2, "other-admin", "admin");
-        var other = AccountAccess.from(new User(db.dataSource()).loadById(2));
+        var other = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
         assertEquals(50, notices.list(other).size());
     }
 

@@ -11,8 +11,8 @@ import com.zrlog.common.updater.aws.AwsCredentials;
 import com.zrlog.common.updater.aws.AwsLambdaUpdateConfig;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.updater.faas.FaasProvider;
 import com.zrlog.updater.spi.*;
 import org.junit.*;
@@ -40,8 +40,8 @@ public class AssistantFaasUpgradeTest {
     @Before public void open() throws Exception {
         db = InMemoryZrLogDatabase.open();
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
-        settings = new WebsiteKvService(() -> new WebSite(db.dataSource()));
-        var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        settings = new WebsiteKvService(() -> new WebSiteRepository(db.dataSource()));
+        var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         execution = new TaskExecutionContext("local-faas-upgrade", actor,
                 System.currentTimeMillis() + 600000, System::currentTimeMillis, () -> { });
     }

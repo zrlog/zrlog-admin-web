@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.I18nUtil;
 import org.junit.Test;
 
@@ -67,7 +67,7 @@ public class AdminPageDataFactoryTest {
                             db.unitCacheService()::getPublicWebSiteInfo,
                             () -> "",
                             ApplicationServicesFixture.messages(db.dataSource()));
-            new MessageCenterStateService(ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSite(db.dataSource()))
+            new MessageCenterStateService(ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSiteRepository(db.dataSource()))
                     .markMayHaveUnread();
             assertTrue(pages.response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null).getMessageCenter().isHasUnread());
             db.execute("update user set role='editor' where userId=1");

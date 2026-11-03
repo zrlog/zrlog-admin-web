@@ -16,8 +16,8 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -36,7 +36,7 @@ public class AIReferenceServiceTest {
 
     private static void scope(String value, DataSourceWrapper testDataSource) throws Exception {
         new UserPreferenceService(ApplicationServicesFixture.settings(testDataSource),
-                new UserPreferenceStore(() -> new User(testDataSource)))
+                new UserPreferenceStore(() -> new UserRepository(testDataSource)))
                 .update(
                         AccountServicesFixture.component(testDataSource).requestIdentity().current(),
                         JsonParser.parseString(
@@ -88,7 +88,7 @@ public class AIReferenceServiceTest {
                             .collect(Collectors.toList()));
             var settings =
                     new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
                             .assistant(AccountServicesFixture.component(db.dataSource()).requestIdentity().current());
             for (long id : List.of(2L, 3L, 4L, 999L)) {
                 assertThrows(IllegalArgumentException.class, () -> service.resolve(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input("[{\"type\":\"article\",\"articleId\":" + id + "}]"), settings));
@@ -104,7 +104,7 @@ public class AIReferenceServiceTest {
             assertTrue(service.search(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "").articles.isEmpty());
             var disabled =
                     new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
                             .assistant(AccountServicesFixture.component(db.dataSource()).requestIdentity().current());
             assertThrows(PermissionErrorException.class, () -> service.resolve(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input("[{\"type\":\"article\",\"articleId\":1}]"), disabled));
             scope("own_public", db.dataSource());
@@ -133,7 +133,7 @@ public class AIReferenceServiceTest {
                             AccountServicesFixture.component(db.dataSource()).preferences())
                             .resolve(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), request,
                                     new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
                                             .assistant(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()));
             assertEquals(Integer.valueOf(1), result.get(0).fileIndex);
             assertEquals("same.txt", result.get(0).fileName);
@@ -180,7 +180,7 @@ public class AIReferenceServiceTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(-1L)

@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.NotImplementException;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -41,7 +41,7 @@ public class DbFileChunksTest {
     @After
     public void close() throws Exception { if (db != null) db.close(); }
 
-    private DbFileService anotherInstance() { return new DbFileService(() -> new WebSite(db.dataSource()), now::get); }
+    private DbFileService anotherInstance() { return new DbFileService(() -> new WebSiteRepository(db.dataSource()), now::get); }
 
     @Test
     public void expiryCleanupKeepsReferencedRecentLegacyAndActiveResources() throws Exception {
@@ -54,13 +54,13 @@ public class DbFileChunksTest {
         service.toDbFile("/admin/attached/tmp-neighbor/keep.bin", data(5));
         now.addAndGet(java.time.Duration.ofDays(8).toMillis());
         service.toDbFile(root + "recent.bin", data(6));
-        new DbFileStore(() -> new WebSite(db.dataSource()), now::get).claim(root + "active.bin");
+        new DbFileStore(() -> new WebSiteRepository(db.dataSource()), now::get).claim(root + "active.bin");
         db.execute("insert into log(logId,userId,typeId,title,content,rubbish) values(?,?,?,?,?,?)",
                 71, 1, 1, "References", "<img src=\"" + root + "article.bin\">", true);
         db.execute("insert into log_version(log_id,article_version,from_version,patch_json) values(?,?,?,?)",
                 71, 0, 1, "{\"content\":\"" + root + "history.bin\"}");
         db.putWebsite("ai.saved-session", "{\"file\":\"" + root + "session.bin\"}");
-        var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+        var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
         var context = new com.zrlog.admin.business.automation.TaskExecutionContext("cleanup", actor, now.get() + 60000, now::get, () -> {});
         DbFileService.CleanupBatch batch = service.cleanupTemporary(7, "", context);
         assertEquals(1, batch.removed);
@@ -80,9 +80,9 @@ public class DbFileChunksTest {
             service.toDbFile(path, payload);
             now.addAndGet(java.time.Duration.ofDays(8).toMillis());
             AtomicInteger referenceWrites = new AtomicInteger();
-            WebSite documents = new WebSite(db.dataSource()) {
+            WebSiteRepository documents = new WebSiteRepository(db.dataSource()) {
                 @Override public boolean execute(String sql, Object... params) throws SQLException {
-                    if (sql.startsWith("UPDATE website SET remark=?") && sql.contains("FROM log")
+                    if (sql.startsWith("UPDATE website SET updatedAt=?,version=version+1,remark=?") && sql.contains("FROM log")
                             && Arrays.asList(params).contains("db_file" + path) && referenceWrites.getAndIncrement() == 0) {
                         db.putWebsite("assistant.saved-session." + escaped,
                                 "{\"file\":\"" + (escaped ? path.replace("/", "\\/") : path) + "\"}");
@@ -91,7 +91,7 @@ public class DbFileChunksTest {
                 }
             };
             var cleanup = new DbFileService(() -> documents, now::get);
-            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
             var context = new com.zrlog.admin.business.automation.TaskExecutionContext("cleanup", actor,
                     now.get() + 60000, now::get, () -> {});
             assertEquals(0, cleanup.cleanupTemporary(7, "", context).removed);
@@ -204,7 +204,7 @@ public class DbFileChunksTest {
         service.toDbFile("/files/a.bin", data(7));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(name,value) SELECT") && chunks.incrementAndGet() == 2)
+            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2)
                 throw new SQLException("Interrupted chunk write");
         });
         assertThrows(SQLException.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3)));
@@ -218,7 +218,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(name,value) SELECT") && chunks.incrementAndGet() == 2)
+            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2)
                 throw new AssertionError("Simulated process termination");
         });
         assertThrows(AssertionError.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3)));
@@ -249,7 +249,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(name,value) SELECT") && chunks.incrementAndGet() == 2) {
+            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2) {
                 now.addAndGet(DbFileStore.UPLOAD_TIMEOUT + 1);
                 anotherInstance().toDbFile("/files/a.bin", data(7));
             }
@@ -265,7 +265,7 @@ public class DbFileChunksTest {
         service.toDbFile("/files/a.bin", data(11));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(name,value) SELECT") && chunks.incrementAndGet() == 2) {
+            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2) {
                 assertArrayEquals(data(11), anotherInstance().loadDbFile("/files/a.bin"));
                 assertEquals(11, anotherInstance().getDbFiles("/files").get(0).getSize());
                 assertThrows(IllegalStateException.class, () -> anotherInstance().toDbFile("/files/a.bin", data(3)));
@@ -285,7 +285,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         service.toDbFile("/files/a.bin", data(8));
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("UPDATE website SET value=?,remark=?")) throw new SQLException("Publication failed");
+            if (sql.startsWith("UPDATE website SET updatedAt=?,version=version+1,value=?,remark=?")) throw new SQLException("Publication failed");
         });
         assertThrows(SQLException.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 2)));
         assertArrayEquals(data(8), anotherInstance().loadDbFile("/files/a.bin"));
@@ -315,7 +315,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(name,value) SELECT") && chunks.incrementAndGet() == 2)
+            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2)
                 assertTrue(anotherInstance().deleteByPrefix("/files"));
         });
         assertThrows(IllegalStateException.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3)));

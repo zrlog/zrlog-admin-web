@@ -22,9 +22,9 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.model.Log;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.util.I18nUtil;
 import org.junit.Test;
@@ -150,7 +150,7 @@ public class AIChatConversationTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(-1L)
@@ -189,7 +189,7 @@ public class AIChatConversationTest {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.from(new User(testDataSource).loadById(1));
+                        return AccountAccess.from(new UserRepository(testDataSource).loadById(1));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -197,7 +197,7 @@ public class AIChatConversationTest {
                 Set.of("articles:read"),
                 () -> "https://blog.example",
                 () -> false,
-                () -> new Log(testDataSource));
+                () -> new LogRepository(testDataSource));
     }
 
     @Test
@@ -229,7 +229,7 @@ public class AIChatConversationTest {
 
     private void scope(String scope, DataSourceWrapper testDataSource) throws Exception {
         new UserPreferenceService(ApplicationServicesFixture.settings(testDataSource),
-                new UserPreferenceStore(() -> new User(testDataSource)))
+                new UserPreferenceStore(() -> new UserRepository(testDataSource)))
                 .update(
                         AccountServicesFixture.component(testDataSource).requestIdentity().current(),
                         JsonParser.parseString(
@@ -252,7 +252,7 @@ public class AIChatConversationTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
@@ -281,7 +281,7 @@ public class AIChatConversationTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(8L)

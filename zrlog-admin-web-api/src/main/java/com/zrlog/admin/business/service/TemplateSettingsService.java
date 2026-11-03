@@ -5,7 +5,7 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.business.service.TemplateInfoHelper;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.vo.TemplateVO;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.theme.spi.BundledThemes;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
@@ -23,11 +23,11 @@ import java.util.logging.Logger;
 /** Owns theme configuration values, sanitization and localized form metadata. */
 public final class TemplateSettingsService {
     private static final Logger LOGGER = Logger.getLogger(TemplateSettingsService.class.getName());
-    private final Provider<WebSite> webSiteProvider;
+    private final Provider<WebSiteRepository> webSiteProvider;
     private final CacheService cacheService;
 
     @Inject
-    public TemplateSettingsService(Provider<WebSite> webSiteProvider, CacheService cacheService) {
+    public TemplateSettingsService(Provider<WebSiteRepository> webSiteProvider, CacheService cacheService) {
         this.webSiteProvider = webSiteProvider;
         this.cacheService = cacheService;
     }

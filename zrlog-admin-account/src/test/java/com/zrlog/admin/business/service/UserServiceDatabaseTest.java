@@ -19,7 +19,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.util.HashSet;
@@ -54,7 +54,7 @@ public class UserServiceDatabaseTest {
                             () -> uris,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()));
+                            () -> new UserRepository(db.dataSource()));
             var first = users.getBasicUserInfo(1, "first");
             assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
             uris.clear();
@@ -79,7 +79,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()))
+                            () -> new UserRepository(db.dataSource()))
                             .login(request);
             String upgradedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -107,7 +107,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()))
+                            () -> new UserRepository(db.dataSource()))
                             .updatePassword(1, request);
             String updatedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -126,7 +126,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()))
+                            () -> new UserRepository(db.dataSource()))
                             .getUserInfoWithCache(1, "session-key", db.unitCacheService());
 
             assertEquals("admin", response.getUserName());
@@ -150,7 +150,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()));
+                            () -> new UserRepository(db.dataSource()));
             UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
             UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.unitCacheService());
             assertEquals("en_US", owner.getLanguage());
@@ -164,14 +164,14 @@ public class UserServiceDatabaseTest {
             // Passkey login uses this same builder without a thread-local browser identity.
             assertEquals(
                     "zh_CN",
-                    service.buildLoginDTO(new User(db.dataSource()).loadById(2))
+                    service.buildLoginDTO(new UserRepository(db.dataSource()).loadById(2))
                             .getUserBasicInfoResponse()
                             .getLanguage());
 
             db.putWebsite("admin_theme", "desk");
             assertEquals("desk", service.getUserInfoWithCache(1, "owner-session", db.unitCacheService()).getAppearance().theme);
             new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                    new UserPreferenceStore(() -> new User(db.dataSource())))
+                    new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
                     .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{}", "appearance");
             UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
             assertEquals("zh_CN", reset.getLanguage());
@@ -193,7 +193,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()));
+                            () -> new UserRepository(db.dataSource()));
 
             assertThrows(UserNameAndPasswordRequiredException.class, () -> service.login(loginRequest("", "")));
             assertThrows(UserNameOrPasswordException.class, () -> service.login(loginRequest("missing", "secret")));
@@ -219,7 +219,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()));
+                            () -> new UserRepository(db.dataSource()));
             UserBasicInfoResponse before = service.getBasicUserInfo(1, "session-key");
             UpdateAdminRequest request = new UpdateAdminRequest();
             request.setUserName("root");
@@ -252,7 +252,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()));
+                            () -> new UserRepository(db.dataSource()));
             UpdateAdminRequest missingComma = profileRequest("data:image/png;base64");
             UpdateAdminRequest missingBase64Marker = profileRequest("data:image/png,abc");
 
@@ -271,7 +271,7 @@ public class UserServiceDatabaseTest {
                                 java.util.Collections::emptySet,
                                 AccountServicesFixture.component(db.dataSource()).mfa(),
                                 AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new User(db.dataSource()));
+                                () -> new UserRepository(db.dataSource()));
                 UpdateAdminRequest input = profileRequest("data:image/webp;base64,AQID");
                 assertThrows(
                         PermissionErrorException.class, () -> service.update(1, input, null, null));

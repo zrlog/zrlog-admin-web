@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.util.Map;
@@ -73,7 +73,7 @@ public class MessageCenterStateServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             MessageCenterStateService service =
                     new MessageCenterStateService(
-                            ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSite(db.dataSource()));
+                            ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSiteRepository(db.dataSource()));
 
             service.markMayHaveUnread();
             MessageCenterStatusResponse unread = service.current();

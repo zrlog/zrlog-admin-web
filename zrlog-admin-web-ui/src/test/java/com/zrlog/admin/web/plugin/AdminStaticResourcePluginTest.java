@@ -4,7 +4,7 @@ import com.hibegin.http.server.ApplicationContext;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.plugin.StaticSiteRenderer;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutorService;
@@ -26,7 +26,7 @@ public class AdminStaticResourcePluginTest {
                             database.unitCacheService()::getPublicWebSiteInfo,
                             database.resources(),
                             "/blog",
-                            () -> new WebSite(database.dataSource()));
+                            () -> new WebSiteRepository(database.dataSource()));
             try {
                 assertFalse(plugin.autoStart());
                 assertFalse(plugin.isStarted());
@@ -71,7 +71,7 @@ public class AdminStaticResourcePluginTest {
                         return method.invoke(database.resources(), args);
                     });
             var plugin = new AdminStaticResourcePlugin(new StaticSiteRenderer(config.getRequestConfig(), config.getResponseConfig(), context),
-                    () -> site, resources, "", () -> new WebSite(database.dataSource()));
+                    () -> site, resources, "", () -> new WebSiteRepository(database.dataSource()));
             try {
                 ((ExecutorService) plugin.getExecutorService()).shutdownNow();
                 var budget = new com.zrlog.business.plugin.StaticGenerationBudget(

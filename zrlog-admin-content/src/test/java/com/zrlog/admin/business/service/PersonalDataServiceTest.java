@@ -4,8 +4,8 @@ import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.Comment;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.CommentRepository;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.sql.Timestamp;
@@ -101,7 +101,7 @@ public class PersonalDataServiceTest {
                     "Alice B", "2024-02-02 11:00:00", 2);
             insertComment(db, 3, "other", "other@example.com", "https://other.example", "10.0.0.3",
                     "Other", "2024-02-03 12:00:00", 2);
-            PersonalDataService service = new PersonalDataService(() -> new User(db.dataSource()), () -> new Comment(db.dataSource()));
+            PersonalDataService service = new PersonalDataService(() -> new UserRepository(db.dataSource()), () -> new CommentRepository(db.dataSource()));
 
             PersonalDataPreviewResponse preview = service.preview(request("alice@example.com"), 1);
             PersonalDataPreviewResponse adminPreview = service.preview(request("admin@example.com"), 1);

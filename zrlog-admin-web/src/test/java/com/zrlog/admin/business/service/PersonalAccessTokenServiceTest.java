@@ -21,9 +21,9 @@ import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -329,15 +329,15 @@ public class PersonalAccessTokenServiceTest {
                                                 new ArticleVersionService(AccountServicesFixture.component(
                                                                 db.dataSource())
                                                         .permissions(),
-                                                        () -> new Log(db.dataSource()),
+                                                        () -> new LogRepository(db.dataSource()),
                                                         () ->
-                                                                new LogVersion(
+                                                                new LogVersionRepository(
                                                                         db.dataSource())),
                                                 new ArticlePinningService(
-                                                        () -> new Log(db.dataSource()),
+                                                        () -> new LogRepository(db.dataSource()),
                                                         ApplicationServicesFixture.locks(
                                                                 db.dataSource())),
-                                                () -> new Log(db.dataSource()),
+                                                () -> new LogRepository(db.dataSource()),
                                                 ApplicationServicesFixture.locks(
                                                         db.dataSource()))
                                                 .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), create));
@@ -371,7 +371,7 @@ public class PersonalAccessTokenServiceTest {
                 new KnowledgeService(
                         () -> {
                             try {
-                                return AccountAccess.from(new User(testDataSource).loadById(oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId));
+                                return AccountAccess.from(new UserRepository(testDataSource).loadById(oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId));
                             } catch (java.sql.SQLException e) {
                                 throw new RuntimeException(e);
                             }
@@ -379,7 +379,7 @@ public class PersonalAccessTokenServiceTest {
                         new HashSet<>(identity.scopes),
                         () -> "https://blog.example/sub",
                         () -> false,
-                        () -> new Log(testDataSource));
+                        () -> new LogRepository(testDataSource));
         KnowledgeModels.SearchResult result = (KnowledgeModels.SearchResult) knowledge.call("search_articles", JsonParser.parseString("{}").getAsJsonObject());
         return result.articles.stream().map(hit -> hit.id).collect(Collectors.toList());
     }

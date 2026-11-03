@@ -3,7 +3,7 @@ package com.zrlog.admin.business.service;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -15,10 +15,10 @@ import java.util.Map;
  */
 @Singleton
 public final class AccountPermissionService {
-    private final jakarta.inject.Provider<Log> articles;
+    private final jakarta.inject.Provider<LogRepository> articles;
 
     @Inject
-    public AccountPermissionService(jakarta.inject.Provider<Log> articles) {
+    public AccountPermissionService(jakarta.inject.Provider<LogRepository> articles) {
         this.articles = articles;
     }
 
@@ -36,6 +36,16 @@ public final class AccountPermissionService {
         Map<String, Object> row = articles.get().loadById(id);
         if (row == null || !(row.get("userId") instanceof Number)
                 || !account.canAccessArticle(((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("privacy"))))
+            throw new PermissionErrorException();
+        if (publish && !account.canPublish()) throw new PermissionErrorException();
+        return row;
+    }
+
+    public com.zrlog.model.Log articleEntity(AccountAccess account, long id, boolean publish) throws SQLException {
+        if (account == null || !account.isEnabled()) throw new PermissionErrorException();
+        com.zrlog.model.Log row = articles.get().findById(id).orElse(null);
+        if (row == null || row.getUserId() == null
+                || !account.canAccessArticle(row.getUserId(), Boolean.TRUE.equals(row.getPrivacy())))
             throw new PermissionErrorException();
         if (publish && !account.canPublish()) throw new PermissionErrorException();
         return row;

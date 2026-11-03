@@ -17,7 +17,9 @@ import com.zrlog.common.exception.UnknownException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.service.DistributedLock;
+import com.zrlog.data.repository.LogRepository;
 import com.zrlog.model.Log;
+import com.hibegin.common.dao.entity.OptimisticLockException;
 import com.zrlog.util.ParseUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -42,7 +44,7 @@ public class AdminArticleService {
     private final UserPreferenceService userPreferenceService;
     private final ArticleVersionService articleVersionService;
     private final ArticlePinningService articlePinningService;
-    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
 
     @Inject
     public AdminArticleService(
@@ -52,7 +54,7 @@ public class AdminArticleService {
             UserPreferenceService userPreferenceService,
             ArticleVersionService articleVersionService,
             ArticlePinningService articlePinningService,
-            jakarta.inject.Provider<Log> logProvider,
+            jakarta.inject.Provider<LogRepository> logProvider,
             DistributedLock.Factory locks) {
         this.assistant = Objects.requireNonNull(assistant);
         this.permissionService = permissionService;
@@ -102,7 +104,8 @@ public class AdminArticleService {
         try {
             AccountAccess access = identities.revalidate(actor);
             permissionService.require(access, AccountAction.FILE_MANAGE);
-            Map<String, Object> oldLog = permissionService.article(access, logId, false);
+            Log row = permissionService.articleEntity(access, logId, false);
+            Map<String, Object> oldLog = ArticleRow.snapshot(row);
             Map<String, Object> updates = references.replace(oldLog, from, to, prefix);
             if (updates.isEmpty()) return 0;
             int changedFields = updates.size();
@@ -113,7 +116,7 @@ public class AdminArticleService {
             }
             updates.put("last_update_date", new Date());
             commitUpdate(
-                    oldLog, updates, ((Number) oldLog.get("version")).intValue(), actor.getUserId());
+                    row, oldLog, updates, ((Number) oldLog.get("version")).intValue(), actor.getUserId());
             return changedFields;
         } finally {
             lock.unlock();
@@ -121,6 +124,7 @@ public class AdminArticleService {
     }
 
     private void commitUpdate(
+            Log row,
             Map<String, Object> oldLog,
             Map<String, Object> updates,
             Integer expectedVersion,
@@ -133,16 +137,14 @@ public class AdminArticleService {
                 || expectedVersion == Integer.MAX_VALUE) {
             throw new UpdateArticleExpireException();
         }
-        updates.put("version", expectedVersion + 1);
-        Log dao = logProvider.get();
-        updates.forEach(dao::set);
-        // The predicate remains authoritative when a separate process bypasses the lock.
-        if (!dao.update(Map.of("logId", oldLog.get("logId"), "version", expectedVersion))) {
+        ArticleRow.apply(row, updates);
+        try {
+            if (logProvider.get().update(row)) {
+                articleVersionService.recordReversePatch(oldLog, ArticleRow.snapshot(row), userId);
+            }
+        } catch (OptimisticLockException conflict) {
             throw new UpdateArticleExpireException();
         }
-        Map<String, Object> saved = new HashMap<>(oldLog);
-        saved.putAll(updates);
-        articleVersionService.recordReversePatch(oldLog, saved, userId);
     }
 
     public CreateOrUpdateArticleResponse create(AccountAccess actor, CreateArticleRequest createArticleRequest) throws SQLException {
@@ -175,13 +177,15 @@ public class AdminArticleService {
                 throw new PermissionErrorException();
             if (!createArticleRequest.isRubbish() && !createArticleRequest.isPrivacy() && !access.canPublish())
                 throw new PermissionErrorException();
+            Log row = null;
             Map<String, Object> oldLog = null;
             if (createArticleRequest instanceof UpdateArticleRequest) {
-                oldLog =
-                        permissionService.article(
+                row =
+                        permissionService.articleEntity(
                                 access,
                                 ((UpdateArticleRequest) createArticleRequest).getLogId(),
                                 false);
+                oldLog = ArticleRow.snapshot(row);
                 if ("contributor".equals(access.getRole())
                         && !AccountAccess.truth(oldLog.get("rubbish")))
                     throw new PermissionErrorException();
@@ -189,15 +193,16 @@ public class AdminArticleService {
                     throw new PermissionErrorException();
             }
             Map<String, Object> previousLog = oldLog;
+            Log trackedRow = row;
             boolean clearsPublicState = isPublicArticle(previousLog)
                     && (createArticleRequest.isPrivacy() || createArticleRequest.isRubbish());
             if (clearsPublicState) {
                 return articlePinningService.withOrderLock(
                         () ->
                                 persistArticle(
-                                        actor, createArticleRequest, previousLog, true));
+                                        actor, createArticleRequest, trackedRow, previousLog, true));
             }
-            return persistArticle(actor, createArticleRequest, previousLog, false);
+            return persistArticle(actor, createArticleRequest, trackedRow, previousLog, false);
         } finally {
             lock.unlock();
         }
@@ -210,12 +215,12 @@ public class AdminArticleService {
         try {
             AccountAccess access = identities.revalidate(actor);
             permissionService.require(access, AccountAction.ARTICLE_DELETE);
-            permissionService.article(access, logId, false);
+            Log row = permissionService.articleEntity(access, logId, false);
             deleted =
                     articlePinningService.withOrderLock(
                             () -> {
-                                boolean removed =
-                                        this.logProvider.get().deleteById(Math.toIntExact(logId));
+                                this.logProvider.get().delete(row);
+                                boolean removed = true;
                                 if (removed) {
                                     this.articlePinningService.normalizeOrderLocked();
                                 }
@@ -232,6 +237,7 @@ public class AdminArticleService {
 
     private CreateOrUpdateArticleResponse persistArticle(AccountAccess actor,
                                                          CreateArticleRequest createArticleRequest,
+                                                         Log row,
                                                          Map<String, Object> oldLog,
                                                          boolean normalizePinning) throws SQLException {
         Map<String, Object> log = getLog(actor, createArticleRequest, oldLog);
@@ -240,19 +246,19 @@ public class AdminArticleService {
             Map<String, Object> updates = new HashMap<>(log);
             updates.remove("logId");
             if (!normalizePinning) updates.remove("sticky");
-            commitUpdate(oldLog, updates, updateRequest.getVersion(), actor.getUserId());
+            commitUpdate(row, oldLog, updates, updateRequest.getVersion(), actor.getUserId());
             if (normalizePinning) {
                 this.articlePinningService.normalizeOrderLocked();
             }
         } else {
-            Log dbLog = this.logProvider.get();
-            dbLog.getAttrs().putAll(log);
-            dbLog.save();
+            row = new Log();
+            row.setId(((Number) log.get("logId")).longValue());
+            ArticleRow.apply(row, log);
+            this.logProvider.get().insert(row);
         }
         CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
         response.setLogId((long) Double.parseDouble(log.get("logId") + ""));
-        response.setVersion(createArticleRequest instanceof UpdateArticleRequest
-                ? ((UpdateArticleRequest) createArticleRequest).getVersion() + 1 : 0);
+        response.setVersion(Math.toIntExact(row.getVersion()));
         response.setPrivacy(createArticleRequest.isPrivacy());
         response.setRubbish(createArticleRequest.isRubbish());
         response.setPublicCacheRefreshRequired(

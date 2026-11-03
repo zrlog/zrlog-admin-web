@@ -11,8 +11,8 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.exception.NotFindDbEntryException;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import jakarta.inject.Inject;
 
 import java.lang.reflect.Type;
@@ -28,14 +28,14 @@ public class ArticleVersionService {
             "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail", "arrange_plugin",
             "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
     );
-    private final jakarta.inject.Provider<Log> logProvider;
-    private final jakarta.inject.Provider<LogVersion> logVersionProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
+    private final jakarta.inject.Provider<LogVersionRepository> logVersionProvider;
     private final AccountPermissionService permissionService;
     @Inject
     public ArticleVersionService(
             AccountPermissionService permissionService,
-            jakarta.inject.Provider<Log> logProvider,
-            jakarta.inject.Provider<LogVersion> logVersionProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider,
+            jakarta.inject.Provider<LogVersionRepository> logVersionProvider) {
         this.logProvider = logProvider;
         this.logVersionProvider = logVersionProvider;
 
@@ -193,7 +193,7 @@ public class ArticleVersionService {
                         .get()
                         .queryFirstWithParams(
                                 "select version, title, last_update_date as lastUpdateDate from "
-                                        + Log.TABLE_NAME
+                                        + LogRepository.TABLE_NAME
                                         + " where logId=?",
                                 logId);
         if (row == null || row.isEmpty()) {

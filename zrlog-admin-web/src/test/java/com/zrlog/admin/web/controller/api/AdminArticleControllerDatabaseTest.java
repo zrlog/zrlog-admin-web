@@ -31,10 +31,10 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.I18nUtil;
 import org.junit.After;
 import org.junit.Test;
@@ -138,7 +138,7 @@ public class AdminArticleControllerDatabaseTest {
                                 () -> null,
                                 AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                 new DbFileService(
-                                        () -> new WebSite(testDataSource))),
+                                        () -> new WebSiteRepository(testDataSource))),
                         AIServiceDependencies.chat(testDataSource, null, null,
                             new AIChatModelClient(new AIFileService()), new AIFileService(), AIServiceDependencies.writing(testDataSource)),
                         new AIReferenceService(null,
@@ -272,7 +272,7 @@ public class AdminArticleControllerDatabaseTest {
             db.loadAdminWebModules();
             applicationConfig = db.config();
             new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                    new UserPreferenceStore(() -> new User(db.dataSource())))
+                    new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
                     .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}",
                             "writing");
             ArticlePageData defaults = controller(db.cacheService(), Map.of(), null, new ResponseRecorder(), db.dataSource()).index().getData();
@@ -439,7 +439,7 @@ public class AdminArticleControllerDatabaseTest {
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
-            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())).pin(logId);
+            new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())).pin(logId);
             long versionBeforeDraft = db.cacheService().getInitData().getVersion();
 
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Pinned Draft", "pinned-draft", true),
@@ -710,7 +710,7 @@ public class AdminArticleControllerDatabaseTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .appendAIMessageEntries(List.of(message), 9L));
@@ -747,7 +747,7 @@ public class AdminArticleControllerDatabaseTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .appendAIMessageEntries(List.of(message), 9L));
@@ -825,12 +825,12 @@ public class AdminArticleControllerDatabaseTest {
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
                                             .permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource())),
+                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new LogVersionRepository(db.dataSource())),
                                     new ArticlePinningService(
-                                            () -> new Log(db.dataSource()),
+                                            () -> new LogRepository(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new Log(db.dataSource()),
+                                    () -> new LogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(db.cacheService(),
                                     ApplicationServicesFixture.capability(
@@ -841,7 +841,7 @@ public class AdminArticleControllerDatabaseTest {
                                             ApplicationServicesFixture.messages(db.dataSource())),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new Log(db.dataSource())),
+                                    () -> new LogRepository(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
@@ -949,7 +949,7 @@ public class AdminArticleControllerDatabaseTest {
                                                                 .security(),
                                                         ApplicationServicesFixture
                                                                 .websiteKv(db.dataSource()),
-                                                        () -> new WebSite(db.dataSource()),
+                                                        () -> new WebSiteRepository(db.dataSource()),
                                                         new AIFileService(),
                                                         AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                                                         .appendAIMessageEntries(

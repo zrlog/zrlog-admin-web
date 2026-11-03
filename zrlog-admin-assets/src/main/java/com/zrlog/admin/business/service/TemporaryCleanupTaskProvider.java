@@ -4,7 +4,7 @@ import com.google.gson.JsonObject;
 import com.zrlog.admin.business.automation.*;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
@@ -13,10 +13,10 @@ import java.util.List;
 public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider {
     private final DbFileService files;
     private final AccountPermissionService permissions;
-    private final Provider<WebSite> websites;
+    private final Provider<WebSiteRepository> websites;
 
     @Inject
-    public TemporaryCleanupTaskProvider(DbFileService files, AccountPermissionService permissions, Provider<WebSite> websites) {
+    public TemporaryCleanupTaskProvider(DbFileService files, AccountPermissionService permissions, Provider<WebSiteRepository> websites) {
         this.files = files;
         this.permissions = permissions;
         this.websites = websites;

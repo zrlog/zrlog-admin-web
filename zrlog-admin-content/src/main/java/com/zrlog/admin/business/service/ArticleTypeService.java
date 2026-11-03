@@ -7,20 +7,21 @@ import com.zrlog.admin.business.exception.DeleteTypeException;
 import com.zrlog.admin.business.rest.request.CreateTypeRequest;
 import com.zrlog.admin.business.rest.request.UpdateTypeRequest;
 import com.zrlog.common.cache.dto.TypeDTO;
-import com.zrlog.model.Log;
-import com.zrlog.model.Type;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.TypeRepository;
 import jakarta.inject.Inject;
+import com.zrlog.model.Type;
 
 import java.sql.SQLException;
 import java.util.Objects;
 
 public class ArticleTypeService {
-    private final jakarta.inject.Provider<Log> logProvider;
-    private final jakarta.inject.Provider<Type> typeProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
+    private final jakarta.inject.Provider<TypeRepository> typeProvider;
 
     @Inject
     public ArticleTypeService(
-            jakarta.inject.Provider<Log> logProvider, jakarta.inject.Provider<Type> typeProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider, jakarta.inject.Provider<TypeRepository> typeProvider) {
         this.logProvider = logProvider;
         this.typeProvider = typeProvider;
     }
@@ -29,25 +30,32 @@ public class ArticleTypeService {
         if (this.logProvider.get().countByTypeId(typeId) > 0) {
             throw new DeleteTypeException();
         }
-        return this.typeProvider.get().deleteById(typeId);
+        var repository = this.typeProvider.get();
+        var row = repository.findById((long) typeId).orElse(null);
+        if (row == null) return false;
+        repository.delete(row);
+        return true;
     }
 
     public boolean add(CreateTypeRequest request) throws SQLException {
-        return this.typeProvider
-                .get()
-                .set("typeName", request.getTypeName())
-                .set("alias", request.getAlias())
-                .set("remark", Objects.requireNonNullElse(request.getRemark(), ""))
-                .save();
+        var repository = this.typeProvider.get();
+        Type row = new Type();
+        row.setTypeName(request.getTypeName());
+        row.setAlias(request.getAlias());
+        row.setRemark(Objects.requireNonNullElse(request.getRemark(), ""));
+        repository.insert(row);
+        return true;
     }
 
     public boolean update(UpdateTypeRequest request) throws SQLException {
-        return this.typeProvider
-                .get()
-                .set("typeName", request.getTypeName())
-                .set("alias", request.getAlias())
-                .set("remark", Objects.requireNonNullElse(request.getRemark(), ""))
-                .updateById(request.getId());
+        var repository = this.typeProvider.get();
+        Type row = repository.findById(request.getId().longValue()).orElse(null);
+        if (row == null) return false;
+        row.setTypeName(request.getTypeName());
+        row.setAlias(request.getAlias());
+        row.setRemark(Objects.requireNonNullElse(request.getRemark(), ""));
+        repository.update(row);
+        return true;
     }
 
 
