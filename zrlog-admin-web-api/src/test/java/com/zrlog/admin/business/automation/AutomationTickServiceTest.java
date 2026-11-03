@@ -52,7 +52,7 @@ public class AutomationTickServiceTest {
         var newestId = new AtomicReference<String>();
         var initialId = ticks.health("internal").id;
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.equals("UPDATE website SET updatedAt=?,version=version+1,value=? WHERE name=? AND value=?")
+            if (sql.startsWith("UPDATE `website` SET `value`=?")
                     && "assistant.v1.tick:internal".equals(args[2]) && raced.compareAndSet(false, true)) {
                 now.incrementAndGet();
                 ticks.tick("internal", null, 60000);

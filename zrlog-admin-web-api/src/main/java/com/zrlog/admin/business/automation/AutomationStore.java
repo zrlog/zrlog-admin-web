@@ -105,10 +105,9 @@ public final class AutomationStore {
     public void insertTask(StoredTask task, AccountAccess actor) throws SQLException {
         requireId(task.id);
         if (task.ownerId != actor.getUserId()) throw new IllegalArgumentException("automation.ownerMismatch");
-        boolean inserted = websites.get().execute(
-                "INSERT INTO website(createdAt,updatedAt,version,name,value,remark) SELECT ?,?,0,?,?,? WHERE" + ACTOR, new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                TASK_PREFIX + task.id, JSON.toJson(task), dueKey(task), actor.getUserId(), actor.getRole(),
-                true, actor.getAuthVersion());
+        boolean inserted = websites.get().insertWhen(
+                WebSiteRepository.entry(TASK_PREFIX + task.id, JSON.toJson(task), dueKey(task)), ACTOR,
+                actor.getUserId(), actor.getRole(), true, actor.getAuthVersion());
         if (!inserted) throw new IllegalStateException("automation.permissionChanged");
     }
 
@@ -116,34 +115,34 @@ public final class AutomationStore {
         if (!expected.value.id.equals(replacement.id) || expected.value.ownerId != replacement.ownerId) {
             throw new IllegalArgumentException("automation.ownerMismatch");
         }
-        String sql = "UPDATE website SET updatedAt=?,version=version+1,value=?,remark=? WHERE name=? AND value=?";
-        List<Object> parameters = new ArrayList<>(List.of(new java.sql.Timestamp(System.currentTimeMillis()).toString(), JSON.toJson(replacement), dueKey(replacement), expected.key, expected.raw));
+        String predicate = "name=? AND value=?";
+        List<Object> parameters = new ArrayList<>(List.of(expected.key, expected.raw));
         if (actor != null) {
-            sql += " AND" + ACTOR;
+            predicate += " AND" + ACTOR;
             parameters.add(actor.getUserId());
             parameters.add(actor.getRole());
             parameters.add(true);
             parameters.add(actor.getAuthVersion());
         }
-        return websites.get().execute(sql, parameters.toArray());
+        return websites.get().updateContentWhere(JSON.toJson(replacement), dueKey(replacement),
+                predicate, parameters.toArray()) == 1;
     }
 
     /** Insert-only initialization cannot reset an existing site configuration. */
     void insertDefaultTask(StoredTask task, AccountAccess actor) throws SQLException {
         String key = TASK_PREFIX + task.id;
         try {
-            websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value,remark) SELECT ?,?,0,?,?,? WHERE" + ACTOR
-                            + " AND NOT EXISTS (SELECT 1 FROM website WHERE name=?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                    key, JSON.toJson(task), dueKey(task), actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(),
-                    key);
+            websites.get().insertWhen(WebSiteRepository.entry(key, JSON.toJson(task), dueKey(task)),
+                    ACTOR + " AND NOT EXISTS (SELECT 1 FROM website WHERE name=?)",
+                    actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), key);
         } catch (SQLException error) {
             if (read(key, StoredTask.class) == null) throw error;
         }
     }
 
     public boolean deleteTask(Snapshot<StoredTask> expected, AccountAccess actor) throws SQLException {
-        return websites.get().execute("DELETE FROM website WHERE name=? AND value=? AND" + ACTOR,
-                expected.key, expected.raw, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion());
+        return websites.get().deleteWhere("name=? AND value=? AND" + ACTOR,
+                expected.key, expected.raw, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion()) == 1;
     }
 
     public Snapshot<AutomationModels.Run> run(String id) throws SQLException {
@@ -154,14 +153,13 @@ public final class AutomationStore {
     public void insertRun(AutomationModels.Run run) throws SQLException {
         requireRunId(run.id);
         // Only a task's successful claimant calls this before any business action.
-        websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value,remark) VALUES(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                RUN_PREFIX + run.id, JSON.toJson(run), run.taskId);
+        websites.get().insert(WebSiteRepository.entry(RUN_PREFIX + run.id, JSON.toJson(run), run.taskId));
     }
 
     public boolean replaceRun(Snapshot<AutomationModels.Run> expected, AutomationModels.Run replacement) throws SQLException {
         if (!expected.value.id.equals(replacement.id)) throw new IllegalArgumentException("automation.runMismatch");
-        return websites.get().execute("UPDATE website SET updatedAt=?,version=version+1,value=? WHERE name=? AND value=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                JSON.toJson(replacement), expected.key, expected.raw);
+        return websites.get().updateValueWhere(JSON.toJson(replacement), "name=? AND value=?",
+                expected.key, expected.raw) == 1;
     }
 
     public List<Snapshot<AutomationModels.Run>> runs(int ownerId, String taskId, int limit, int offset) throws SQLException {
@@ -237,9 +235,9 @@ public final class AutomationStore {
                     || Objects.equals(row.value.id, pendingUpgrade)) continue;
             completed++;
             if (completed <= 500 && row.value.finishedAt >= oldest) continue;
-            if (websites.get().execute("DELETE FROM website WHERE name=? AND value=?", row.key, row.raw)) {
+            if (websites.get().deleteWhere("name=? AND value=?", row.key, row.raw) == 1) {
                 String reads = readKeyPrefix(row.value.id);
-                websites.get().execute("DELETE FROM website WHERE name>=? AND name<?", reads, end(reads));
+                websites.get().deleteWhere("name>=? AND name<?", reads, end(reads));
                 removed++;
             }
             if (removed >= 64) break;
@@ -253,10 +251,9 @@ public final class AutomationStore {
     boolean markRunRead(Snapshot<AutomationModels.Run> run, AccountAccess actor) throws SQLException {
         String key = noticeReadKey(actor.getUserId(), run.value.id);
         try {
-            return websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT ?,?,0,?,? WHERE" + ACTOR
-                            + " AND EXISTS (SELECT 1 FROM website WHERE name=? AND value=?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                    key, JSON.toJson(System.currentTimeMillis()), actor.getUserId(), actor.getRole(), true,
-                    actor.getAuthVersion(), run.key, run.raw);
+            return websites.get().insertWhen(WebSiteRepository.entry(key, JSON.toJson(System.currentTimeMillis()), null),
+                    ACTOR + " AND EXISTS (SELECT 1 FROM website WHERE name=? AND value=?)",
+                    actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), run.key, run.raw);
         } catch (SQLException error) {
             if (read(key, Long.class) == null) throw error;
             return true;
@@ -271,10 +268,11 @@ public final class AutomationStore {
     public <T> boolean write(String key, Snapshot<T> expected, T value) throws SQLException {
         String json = JSON.toJson(value);
         if (expected != null) {
-            return websites.get().execute("UPDATE website SET updatedAt=?,version=version+1,value=? WHERE name=? AND value=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), json, key, expected.raw);
+            return websites.get().updateValueWhere(json, "name=? AND value=?", key, expected.raw) == 1;
         }
         try {
-            return websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value) VALUES(?,?,0,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), key, json);
+            websites.get().insert(WebSiteRepository.entry(key, json, null));
+            return true;
         } catch (SQLException error) {
             if (read(key, value.getClass()) == null) throw error;
             return false;
@@ -284,12 +282,12 @@ public final class AutomationStore {
     public <T> boolean writeAuthorized(String key, Snapshot<T> expected, T value, AccountAccess actor) throws SQLException {
         String json = JSON.toJson(value);
         if (expected != null) {
-            return websites.get().execute("UPDATE website SET updatedAt=?,version=version+1,value=? WHERE name=? AND value=? AND" + ACTOR, new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                    json, key, expected.raw, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion());
+            return websites.get().updateValueWhere(json, "name=? AND value=? AND" + ACTOR,
+                    key, expected.raw, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion()) == 1;
         }
         try {
-            return websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT ?,?,0,?,? WHERE" + ACTOR, new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                    key, json, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion());
+            return websites.get().insertWhen(WebSiteRepository.entry(key, json, null), ACTOR,
+                    actor.getUserId(), actor.getRole(), true, actor.getAuthVersion());
         } catch (SQLException error) {
             if (read(key, value.getClass()) == null) throw error;
             return false;

@@ -81,13 +81,13 @@ public class DbFileChunksTest {
             now.addAndGet(java.time.Duration.ofDays(8).toMillis());
             AtomicInteger referenceWrites = new AtomicInteger();
             WebSiteRepository documents = new WebSiteRepository(db.dataSource()) {
-                @Override public boolean execute(String sql, Object... params) throws SQLException {
-                    if (sql.startsWith("UPDATE website SET updatedAt=?,version=version+1,remark=?") && sql.contains("FROM log")
+                @Override public int updateRemarkWhere(String remark, String predicate, Object... params) throws SQLException {
+                    if (predicate.contains("FROM log")
                             && Arrays.asList(params).contains("db_file" + path) && referenceWrites.getAndIncrement() == 0) {
                         db.putWebsite("assistant.saved-session." + escaped,
                                 "{\"file\":\"" + (escaped ? path.replace("/", "\\/") : path) + "\"}");
                     }
-                    return super.execute(sql, params);
+                    return super.updateRemarkWhere(remark, predicate, params);
                 }
             };
             var cleanup = new DbFileService(() -> documents, now::get);
@@ -204,7 +204,7 @@ public class DbFileChunksTest {
         service.toDbFile("/files/a.bin", data(7));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2)
+            if (sql.startsWith("INSERT INTO `website`") && sql.contains(" WHERE (EXISTS (SELECT 1 FROM website") && chunks.incrementAndGet() == 2)
                 throw new SQLException("Interrupted chunk write");
         });
         assertThrows(SQLException.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3)));
@@ -218,7 +218,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2)
+            if (sql.startsWith("INSERT INTO `website`") && sql.contains(" WHERE (EXISTS (SELECT 1 FROM website") && chunks.incrementAndGet() == 2)
                 throw new AssertionError("Simulated process termination");
         });
         assertThrows(AssertionError.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3)));
@@ -235,7 +235,7 @@ public class DbFileChunksTest {
         service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3));
         AtomicInteger deletes = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("DELETE FROM website WHERE name>=") && deletes.incrementAndGet() == 1)
+            if (sql.startsWith("DELETE FROM `website` WHERE (name>=") && deletes.incrementAndGet() == 1)
                 throw new SQLException("Storage unavailable");
         });
         assertThrows(SQLException.class, () -> service.deleteByKey("/files/a.bin"));
@@ -249,7 +249,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2) {
+            if (sql.startsWith("INSERT INTO `website`") && sql.contains(" WHERE (EXISTS (SELECT 1 FROM website") && chunks.incrementAndGet() == 2) {
                 now.addAndGet(DbFileStore.UPLOAD_TIMEOUT + 1);
                 anotherInstance().toDbFile("/files/a.bin", data(7));
             }
@@ -265,7 +265,7 @@ public class DbFileChunksTest {
         service.toDbFile("/files/a.bin", data(11));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2) {
+            if (sql.startsWith("INSERT INTO `website`") && sql.contains(" WHERE (EXISTS (SELECT 1 FROM website") && chunks.incrementAndGet() == 2) {
                 assertArrayEquals(data(11), anotherInstance().loadDbFile("/files/a.bin"));
                 assertEquals(11, anotherInstance().getDbFiles("/files").get(0).getSize());
                 assertThrows(IllegalStateException.class, () -> anotherInstance().toDbFile("/files/a.bin", data(3)));
@@ -273,6 +273,7 @@ public class DbFileChunksTest {
         });
         byte[] replacement = data(DbFileService.CHUNK_BYTES * 3);
         service.toDbFile("/files/a.bin", replacement);
+        assertEquals("All chunk hooks must run, including the competing write", 3, chunks.get());
         assertArrayEquals(replacement, anotherInstance().loadDbFile("/files/a.bin"));
     }
 
@@ -285,7 +286,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         service.toDbFile("/files/a.bin", data(8));
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("UPDATE website SET updatedAt=?,version=version+1,value=?,remark=?")) throw new SQLException("Publication failed");
+            if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")) throw new SQLException("Publication failed");
         });
         assertThrows(SQLException.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 2)));
         assertArrayEquals(data(8), anotherInstance().loadDbFile("/files/a.bin"));
@@ -299,7 +300,7 @@ public class DbFileChunksTest {
         String old = metadata("/files/a.bin").batch;
         AtomicInteger deletes = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("DELETE FROM website WHERE name>=") && deletes.incrementAndGet() == 1)
+            if (sql.startsWith("DELETE FROM `website` WHERE (name>=") && deletes.incrementAndGet() == 1)
                 throw new SQLException("Cleanup interrupted");
         });
         byte[] replacement = data(DbFileService.CHUNK_BYTES * 2 + 19);
@@ -315,7 +316,7 @@ public class DbFileChunksTest {
         Assume.assumeTrue(backend.equals("web-api"));
         AtomicInteger chunks = new AtomicInteger();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT") && chunks.incrementAndGet() == 2)
+            if (sql.startsWith("INSERT INTO `website`") && sql.contains(" WHERE (EXISTS (SELECT 1 FROM website") && chunks.incrementAndGet() == 2)
                 assertTrue(anotherInstance().deleteByPrefix("/files"));
         });
         assertThrows(IllegalStateException.class, () -> service.toDbFile("/files/a.bin", data(DbFileService.CHUNK_BYTES * 3)));

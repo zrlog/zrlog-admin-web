@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.model.WebSite;
 import jakarta.inject.Provider;
 
 import java.sql.SQLException;
@@ -55,16 +56,16 @@ final class DbFileStore {
         String remark = encode(meta);
         // References and deletion intent share one statement. The aggregate derived table also supports
         // MySQL's restriction on selecting an UPDATE target directly in a subquery.
-        boolean claimed = websites.get().execute("UPDATE website SET updatedAt=?,version=version+1,remark=? WHERE name=? AND remark=?"
+        boolean claimed = websites.get().updateRemarkWhere(remark, "name=? AND remark=?"
                         + " AND EXISTS (SELECT 1 FROM user WHERE userId=? AND role=? AND enabled=? AND authVersion=?)"
                         + " AND NOT EXISTS (SELECT 1 FROM log WHERE instr(content,?)>0 OR instr(markdown,?)>0"
                         + " OR instr(thumbnail,?)>0 OR instr(digest,?)>0)"
                         + " AND NOT EXISTS (SELECT 1 FROM log_version WHERE instr(patch_json,?)>0 OR instr(patch_json,?)>0)"
                         + " AND (SELECT reference_count FROM (SELECT count(*) AS reference_count FROM website WHERE name<>?"
                         + " AND NOT (name>=? AND name<?) AND name NOT LIKE 'assistant.cleanup.cursor:%'"
-                        + " AND (instr(value,?)>0 OR instr(value,?)>0)) AS saved_references)=0", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                remark, row.name, row.remark, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(),
-                path, path, path, path, path, escaped, row.name, FILE_PREFIX, "db_film", path, escaped);
+                        + " AND (instr(value,?)>0 OR instr(value,?)>0)) AS saved_references)=0",
+                row.name, row.remark, actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(),
+                path, path, path, path, path, escaped, row.name, FILE_PREFIX, "db_film", path, escaped) == 1;
         if (!claimed) return false;
         recover(new Row(row.name, remark, meta));
         return true;
@@ -79,8 +80,8 @@ final class DbFileStore {
         meta.pendingUntil = clock.getAsLong() + UPLOAD_TIMEOUT;
         String remark = encode(meta);
         if (old == null) {
-            websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value,remark) VALUES(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), FILE_PREFIX + key, "", remark);
-        } else if (!update(old, "remark=?", remark)) {
+            websites.get().insert(WebSiteRepository.entry(FILE_PREFIX + key, "", remark));
+        } else if (!updateRemark(old, remark)) {
             throw changed();
         }
         return new Row(FILE_PREFIX + key, remark, meta);
@@ -88,16 +89,16 @@ final class DbFileStore {
 
     void chunk(Row claim, int index, byte[] bytes) throws SQLException {
         if (clock.getAsLong() >= claim.meta.pendingUntil) throw changed();
-        if (!websites.get().execute("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT ?,?,0,?,? FROM website WHERE name=? AND remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                chunkKey(claim.meta.pendingBatch, index), java.util.Base64.getEncoder().encodeToString(bytes),
-                claim.name, claim.remark)) throw changed();
+        if (!websites.get().insertWhen(WebSiteRepository.entry(chunkKey(claim.meta.pendingBatch, index),
+                        java.util.Base64.getEncoder().encodeToString(bytes), null),
+                "EXISTS (SELECT 1 FROM website WHERE name=? AND remark=?)", claim.name, claim.remark)) throw changed();
     }
 
     void publish(Row claim, DbFileMetadata meta, String inline) throws SQLException {
         if (clock.getAsLong() >= claim.meta.pendingUntil) throw changed();
         meta.retiredBatch = claim.meta.batch;
         String remark = encode(meta);
-        if (!update(claim, "value=?,remark=?", inline, remark)) throw changed();
+        if (!update(claim, WebSiteRepository.entry(null, inline, remark), List.of("value", "remark"))) throw changed();
         // A failed cleanup leaves its batch in remark for a later read/list/delete to retry.
         recover(new Row(claim.name, remark, meta));
     }
@@ -110,7 +111,7 @@ final class DbFileStore {
         meta.pendingUntil = 0;
         meta.retiredBatch = batch;
         String remark = encode(meta);
-        if (update(row, "remark=?", remark)) recover(new Row(row.name, remark, meta));
+        if (updateRemark(row, remark)) recover(new Row(row.name, remark, meta));
     }
 
     Row recover(Row row) throws SQLException {
@@ -128,7 +129,7 @@ final class DbFileStore {
             meta.pendingBatch = null;
             meta.pendingUntil = 0;
             String remark = encode(meta);
-            if (!update(row, "remark=?", remark)) throw changed();
+            if (!updateRemark(row, remark)) throw changed();
             row = new Row(row.name, remark, meta);
         }
         if (meta.retiredBatch != null) {
@@ -136,7 +137,7 @@ final class DbFileStore {
             meta = copy(meta);
             meta.retiredBatch = null;
             String remark = encode(meta);
-            if (!update(row, "remark=?", remark)) throw changed();
+            if (!updateRemark(row, remark)) throw changed();
             row = new Row(row.name, remark, meta);
         }
         if (!meta.ready && meta.pendingBatch == null) {
@@ -152,7 +153,7 @@ final class DbFileStore {
             DbFileMetadata meta = copy(row.meta);
             meta.deleting = true;
             String remark = encode(meta);
-            if (!update(row, "remark=?", remark)) throw changed();
+            if (!updateRemark(row, remark)) throw changed();
             row = new Row(row.name, remark, meta);
         }
         recover(row);
@@ -176,21 +177,22 @@ final class DbFileStore {
     private void removeBatch(String batch) throws SQLException {
         if (batch == null) return;
         requireBatch(batch);
-        websites.get().execute("DELETE FROM website WHERE name>=? AND name<?",
+        websites.get().deleteWhere("name>=? AND name<?",
                 CHUNK_PREFIX + batch + ":", CHUNK_PREFIX + batch + ";");
     }
 
-    private boolean update(Row row, String assignments, Object... values) throws SQLException {
-        java.util.ArrayList<Object> args = new java.util.ArrayList<>(java.util.Arrays.asList(values));
-        args.add(0, new java.sql.Timestamp(System.currentTimeMillis()).toString());
-        args.add(row.name);
-        if (row.remark != null) args.add(row.remark);
-        return websites.get().execute("UPDATE website SET updatedAt=?,version=version+1," + assignments + " WHERE name=? AND "
-                + (row.remark == null ? "remark IS NULL" : "remark=?"), args.toArray());
+    private boolean updateRemark(Row row, String remark) throws SQLException {
+        return update(row, WebSiteRepository.entry(null, null, remark), List.of("remark"));
+    }
+
+    private boolean update(Row row, WebSite patch, List<String> fields) throws SQLException {
+        return websites.get().updateWhere(patch, fields,
+                "name=? AND " + (row.remark == null ? "remark IS NULL" : "remark=?"),
+                row.remark == null ? new Object[]{row.name} : new Object[]{row.name, row.remark}) == 1;
     }
 
     private boolean deleteRow(Row row) throws SQLException {
-        return websites.get().execute("DELETE FROM website WHERE name=? AND remark=?", row.name, row.remark);
+        return websites.get().deleteWhere("name=? AND remark=?", row.name, row.remark) == 1;
     }
 
     static String chunkKey(String batch, int index) {

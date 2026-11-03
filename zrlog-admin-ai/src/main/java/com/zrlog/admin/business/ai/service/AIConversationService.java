@@ -124,9 +124,7 @@ public class AIConversationService {
             // Article deletion is already authorized by AdminArticleService.
             this.websites
                     .get()
-                    .execute(
-                            "update website set updatedAt=?,version=version+1,value=null,remark=? where name like ? escape '!'", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                            UUID.randomUUID().toString(),
+                    .updateContentWhere(null, UUID.randomUUID().toString(), "name like ? escape '!'",
                             "ai!_chat!_message!_u%!_" + articleId);
             return this.websiteKvService.remove(buildCacheKey(articleId));
         } catch (SQLException e) {
@@ -245,16 +243,17 @@ public class AIConversationService {
             String value = json.toJson(updated), revision = UUID.randomUUID().toString();
             if (row == null) {
                 try {
-                    db.withSession(c -> db.update(c, "insert into website(createdAt,updatedAt,version,name,value,remark) values(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), key, value, revision));
+                    db.withSession(c -> db.repository(c, WebSite.class).insert(WebSiteRepository.entry(key, value, revision)));
                     return true;
                 } catch (SQLException e) {
                     if (db.withSession(c -> db.scalar(c, "select name from website where name=?", key)) == null) throw e;
                 }
             } else {
                 Object previous = row.getRemark();
-                int count = previous == null
-                        ? db.withSession(c -> db.update(c, "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark is null", new java.sql.Timestamp(System.currentTimeMillis()).toString(), value, revision, key))
-                        : db.withSession(c -> db.update(c, "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), value, revision, key, previous));
+                int count = db.withSession(c -> db.repository(c, WebSite.class).updateWhere(
+                        WebSiteRepository.entry(null, value, revision), List.of("value", "remark"),
+                        "name=? AND " + (previous == null ? "remark IS NULL" : "remark=?"),
+                        previous == null ? new Object[]{key} : new Object[]{key, previous}));
                 if (count == 1) return true;
             }
         }
