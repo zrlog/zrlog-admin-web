@@ -7,6 +7,7 @@ import com.zrlog.admin.business.exception.PasskeyRequestBusyException;
 import com.zrlog.admin.business.exception.PasskeyVerificationException;
 import com.zrlog.admin.business.rest.response.PasskeyOptionsResponse;
 import com.zrlog.admin.business.rest.response.PasskeySummaryResponse;
+import com.zrlog.admin.data.repository.AdminUserRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -110,7 +111,7 @@ public class PasskeyServiceCapacityTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component(db.dataSource()).mfa(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new UserRepository(db.dataSource())),
+                                    () -> new AdminUserRepository(db.dataSource())),
                             () -> new UserRepository(db.dataSource()),
                             () -> new UserPasskeyRepository(db.dataSource()),
                             () -> new UserPasskeyChallengeRepository(db.dataSource()),
@@ -146,7 +147,7 @@ public class PasskeyServiceCapacityTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component(db.dataSource()).mfa(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new UserRepository(db.dataSource())),
+                                    () -> new AdminUserRepository(db.dataSource())),
                             () -> new UserRepository(db.dataSource()),
                             () -> new UserPasskeyRepository(db.dataSource()),
                             () -> new UserPasskeyChallengeRepository(db.dataSource()),

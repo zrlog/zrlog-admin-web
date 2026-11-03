@@ -22,6 +22,7 @@ import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.data.repository.AdminCommentRepository;
 import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.AdminUserRepository;
 import com.zrlog.admin.support.*;
 import com.zrlog.admin.test.support.DockerControlStub;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -776,7 +777,7 @@ public class AdminControllerDelegationTest {
                                             java.util.Collections::emptySet,
                                             AccountServicesFixture.component(db.dataSource()).mfa(),
                                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                                            () -> new UserRepository(db.dataSource())),
+                                            () -> new AdminUserRepository(db.dataSource())),
                                     () -> new UserRepository(db.dataSource()),
                                     () -> new UserPasskeyRepository(db.dataSource()),
                                     () -> new UserPasskeyChallengeRepository(db.dataSource()),

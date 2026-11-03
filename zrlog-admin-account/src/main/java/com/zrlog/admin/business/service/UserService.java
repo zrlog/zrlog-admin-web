@@ -14,6 +14,7 @@ import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
+import com.zrlog.admin.data.repository.AdminUserRepository;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.cache.dto.UserBasicDTO;
@@ -33,7 +34,7 @@ import java.util.function.Supplier;
 @Singleton
 public class UserService {
     private final UserPreferenceService userPreferenceService;
-    private final jakarta.inject.Provider<UserRepository> userProvider;
+    private final jakarta.inject.Provider<AdminUserRepository> userProvider;
 
     private final Supplier<Set<String>> cacheableApiUris;
     private final MfaService mfaService;
@@ -43,7 +44,7 @@ public class UserService {
             Supplier<Set<String>> cacheableApiUris,
             MfaService mfaService,
             UserPreferenceService userPreferenceService,
-            jakarta.inject.Provider<UserRepository> userProvider) {
+            jakarta.inject.Provider<AdminUserRepository> userProvider) {
         this.mfaService = mfaService;
         this.userPreferenceService = userPreferenceService;
         this.userProvider = userProvider;
@@ -59,7 +60,7 @@ public class UserService {
             return new UpdateRecordResponse(false);
         }
         if (StringUtils.isNotEmpty(updatePasswordRequest.getOldPassword()) && StringUtils.isNotEmpty(updatePasswordRequest.getNewPassword())) {
-            UserRepository user = this.userProvider.get();
+            AdminUserRepository user = this.userProvider.get();
             User current = user.loadById((long) currentUserId);
             String dbPassword = current == null ? null : current.getPassword();
             String oldPassword = normalizeSubmittedPassword(updatePasswordRequest.getOldPassword());
@@ -136,7 +137,7 @@ public class UserService {
         if (StringUtils.isEmpty(loginRequest.getUserName()) || StringUtils.isEmpty(loginRequest.getPassword())) {
             throw new UserNameAndPasswordRequiredException();
         }
-        UserRepository userDao = this.userProvider.get();
+        AdminUserRepository userDao = this.userProvider.get();
         User user = userDao.getUserByUserName(loginRequest.getUserName().toLowerCase());
         if (Objects.isNull(user) || !AccountAccess.from(user).isEnabled()) {
             throw new UserNameOrPasswordException();

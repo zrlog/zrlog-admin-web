@@ -14,6 +14,7 @@ import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
+import com.zrlog.admin.data.repository.AdminUserRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -54,7 +55,7 @@ public class UserServiceDatabaseTest {
                             () -> uris,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()));
+                            () -> new AdminUserRepository(db.dataSource()));
             var first = users.getBasicUserInfo(1, "first");
             assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
             uris.clear();
@@ -79,7 +80,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()))
+                            () -> new AdminUserRepository(db.dataSource()))
                             .login(request);
             String upgradedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -107,7 +108,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()))
+                            () -> new AdminUserRepository(db.dataSource()))
                             .updatePassword(1, request);
             String updatedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -126,7 +127,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()))
+                            () -> new AdminUserRepository(db.dataSource()))
                             .getUserInfoWithCache(1, "session-key", db.unitCacheService());
 
             assertEquals("admin", response.getUserName());
@@ -150,7 +151,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()));
+                            () -> new AdminUserRepository(db.dataSource()));
             UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
             UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.unitCacheService());
             assertEquals("en_US", owner.getLanguage());
@@ -193,7 +194,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()));
+                            () -> new AdminUserRepository(db.dataSource()));
 
             assertThrows(UserNameAndPasswordRequiredException.class, () -> service.login(loginRequest("", "")));
             assertThrows(UserNameOrPasswordException.class, () -> service.login(loginRequest("missing", "secret")));
@@ -219,7 +220,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()));
+                            () -> new AdminUserRepository(db.dataSource()));
             UserBasicInfoResponse before = service.getBasicUserInfo(1, "session-key");
             UpdateAdminRequest request = new UpdateAdminRequest();
             request.setUserName("root");
@@ -252,7 +253,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new UserRepository(db.dataSource()));
+                            () -> new AdminUserRepository(db.dataSource()));
             UpdateAdminRequest missingComma = profileRequest("data:image/png;base64");
             UpdateAdminRequest missingBase64Marker = profileRequest("data:image/png,abc");
 
@@ -271,7 +272,7 @@ public class UserServiceDatabaseTest {
                                 java.util.Collections::emptySet,
                                 AccountServicesFixture.component(db.dataSource()).mfa(),
                                 AccountServicesFixture.component(db.dataSource()).preferences(),
-                                () -> new UserRepository(db.dataSource()));
+                                () -> new AdminUserRepository(db.dataSource()));
                 UpdateAdminRequest input = profileRequest("data:image/webp;base64,AQID");
                 assertThrows(
                         PermissionErrorException.class, () -> service.update(1, input, null, null));
