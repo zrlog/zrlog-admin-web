@@ -89,11 +89,7 @@ public class MessageCenterStateService {
         try {
             return this.webSiteProvider
                     .get()
-                    .execute(
-                            "update website set updatedAt=?,version=version+1,value=? where name=? and value=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                            GSON.toJson(next),
-                            STATUS_DB_KEY,
-                            expectedRaw);
+                    .updateValueWhere(GSON.toJson(next), "name=? AND value=?", STATUS_DB_KEY, expectedRaw) == 1;
         } catch (SQLException e) {
             LOGGER.log(Level.FINE, "Update message center status failed", e);
             return false;

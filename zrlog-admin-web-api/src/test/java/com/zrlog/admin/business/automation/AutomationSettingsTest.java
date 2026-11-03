@@ -66,12 +66,16 @@ public class AutomationSettingsTest {
             TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
             AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             AutomationSettingsService service = new AutomationSettingsService(store, authority, () -> 1000, () -> false);
+            var revoked = new java.util.concurrent.atomic.AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT")) {
+                if (sql.startsWith("INSERT INTO `website`") && sql.contains(" WHERE (")
+                        && java.util.Arrays.asList(args).contains(AutomationSettingsService.KEY)) {
+                    revoked.set(true);
                     db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
                 }
             });
             assertThrows(IllegalStateException.class, () -> service.rotate(actor, 0));
+            assertTrue("The account must be revoked during the insert", revoked.get());
             assertNull(store.read(AutomationSettingsService.KEY, AutomationSettingsService.Settings.class));
         }
     }

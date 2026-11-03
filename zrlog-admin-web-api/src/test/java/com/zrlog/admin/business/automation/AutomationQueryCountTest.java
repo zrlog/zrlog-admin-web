@@ -36,6 +36,8 @@ public class AutomationQueryCountTest {
         db.execute("UPDATE website SET remark=? WHERE name>=? AND name<?", "~", AutomationStore.TASK_PREFIX, "assistant.v1.task;");
         component.ticks().tick("internal", null, 660000);
         db.afterWebApiQuery((sql, params) -> {
+            // INSERT RETURNING is counted once by the write hook, not again as a read request.
+            if (!sql.startsWith("SELECT")) return;
             reads.incrementAndGet();
             if (sql.contains("ORDER BY name DESC LIMIT ?") && java.util.Arrays.asList(params).contains(1000)) retentionScans.incrementAndGet();
         });

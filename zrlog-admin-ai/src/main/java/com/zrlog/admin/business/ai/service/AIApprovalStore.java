@@ -8,6 +8,8 @@ import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -90,8 +92,8 @@ final class AIApprovalStore {
         }
         if (old == null) {
             try {
-                db.withSession(c -> db.update(c, "insert into website(createdAt,updatedAt,version,name,value,remark) values(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                        key(run.userId, run.articleId), value, run.revision));
+                db.withSession(c -> db.repository(c, WebSite.class).insert(
+                        WebSiteRepository.entry(key(run.userId, run.articleId), value, run.revision)));
             } catch (SQLException e) {
                 run.revision = null;
                 if (read(run.userId, run.articleId) != null) throw new Changed();
@@ -99,9 +101,9 @@ final class AIApprovalStore {
             }
         } else {
             try {
-                if (db.withSession(c -> db.update(c,
-                        "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                        value, run.revision, key(run.userId, run.articleId), old.revision)) != 1) throw new Changed();
+                if (db.withSession(c -> db.repository(c, WebSite.class).updateWhere(
+                        WebSiteRepository.entry(null, value, run.revision), List.of("value", "remark"),
+                        "name=? AND remark=?", key(run.userId, run.articleId), old.revision)) != 1) throw new Changed();
             } catch (SQLException | RuntimeException e) {
                 run.revision = null;
                 throw e;
@@ -120,9 +122,9 @@ final class AIApprovalStore {
         run.revision = next;
         try {
             String value = serialize(run);
-            if (db.withSession(c -> db.update(c,
-                    "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                    value, next, key(run.userId, run.articleId), expected)) != 1) throw new Changed();
+            if (db.withSession(c -> db.repository(c, WebSite.class).updateWhere(
+                    WebSiteRepository.entry(null, value, next), List.of("value", "remark"),
+                    "name=? AND remark=?", key(run.userId, run.articleId), expected)) != 1) throw new Changed();
         } catch (SQLException | RuntimeException e) {
             run.revision = expected;
             run.status = previousStatus;

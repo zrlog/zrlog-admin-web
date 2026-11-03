@@ -281,9 +281,10 @@ public class AutomationEngineTest {
         StoredTask task = service.save(actor, plan("interval"));
         AtomicBoolean paused = new AtomicBoolean();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.equals("UPDATE website SET updatedAt=?,version=version+1,value=?,remark=? WHERE name=? AND value=?")
+            if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")
+                    && !sql.contains("FROM user")
                     && (AutomationStore.TASK_PREFIX + task.id).equals(args[3])
-                    && AutomationStore.JSON.fromJson(args[1].toString(), StoredTask.class).activeRun == null
+                    && AutomationStore.JSON.fromJson(args[0].toString(), StoredTask.class).activeRun == null
                     && paused.compareAndSet(false, true)) {
                 try { service.setEnabled(actor, task.id, task.revision, false); }
                 catch (Exception error) { throw new AssertionError(error); }
@@ -379,13 +380,14 @@ public class AutomationEngineTest {
         StoredTask task = service.save(actor, plan("once"));
         AtomicBoolean changed = new AtomicBoolean();
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("UPDATE website SET updatedAt=?,version=version+1,value=?,remark=?") && changed.compareAndSet(false, true)) {
+            if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?") && changed.compareAndSet(false, true)) {
                 db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
             }
         });
         now.addAndGet(1000);
         assertEquals(0, engine().tick("external", 60000).executed);
         assertEquals(0, calls.get());
+        assertTrue("Revocation must happen at the conditional claim", changed.get());
         assertNull(store.task(task.id).value.activeRun);
         assertEquals(1, engine().tick("external", 60000).needsAttention);
     }

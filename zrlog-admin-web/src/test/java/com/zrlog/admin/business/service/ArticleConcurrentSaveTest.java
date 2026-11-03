@@ -72,7 +72,7 @@ public class ArticleConcurrentSaveTest {
                         + (operation.equals("create") ? "create" : id);
                 AtomicBoolean revoked = new AtomicBoolean();
                 db.beforeWebApiUpdate((sql, params) -> {
-                    if (sql.toLowerCase(java.util.Locale.ROOT).startsWith("insert into website") && Arrays.asList(params).contains(lockKey)
+                    if (sql.replace("`", "").toLowerCase(java.util.Locale.ROOT).startsWith("insert into website") && Arrays.asList(params).contains(lockKey)
                             && revoked.compareAndSet(false, true)) {
                         db.execute("update user set authVersion=authVersion+1 where userId=1");
                     }
