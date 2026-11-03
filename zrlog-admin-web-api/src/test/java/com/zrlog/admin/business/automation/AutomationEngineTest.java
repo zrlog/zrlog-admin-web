@@ -97,7 +97,14 @@ public class AutomationEngineTest {
         var step = new AutomationModels.ChildResult(); step.id = "save"; step.status = "success";
         step.actionPath = "/article-edit?id=42";
         executionResult.children = List.of(step);
-        action = () -> { executionContext.checkpoint(executionResult); throw new IllegalStateException("Lost later response"); };
+        action = () -> {
+            step.status = "running";
+            executionContext.checkpoint(executionResult);
+            step.status = "success";
+            executionContext.checkpoint(executionResult);
+            step.status = "failed"; // An unsaved mutation must not change the durable snapshot.
+            throw new IllegalStateException("Lost later response");
+        };
         var task = service.save(actor, plan("interval"));
         var run = engine().runNow(actor, task.id, task.revision, 60000);
         assertEquals("uncertain", run.status);
@@ -249,6 +256,48 @@ public class AutomationEngineTest {
         assertEquals("needs_attention", store.task(task.id).value.lastStatus);
         assertFalse(store.task(task.id).value.enabled);
         assertThrows(PermissionErrorException.class, () -> service.tasks(actor, 0));
+    }
+
+    @Test
+    public void permissionChangesDuringExecutionAreDetectedByTheNextFence() throws Exception {
+        StoredTask task = service.save(actor, plan("interval"));
+        AtomicBoolean nextAction = new AtomicBoolean();
+        action = () -> {
+            db.execute("UPDATE user SET authVersion=authVersion+1 WHERE userId=?", actor.getUserId());
+            executionContext.checkActive();
+            nextAction.set(true);
+        };
+        var run = engine().runNow(actor, task.id, task.revision, 60000);
+        assertFalse(nextAction.get());
+        assertEquals("needs_attention", run.status);
+        assertEquals("automation.permissionChanged", run.errorCode);
+        assertFalse(store.task(task.id).value.enabled);
+        assertNull(store.task(task.id).value.activeRun);
+    }
+
+    @Test
+    public void pauseAfterTheFinalFenceIsPreservedWhenReleaseRetriesItsConditionalWrite() throws Exception {
+        if (!"web-api".equals(backend)) return;
+        StoredTask task = service.save(actor, plan("interval"));
+        AtomicBoolean paused = new AtomicBoolean();
+        db.beforeWebApiUpdate((sql, args) -> {
+            if (sql.equals("UPDATE website SET value=?,remark=? WHERE name=? AND value=?")
+                    && (AutomationStore.TASK_PREFIX + task.id).equals(args[2])
+                    && AutomationStore.JSON.fromJson(args[0].toString(), StoredTask.class).activeRun == null
+                    && paused.compareAndSet(false, true)) {
+                try { service.setEnabled(actor, task.id, task.revision, false); }
+                catch (Exception error) { throw new AssertionError(error); }
+            }
+        });
+        now.addAndGet(1000);
+        assertEquals(1, engine().tick("internal", 60000).executed);
+        assertTrue(paused.get());
+        StoredTask stopped = store.task(task.id).value;
+        assertFalse(stopped.enabled);
+        assertNull(stopped.activeRun);
+        assertEquals("success", stopped.lastStatus);
+        now.addAndGet(600000);
+        assertEquals(0, engine().tick("external", 60000).executed);
     }
 
     @Test

@@ -94,6 +94,11 @@ public final class AutomationSettingsService {
     }
 
     public String authenticate(String authorization) throws SQLException {
+        return authenticateTrigger(authorization).credentialId();
+    }
+
+    /** Authentication and budget must come from the same fresh settings read. */
+    public TriggerAuthorization authenticateTrigger(String authorization) throws SQLException {
         if (authorization == null || authorization.length() > 128) throw new PermissionErrorException();
         String[] parts = authorization.trim().split("\\s+");
         if (parts.length != 2 || !parts[0].equalsIgnoreCase("Bearer")
@@ -103,7 +108,20 @@ public final class AutomationSettingsService {
                 settings.tokenHash.getBytes(StandardCharsets.US_ASCII), digest(parts[1]).getBytes(StandardCharsets.US_ASCII))) {
             throw new PermissionErrorException();
         }
-        return settings.tokenId;
+        return new TriggerAuthorization(settings.tokenId, settings.externalBudgetSeconds * 1000L);
+    }
+
+    public static final class TriggerAuthorization {
+        private final String credentialId;
+        private final long budgetMillis;
+
+        private TriggerAuthorization(String credentialId, long budgetMillis) {
+            this.credentialId = credentialId;
+            this.budgetMillis = budgetMillis;
+        }
+
+        public String credentialId() { return credentialId; }
+        public long budgetMillis() { return budgetMillis; }
     }
 
     public boolean internalEnabled() throws SQLException { return !faas.getAsBoolean() && readStored().internalEnabled; }

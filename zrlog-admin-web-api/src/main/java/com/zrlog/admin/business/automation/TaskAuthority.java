@@ -41,6 +41,10 @@ public final class TaskAuthority {
 
     public void revalidateExecution(AccountAccess actor) { identities.revalidate(actor); }
 
+    void revalidateExecution(AccountAccess actor, AccountAccess current) {
+        AccountIdentityService.requireUnchanged(actor, current);
+    }
+
     public AccountAccess siteActor() throws SQLException {
         AccountAccess actor = AccountAccess.from(users.get().queryFirstWithParams(
                 "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));

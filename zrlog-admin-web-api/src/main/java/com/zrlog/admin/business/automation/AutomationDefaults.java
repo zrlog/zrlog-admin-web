@@ -28,11 +28,15 @@ public final class AutomationDefaults {
         this.store = store; this.users = users; this.settings = settings; this.registry = registry;
     }
 
-    public boolean initialize() throws SQLException { return initialize(KEY, false); }
-    public boolean initializePluginTrigger() throws SQLException { return initialize(PLUGIN_KEY, true); }
+    public boolean initialize() throws SQLException { return initialize(KEY, false, store.read(KEY, State.class)); }
+    public boolean initializePluginTrigger() throws SQLException { return initialize(PLUGIN_KEY, true, store.read(PLUGIN_KEY, State.class)); }
 
-    private boolean initialize(String key, boolean plugins) throws SQLException {
-        var row = store.read(key, State.class);
+    void initialize(AutomationStore.ReadBatch batch) throws SQLException {
+        initialize(KEY, false, batch.get(KEY, State.class));
+        initialize(PLUGIN_KEY, true, batch.get(PLUGIN_KEY, State.class));
+    }
+
+    private boolean initialize(String key, boolean plugins, AutomationStore.Snapshot<State> row) throws SQLException {
         if (row != null && row.value.complete) return true;
         AccountAccess actor = AccountAccess.from(users.get().queryFirstWithParams(
                 "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));

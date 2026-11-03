@@ -7,6 +7,9 @@ import java.util.List;
 
 /** Optional capability of an application plugin; registration also works without a resident timer. */
 public interface ScheduledTaskProvider {
+    /** Stable registration metadata. Override to avoid loading runtime settings just to locate a provider. */
+    default List<String> types() { return definitions().stream().map(definition -> definition.type).collect(java.util.stream.Collectors.toList()); }
+
     List<AutomationModels.Definition> definitions();
 
     /** Validate and normalize provider parameters with the user's current permissions. */

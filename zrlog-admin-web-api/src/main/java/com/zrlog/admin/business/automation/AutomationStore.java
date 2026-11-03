@@ -10,6 +10,8 @@ import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +32,58 @@ public final class AutomationStore {
     public Snapshot<StoredTask> task(String id) throws SQLException {
         requireId(id);
         return read(TASK_PREFIX + id, StoredTask.class);
+    }
+
+    ExecutionState executionState(String taskId, int userId) throws SQLException {
+        requireId(taskId);
+        var row = websites.get().queryFirstWithParams(
+                "SELECT w.name,w.value,u.userId,u.role,u.enabled,u.authVersion FROM website w"
+                        + " LEFT JOIN user u ON u.userId=? WHERE w.name=?", userId, TASK_PREFIX + taskId);
+        return row == null ? null : new ExecutionState(snapshot(row, StoredTask.class),
+                AccountAccess.from(row.get("userId") == null ? null : row));
+    }
+
+    static final class ExecutionState {
+        private final Snapshot<StoredTask> task;
+        private final AccountAccess actor;
+
+        ExecutionState(Snapshot<StoredTask> task, AccountAccess actor) {
+            this.task = task;
+            this.actor = actor;
+        }
+
+        Snapshot<StoredTask> task() { return task; }
+        AccountAccess actor() { return actor; }
+    }
+
+    /** Bounded reads shared only by the operation that requested these exact keys. */
+    public ReadBatch readBatch(Collection<String> requested) throws SQLException {
+        var keys = requested.stream().distinct().collect(java.util.stream.Collectors.toList());
+        if (keys.size() > 100) throw new IllegalArgumentException("automation.invalidBatch");
+        Map<String, Map<String, Object>> found = new LinkedHashMap<>();
+        if (!keys.isEmpty()) {
+            var placeholders = String.join(",", java.util.Collections.nCopies(keys.size(), "?"));
+            for (var row : websites.get().queryListWithParams(
+                    "SELECT name,value FROM website WHERE name IN (" + placeholders + ")", keys.toArray())) {
+                found.put(Objects.toString(row.get("name")), row);
+            }
+        }
+        return new ReadBatch(keys, found);
+    }
+
+    public static final class ReadBatch {
+        private final List<String> keys;
+        private final Map<String, Map<String, Object>> rows;
+
+        private ReadBatch(List<String> keys, Map<String, Map<String, Object>> rows) {
+            this.keys = keys; this.rows = rows;
+        }
+
+        public <T> Snapshot<T> get(String key, Class<T> type) {
+            if (!keys.contains(key)) throw new IllegalArgumentException("automation.keyNotRead");
+            var row = rows.get(key);
+            return row == null ? null : snapshot(row, type);
+        }
     }
 
     public List<Snapshot<StoredTask>> tasks(int ownerId, int limit, int offset) throws SQLException {
@@ -296,5 +350,10 @@ public final class AutomationStore {
         }
 
         public T copy(Class<T> type) { return JSON.fromJson(raw, type); }
+
+        static <T> Snapshot<T> capture(String key, T value, Class<T> type) {
+            String raw = JSON.toJson(value);
+            return new Snapshot<>(key, raw, JSON.fromJson(raw, type));
+        }
     }
 }

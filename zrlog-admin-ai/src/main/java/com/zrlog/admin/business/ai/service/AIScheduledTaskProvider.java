@@ -53,6 +53,9 @@ public final class AIScheduledTaskProvider implements ScheduledTaskProvider {
         this.preferences = preferences;
     }
 
+    @Override
+    public List<String> types() { return List.of(TYPE); }
+
     @Override public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = TYPE;

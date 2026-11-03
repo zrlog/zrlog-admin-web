@@ -31,14 +31,14 @@ public final class AutomationTickInterceptor implements HandleAbleInterceptor {
             response.renderCode(405);
             return false;
         }
-        String tokenId;
-        try { tokenId = settings.authenticate(request.getHeader("Authorization")); }
+        AutomationSettingsService.TriggerAuthorization authorization;
+        try { authorization = settings.authenticateTrigger(request.getHeader("Authorization")); }
         catch (PermissionErrorException error) {
             response.addHeader("WWW-Authenticate", "Bearer");
             response.renderCode(401);
             return false;
         }
-        response.renderJson(new ApiStandardResponse<>(ticks.tick("external", tokenId, settings.externalBudgetMillis())));
+        response.renderJson(new ApiStandardResponse<>(ticks.tick("external", authorization.credentialId(), authorization.budgetMillis())));
         return false;
     }
 }

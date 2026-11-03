@@ -42,13 +42,17 @@ public final class AccountIdentityService {
         try {
             if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
             AccountAccess current = AccountAccess.from(users.get().loadById(actor.getUserId()));
-            if (!current.isEnabled() || current.getAuthVersion() != actor.getAuthVersion()
-                    || !current.getRole().equals(actor.getRole())) {
-                throw new PermissionErrorException();
-            }
-            return actor;
+            return requireUnchanged(actor, current);
         } catch (SQLException e) {
             throw new PermissionErrorException();
         }
+    }
+
+    /** Validate an account fetched by a combined database read, preserving delegation restrictions. */
+    public static AccountAccess requireUnchanged(AccountAccess actor, AccountAccess current) {
+        if (actor == null || !actor.isEnabled() || current == null || !current.isEnabled()
+                || current.getUserId() != actor.getUserId() || current.getAuthVersion() != actor.getAuthVersion()
+                || !current.getRole().equals(actor.getRole())) throw new PermissionErrorException();
+        return actor;
     }
 }

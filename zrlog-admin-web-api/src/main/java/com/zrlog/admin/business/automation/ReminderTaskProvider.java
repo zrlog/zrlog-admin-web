@@ -9,6 +9,9 @@ import java.util.List;
 /** Personal reminders work without an AI provider or a plugin-core process. */
 public final class ReminderTaskProvider implements ScheduledTaskProvider {
     @Override
+    public List<String> types() { return List.of("assistant.reminder"); }
+
+    @Override
     public List<AutomationModels.Definition> definitions() {
         AutomationModels.Definition definition = new AutomationModels.Definition();
         definition.type = "assistant.reminder";

@@ -18,7 +18,7 @@ public final class AutomationTickService {
     }
 
     public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock, AutomationDefaults defaults) {
-        this(engine, store, clock, defaults, budget -> { });
+        this(engine, store, clock, defaults, (budget, receipt) -> { });
     }
 
     public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock,
@@ -31,18 +31,22 @@ public final class AutomationTickService {
         if (!List.of("internal", "external").contains(source) || budgetMillis < 1 || budgetMillis > 660000)
             throw new IllegalArgumentException("automation.invalidTrigger");
         long deadline = Math.addExact(clock.getAsLong(), budgetMillis);
-        if (defaults != null) { defaults.initialize(); defaults.initializePluginTrigger(); }
         String key = "assistant.v1.tick:" + source;
+        var initial = store.readBatch(List.of(AutomationDefaults.KEY, AutomationDefaults.PLUGIN_KEY,
+                key, AutomaticUpgradeTaskProvider.KEY));
+        if (defaults != null) defaults.initialize(initial);
         Health health = new Health();
         health.id = UUID.randomUUID().toString();
         health.source = source;
         health.credentialId = credentialId;
         health.startedAt = clock.getAsLong();
         health.status = "running";
-        AutomationStore.Snapshot<Health> before = store.read(key, Health.class);
-        store.write(key, before, health);
+        AutomationStore.Snapshot<Health> before = initial.get(key, Health.class);
+        var running = AutomationStore.Snapshot.capture(key, health, Health.class);
+        boolean recorded = store.write(key, before, health);
         try {
-            completion.run(Math.max(0, deadline - clock.getAsLong()));
+            completion.run(Math.max(0, deadline - clock.getAsLong()),
+                    initial.get(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
             long remaining = deadline - clock.getAsLong();
             health.result = remaining > 0 ? engine.tick(source, remaining) : new AutomationModels.TickResult();
             if (remaining <= 0) health.result.budgetExhausted = true;
@@ -53,8 +57,8 @@ public final class AutomationTickService {
             throw error;
         } finally {
             health.finishedAt = clock.getAsLong();
-            AutomationStore.Snapshot<Health> current = store.read(key, Health.class);
-            if (current != null && health.id.equals(current.value.id)) store.write(key, current, health);
+            // Only replace the exact running record we successfully wrote; a newer tick wins.
+            if (recorded) store.write(key, running, health);
         }
     }
 
@@ -75,5 +79,7 @@ public final class AutomationTickService {
     }
 
     @FunctionalInterface
-    public interface Completion { void run(long budgetMillis) throws SQLException; }
+    public interface Completion {
+        void run(long budgetMillis, AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> receipt) throws SQLException;
+    }
 }

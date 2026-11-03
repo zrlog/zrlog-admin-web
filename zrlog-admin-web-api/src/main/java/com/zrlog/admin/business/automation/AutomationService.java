@@ -159,11 +159,12 @@ public final class AutomationService {
     }
 
     public List<StoredTask> systemTasks(AccountAccess actor) throws SQLException {
-        actor = authority.current(actor);
         List<StoredTask> result = new java.util.ArrayList<>();
-        for (var definition : definitions(actor)) {
-            if (!definition.systemTask) continue;
-            var row = store.task(AutomationDefaults.systemId(definition.type));
+        var keys = definitions(actor).stream().filter(definition -> definition.systemTask)
+                .map(definition -> AutomationStore.TASK_PREFIX + AutomationDefaults.systemId(definition.type)).collect(java.util.stream.Collectors.toList());
+        var batch = store.readBatch(keys);
+        for (String key : keys) {
+            var row = batch.get(key, StoredTask.class);
             if (row != null) result.add(row.value);
         }
         return result;

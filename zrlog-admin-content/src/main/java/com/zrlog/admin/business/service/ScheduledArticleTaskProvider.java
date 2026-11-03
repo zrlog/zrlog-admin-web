@@ -27,6 +27,9 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
+    public List<String> types() { return List.of("article.publish"); }
+
+    @Override
     public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = "article.publish";

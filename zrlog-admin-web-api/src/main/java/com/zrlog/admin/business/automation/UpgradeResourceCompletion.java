@@ -28,7 +28,10 @@ final class UpgradeResourceCompletion {
     }
 
     void complete(long budgetMillis) throws SQLException {
-        var before = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
+        complete(budgetMillis, store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+    }
+
+    void complete(long budgetMillis, AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> before) throws SQLException {
         if (before == null || !"assistant".equals(before.value.source) || !installed(before.value)) return;
         var receipt = before.value;
         if ("confirmed".equals(receipt.state)) return;

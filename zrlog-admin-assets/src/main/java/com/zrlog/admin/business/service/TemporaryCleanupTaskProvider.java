@@ -23,6 +23,9 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
+    public List<String> types() { return List.of("system.cleanup-temporary"); }
+
+    @Override
     public List<AutomationModels.Definition> definitions() {
         var definition = new AutomationModels.Definition();
         definition.type = "system.cleanup-temporary";
