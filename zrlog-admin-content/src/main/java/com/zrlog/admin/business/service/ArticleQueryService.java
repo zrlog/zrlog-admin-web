@@ -23,7 +23,7 @@ import com.zrlog.common.vo.SocialPreviewDTO;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.util.SocialPreviewUtils;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
 import com.zrlog.util.ThreadUtils;
@@ -51,7 +51,7 @@ public class ArticleQueryService {
     private final AdminPageDataFactory pages;
     private final AccountPermissionService permissionService;
     private final UserPreferenceService userPreferenceService;
-    private final jakarta.inject.Provider<LogRepository> logProvider;
+    private final jakarta.inject.Provider<AdminLogRepository> logProvider;
 
     @Inject
     public ArticleQueryService(
@@ -60,7 +60,7 @@ public class ArticleQueryService {
             AdminPageDataFactory pages,
             AccountPermissionService permissionService,
             UserPreferenceService userPreferenceService,
-            jakarta.inject.Provider<LogRepository> logProvider) {
+            jakarta.inject.Provider<AdminLogRepository> logProvider) {
         this.cacheService = cacheService;
         this.assistant = Objects.requireNonNull(assistant);
         this.pages = pages;
@@ -170,7 +170,7 @@ public class ArticleQueryService {
     private ArticleStatusCountResponse getStatusCounts(Integer authorId, Integer privateOwnerId) {
         ArticleStatusCountResponse counts = new ArticleStatusCountResponse();
         try {
-            LogRepository log = this.logProvider.get();
+            AdminLogRepository log = this.logProvider.get();
             List<Object> countParams = new ArrayList<>(Arrays.asList(false, false, true, true));
             if (authorId != null) countParams.add(authorId);
             if (privateOwnerId != null) {
@@ -185,7 +185,7 @@ public class ArticleQueryService {
                                     + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
                                     + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount "
                                     + "FROM "
-                                    + LogRepository.TABLE_NAME
+                                    + AdminLogRepository.TABLE_NAME
                                     + " l "
                                     + "inner join user u on u.userId = l.userId "
                                     + "inner join type t on t.typeId = l.typeId "
@@ -222,7 +222,7 @@ public class ArticleQueryService {
                             () -> {
                                 return this.logProvider
                                         .get()
-                                        .adminFind(
+                                        .find(
                                                 pageRequest,
                                                 keywords,
                                                 typeAlias,
@@ -289,7 +289,7 @@ public class ArticleQueryService {
                         .get()
                         .queryList(
                                 "select releaseTime from "
-                                        + LogRepository.TABLE_NAME
+                                        + AdminLogRepository.TABLE_NAME
                                         + " where releaseTime >= ? order by releaseTime desc",
                                 ArticleBasicDTO.class, ResultValueConvertUtils.formatDate(
                                         calendar.getTime(), "yyyy-MM-dd"));
@@ -415,7 +415,7 @@ public class ArticleQueryService {
     }
 
     public LoadEditArticleResponse loadDetail(AccountAccess access, String id, HttpRequest request) throws SQLException {
-        ArticleBasicDTO log = this.logProvider.get().adminFindByIdOrAlias(id);
+        ArticleBasicDTO log = this.logProvider.get().findByIdOrAlias(id);
         if (log == null) {
             throw new NotFindDbEntryException();
         }

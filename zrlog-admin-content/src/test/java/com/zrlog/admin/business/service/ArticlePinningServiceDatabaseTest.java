@@ -13,7 +13,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 
@@ -56,7 +56,7 @@ public class ArticlePinningServiceDatabaseTest {
             Long second = createArticle("Second", false, false, db.dataSource());
             Long third = createArticle("Third", false, false, db.dataSource());
             ArticlePinningService service =
-                    new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
+                    new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
 
             assertIds(service.pin(first), first);
             assertIds(service.pin(second), second, first);
@@ -80,7 +80,7 @@ public class ArticlePinningServiceDatabaseTest {
             Long draft = createArticle("Draft", false, true, ignored.dataSource());
             Long privateArticle = createArticle("Private", true, false, ignored.dataSource());
             ArticlePinningService service =
-                    new ArticlePinningService(() -> new LogRepository(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource()));
+                    new ArticlePinningService(() -> new AdminLogRepository(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource()));
 
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(draft));
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(privateArticle));
@@ -104,7 +104,7 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                            () -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                                            () -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                             .pin(first);
                                 });
                 Future<ArticlePinningResponse> secondResult =
@@ -113,7 +113,7 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                            () -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                                            () -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                             .pin(second);
                                 });
                 ready.await();
@@ -122,7 +122,7 @@ public class ArticlePinningServiceDatabaseTest {
                 secondResult.get();
 
                 List<ArticlePinningEntryResponse> items =
-                        new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                        new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                 .list()
                                 .getItems();
                 assertEquals(Set.of(first, second), items.stream()
@@ -143,7 +143,7 @@ public class ArticlePinningServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             ArticlePinningService service =
-                    new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
+                    new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
             for (int i = 1; i <= 40; i++) {
                 service.pin(createArticle("Pinned " + i, false, false, db.dataSource()));
             }
@@ -181,12 +181,12 @@ public class ArticlePinningServiceDatabaseTest {
                         AccountServicesFixture.component(testDataSource).preferences(),
                         new ArticleVersionService(AccountServicesFixture.component(testDataSource)
                                 .permissions(),
-                                () -> new LogRepository(testDataSource),
+                                () -> new AdminLogRepository(testDataSource),
                                 () -> new LogVersionRepository(testDataSource)),
                         new ArticlePinningService(
-                                () -> new LogRepository(testDataSource),
+                                () -> new AdminLogRepository(testDataSource),
                                 ApplicationServicesFixture.locks(testDataSource)),
-                        () -> new LogRepository(testDataSource),
+                        () -> new AdminLogRepository(testDataSource),
                         ApplicationServicesFixture.locks(testDataSource))
                         .create(AccountServicesFixture.component(testDataSource).requestIdentity().account(token()), request);
         return response.getLogId();

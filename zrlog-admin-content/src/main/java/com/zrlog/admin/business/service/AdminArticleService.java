@@ -16,7 +16,7 @@ import com.zrlog.common.exception.UnknownException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.service.DistributedLock;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.model.Log;
 import com.hibegin.common.dao.entity.OptimisticLockException;
 import com.zrlog.util.ParseUtil;
@@ -41,7 +41,7 @@ public class AdminArticleService {
     private final UserPreferenceService userPreferenceService;
     private final ArticleVersionService articleVersionService;
     private final ArticlePinningService articlePinningService;
-    private final jakarta.inject.Provider<LogRepository> logProvider;
+    private final jakarta.inject.Provider<AdminLogRepository> logProvider;
 
     @Inject
     public AdminArticleService(
@@ -51,7 +51,7 @@ public class AdminArticleService {
             UserPreferenceService userPreferenceService,
             ArticleVersionService articleVersionService,
             ArticlePinningService articlePinningService,
-            jakarta.inject.Provider<LogRepository> logProvider,
+            jakarta.inject.Provider<AdminLogRepository> logProvider,
             DistributedLock.Factory locks) {
         this.assistant = Objects.requireNonNull(assistant);
         this.permissionService = permissionService;

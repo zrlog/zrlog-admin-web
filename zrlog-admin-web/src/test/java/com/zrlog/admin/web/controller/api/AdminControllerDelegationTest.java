@@ -20,6 +20,8 @@ import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.request.TagManageRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.support.*;
 import com.zrlog.admin.test.support.DockerControlStub;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -365,7 +367,7 @@ public class AdminControllerDelegationTest {
                                     ApplicationServicesFixture.buildId(db.resources()),
                                     ApplicationServicesFixture.messages(db.dataSource())),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            new PersonalDataService(() -> new UserRepository(db.dataSource()), () -> new CommentRepository(db.dataSource())),
+                            new PersonalDataService(() -> new UserRepository(db.dataSource()), () -> new AdminCommentRepository(db.dataSource())),
                             AccountServicesFixture.component(db.dataSource()).requestIdentity());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/personal-data", Map.of(), Map.of(),
                     null));
@@ -1366,8 +1368,8 @@ public class AdminControllerDelegationTest {
                                             db.unitCacheService(),
                                             RuntimeInfoFixture.from(db.config()),
                                             ApplicationServicesFixture.audit(db.dataSource()),
-                                            () -> new LogRepository(db.dataSource()),
-                                            () -> new CommentRepository(db.dataSource())),
+                                            () -> new AdminLogRepository(db.dataSource()),
+                                            () -> new AdminCommentRepository(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
@@ -1381,7 +1383,7 @@ public class AdminControllerDelegationTest {
                                                     .permissions(),
                                             AccountServicesFixture.component(db.dataSource())
                                                     .preferences(),
-                                            () -> new LogRepository(db.dataSource())),
+                                            () -> new AdminLogRepository(db.dataSource())),
                             new com.zrlog.admin.business.service.DashboardPluginLoader(() -> db.config().getPlugin(PluginCorePlugin.class)),
                             AccountServicesFixture.component(db.dataSource())
                                             .preferences(),
@@ -1448,8 +1450,8 @@ public class AdminControllerDelegationTest {
                                             ignored.unitCacheService(),
                                             RuntimeInfoFixture.from(ignored.config()),
                                             ApplicationServicesFixture.audit(ignored.dataSource()),
-                                            () -> new LogRepository(ignored.dataSource()),
-                                            () -> new CommentRepository(ignored.dataSource())),
+                                            () -> new AdminLogRepository(ignored.dataSource()),
+                                            () -> new AdminCommentRepository(ignored.dataSource())),
                             new ArticleQueryService(ignored.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     ignored.config(), ArticleAssistant.class),
@@ -1464,7 +1466,7 @@ public class AdminControllerDelegationTest {
                                                     .permissions(),
                                             AccountServicesFixture.component(ignored.dataSource())
                                                     .preferences(),
-                                            () -> new LogRepository(ignored.dataSource())),
+                                            () -> new AdminLogRepository(ignored.dataSource())),
                             new com.zrlog.admin.business.service.DashboardPluginLoader(() -> ignored.config().getPlugin(PluginCorePlugin.class)),
                             AccountServicesFixture.component(ignored.dataSource())
                                             .preferences(),
@@ -1633,7 +1635,7 @@ public class AdminControllerDelegationTest {
                     new AdminCommentService(AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
                             AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).identities(),
                             ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
-                            () -> new CommentRepository((DataSourceWrapper) config.getDataSource())));
+                            () -> new AdminCommentRepository((DataSourceWrapper) config.getDataSource())));
         }
 
         @Override
@@ -1653,7 +1655,7 @@ public class AdminControllerDelegationTest {
         private String query;
         private int userId;
         FakePersonalDataService(DataSourceWrapper testDataSource) {
-            super(() -> new UserRepository(testDataSource), () -> new CommentRepository(testDataSource));
+            super(() -> new UserRepository(testDataSource), () -> new AdminCommentRepository(testDataSource));
         }
 
         @Override
@@ -1672,7 +1674,7 @@ public class AdminControllerDelegationTest {
         private TagManageRequest executeRequest;
         private String executeOperation;
         FakeTagManagementService(DataSourceWrapper testDataSource) {
-            super(() -> new LogRepository(testDataSource), () -> new TagRepository(testDataSource), null);
+            super(() -> new AdminLogRepository(testDataSource), () -> new TagRepository(testDataSource), null);
         }
 
         @Override

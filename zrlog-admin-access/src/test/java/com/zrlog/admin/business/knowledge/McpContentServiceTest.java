@@ -28,7 +28,7 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.data.repository.TagRepository;
 import com.zrlog.data.repository.TypeRepository;
@@ -163,7 +163,7 @@ public class McpContentServiceTest {
                                                 ::configured,
                                         () -> false,
                                         toolLanguage,
-                                        () -> new LogRepository(testDataSource)),
+                                        () -> new AdminLogRepository(testDataSource)),
                         AccountServicesFixture.component(testDataSource).identities()),
                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                 AccountServicesFixture.component(testDataSource).identities());
@@ -195,12 +195,12 @@ public class McpContentServiceTest {
                         AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).preferences(),
                         new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
-                                () -> new LogRepository(testDataSource),
+                                () -> new AdminLogRepository(testDataSource),
                                 () -> new LogVersionRepository(testDataSource)),
                         new ArticlePinningService(
-                                () -> new LogRepository(testDataSource),
+                                () -> new AdminLogRepository(testDataSource),
                                 ApplicationServicesFixture.locks(testDataSource)),
-                        () -> new LogRepository(testDataSource),
+                        () -> new AdminLogRepository(testDataSource),
                         ApplicationServicesFixture.locks(testDataSource)),
                 new ArticleQueryService(cache,
                         ApplicationServicesFixture.capability(
@@ -211,7 +211,7 @@ public class McpContentServiceTest {
                                 ApplicationServicesFixture.messages(testDataSource)),
                         AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).preferences(),
-                        () -> new LogRepository(testDataSource)),
+                        () -> new AdminLogRepository(testDataSource)),
                 ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
                 markdown -> null,
                 audit,
@@ -618,13 +618,13 @@ public class McpContentServiceTest {
                                             new ArticleVersionService(AccountServicesFixture.component(
                                                             db.dataSource())
                                                     .permissions(),
-                                                    () -> new LogRepository(db.dataSource()),
+                                                    () -> new AdminLogRepository(db.dataSource()),
                                                     () -> new LogVersionRepository(db.dataSource())),
                                             new ArticlePinningService(
-                                                    () -> new LogRepository(db.dataSource()),
+                                                    () -> new AdminLogRepository(db.dataSource()),
                                                     ApplicationServicesFixture.locks(
                                                             db.dataSource())),
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             ApplicationServicesFixture.locks(
                                                     db.dataSource())),
                                     new com.zrlog.admin.business.service
@@ -644,7 +644,7 @@ public class McpContentServiceTest {
                                             AccountServicesFixture.component(
                                                             db.dataSource())
                                                     .preferences(),
-                                            () -> new LogRepository(db.dataSource())),
+                                            () -> new AdminLogRepository(db.dataSource())),
                                     ApplicationServicesFixture.cacheRefresh(
                                             db.unitCacheService(), db.config()),
                                     markdown -> null,
@@ -727,15 +727,15 @@ public class McpContentServiceTest {
                                                 new ArticleVersionService(AccountServicesFixture.component(
                                                                 db.dataSource())
                                                         .permissions(),
-                                                        () -> new LogRepository(db.dataSource()),
+                                                        () -> new AdminLogRepository(db.dataSource()),
                                                         () ->
                                                                 new LogVersionRepository(
                                                                         db.dataSource())),
                                                 new ArticlePinningService(
-                                                        () -> new LogRepository(db.dataSource()),
+                                                        () -> new AdminLogRepository(db.dataSource()),
                                                         ApplicationServicesFixture.locks(
                                                                 db.dataSource())),
-                                                () -> new LogRepository(db.dataSource()),
+                                                () -> new AdminLogRepository(db.dataSource()),
                                                 ApplicationServicesFixture.locks(
                                                         db.dataSource())),
                                         new com.zrlog.admin.business.service
@@ -755,7 +755,7 @@ public class McpContentServiceTest {
                                                 AccountServicesFixture.component(
                                                                 db.dataSource())
                                                         .preferences(),
-                                                () -> new LogRepository(db.dataSource())),
+                                                () -> new AdminLogRepository(db.dataSource())),
                                         ApplicationServicesFixture.cacheRefresh(
                                                 db.unitCacheService(), applicationConfig),
                                         markdown -> null,

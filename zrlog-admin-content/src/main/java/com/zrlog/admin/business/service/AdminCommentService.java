@@ -9,14 +9,14 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.data.dto.CommentDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.repository.CommentRepository;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.*;
 
 public class AdminCommentService {
-    private final jakarta.inject.Provider<CommentRepository> commentProvider;
+    private final jakarta.inject.Provider<AdminCommentRepository> commentProvider;
 
     private final AccountIdentityService identities;
     private final AccountPermissionService permissionService;
@@ -27,7 +27,7 @@ public class AdminCommentService {
             AccountPermissionService permissionService,
             AccountIdentityService identities,
             MessageCenterStateService messageCenterStateService,
-            jakarta.inject.Provider<CommentRepository> commentProvider) {
+            jakarta.inject.Provider<AdminCommentRepository> commentProvider) {
         this.messageCenterStateService = messageCenterStateService;
         this.commentProvider = commentProvider;
 
@@ -43,13 +43,13 @@ public class AdminCommentService {
         }
         for (Integer id : commentIds) checkArticle(actor, id);
         String placeholders = placeholders(commentIds.size());
-        CommentRepository comment = this.commentProvider.get();
+        AdminCommentRepository comment = this.commentProvider.get();
         Object matchedCount = comment.queryFirstObj(
-                "select count(1) from " + CommentRepository.TABLE_NAME + " where commentId in (" + placeholders + ")",
+                "select count(1) from " + AdminCommentRepository.TABLE_NAME + " where commentId in (" + placeholders + ")",
                 commentIds.toArray());
         boolean allExists = matchedCount instanceof Number && ((Number) matchedCount).intValue() == commentIds.size();
         boolean deleted = allExists && mutate(actor,
-                "delete from " + CommentRepository.TABLE_NAME + " where commentId in (" + placeholders + ")",
+                "delete from " + AdminCommentRepository.TABLE_NAME + " where commentId in (" + placeholders + ")",
                 commentIds.toArray());
         if (deleted) {
             messageCenterStateService.markChanged();
@@ -119,7 +119,7 @@ public class AdminCommentService {
                         .get()
                         .queryFirstObj(
                                 "select count(1) from "
-                                        + CommentRepository.TABLE_NAME
+                                        + AdminCommentRepository.TABLE_NAME
                                         + " where have_read = ?",
                                 false);
         if (count instanceof Number) {

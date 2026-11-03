@@ -10,7 +10,7 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.model.Log;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
@@ -54,7 +54,7 @@ public class ArticleVersionServiceTest {
 
     private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
         return new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
-                () -> new LogRepository(testDataSource),
+                () -> new AdminLogRepository(testDataSource),
                 () -> new LogVersionRepository(testDataSource));
     }
 
@@ -225,9 +225,9 @@ public class ArticleVersionServiceTest {
                     AccountServicesFixture.component(testDataSource).preferences(),
                     newService(testDataSource),
                     new ArticlePinningService(
-                            () -> new LogRepository(testDataSource),
+                            () -> new AdminLogRepository(testDataSource),
                             ApplicationServicesFixture.locks(testDataSource)),
-                    () -> new LogRepository(testDataSource),
+                    () -> new AdminLogRepository(testDataSource),
                     ApplicationServicesFixture.locks(testDataSource));
         }
 

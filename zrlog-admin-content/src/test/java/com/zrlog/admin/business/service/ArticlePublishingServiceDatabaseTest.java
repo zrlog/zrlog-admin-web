@@ -14,7 +14,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -76,12 +76,12 @@ public class ArticlePublishingServiceDatabaseTest {
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
                                             .permissions(),
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             () -> new LogVersionRepository(db.dataSource())),
                                     new ArticlePinningService(
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new LogRepository(db.dataSource()),
+                                    () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
@@ -92,7 +92,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.messages(db.dataSource())),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new LogRepository(db.dataSource())),
+                                    () -> new AdminLogRepository(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(
                                     db.unitCacheService(), db.config()),
                             markdown -> null,
@@ -160,12 +160,12 @@ public class ArticlePublishingServiceDatabaseTest {
                             AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
                                     .permissions(),
-                                    () -> new LogRepository(db.dataSource()),
+                                    () -> new AdminLogRepository(db.dataSource()),
                                     () -> new LogVersionRepository(db.dataSource())),
                             new ArticlePinningService(
-                                    () -> new LogRepository(db.dataSource()),
+                                    () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new LogRepository(db.dataSource()),
+                            () -> new AdminLogRepository(db.dataSource()),
                             ApplicationServicesFixture.locks(db.dataSource())),
                     new ArticleQueryService(db.unitCacheService(),
                             ApplicationServicesFixture.capability(
@@ -176,7 +176,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                     ApplicationServicesFixture.messages(db.dataSource())),
                             AccountServicesFixture.component(db.dataSource()).permissions(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new LogRepository(db.dataSource())),
+                            () -> new AdminLogRepository(db.dataSource())),
                     ApplicationServicesFixture.cacheRefresh(
                             db.unitCacheService(), db.config()),
                     markdown -> null,
@@ -209,12 +209,12 @@ public class ArticlePublishingServiceDatabaseTest {
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
                                             .permissions(),
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             () -> new LogVersionRepository(db.dataSource())),
                                     new ArticlePinningService(
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new LogRepository(db.dataSource()),
+                                    () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
@@ -225,7 +225,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.messages(db.dataSource())),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new LogRepository(db.dataSource())),
+                                    () -> new AdminLogRepository(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(
                                     db.unitCacheService(), db.config()),
                             markdown -> null,

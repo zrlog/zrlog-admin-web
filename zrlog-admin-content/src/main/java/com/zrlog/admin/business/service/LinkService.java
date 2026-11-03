@@ -5,7 +5,7 @@ import com.hibegin.common.dao.dto.PageRequest;
 import com.zrlog.admin.business.rest.request.CreateLinkRequest;
 import com.zrlog.admin.business.rest.request.UpdateLinkRequest;
 import com.zrlog.common.cache.dto.LinkDTO;
-import com.zrlog.data.repository.LinkRepository;
+import com.zrlog.admin.data.repository.AdminLinkRepository;
 import jakarta.inject.Inject;
 import com.zrlog.model.Link;
 
@@ -13,10 +13,10 @@ import java.sql.SQLException;
 import java.util.Objects;
 
 public class LinkService {
-    private final jakarta.inject.Provider<LinkRepository> linkProvider;
+    private final jakarta.inject.Provider<AdminLinkRepository> linkProvider;
 
     @Inject
-    public LinkService(jakarta.inject.Provider<LinkRepository> linkProvider) {
+    public LinkService(jakarta.inject.Provider<AdminLinkRepository> linkProvider) {
         this.linkProvider = linkProvider;
     }
 

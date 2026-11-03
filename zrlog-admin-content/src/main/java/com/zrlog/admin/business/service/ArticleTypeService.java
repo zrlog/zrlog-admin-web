@@ -7,8 +7,8 @@ import com.zrlog.admin.business.exception.DeleteTypeException;
 import com.zrlog.admin.business.rest.request.CreateTypeRequest;
 import com.zrlog.admin.business.rest.request.UpdateTypeRequest;
 import com.zrlog.common.cache.dto.TypeDTO;
-import com.zrlog.data.repository.LogRepository;
-import com.zrlog.data.repository.TypeRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.AdminTypeRepository;
 import jakarta.inject.Inject;
 import com.zrlog.model.Type;
 
@@ -16,12 +16,12 @@ import java.sql.SQLException;
 import java.util.Objects;
 
 public class ArticleTypeService {
-    private final jakarta.inject.Provider<LogRepository> logProvider;
-    private final jakarta.inject.Provider<TypeRepository> typeProvider;
+    private final jakarta.inject.Provider<AdminLogRepository> logProvider;
+    private final jakarta.inject.Provider<AdminTypeRepository> typeProvider;
 
     @Inject
     public ArticleTypeService(
-            jakarta.inject.Provider<LogRepository> logProvider, jakarta.inject.Provider<TypeRepository> typeProvider) {
+            jakarta.inject.Provider<AdminLogRepository> logProvider, jakarta.inject.Provider<AdminTypeRepository> typeProvider) {
         this.logProvider = logProvider;
         this.typeProvider = typeProvider;
     }

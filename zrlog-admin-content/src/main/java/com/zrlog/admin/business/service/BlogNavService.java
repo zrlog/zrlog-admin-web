@@ -5,7 +5,7 @@ import com.zrlog.admin.business.rest.request.CreateNavRequest;
 import com.zrlog.admin.business.rest.request.UpdateNavRequest;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.cache.dto.LogNavDTO;
-import com.zrlog.data.repository.LogNavRepository;
+import com.zrlog.admin.data.repository.AdminLogNavRepository;
 import jakarta.inject.Inject;
 import com.zrlog.model.LogNav;
 
@@ -13,10 +13,10 @@ import java.sql.SQLException;
 import java.util.*;
 
 public class BlogNavService {
-    private final jakarta.inject.Provider<LogNavRepository> logNavProvider;
+    private final jakarta.inject.Provider<AdminLogNavRepository> logNavProvider;
 
     @Inject
-    public BlogNavService(jakarta.inject.Provider<LogNavRepository> logNavProvider) {
+    public BlogNavService(jakarta.inject.Provider<AdminLogNavRepository> logNavProvider) {
         this.logNavProvider = logNavProvider;
     }
 
@@ -26,7 +26,7 @@ public class BlogNavService {
             return false;
         }
         String placeholders = placeholders(navIds.size());
-        LogNavRepository logNav = this.logNavProvider.get();
+        AdminLogNavRepository logNav = this.logNavProvider.get();
         Object count = logNav.queryFirstObj(
                 "select count(1) from lognav where navId in (" + placeholders + ")", navIds.toArray());
         boolean allExist = count instanceof Number && ((Number) count).intValue() == navIds.size();

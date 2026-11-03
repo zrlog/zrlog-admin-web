@@ -18,7 +18,7 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.repository.CommentRepository;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
@@ -551,7 +551,7 @@ public class AdminDashboardServiceTest {
                                         db.unitCacheService(),
                                         RuntimeInfoFixture.from(db.config()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new LogRepository(db.dataSource()),
+                                        () -> new AdminLogRepository(db.dataSource()),
                                         () -> new CommentRepository(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
                                         ApplicationServicesFixture.capability(
@@ -567,7 +567,7 @@ public class AdminDashboardServiceTest {
                                                 .permissions(),
                                         AccountServicesFixture.component(db.dataSource())
                                                 .preferences(),
-                                        () -> new LogRepository(db.dataSource())),
+                                        () -> new AdminLogRepository(db.dataSource())),
                             new com.zrlog.admin.business.service.DashboardPluginLoader(() -> db.config().getPlugin(PluginCorePlugin.class), 50),
                             AccountServicesFixture.component(db.dataSource())
                                         .preferences(),

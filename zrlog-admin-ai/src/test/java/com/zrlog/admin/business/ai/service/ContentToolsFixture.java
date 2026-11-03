@@ -11,7 +11,7 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.data.repository.TagRepository;
 import com.zrlog.data.repository.TypeRepository;
@@ -46,7 +46,7 @@ final class ContentToolsFixture {
                                                 config.getDataSource())
                                 .permissions(),
                                 () ->
-                                        new LogRepository(
+                                        new AdminLogRepository(
                                                 config == null
                                                         ? null
                                                         : (DataSourceWrapper)
@@ -59,7 +59,7 @@ final class ContentToolsFixture {
                                                         config.getDataSource())),
                         new ArticlePinningService(
                                 () ->
-                                        new LogRepository(
+                                        new AdminLogRepository(
                                                 config == null
                                                         ? null
                                                         : (DataSourceWrapper)
@@ -69,7 +69,7 @@ final class ContentToolsFixture {
                                                 ? null
                                                 : (DataSourceWrapper) config.getDataSource())),
                         () ->
-                                new LogRepository(
+                                new AdminLogRepository(
                                         config == null
                                                 ? null
                                                 : (DataSourceWrapper) config.getDataSource()),
@@ -104,7 +104,7 @@ final class ContentToolsFixture {
                                                         config.getDataSource())
                                         .preferences(),
                                 () ->
-                                        new LogRepository(
+                                        new AdminLogRepository(
                                                 config == null
                                                         ? null
                                                         : (DataSourceWrapper)
@@ -142,7 +142,7 @@ final class ContentToolsFixture {
                                                 cache.getPublicWebSiteInfo()
                                                         .getGenerator_html_status()),
                                 toolLanguage,
-                                () -> new LogRepository(config == null ? null : (DataSourceWrapper) config.getDataSource())),
+                                () -> new AdminLogRepository(config == null ? null : (DataSourceWrapper) config.getDataSource())),
                 AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).identities());
     }
 }

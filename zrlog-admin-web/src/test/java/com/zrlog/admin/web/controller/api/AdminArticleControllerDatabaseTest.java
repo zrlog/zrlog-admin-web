@@ -31,7 +31,7 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.repository.WebSiteRepository;
@@ -439,7 +439,7 @@ public class AdminArticleControllerDatabaseTest {
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
-            new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())).pin(logId);
+            new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())).pin(logId);
             long versionBeforeDraft = db.cacheService().getInitData().getVersion();
 
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Pinned Draft", "pinned-draft", true),
@@ -825,12 +825,12 @@ public class AdminArticleControllerDatabaseTest {
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
                                             .permissions(),
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             () -> new LogVersionRepository(db.dataSource())),
                                     new ArticlePinningService(
-                                            () -> new LogRepository(db.dataSource()),
+                                            () -> new AdminLogRepository(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new LogRepository(db.dataSource()),
+                                    () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(db.cacheService(),
                                     ApplicationServicesFixture.capability(
@@ -841,7 +841,7 @@ public class AdminArticleControllerDatabaseTest {
                                             ApplicationServicesFixture.messages(db.dataSource())),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new LogRepository(db.dataSource())),
+                                    () -> new AdminLogRepository(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
