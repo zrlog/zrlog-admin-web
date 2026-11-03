@@ -19,7 +19,7 @@ import com.zrlog.common.CacheService;
 import com.zrlog.common.cache.dto.UserBasicDTO;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
@@ -32,7 +32,7 @@ import java.util.function.Supplier;
 @Singleton
 public class UserService {
     private final UserPreferenceService userPreferenceService;
-    private final jakarta.inject.Provider<User> userProvider;
+    private final jakarta.inject.Provider<UserRepository> userProvider;
 
     private final Supplier<Set<String>> cacheableApiUris;
     private final MfaService mfaService;
@@ -42,7 +42,7 @@ public class UserService {
             Supplier<Set<String>> cacheableApiUris,
             MfaService mfaService,
             UserPreferenceService userPreferenceService,
-            jakarta.inject.Provider<User> userProvider) {
+            jakarta.inject.Provider<UserRepository> userProvider) {
         this.mfaService = mfaService;
         this.userPreferenceService = userPreferenceService;
         this.userProvider = userProvider;
@@ -58,12 +58,12 @@ public class UserService {
             return new UpdateRecordResponse(false);
         }
         if (StringUtils.isNotEmpty(updatePasswordRequest.getOldPassword()) && StringUtils.isNotEmpty(updatePasswordRequest.getNewPassword())) {
-            User user = this.userProvider.get();
+            UserRepository user = this.userProvider.get();
             String dbPassword = user.getPasswordByUserId(currentUserId);
             String oldPassword = normalizeSubmittedPassword(updatePasswordRequest.getOldPassword());
             if (verifyPassword(oldPassword, dbPassword)) {
                 user.updatePassword(currentUserId, encodePassword(normalizeSubmittedPassword(updatePasswordRequest.getNewPassword())));
-                user.execute("update user set authVersion=authVersion+1 where userId=?", currentUserId);
+                user.execute("update user set updatedAt=?,version=version+1,authVersion=authVersion+1 where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), currentUserId);
                 UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse();
                 updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.password.change.success"));
                 return updateRecordResponse;
@@ -136,7 +136,7 @@ public class UserService {
         if (StringUtils.isEmpty(loginRequest.getUserName()) || StringUtils.isEmpty(loginRequest.getPassword())) {
             throw new UserNameAndPasswordRequiredException();
         }
-        User userDao = this.userProvider.get();
+        UserRepository userDao = this.userProvider.get();
         Map<String, Object> user = userDao.getUserByUserName(loginRequest.getUserName().toLowerCase());
         if (Objects.isNull(user) || !AccountAccess.from(user).isEnabled()) {
             throw new UserNameOrPasswordException();
@@ -241,7 +241,7 @@ public class UserService {
         return PasswordHashUtils.matches(normalizedPassword, dbPassword);
     }
 
-    private void upgradePasswordIfNeeded(User userDao, int userId, String dbPassword, String normalizedPassword) throws SQLException {
+    private void upgradePasswordIfNeeded(UserRepository userDao, int userId, String dbPassword, String normalizedPassword) throws SQLException {
         if (PasswordHashUtils.needsRehash(dbPassword)) {
             userDao.updatePassword(userId, encodePassword(normalizedPassword));
         }

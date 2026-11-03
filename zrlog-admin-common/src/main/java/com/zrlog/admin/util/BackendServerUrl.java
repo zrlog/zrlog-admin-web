@@ -1,6 +1,6 @@
 package com.zrlog.admin.util;
 
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 @Singleton
 public final class BackendServerUrl {
     public static final String SETTING_KEY = "backend_server_url";
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     private final Supplier<Integer> listenerPort;
     private final Supplier<String> contextPath;
     private final Supplier<String> siteHost;
@@ -27,7 +27,7 @@ public final class BackendServerUrl {
             Supplier<Integer> listenerPort,
             @Named("contextPath") Supplier<String> contextPath,
             @Named("siteHost") Supplier<String> siteHost,
-            jakarta.inject.Provider<WebSite> webSiteProvider) {
+            jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.webSiteProvider = webSiteProvider;
 
         this.listenerPort = Objects.requireNonNull(listenerPort);

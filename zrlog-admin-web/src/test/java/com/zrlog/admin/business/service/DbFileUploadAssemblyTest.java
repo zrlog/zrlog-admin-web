@@ -93,7 +93,7 @@ public class DbFileUploadAssemblyTest {
             assertEquals(403, other.code);
             assertNull(other.written);
 
-            DbFileService resources = new DbFileService(() -> new com.zrlog.model.WebSite(db.dataSource()));
+            DbFileService resources = new DbFileService(() -> new com.zrlog.data.repository.WebSiteRepository(db.dataSource()));
             assertTrue(resources.deleteByKey(url));
             assertFalse(resources.hasRecord(url));
             assertTrue(db.queryList("SELECT name FROM website WHERE name LIKE 'db_file_chunk:%'").isEmpty());

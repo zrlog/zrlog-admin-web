@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -21,11 +21,11 @@ public class MessageCenterStateService {
     private static final int UPDATE_RETRY_COUNT = 3;
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = LoggerUtil.getLogger(MessageCenterStateService.class);
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     private final WebsiteCacheService cacheService;
     @Inject
     public MessageCenterStateService(
-            WebsiteCacheService cacheService, jakarta.inject.Provider<WebSite> webSiteProvider) {
+            WebsiteCacheService cacheService, jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.cacheService = cacheService;
         this.webSiteProvider = webSiteProvider;
     }
@@ -90,7 +90,7 @@ public class MessageCenterStateService {
             return this.webSiteProvider
                     .get()
                     .execute(
-                            "update website set value=? where name=? and value=?",
+                            "update website set updatedAt=?,version=version+1,value=? where name=? and value=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                             GSON.toJson(next),
                             STATUS_DB_KEY,
                             expectedRaw);

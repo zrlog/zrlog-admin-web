@@ -15,8 +15,8 @@ import com.zrlog.common.CacheService;
 import com.zrlog.common.cache.vo.BaseDataInitVO;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 
@@ -46,7 +46,7 @@ public class HostUpgradeResourceSyncTest {
 
     @Before public void open() throws Exception {
         db = InMemoryZrLogDatabase.open();
-        settings = new WebsiteKvService(() -> new WebSite(db.dataSource()));
+        settings = new WebsiteKvService(() -> new WebSiteRepository(db.dataSource()));
         info = new PublicWebSiteInfo();
         info.setGenerator_html_status(true);
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -103,13 +103,13 @@ public class HostUpgradeResourceSyncTest {
                     throw new AssertionError(method.getName());
                 });
         var refresh = new CacheRefreshService(cache, () -> plugins, () -> hasGenerator ? List.of(site) : List.of(),
-                () -> new WebSite(db.dataSource()));
+                () -> new WebSiteRepository(db.dataSource()));
         var serverConfig = new ServerConfig();
         serverConfig.setContextPath("/sub");
         sync = new HostUpgradeResourceSync(refresh, () -> hasGenerator ? List.of(site) : List.of(), () -> hasUi,
                 () -> HostUpgradeResourceSync.request(info.getHost(), "", new RequestConfig(), new ApplicationContext(serverConfig)),
                 new AdminAuditService(settings));
-        var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         context = new TaskExecutionContext("upgrade-run", actor, 30000, now::get, () -> { });
     }
 

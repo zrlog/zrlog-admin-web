@@ -11,7 +11,7 @@ import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -29,7 +29,7 @@ public class FileManagerReferenceService {
     private static final String REFERENCE_INDEX_CACHE_KEY = "file_manager_reference_index";
     private final Supplier<ArticleResourceService> articles;
     private final ArticleResourceReferences references;
-    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
     private final WebsiteCacheService cacheService;
     private FileReferenceIndexCacheVO requestReferenceIndex;
 
@@ -38,7 +38,7 @@ public class FileManagerReferenceService {
             WebsiteCacheService cacheService,
             String contextPath,
             Supplier<ArticleResourceService> articles,
-            jakarta.inject.Provider<Log> logProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider) {
         this.cacheService = cacheService;
         this.references = new ArticleResourceReferences(contextPath);
         this.articles = articles;

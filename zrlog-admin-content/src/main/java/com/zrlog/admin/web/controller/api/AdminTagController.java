@@ -78,7 +78,7 @@ public class AdminTagController extends BaseController {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("rename");
         validateTargetTag(requestBody, "rename");
-        return new ApiStandardResponse<>(tagManagementService.execute(requestBody, "rename"));
+        return new ApiStandardResponse<>(tagManagementService.execute(requestIdentity.optional(), requestBody, "rename"));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -89,7 +89,7 @@ public class AdminTagController extends BaseController {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("merge");
         validateTargetTag(requestBody, "merge");
-        return new ApiStandardResponse<>(tagManagementService.execute(requestBody, "merge"));
+        return new ApiStandardResponse<>(tagManagementService.execute(requestIdentity.optional(), requestBody, "merge"));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -99,7 +99,7 @@ public class AdminTagController extends BaseController {
     public ApiStandardResponse<TagManagementPreviewResponse> delete() throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("delete");
-        return new ApiStandardResponse<>(tagManagementService.execute(requestBody, "delete"));
+        return new ApiStandardResponse<>(tagManagementService.execute(requestIdentity.optional(), requestBody, "delete"));
     }
 
     private void validateOperation(String operation) {

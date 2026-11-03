@@ -4,8 +4,8 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -14,9 +14,9 @@ public class AutomationSettingsTest {
     @Test
     public void requestBudgetsArePersistedAndValidatedWithFaasManualRunsUsingTheSameLimit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-            AccountAccess actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             var service = new AutomationSettingsService(store, authority, () -> 1000, () -> true);
             assertEquals(60000, service.externalBudgetMillis());
             assertEquals(60000, service.manualBudgetMillis());
@@ -32,9 +32,9 @@ public class AutomationSettingsTest {
     @Test
     public void triggerTokenIsHashedRotatableRevocableAndAbsentFromOrdinaryViews() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            AutomationStore store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-            AccountAccess actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            AutomationStore store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             AutomationSettingsService service = new AutomationSettingsService(store, authority, () -> 1000, () -> true);
             assertFalse(service.internalEnabled());
             assertThrows(PermissionErrorException.class, () -> service.authenticate("Bearer missing"));
@@ -62,12 +62,12 @@ public class AutomationSettingsTest {
     @Test
     public void revokedAccountCannotRotateTokenDuringTheConditionalDatabaseWrite() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            AutomationStore store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-            AccountAccess actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            AutomationStore store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             AutomationSettingsService service = new AutomationSettingsService(store, authority, () -> 1000, () -> false);
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("INSERT INTO website(name,value) SELECT")) {
+                if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT")) {
                     db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
                 }
             });

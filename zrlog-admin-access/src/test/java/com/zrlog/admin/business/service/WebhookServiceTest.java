@@ -5,7 +5,7 @@ import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -247,7 +247,7 @@ public class WebhookServiceTest {
         private boolean changed;
         private boolean mayHaveUnread;
         FakeMessageCenterStateService(DataSourceWrapper testDataSource) {
-            super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSite(testDataSource));
+            super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSiteRepository(testDataSource));
         }
 
         @Override

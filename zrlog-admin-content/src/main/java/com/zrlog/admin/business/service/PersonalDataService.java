@@ -5,8 +5,8 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
-import com.zrlog.model.Comment;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.CommentRepository;
+import com.zrlog.data.repository.UserRepository;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -18,13 +18,13 @@ public class PersonalDataService {
                     + " or lower(coalesce(userName, '')) = ?"
                     + " or lower(coalesce(userHome, '')) = ?"
                     + " or lower(coalesce(userIp, '')) = ?)";
-    private final jakarta.inject.Provider<User> userProvider;
-    private final jakarta.inject.Provider<Comment> commentProvider;
+    private final jakarta.inject.Provider<UserRepository> userProvider;
+    private final jakarta.inject.Provider<CommentRepository> commentProvider;
 
     @Inject
     public PersonalDataService(
-            jakarta.inject.Provider<User> userProvider,
-            jakarta.inject.Provider<Comment> commentProvider) {
+            jakarta.inject.Provider<UserRepository> userProvider,
+            jakarta.inject.Provider<CommentRepository> commentProvider) {
         this.userProvider = userProvider;
         this.commentProvider = commentProvider;
     }
@@ -33,12 +33,12 @@ public class PersonalDataService {
             throws SQLException {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
-        Comment comment = this.commentProvider.get();
+        CommentRepository comment = this.commentProvider.get();
         Map<String, Object> commentStats = comment.queryFirstWithParams(
                 "select count(1) as commentCount,"
                         + " count(distinct logId) as commentArticleCount,"
                         + " max(commTime) as latestCommentTime"
-                        + " from " + Comment.TABLE_NAME
+                        + " from " + CommentRepository.TABLE_NAME
                         + " where " + COMMENT_MATCH_CONDITION,
                 normalizedQuery, normalizedQuery, normalizedQuery, normalizedQuery);
 
@@ -60,7 +60,7 @@ public class PersonalDataService {
                         .queryListWithParams(
                                 "select commentId as id,userComment,userMail,userHome,userIp,userName,commTime,logId"
                                         + " from "
-                                        + Comment.TABLE_NAME
+                                        + CommentRepository.TABLE_NAME
                                         + " where "
                                         + COMMENT_MATCH_CONDITION
                                         + " order by commTime desc",

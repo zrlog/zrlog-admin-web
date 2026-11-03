@@ -22,8 +22,8 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.WebSite;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.After;
 import org.junit.Test;
 
@@ -145,12 +145,12 @@ public class AdminDevControllerTest {
                                     new WebhookService(
                                             ApplicationServicesFixture.messages(ignored.dataSource()),
                                             ApplicationServicesFixture.websiteCache(ignored.dataSource())),
-                                    () -> new WebSite(ignored.dataSource())),
+                                    () -> new WebSiteRepository(ignored.dataSource())),
                             ApplicationServicesFixture.site(ignored.config()),
                             () ->
-                                    new WebSite(ignored.dataSource())
+                                    new WebSiteRepository(ignored.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
-                            () -> new UserPasskey(ignored.dataSource()));
+                            () -> new UserPasskeyRepository(ignored.dataSource()));
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
             ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true"), ignored.dataSource()).mode();
 
@@ -188,7 +188,7 @@ public class AdminDevControllerTest {
                         ApplicationServicesFixture.audit(testDataSource),
                         ApplicationServicesFixture.websiteCache(testDataSource),
                         new DistributedLockManager(
-                                () -> new WebSite(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                                () -> new WebSiteRepository(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
                         AccountServicesFixture.component(testDataSource).requestIdentity());
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);

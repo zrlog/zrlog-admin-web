@@ -5,8 +5,8 @@ import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.util.List;
@@ -49,9 +49,9 @@ public class AutomationProposalTest {
     @Test
     public void realRequestUsesAuthorizedCatalogAndDoesNotSaveOrExecuteTasks() throws Exception {
         try (var db = InMemoryZrLogDatabase.openWebApi()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
-            var authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1)).restrictActions(List.of(
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1)).restrictActions(List.of(
                     AccountAction.SESSION.getId(), AccountAction.ARTICLE_ASSIST.getId()));
             var privileged = definition(); privileged.type = "system.upgrade"; privileged.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
             ScheduledTaskProvider provider = new ScheduledTaskProvider() {

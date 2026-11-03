@@ -22,7 +22,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -64,7 +64,7 @@ public class AIExplicitActorBoundaryTest {
     }
 
     private static AccountAccess actor(InMemoryZrLogDatabase db) throws Exception {
-        return AccountAccess.from(new User(db.dataSource()).loadById(2));
+        return AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
     }
 
     private static AdminAuditContext audit() {

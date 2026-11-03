@@ -11,8 +11,8 @@ import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ public class KnowledgeServiceTest {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.from(new User(testDataSource).loadById(user));
+                        return AccountAccess.from(new UserRepository(testDataSource).loadById(user));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -51,7 +51,7 @@ public class KnowledgeServiceTest {
                 scopes,
                 () -> "https://blog.example/sub",
                 () -> false,
-                () -> new Log(testDataSource));
+                () -> new LogRepository(testDataSource));
     }
 
     private void seed(InMemoryZrLogDatabase db) throws Exception {
@@ -90,7 +90,7 @@ public class KnowledgeServiceTest {
                                 for (Source s : page.articles) ids.add(s.id);
                                 offset = page.nextOffset;
                             }
-                            AccountAccess account = AccountAccess.from(new User(db.dataSource()).loadById(1));
+                            AccountAccess account = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
                             for (int id = 1; id <= 6; id++) {
                                 boolean expected =
                                         ArticleAccess.canRead(
@@ -120,7 +120,7 @@ public class KnowledgeServiceTest {
                     new KnowledgeService(
                             () -> {
                                 try {
-                                    return AccountAccess.from(new User(db.dataSource()).loadById(1));
+                                    return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
@@ -128,7 +128,7 @@ public class KnowledgeServiceTest {
                             Set.of("articles:read", "articles:read_drafts"),
                             () -> "https://blog.example/sub",
                             staticHtml::get,
-                            () -> new Log(db.dataSource()));
+                            () -> new LogRepository(db.dataSource()));
             assertEquals("https://blog.example/sub/article-1", read(service, 1).source.url);
             staticHtml.set(true);
             assertEquals("https://blog.example/sub/article-1.html", read(service, 1).source.url);

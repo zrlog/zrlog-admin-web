@@ -2,8 +2,8 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,8 +23,8 @@ public class AutomationTickServiceTest {
 
     @Before public void open() throws Exception {
         db = InMemoryZrLogDatabase.openWebApi();
-        store = new AutomationStore(() -> new WebSite(db.dataSource()));
-        var authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
+        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         engine = new AutomationEngine(store, authority, new TaskRegistry(List::of), now::get);
     }
 
@@ -52,8 +52,8 @@ public class AutomationTickServiceTest {
         var newestId = new AtomicReference<String>();
         var initialId = ticks.health("internal").id;
         db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.equals("UPDATE website SET value=? WHERE name=? AND value=?")
-                    && "assistant.v1.tick:internal".equals(args[1]) && raced.compareAndSet(false, true)) {
+            if (sql.equals("UPDATE website SET updatedAt=?,version=version+1,value=? WHERE name=? AND value=?")
+                    && "assistant.v1.tick:internal".equals(args[2]) && raced.compareAndSet(false, true)) {
                 now.incrementAndGet();
                 ticks.tick("internal", null, 60000);
                 newestId.set(ticks.health("internal").id);

@@ -7,8 +7,8 @@ import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.WebSite;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import org.junit.Test;
 
@@ -94,12 +94,12 @@ public class AdminResourceImplTest {
                                     new WebhookService(
                                             ApplicationServicesFixture.messages(db.dataSource()),
                                             ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    () -> new WebSite(db.dataSource())),
+                                    () -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.site(db.config()),
                             () ->
-                                    new WebSite(db.dataSource())
+                                    new WebSiteRepository(db.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
-                            () -> new UserPasskey(db.dataSource()));
+                            () -> new UserPasskeyRepository(db.dataSource()));
             AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, resources::staticResourceBaseUrl);
 
             Set<String> pageUris = resource.getAdminPageUris();
@@ -161,7 +161,7 @@ public class AdminResourceImplTest {
                             new WebhookService(
                                     ApplicationServicesFixture.messages(db.dataSource()),
                                     ApplicationServicesFixture.websiteCache(db.dataSource())),
-                            () -> new WebSite(db.dataSource()))
+                            () -> new WebSiteRepository(db.dataSource()))
                             .featureLab()
                             .getFeature_webhook_enabled());
             var webhook = new WebhookConfigRequest();
@@ -180,12 +180,12 @@ public class AdminResourceImplTest {
                                     new WebhookService(
                                             ApplicationServicesFixture.messages(db.dataSource()),
                                             ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    () -> new WebSite(db.dataSource())),
+                                    () -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.site(db.config()),
                             () ->
-                                    new WebSite(db.dataSource())
+                                    new WebSiteRepository(db.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
-                            () -> new UserPasskey(db.dataSource()));
+                            () -> new UserPasskeyRepository(db.dataSource()));
 
             AdminResourceInfoResponse response = resources.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =
@@ -214,7 +214,7 @@ public class AdminResourceImplTest {
             assertEquals(false, trustedCrossOriginResponse.getPasskeyLoginEnabled());
             assertEquals(false, untrustedCrossOriginResponse.getPasskeyLoginEnabled());
 
-            UserPasskey passkeys = new UserPasskey(db.dataSource());
+            UserPasskeyRepository passkeys = new UserPasskeyRepository(db.dataSource());
             assertTrue(passkeys.save(1, "other-credential-hash", "other-credential-id", "public-key",
                     0, "internal", "Other origin passkey", "aaguid", true, false,
                     "https://localhost:18080", "localhost", System.currentTimeMillis()));

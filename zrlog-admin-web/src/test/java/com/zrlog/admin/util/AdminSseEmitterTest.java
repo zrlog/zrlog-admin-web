@@ -14,8 +14,8 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -125,23 +125,23 @@ public class AdminSseEmitterTest {
                                                                                     .dataSource())
                                                                     .permissions(),
                                                                     () ->
-                                                                            new Log(
+                                                                            new LogRepository(
                                                                                     db
                                                                                             .dataSource()),
                                                                     () ->
-                                                                            new LogVersion(
+                                                                            new LogVersionRepository(
                                                                                     db
                                                                                             .dataSource())),
                                                             new ArticlePinningService(
                                                                     () ->
-                                                                            new Log(
+                                                                            new LogRepository(
                                                                                     db
                                                                                             .dataSource()),
                                                                     ApplicationServicesFixture
                                                                             .locks(
                                                                                     db
                                                                                             .dataSource())),
-                                                            () -> new Log(db.dataSource()),
+                                                            () -> new LogRepository(db.dataSource()),
                                                             ApplicationServicesFixture
                                                                     .locks(db.dataSource()))
                                                             .create(

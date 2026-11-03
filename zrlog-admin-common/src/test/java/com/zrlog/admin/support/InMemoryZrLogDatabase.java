@@ -18,7 +18,7 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
@@ -325,7 +325,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             if (modulesLoaded) return super.initTokenService();
             if (testTokens == null) {
                 testTokens = new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled,
-                        () -> new User(testDataSource), () -> new UserPreferenceStore(() -> new User(testDataSource)));
+                        () -> new UserRepository(testDataSource), () -> new UserPreferenceStore(() -> new UserRepository(testDataSource)));
             }
             return testTokens;
         }

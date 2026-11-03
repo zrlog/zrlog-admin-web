@@ -101,10 +101,10 @@ public final class PersonalAccessTokenService {
         info.expiresAt = info.createdAt + request.expiresInDays * 86_400_000L;
         store.withSession(c -> {
             if (store.update(c,
-                    "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked) "
-                            + "select ?,?,?,?,?,?,?,?,?,? where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
+                    "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked,updatedAt,version) "
+                            + "select ?,?,?,?,?,?,?,?,?,?,?,0 where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
                     info.id, info.userId, info.name, OAuthService.hash(result.token), storedPermissions, info.resource,
-                    account.getAuthVersion(), info.createdAt, info.expiresAt, false,
+                    account.getAuthVersion(), new java.sql.Timestamp(info.createdAt).toString(), info.expiresAt, false, new java.sql.Timestamp(info.createdAt).toString(),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1) {
                 throw new PermissionErrorException();
             }
@@ -149,7 +149,7 @@ public final class PersonalAccessTokenService {
         info.name = (String) row.get("name");
         info.resource = (String) row.get("resource");
         describePermissions(info, (String) row.get("scope"), account);
-        info.createdAt = ((Number) row.get("createdAt")).longValue();
+        info.createdAt = com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.get("createdAt"));
         info.expiresAt = ((Number) row.get("expiresAt")).longValue();
         info.revoked = AccountAccess.truth(row.get("revoked"));
         info.expired = info.expiresAt <= System.currentTimeMillis();
@@ -161,9 +161,9 @@ public final class PersonalAccessTokenService {
     public void revoke(AccountAccess actor, String id) throws SQLException {
         AccountAccess account = authorize(actor);
         store.withSession(c -> {
-            int changed = store.update(c, "update user_access_token set revoked=? where id=? and userId=? "
+            int changed = store.update(c, "update user_access_token set updatedAt=?,version=version+1,revoked=? where id=? and userId=? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    true, id, account.getUserId(), account.getUserId(), account.getRole(), true, account.getAuthVersion());
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, id, account.getUserId(), account.getUserId(), account.getRole(), true, account.getAuthVersion());
             if (changed == 0) identities.revalidate(account);
             return null;
         });

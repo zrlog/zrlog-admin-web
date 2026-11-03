@@ -14,7 +14,7 @@ import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.service.DistributedLock;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.web.WebSiteInfoProvider;
 
 import java.util.Collections;
@@ -37,7 +37,7 @@ public final class ApplicationServicesFixture {
         return request ->
                 AdminWebTools.getAdminStaticResourceBaseUrl(
                         request,
-                        () -> new WebSite(source).getStringValueByName("admin_static_resource_base_url"));
+                        () -> new WebSiteRepository(source).getStringValueByName("admin_static_resource_base_url"));
     }
 
     public static Supplier<String> siteHost(ZrLogConfig config) {
@@ -71,7 +71,7 @@ public final class ApplicationServicesFixture {
                     var site = provider == null ? null : provider.getPublicWebSiteInfo();
                     return site == null ? "" : site.getHost();
                 },
-                () -> new WebSite(database(config)));
+                () -> new WebSiteRepository(database(config)));
     }
 
     public static <T> BooleanSupplier available(ZrLogConfig config, Class<T> type) {
@@ -104,7 +104,7 @@ public final class ApplicationServicesFixture {
             }
         } : cache;
         return new CacheRefreshService(source, () -> config == null ? null : config.getPlugin(PluginCorePlugin.class),
-                () -> config == null ? Collections.emptyList() : config.getPluginsByClazz(StaticSitePlugin.class), () -> new WebSite(database(config)));
+                () -> config == null ? Collections.emptyList() : config.getPluginsByClazz(StaticSitePlugin.class), () -> new WebSiteRepository(database(config)));
     }
 
     public static AdminStaticSiteSsePublisher publisher(CacheService cache, ZrLogConfig config) {
@@ -121,7 +121,7 @@ public final class ApplicationServicesFixture {
     }
 
     public static WebsiteKvService websiteKv(DataSourceWrapper source) {
-        return new WebsiteKvService(() -> new WebSite(source));
+        return new WebsiteKvService(() -> new WebSiteRepository(source));
     }
 
     public static WebsiteCacheService websiteCache(DataSourceWrapper source) {
@@ -133,11 +133,11 @@ public final class ApplicationServicesFixture {
     }
 
     public static WebSiteService settings(DataSourceWrapper source) {
-        return new WebSiteService(websiteKv(source), () -> new WebSite(source));
+        return new WebSiteService(websiteKv(source), () -> new WebSiteRepository(source));
     }
 
     public static MessageCenterStateService messages(DataSourceWrapper source) {
-        return new MessageCenterStateService(websiteCache(source), () -> new WebSite(source));
+        return new MessageCenterStateService(websiteCache(source), () -> new WebSiteRepository(source));
     }
 
     public static MessageCenterOperationService operations(DataSourceWrapper source) {
@@ -145,6 +145,6 @@ public final class ApplicationServicesFixture {
     }
 
     public static DistributedLock.Factory locks(DataSourceWrapper source) {
-        return key -> new DistributedLock(() -> new WebSite(source), key);
+        return key -> new DistributedLock(() -> new WebSiteRepository(source), key);
     }
 }

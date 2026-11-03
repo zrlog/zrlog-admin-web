@@ -1,6 +1,11 @@
-package com.zrlog.model;
+package com.zrlog.admin.data.repository;
 
-import com.hibegin.common.dao.BasePageableDAO;
+import com.zrlog.model.UserPasskey;
+import com.zrlog.data.repository.BaseRepository;
+
+import com.zrlog.data.repository.*;
+
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import jakarta.inject.Inject;
 
@@ -8,15 +13,13 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class UserPasskey extends BasePageableDAO {
+public class UserPasskeyRepository extends BaseRepository<UserPasskey, Long> {
 
     public static final String TABLE_NAME = "user_passkey";
 
     @Inject
-    public UserPasskey(DataSourceWrapper database) {
-        super(database);
-        this.tableName = TABLE_NAME;
-        this.pk = "id";
+    public UserPasskeyRepository(DataSourceWrapper database) {
+        super(UserPasskey.class, database);
     }
 
     public List<Map<String, Object>> findByUserId(int userId) throws SQLException {
@@ -41,18 +44,18 @@ public class UserPasskey extends BasePageableDAO {
                         long createdAt) throws SQLException {
         return execute("insert into " + tableName
                         + " (userId,credentialIdHash,credentialId,publicKeyCose,signatureCount,transports,name,aaguid,"
-                        + "backupEligible,backupState,origin,rpId,createdAt,lastUsedAt)"
-                        + " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        + "backupEligible,backupState,origin,rpId,createdAt,lastUsedAt,updatedAt,version)"
+                        + " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)",
                 userId, credentialIdHash, credentialId, publicKeyCose, signatureCount, transports, name, aaguid,
-                backupEligible ? 1 : 0, backupState ? 1 : 0, origin, rpId, createdAt, null);
+                backupEligible ? 1 : 0, backupState ? 1 : 0, origin, rpId, new java.sql.Timestamp(createdAt).toString(), null, new java.sql.Timestamp(createdAt).toString());
     }
 
     public boolean updateAfterAuthentication(long id, long signatureCount, boolean backupState, long lastUsedAt)
             throws SQLException {
         return execute("update " + tableName
-                        + " set signatureCount=?,backupState=?,lastUsedAt=? where id=?"
+                        + " set signatureCount=?,backupState=?,lastUsedAt=?,updatedAt=?,version=version+1 where id=?"
                         + " and ((signatureCount=0 and ?=0) or signatureCount<?)",
-                signatureCount, backupState ? 1 : 0, lastUsedAt, id, signatureCount, signatureCount);
+                signatureCount, backupState ? 1 : 0, lastUsedAt, new java.sql.Timestamp(lastUsedAt).toString(), id, signatureCount, signatureCount);
     }
 
     public boolean deleteByIdAndUserId(long id, int userId) throws SQLException {

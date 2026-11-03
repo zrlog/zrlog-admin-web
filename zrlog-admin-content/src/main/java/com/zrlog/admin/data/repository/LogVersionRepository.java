@@ -1,6 +1,11 @@
-package com.zrlog.model;
+package com.zrlog.admin.data.repository;
 
-import com.hibegin.common.dao.BasePageableDAO;
+import com.zrlog.model.LogVersion;
+import com.zrlog.data.repository.BaseRepository;
+
+import com.zrlog.data.repository.*;
+
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import jakarta.inject.Inject;
 
@@ -9,15 +14,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-public class LogVersion extends BasePageableDAO {
+public class LogVersionRepository extends BaseRepository<LogVersion, Long> {
 
     public static final String TABLE_NAME = "log_version";
 
     @Inject
-    public LogVersion(DataSourceWrapper database) {
-        super(database);
-        this.tableName = TABLE_NAME;
-        this.pk = "id";
+    public LogVersionRepository(DataSourceWrapper database) {
+        super(LogVersion.class, database);
     }
 
     public boolean deleteByLogIdAndArticleVersion(Integer logId, Integer articleVersion) throws SQLException {
@@ -27,9 +30,9 @@ public class LogVersion extends BasePageableDAO {
     public boolean savePatch(Integer logId, Integer articleVersion, String patchJson, Integer userId, String title, Date createdAt,
                              Integer fromVersion) throws SQLException {
         return execute("insert into " + tableName
-                        + " (log_id, article_version, patch_json, user_id, title, created_at, from_version)"
-                        + " values (?, ?, ?, ?, ?, ?, ?)",
-                logId, articleVersion, patchJson, userId, title, createdAt, fromVersion);
+                        + " (log_id, article_version, patch_json, user_id, title, created_at, from_version, updatedAt, version)"
+                        + " values (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                logId, articleVersion, patchJson, userId, title, new java.sql.Timestamp(createdAt.getTime()).toString(), fromVersion, new java.sql.Timestamp(createdAt.getTime()).toString());
     }
 
     public List<Map<String, Object>> findVersionList(Integer logId) throws SQLException {

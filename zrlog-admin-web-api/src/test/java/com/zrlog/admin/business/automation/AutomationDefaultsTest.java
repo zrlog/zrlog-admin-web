@@ -7,8 +7,8 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -42,13 +42,13 @@ public class AutomationDefaultsTest {
         }, System::currentTimeMillis);
         var registry = new TaskRegistry(() -> List.of(new HostMaintenanceTaskProvider(null, null, () -> null),
                 new TemporaryCleanupTaskProvider(null, null, null), upgrade, new PluginScheduledTaskProvider(() -> null)));
-        return new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())), registry);
+        return new AutomationDefaults(store, () -> new UserRepository(db.dataSource()), new WebsiteKvService(() -> new WebSiteRepository(db.dataSource())), registry);
     }
 
     @Test
     public void maintenanceIsSiteWideAndEnabledExceptAutomaticUpgrade() throws Exception {
         try (var db = open()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             assertTrue(defaults(db, store).initialize()); assertTrue(defaults(db, store).initializePluginTrigger());
             assertEquals(5, store.taskCount(0)); assertEquals(0, store.taskCount(1));
             for (var row : store.tasks(0, 100, 0)) {
@@ -68,7 +68,7 @@ public class AutomationDefaultsTest {
     @Test
     public void systemNamesAndRunSnapshotsFollowTheViewerLanguage() throws Exception {
         try (var db = open()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
                 assertTrue(defaults(db, store).initialize());
             }
@@ -100,11 +100,11 @@ public class AutomationDefaultsTest {
     @Test
     public void repeatedInitializationPreservesUserSettingsAndIgnoresOldDevelopmentStorage() throws Exception {
         try (var db = open()) {
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             db.execute("INSERT INTO website(name,value,remark) VALUES(?,?,?)",
                     "assistant.task:old-development-task", "invalid old format", "0");
             assertTrue(defaults(db, store).initialize());
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             var row = store.task(AutomationDefaults.systemId("system.cleanup-temporary"));
             var stopped = row.copy(StoredTask.class);
             stopped.enabled = false; stopped.schedule.intervalMinutes = 120;
@@ -125,7 +125,7 @@ public class AutomationDefaultsTest {
     public void initializationCannotInventAnOwnerOrBypassAccountPermissions() throws Exception {
         try (var db = open()) {
             db.execute("UPDATE user SET role=? WHERE userId=?", "editor", 1);
-            var store = new AutomationStore(() -> new WebSite(db.dataSource()));
+            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             assertFalse(defaults(db, store).initialize()); assertFalse(defaults(db, store).initializePluginTrigger());
             assertEquals(0, store.taskCount(0));
         }

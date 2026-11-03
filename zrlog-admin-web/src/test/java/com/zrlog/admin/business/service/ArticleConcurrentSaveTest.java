@@ -72,7 +72,7 @@ public class ArticleConcurrentSaveTest {
                         + (operation.equals("create") ? "create" : id);
                 AtomicBoolean revoked = new AtomicBoolean();
                 db.beforeWebApiUpdate((sql, params) -> {
-                    if (sql.startsWith("insert into website") && Arrays.asList(params).contains(lockKey)
+                    if (sql.toLowerCase(java.util.Locale.ROOT).startsWith("insert into website") && Arrays.asList(params).contains(lockKey)
                             && revoked.compareAndSet(false, true)) {
                         db.execute("update user set authVersion=authVersion+1 where userId=1");
                     }
@@ -190,7 +190,7 @@ public class ArticleConcurrentSaveTest {
             int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), article("Original")).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("update log ") && raced.compareAndSet(false, true)) {
+                if (sql.replace("`", "").toLowerCase(java.util.Locale.ROOT).startsWith("update log ") && raced.compareAndSet(false, true)) {
                     // A separate writer commits after authorization/read but before this UPDATE.
                     db.execute("update log set title=?,content=?,version=version+1 where logId=?",
                             "Other writer", "Other body", id);

@@ -132,7 +132,7 @@ public class AIChatServiceTest {
                 assertTrue(wire, wire.contains("\"content\":\"" + "x".repeat(fragments) + "done\""));
                 assertTrue(wire, wire.contains("\"reasoningContent\":\"" + "r".repeat(fragments) + "\""));
                 assertEquals(2, client.requests.size());
-                assertEquals(1, queries.stream().filter(sql -> sql.startsWith("select * from user ")).count());
+                assertEquals(1, queries.stream().filter(sql -> sql.replace("`", "").toLowerCase(java.util.Locale.ROOT).startsWith("select * from user ")).count());
                 assertEquals(1, queries.stream().filter(sql -> sql.startsWith("select preferences from user ")).count());
                 queryCounts.add(queries.size());
                 String stored = Objects.toString(db.scalar("select value from website where name='ai_chat_message_u1_36'"));

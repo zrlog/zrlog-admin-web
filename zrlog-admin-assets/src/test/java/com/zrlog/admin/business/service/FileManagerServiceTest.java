@@ -11,8 +11,8 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -349,19 +349,19 @@ public class FileManagerServiceTest {
                                     () -> null,
                                     AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                     new DbFileService(
-                                            () -> new WebSite(db.dataSource()))),
+                                            () -> new WebSiteRepository(db.dataSource()))),
                             new FileManagerReferenceService(
                                     ApplicationServicesFixture.websiteCache(db.dataSource()),
                                     "",
                                     null,
-                                    () -> new Log(db.dataSource())),
+                                    () -> new LogRepository(db.dataSource())),
                             new DbFileService(
-                                    () -> new WebSite(db.dataSource())),
+                                    () -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.settings(db.dataSource()),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
             DbFileService dbFileService =
-                    new DbFileService(() -> new WebSite(db.dataSource()));
+                    new DbFileService(() -> new WebSiteRepository(db.dataSource()));
             String filePath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs/a.txt";
             String dirPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs";
             dbFileService.toDbFile(filePath, "db-temp".getBytes(StandardCharsets.UTF_8));
@@ -409,15 +409,15 @@ public class FileManagerServiceTest {
                                                         .identities(), AccountServicesFixture.component(db.dataSource())
                                                 .permissions(),
                                                 new DbFileService(
-                                                        () -> new WebSite(db.dataSource()))),
+                                                        () -> new WebSiteRepository(db.dataSource()))),
                                         new FileManagerReferenceService(
                                                 ApplicationServicesFixture.websiteCache(
                                                         db.dataSource()),
                                                 "",
                                                 null,
-                                                () -> new Log(db.dataSource())),
+                                                () -> new LogRepository(db.dataSource())),
                                         new DbFileService(
-                                                () -> new WebSite(db.dataSource())),
+                                                () -> new WebSiteRepository(db.dataSource())),
                                         ApplicationServicesFixture.settings(db.dataSource()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
                                         ApplicationServicesFixture.operations(db.dataSource()));
@@ -483,15 +483,15 @@ public class FileManagerServiceTest {
                                                         .identities(), AccountServicesFixture.component(db.dataSource())
                                                 .permissions(),
                                                 new DbFileService(
-                                                        () -> new WebSite(db.dataSource()))),
+                                                        () -> new WebSiteRepository(db.dataSource()))),
                                         new FileManagerReferenceService(
                                                 ApplicationServicesFixture.websiteCache(
                                                         db.dataSource()),
                                                 "",
                                                 null,
-                                                () -> new Log(db.dataSource())),
+                                                () -> new LogRepository(db.dataSource())),
                                         new DbFileService(
-                                                () -> new WebSite(db.dataSource())),
+                                                () -> new WebSiteRepository(db.dataSource())),
                                         ApplicationServicesFixture.settings(db.dataSource()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
                                         ApplicationServicesFixture.operations(db.dataSource()));

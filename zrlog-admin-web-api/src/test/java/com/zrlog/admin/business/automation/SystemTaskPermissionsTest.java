@@ -7,8 +7,8 @@ import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -43,8 +43,8 @@ public class SystemTaskPermissionsTest {
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
         db.execute("INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)", 2, "second-admin", "admin", true, 0);
         db.execute("INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)", 3, "writer", "author", true, 0);
-        store = new AutomationStore(() -> new WebSite(db.dataSource()));
-        authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
+        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         definition.type = "system.test-maintenance"; definition.titleKey = "admin.assistant.cache.title";
         definition.systemTask = true; definition.enabledByDefault = true;
         definition.requiredActions = List.of("system.manage");
@@ -64,11 +64,11 @@ public class SystemTaskPermissionsTest {
         var registry = new TaskRegistry(() -> List.of(provider, new ReminderTaskProvider()));
         service = new AutomationService(store, authority, registry, now::get);
         engine = new AutomationEngine(store, authority, registry, now::get);
-        defaults = new AutomationDefaults(store, () -> new User(db.dataSource()), new WebsiteKvService(() -> new WebSite(db.dataSource())), registry);
+        defaults = new AutomationDefaults(store, () -> new UserRepository(db.dataSource()), new WebsiteKvService(() -> new WebSiteRepository(db.dataSource())), registry);
         assertTrue(defaults.initialize());
     }
     @After public void close() throws Exception { if (db != null) db.close(); }
-    private AccountAccess actor(int id) throws Exception { return AccountAccess.from(new User(db.dataSource()).loadById(id)); }
+    private AccountAccess actor(int id) throws Exception { return AccountAccess.from(new UserRepository(db.dataSource()).loadById(id)); }
     private StoredTask task() throws Exception { return service.systemTasks(actor(1)).get(0); }
     private AutomationModels.Plan plan(StoredTask task) { return AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationModels.Plan.class); }
 

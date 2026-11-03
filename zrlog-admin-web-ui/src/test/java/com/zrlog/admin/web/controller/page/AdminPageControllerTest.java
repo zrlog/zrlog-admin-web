@@ -16,8 +16,8 @@ import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.Constants;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.model.UserPasskey;
-import com.zrlog.model.WebSite;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -116,10 +116,10 @@ public class AdminPageControllerTest {
                                 new WebhookService(
                                         ApplicationServicesFixture.messages(testDataSource),
                                         ApplicationServicesFixture.websiteCache(testDataSource)),
-                                () -> new WebSite(testDataSource)),
+                                () -> new WebSiteRepository(testDataSource)),
                         site,
                         () -> "",
-                        () -> new UserPasskey(testDataSource));
+                        () -> new UserPasskeyRepository(testDataSource));
         AdminPageController controller =
                 new AdminPageController(
                         new AdminPageRequestHandler(

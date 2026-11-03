@@ -5,8 +5,8 @@ import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -35,9 +35,9 @@ public class UpgradeExecutionCoordinatorTest {
     @Before public void open() throws Exception {
         db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSite(db.dataSource()));
-        actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
-        var authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
+        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         coordinator = new UpgradeExecutionCoordinator(store, authority, now::get, installed::get);
     }
     @After public void close() throws Exception { if (db != null) db.close(); }

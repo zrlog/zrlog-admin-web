@@ -23,7 +23,7 @@ import com.zrlog.common.vo.SocialPreviewDTO;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.util.SocialPreviewUtils;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
 import com.zrlog.util.ThreadUtils;
@@ -50,7 +50,7 @@ public class ArticleQueryService {
     private final AdminPageDataFactory pages;
     private final AccountPermissionService permissionService;
     private final UserPreferenceService userPreferenceService;
-    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
 
     @Inject
     public ArticleQueryService(
@@ -59,7 +59,7 @@ public class ArticleQueryService {
             AdminPageDataFactory pages,
             AccountPermissionService permissionService,
             UserPreferenceService userPreferenceService,
-            jakarta.inject.Provider<Log> logProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider) {
         this.cacheService = cacheService;
         this.assistant = Objects.requireNonNull(assistant);
         this.pages = pages;
@@ -191,7 +191,7 @@ public class ArticleQueryService {
     private ArticleStatusCountResponse getStatusCounts(Integer authorId, Integer privateOwnerId) {
         ArticleStatusCountResponse counts = new ArticleStatusCountResponse();
         try {
-            Log log = this.logProvider.get();
+            LogRepository log = this.logProvider.get();
             List<Object> countParams = new ArrayList<>(Arrays.asList(false, false, true, true));
             if (authorId != null) countParams.add(authorId);
             if (privateOwnerId != null) {
@@ -206,7 +206,7 @@ public class ArticleQueryService {
                                     + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
                                     + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount "
                                     + "FROM "
-                                    + Log.TABLE_NAME
+                                    + LogRepository.TABLE_NAME
                                     + " l "
                                     + "inner join user u on u.userId = l.userId "
                                     + "inner join type t on t.typeId = l.typeId "
@@ -310,7 +310,7 @@ public class ArticleQueryService {
                         .get()
                         .queryListWithParams(
                                 "select releaseTime from "
-                                        + Log.TABLE_NAME
+                                        + LogRepository.TABLE_NAME
                                         + " where releaseTime >= ? order by releaseTime desc",
                                 ResultValueConvertUtils.formatDate(
                                         calendar.getTime(), "yyyy-MM-dd"));

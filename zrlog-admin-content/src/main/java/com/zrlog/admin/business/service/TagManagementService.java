@@ -10,8 +10,10 @@ import com.zrlog.admin.business.rest.response.TagManagementEntryResponse;
 import com.zrlog.admin.business.rest.response.TagManagementPreviewResponse;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.TagDTO;
-import com.zrlog.model.Log;
-import com.zrlog.model.Tag;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.TagRepository;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -20,14 +22,17 @@ import java.util.stream.Collectors;
 
 public class TagManagementService {
     private static final int PREVIEW_LIMIT = 10;
-    private final jakarta.inject.Provider<Log> logProvider;
-    private final jakarta.inject.Provider<Tag> tagProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
+    private final jakarta.inject.Provider<TagRepository> tagProvider;
+    private final ArticleVersionService versions;
 
     @Inject
     public TagManagementService(
-            jakarta.inject.Provider<Log> logProvider, jakarta.inject.Provider<Tag> tagProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider, jakarta.inject.Provider<TagRepository> tagProvider,
+            ArticleVersionService versions) {
         this.logProvider = logProvider;
         this.tagProvider = tagProvider;
+        this.versions = versions;
     }
 
     public PageData<TagManagementEntryResponse> find(String homeUrl, PageRequest pageRequest, String key, boolean staticHtml) throws SQLException {
@@ -76,19 +81,21 @@ public class TagManagementService {
     }
 
     public TagManagementPreviewResponse preview(TagManageRequest request, String operation) throws SQLException {
-        return buildPreview(request, operation, false);
+        return buildPreview(request, operation, null);
     }
 
-    public TagManagementPreviewResponse execute(TagManageRequest request, String operation) throws SQLException {
-        TagManagementPreviewResponse preview = buildPreview(request, operation, true);
+    public TagManagementPreviewResponse execute(AccountAccess actor, TagManageRequest request, String operation) throws SQLException {
+        AccountPermissionService.requireAction(actor, AccountAction.TAXONOMY_MANAGE.getId());
+        TagManagementPreviewResponse preview = buildPreview(request, operation, actor);
         if (preview.getUpdatedArticleCount() > 0) {
             this.tagProvider.get().refreshTag();
         }
         return preview;
     }
 
-    private TagManagementPreviewResponse buildPreview(TagManageRequest request, String operation, boolean execute)
+    private TagManagementPreviewResponse buildPreview(TagManageRequest request, String operation, AccountAccess actor)
             throws SQLException {
+        boolean execute = actor != null;
         String sourceTag = normalizeTag(request.getSourceTag());
         String targetTag = normalizeTag(request.getTargetTag());
         boolean remove = Objects.equals(operation, "delete");
@@ -96,14 +103,14 @@ public class TagManagementService {
                 this.logProvider
                         .get()
                         .queryListWithParams(
-                                "select logId,title,keywords from "
-                                        + Log.TABLE_NAME
+                                "select logId,title,keywords,version from "
+                                        + LogRepository.TABLE_NAME
                                         + " where keywords is not null and keywords <> ''");
         TagManagementPreviewResponse response = new TagManagementPreviewResponse();
         response.setSourceTag(sourceTag);
         response.setTargetTag(remove ? "" : targetTag);
         response.setOperation(operation);
-        Log logDao = this.logProvider.get();
+        LogRepository logDao = this.logProvider.get();
         long affected = 0;
         long updated = 0;
         for (Map<String, Object> row : rows) {
@@ -122,9 +129,15 @@ public class TagManagementService {
             }
             if (execute) {
                 Number logId = (Number) row.get("logId");
-                logDao.set("keywords", afterKeywords.isEmpty() ? null : afterKeywords)
-                        .set("last_update_date", new Date())
-                        .updateById(logId);
+                int version = ((Number) row.get("version")).intValue();
+                // This explicit projection supports a conditional bulk edit without loading article bodies.
+                if (version == Integer.MAX_VALUE || !logDao.execute("UPDATE log SET keywords=?,last_update_date=?,version=version+1 WHERE logId=? AND keywords=? AND version=?",
+                        afterKeywords.isEmpty() ? null : afterKeywords,
+                        new java.sql.Timestamp(System.currentTimeMillis()).toString(), logId, beforeKeywords, version)) continue;
+                Map<String, Object> saved = new HashMap<>(row);
+                saved.put("keywords", afterKeywords.isEmpty() ? null : afterKeywords);
+                saved.put("version", version + 1);
+                versions.recordReversePatch(row, saved, actor.getUserId());
                 updated += 1;
             }
         }

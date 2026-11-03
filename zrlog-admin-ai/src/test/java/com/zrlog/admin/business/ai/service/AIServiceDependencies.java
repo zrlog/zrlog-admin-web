@@ -5,7 +5,7 @@ import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 
 /**
  * Explicit collaborators for focused AI tests; request/client doubles remain supplied by each test.
@@ -42,7 +42,7 @@ public final class AIServiceDependencies {
     }
 
     public static AIConfigService config(DataSourceWrapper source) {
-        return new AIConfigService(() -> new WebSite(source));
+        return new AIConfigService(() -> new WebSiteRepository(source));
     }
 
     public static AIApprovalStore approvals(DataSourceWrapper source) {
@@ -53,13 +53,13 @@ public final class AIServiceDependencies {
         return new AIConversationService(
                 AccountServicesFixture.component(source).security(),
                 ApplicationServicesFixture.websiteKv(source),
-                () -> new WebSite(source),
+                () -> new WebSiteRepository(source),
                 new AIFileService(),
                 approvals(source));
     }
 
     public static DbFileService dbFiles(DataSourceWrapper source) {
-        return new DbFileService(() -> new WebSite(source));
+        return new DbFileService(() -> new WebSiteRepository(source));
     }
 
     public static AIToolService tools(DataSourceWrapper source) {

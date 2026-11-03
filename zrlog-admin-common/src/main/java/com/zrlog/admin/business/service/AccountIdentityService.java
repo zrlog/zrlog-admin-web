@@ -3,7 +3,7 @@ package com.zrlog.admin.business.service;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -15,10 +15,10 @@ import java.sql.SQLException;
  */
 @Singleton
 public final class AccountIdentityService {
-    private final Provider<User> users;
+    private final Provider<UserRepository> users;
 
     @Inject
-    public AccountIdentityService(Provider<User> users) {
+    public AccountIdentityService(Provider<UserRepository> users) {
         this.users = users;
     }
 

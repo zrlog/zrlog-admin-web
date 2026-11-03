@@ -5,7 +5,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -21,13 +21,13 @@ import java.util.Map;
 public class ArticleResourceService {
     private final AdminArticleService articles;
     private final AccountIdentityService identities;
-    private final Provider<Log> logs;
+    private final Provider<LogRepository> logs;
 
     @Inject
     public ArticleResourceService(
             AdminArticleService articles,
             AccountIdentityService identities,
-            Provider<Log> logs) {
+            Provider<LogRepository> logs) {
         this.articles = articles;
         this.identities = identities;
         this.logs = logs;
@@ -47,7 +47,7 @@ public class ArticleResourceService {
                 logs.get()
                         .queryListWithParams(
                                 "select logId, thumbnail, content, markdown, digest from "
-                                        + Log.TABLE_NAME);
+                                        + LogRepository.TABLE_NAME);
         ReplaceArticleResourceUrlResponse result = new ReplaceArticleResourceUrlResponse();
         result.setScannedArticles(candidates.size());
         for (Map<String, Object> candidate : candidates) {

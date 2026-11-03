@@ -7,7 +7,7 @@ import com.zrlog.admin.business.automation.AutomationAssistant;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.automation.AutomationComponent;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
@@ -39,7 +39,7 @@ public class AutomationProposalAssemblyTest {
             db.putWebsite("ai_base_url", "http://127.0.0.1:" + provider.getAddress().getPort());
             db.loadAdminWebModules();
             var component = db.component(AutomationComponent.class);
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             assertTrue(component.proposals().available(actor));
             long before = component.store().taskCount(actor.getUserId());
             var input = new AutomationAssistant.Request(); input.input = "Remind me to plan weekly writing on Friday at 5pm";

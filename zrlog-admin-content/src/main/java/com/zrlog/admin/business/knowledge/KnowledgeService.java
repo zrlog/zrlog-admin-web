@@ -7,7 +7,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
@@ -23,7 +23,7 @@ import java.util.function.Supplier;
  * The one read boundary used by the internal assistant and remote MCP transport.
  */
 public final class KnowledgeService implements ToolProvider {
-    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<LogRepository> logProvider;
 
     private final Supplier<AccountAccess> actor;
     private final Set<String> scopes;
@@ -36,7 +36,7 @@ public final class KnowledgeService implements ToolProvider {
             Set<String> scopes,
             Supplier<String> siteUrl,
             BooleanSupplier staticHtml,
-            jakarta.inject.Provider<Log> logProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider) {
         this(actor, scopes, siteUrl, staticHtml, "en_US", logProvider);
     }
 
@@ -47,7 +47,7 @@ public final class KnowledgeService implements ToolProvider {
             @Named("backendUrl") Supplier<String> siteUrl,
             BooleanSupplier staticHtml,
             @Assisted String language,
-            jakarta.inject.Provider<Log> logProvider) {
+            jakarta.inject.Provider<LogRepository> logProvider) {
         this.logProvider = logProvider;
 
         this.actor = actor;

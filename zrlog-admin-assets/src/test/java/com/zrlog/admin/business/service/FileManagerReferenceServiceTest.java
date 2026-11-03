@@ -8,7 +8,7 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import com.zrlog.test.support.TestLogCapture;
 import org.junit.Test;
 
@@ -269,7 +269,7 @@ public class FileManagerReferenceServiceTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource())),
                             "/blog",
                             null,
-                            () -> new Log(db.dataSource()));
+                            () -> new LogRepository(db.dataSource()));
 
             Map<String, List<FileReferenceVO>> local = service.buildLocalReferenceMap();
             Map<String, List<FileReferenceVO>> external = service.buildExternalReferenceMap();
@@ -294,7 +294,7 @@ public class FileManagerReferenceServiceTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource())),
                             "/blog",
                             null,
-                            () -> new Log(db.dataSource()));
+                            () -> new LogRepository(db.dataSource()));
             assertEquals(local.keySet(), cachedService.buildLocalReferenceMap().keySet());
         }
     }
@@ -334,7 +334,7 @@ public class FileManagerReferenceServiceTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource())),
                             "",
                             content::resources,
-                            () -> new Log(db.dataSource()));
+                            () -> new LogRepository(db.dataSource()));
 
             ReplaceArticleResourceUrlResponse response = service.replaceArticleResourceReferences(
                     AccountServicesFixture.component(db.dataSource()).identities().account(token()), "/attached/images", "/attached/media", true);

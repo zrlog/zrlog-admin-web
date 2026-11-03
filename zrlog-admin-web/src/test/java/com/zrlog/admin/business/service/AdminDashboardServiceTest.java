@@ -17,9 +17,9 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.model.Comment;
-import com.zrlog.model.Log;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.CommentRepository;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import javax.net.ssl.SSLSession;
@@ -457,7 +457,7 @@ public class AdminDashboardServiceTest {
             pluginCard.setSort(3);
             request.setCards(List.of(pluginCard));
 
-            AdminDashboardConfigResponse config = service.saveConfig(request, null, token());
+            AdminDashboardConfigResponse config = service.saveConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), request, null, token());
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
             Map<String, Object> saved = db.queryOne("select preferences as value from user where userId=1");
             assertNull(db.scalar("select value from website where name=?", AdminDashboardService.DASHBOARD_CONFIG_KEY));
@@ -487,7 +487,7 @@ public class AdminDashboardServiceTest {
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
             AdminDashboardConfigResponse config =
                     db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard()
-                            .getConfig(null, token(), true);
+                            .getConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
             assertEquals(Boolean.TRUE, config.getAutoRefreshEnabled());
@@ -500,7 +500,7 @@ public class AdminDashboardServiceTest {
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
             AdminDashboardConfigResponse fallback =
                     db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard()
-                            .getConfig(null, token());
+                            .getConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), null, token());
 
             assertEquals(7, fallback.getCards().size());
             assertNotNull(findDashboardItem(fallback.getCards(), "welcome"));
@@ -546,13 +546,13 @@ public class AdminDashboardServiceTest {
                 long start = System.nanoTime();
                 AdminDashboardConfigResponse config =
                         new AdminDashboardService(
-                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
+                            new WebsiteKvService(() -> new WebSiteRepository(db.dataSource())),
                             new AdminStatisticsService(
                                         db.unitCacheService(),
                                         RuntimeInfoFixture.from(db.config()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new Log(db.dataSource()),
-                                        () -> new Comment(db.dataSource())),
+                                        () -> new LogRepository(db.dataSource()),
+                                        () -> new CommentRepository(db.dataSource())),
                             new ArticleQueryService(db.unitCacheService(),
                                         ApplicationServicesFixture.capability(
                                                 db.config(), ArticleAssistant.class),
@@ -567,14 +567,12 @@ public class AdminDashboardServiceTest {
                                                 .permissions(),
                                         AccountServicesFixture.component(db.dataSource())
                                                 .preferences(),
-                                        () -> new Log(db.dataSource())),
+                                        () -> new LogRepository(db.dataSource())),
                             new com.zrlog.admin.business.service.DashboardPluginLoader(() -> db.config().getPlugin(PluginCorePlugin.class), 50),
                             AccountServicesFixture.component(db.dataSource())
                                         .preferences(),
-                            AccountServicesFixture.component(db.dataSource())
-                                        .identities(),
                             new com.zrlog.admin.business.service.DashboardLayoutPolicy())
-                                .getConfig(null, token(), true);
+                                .getConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
 

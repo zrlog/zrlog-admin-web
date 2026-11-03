@@ -12,7 +12,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
-import com.zrlog.model.LogVersion;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -98,7 +98,7 @@ public class AdminArticleVersionControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             insertArticle(db);
-            new LogVersion(db.dataSource())
+            new LogVersionRepository(db.dataSource())
                     .savePatch(
                             10,
                             2,

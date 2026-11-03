@@ -9,7 +9,7 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -24,9 +24,9 @@ public class AIConfigService {
     static final List<String> AI_WEBSITE_INFO_KEYS = Arrays.asList("ai_provider", "ai_model", "ai_base_url", "ai_api_key", "ai_prompt",
             "ai_max_completion_tokens", AI_REASONING_ENABLED_KEY, "ai_image_provider", "ai_image_model",
             "ai_image_base_url", "ai_image_api_key");
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     @Inject
-    public AIConfigService(jakarta.inject.Provider<WebSite> webSiteProvider) {
+    public AIConfigService(jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.webSiteProvider = webSiteProvider;
     }
 

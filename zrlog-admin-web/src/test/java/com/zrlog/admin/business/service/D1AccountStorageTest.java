@@ -301,7 +301,7 @@ public class D1AccountStorageTest {
             update.role = "contributor";
             update.enabled = false;
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("update user set role=?"))
+                if (sql.startsWith("update user set updatedAt=?,version=version+1,role=?"))
                     db.execute("update user set role='admin',authVersion=authVersion+1 where userId=?", id);
             });
             assertThrows(PermissionErrorException.class, () -> members.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), update));

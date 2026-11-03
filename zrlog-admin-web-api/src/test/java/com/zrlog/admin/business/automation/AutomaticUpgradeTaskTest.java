@@ -6,8 +6,8 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -43,18 +43,18 @@ public class AutomaticUpgradeTaskTest {
     public void open() throws Exception {
         db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSite(db.dataSource()));
-        authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
+        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
-        actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
         provider = new AutomaticUpgradeTaskProvider(store, operations, now::get);
         var registry = new TaskRegistry(() -> List.of(provider));
         service = new AutomationService(store, authority, registry, now::get);
         engine = new AutomationEngine(store, authority, registry, now::get);
         ticks = new AutomationTickService(engine, store, now::get, null,
                 (budget, receipt) -> provider.completeInstalled(authority, budget, receipt));
-        new AutomationDefaults(store, () -> new User(db.dataSource()),
-                new com.zrlog.business.service.WebsiteKvService(() -> new WebSite(db.dataSource())), registry).initialize();
+        new AutomationDefaults(store, () -> new UserRepository(db.dataSource()),
+                new com.zrlog.business.service.WebsiteKvService(() -> new WebSiteRepository(db.dataSource())), registry).initialize();
     }
 
     @After
@@ -193,7 +193,7 @@ public class AutomaticUpgradeTaskTest {
     public void upgradeNotificationAppearsOnlyAfterBuildConfirmationAndDoesNotRepeat() throws Exception {
         now.set(System.currentTimeMillis());
         var task = service.save(actor, plan());
-        authority = new TaskAuthority(new AccountIdentityService(() -> new User(db.dataSource())), () -> new User(db.dataSource()));
+        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         var inbox = new AutomationNotificationService(store, authority, service);
         now.addAndGet(1000);
         engine.tick("internal", 660000);
@@ -466,7 +466,7 @@ public class AutomaticUpgradeTaskTest {
         operations.beforeSubmit = () -> { throw new IllegalStateException("unknown submission outcome"); };
         now.addAndGet(1000); engine.tick("internal", 660000);
         db.execute("INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)", 2, "admin-two", "admin", true, 0);
-        var admin = AccountAccess.from(new User(db.dataSource()).loadById(2));
+        var admin = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
         assertThrows(IllegalStateException.class, () -> service.setEnabled(admin, task.id, task.revision, true));
         var review = plan(); review.parameters.addProperty("retryUnconfirmed", true);
         var saved = service.save(admin, review);

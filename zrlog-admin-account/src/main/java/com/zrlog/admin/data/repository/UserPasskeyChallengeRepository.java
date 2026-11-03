@@ -1,21 +1,24 @@
-package com.zrlog.model;
+package com.zrlog.admin.data.repository;
 
-import com.hibegin.common.dao.BasePageableDAO;
+import com.zrlog.model.UserPasskeyChallenge;
+import com.zrlog.data.repository.BaseRepository;
+
+import com.zrlog.data.repository.*;
+
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.Map;
 
-public class UserPasskeyChallenge extends BasePageableDAO {
+public class UserPasskeyChallengeRepository extends BaseRepository<UserPasskeyChallenge, Long> {
 
     public static final String TABLE_NAME = "user_passkey_challenge";
 
     @Inject
-    public UserPasskeyChallenge(DataSourceWrapper database) {
-        super(database);
-        this.tableName = TABLE_NAME;
-        this.pk = "id";
+    public UserPasskeyChallengeRepository(DataSourceWrapper database) {
+        super(UserPasskeyChallenge.class, database);
     }
 
     public boolean save(String requestId, String ceremony, Integer userId, String requestJson,
@@ -36,8 +39,8 @@ public class UserPasskeyChallenge extends BasePageableDAO {
     public boolean insert(String requestId, String ceremony, Integer userId, String requestJson,
                           long expiresAt, long createdAt) throws SQLException {
         return execute("insert into " + tableName
-                        + " (requestId,ceremony,userId,requestJson,expiresAt,createdAt) values (?,?,?,?,?,?)",
-                requestId, ceremony, userId, requestJson, expiresAt, createdAt);
+                        + " (requestId,ceremony,userId,requestJson,expiresAt,createdAt,updatedAt,version) values (?,?,?,?,?,?,?,0)",
+                requestId, ceremony, userId, requestJson, expiresAt, new java.sql.Timestamp(createdAt).toString(), new java.sql.Timestamp(createdAt).toString());
     }
 
     public Map<String, Object> consume(String requestId, String ceremony, long now) throws SQLException {

@@ -90,7 +90,7 @@ final class AIApprovalStore {
         }
         if (old == null) {
             try {
-                db.withSession(c -> db.update(c, "insert into website(name,value,remark) values(?,?,?)",
+                db.withSession(c -> db.update(c, "insert into website(createdAt,updatedAt,version,name,value,remark) values(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         key(run.userId, run.articleId), value, run.revision));
             } catch (SQLException e) {
                 run.revision = null;
@@ -100,7 +100,7 @@ final class AIApprovalStore {
         } else {
             try {
                 if (db.withSession(c -> db.update(c,
-                        "update website set value=?,remark=? where name=? and remark=?",
+                        "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         value, run.revision, key(run.userId, run.articleId), old.revision)) != 1) throw new Changed();
             } catch (SQLException | RuntimeException e) {
                 run.revision = null;
@@ -121,7 +121,7 @@ final class AIApprovalStore {
         try {
             String value = serialize(run);
             if (db.withSession(c -> db.update(c,
-                    "update website set value=?,remark=? where name=? and remark=?",
+                    "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                     value, next, key(run.userId, run.articleId), expected)) != 1) throw new Changed();
         } catch (SQLException | RuntimeException e) {
             run.revision = expected;

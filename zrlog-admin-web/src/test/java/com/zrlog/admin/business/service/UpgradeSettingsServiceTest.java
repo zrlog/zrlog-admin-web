@@ -23,7 +23,7 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.updater.spi.DockerControl;
 import org.junit.Test;
 
@@ -168,7 +168,7 @@ public class UpgradeSettingsServiceTest {
                                                             UpdateVersionInfoPlugin.class),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource())), db.dataSource());
+                                    () -> new WebSiteRepository(db.dataSource())), db.dataSource());
             UpgradeSettingsRequest input = new Gson().fromJson("{\"autoUpgradeVersion\":-1,\"upgradePreview\":true,"
                     + "\"upgradePackageSource\":\"dl\",\"dockerRepository\":\"" + ALIYUN + "\",\"dockerMode\":false}", UpgradeSettingsRequest.class);
             service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
@@ -210,7 +210,7 @@ public class UpgradeSettingsServiceTest {
                                                             UpdateVersionInfoPlugin.class),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource())), db.dataSource());
+                                    () -> new WebSiteRepository(db.dataSource())), db.dataSource());
             assertThrows(ArgsException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input("unlisted.example/zrlog"), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertTrue(client.saves.isEmpty());
@@ -243,7 +243,7 @@ public class UpgradeSettingsServiceTest {
                                                             UpdateVersionInfoPlugin.class),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource())), db.dataSource());
+                                    () -> new WebSiteRepository(db.dataSource())), db.dataSource());
             service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(null), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
             assertEquals("-1", value(db, "autoUpgradeVersion"));
             assertEquals(0, client.reads);
@@ -276,7 +276,7 @@ public class UpgradeSettingsServiceTest {
                                                             UpdateVersionInfoPlugin.class),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource())) {
+                                    () -> new WebSiteRepository(db.dataSource())) {
                                 @Override
                                 public void updateUpgrade(
                                         UpgradeWebSiteInfo settings, AdminAuditContext audit)
@@ -312,7 +312,7 @@ public class UpgradeSettingsServiceTest {
                                                             UpdateVersionInfoPlugin.class),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource())), db.dataSource());
+                                    () -> new WebSiteRepository(db.dataSource())), db.dataSource());
             var input = input(null);
             input.setUpgradePackageSource("github");
             service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
@@ -344,7 +344,7 @@ public class UpgradeSettingsServiceTest {
                                                             UpdateVersionInfoPlugin.class),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                    () -> new WebSite(db.dataSource())), db.dataSource());
+                                    () -> new WebSiteRepository(db.dataSource())), db.dataSource());
             assertThrows(IllegalStateException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(ALIYUN), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(0, client.reads);
             plugin(db.dataSource());
@@ -362,7 +362,7 @@ public class UpgradeSettingsServiceTest {
                         new UpdateVersionInfoPlugin(
                                 ApplicationServicesFixture.upgradeNotices(applicationConfig),
                                 () -> "zh_CN",
-                                applicationConfig == null ? null : applicationConfig.getUpdater(), new WebsiteKvService(() -> new WebSite(testDataSource))) {
+                                applicationConfig == null ? null : applicationConfig.getUpdater(), new WebsiteKvService(() -> new WebSiteRepository(testDataSource))) {
                             @Override
                             public boolean start() {
                                 return true;

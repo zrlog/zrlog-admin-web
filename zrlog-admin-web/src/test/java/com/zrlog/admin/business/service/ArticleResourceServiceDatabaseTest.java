@@ -172,7 +172,7 @@ public class ArticleResourceServiceDatabaseTest {
             AtomicBoolean paused = new AtomicBoolean();
             db.beforeWebApiUpdate(
                     (sql, args) -> {
-                        if (sql.startsWith("update log ") && paused.compareAndSet(false, true)) {
+                        if (sql.replace("`", "").toLowerCase(java.util.Locale.ROOT).startsWith("update log ") && paused.compareAndSet(false, true)) {
                             editorHasLock.countDown();
                             await(releaseEditor);
                         }
@@ -227,7 +227,7 @@ public class ArticleResourceServiceDatabaseTest {
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate(
                     (sql, args) -> {
-                        if (sql.startsWith("update log ") && raced.compareAndSet(false, true)) {
+                        if (sql.replace("`", "").toLowerCase(java.util.Locale.ROOT).startsWith("update log ") && raced.compareAndSet(false, true)) {
                             db.execute(
                                     "update log set content=?,version=version+1 where logId=?",
                                     "Other process",
@@ -324,7 +324,7 @@ public class ArticleResourceServiceDatabaseTest {
             var before = db.queryOne("select thumbnail,content,markdown,digest from log where logId=?", id);
             AtomicBoolean revoked = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, params) -> {
-                if (sql.startsWith("insert into website")
+                if (sql.toLowerCase(java.util.Locale.ROOT).startsWith("insert into website")
                         && Arrays.asList(params).contains("distributed_lock_write_article_" + id)
                         && revoked.compareAndSet(false, true)) {
                     db.execute("update user set authVersion=authVersion+1 where userId=1");

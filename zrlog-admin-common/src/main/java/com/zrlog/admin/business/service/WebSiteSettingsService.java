@@ -16,7 +16,7 @@ import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.cache.vo.BaseDataInitVO;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 public class WebSiteSettingsService {
     private final AdminAuditService adminAuditService;
     private final WebsiteKvService websiteKvService;
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
 
     private final CacheService cacheService;
     private final TokenService tokenService;
@@ -44,7 +44,7 @@ public class WebSiteSettingsService {
             Supplier<UpdateVersionInfoPlugin> updatePlugin,
             AdminAuditService adminAuditService,
             WebsiteKvService websiteKvService,
-            jakarta.inject.Provider<WebSite> webSiteProvider) {
+            jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.adminAuditService = adminAuditService;
         this.websiteKvService = websiteKvService;
         this.webSiteProvider = webSiteProvider;
@@ -79,7 +79,7 @@ public class WebSiteSettingsService {
                 settingAuditContent(settings, audit.getUri()));
         Map<String, Object> values = BeanUtil.convert(settings, Map.class);
         if (values != null) {
-            WebSite webSite = this.webSiteProvider.get();
+            WebSiteRepository webSite = this.webSiteProvider.get();
             for (Map.Entry<String, Object> entry : values.entrySet()) {
                 webSite.updateByKV(entry.getKey(), toWebsiteValue(entry.getValue()));
             }

@@ -5,7 +5,7 @@ import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -59,7 +59,7 @@ public class MemberServiceTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new User(db.dataSource()));
+                            () -> new UserRepository(db.dataSource()));
             String avatar = users.getBasicUserInfo(member.userId, "new-member-session").getHeader();
             String dataUriPrefix = "data:image/gif;base64,";
             assertTrue(avatar.startsWith(dataUriPrefix));

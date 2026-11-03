@@ -15,8 +15,8 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -314,14 +314,14 @@ public class FileManagerControllerTest {
                                                 .identities(), AccountServicesFixture.component(testDataSource)
                                         .permissions(),
                                         new DbFileService(
-                                                () -> new WebSite(testDataSource))),
+                                                () -> new WebSiteRepository(testDataSource))),
                                 new FileManagerReferenceService(
                                         ApplicationServicesFixture.websiteCache(testDataSource),
                                         "",
                                         null,
-                                        () -> new Log(testDataSource)),
+                                        () -> new LogRepository(testDataSource)),
                                 new DbFileService(
-                                        () -> new WebSite(testDataSource)),
+                                        () -> new WebSiteRepository(testDataSource)),
                                 ApplicationServicesFixture.settings(testDataSource),
                                 ApplicationServicesFixture.audit(testDataSource),
                                 ApplicationServicesFixture.operations(testDataSource)),
@@ -357,14 +357,14 @@ public class FileManagerControllerTest {
                             () -> null,
                             AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                             new DbFileService(
-                                    () -> new WebSite(testDataSource))),
+                                    () -> new WebSiteRepository(testDataSource))),
                     new FileManagerReferenceService(
                             ApplicationServicesFixture.websiteCache(testDataSource),
                             "",
                             null,
-                            () -> new Log(testDataSource)),
+                            () -> new LogRepository(testDataSource)),
                     new DbFileService(
-                            () -> new WebSite(testDataSource)),
+                            () -> new WebSiteRepository(testDataSource)),
                     ApplicationServicesFixture.settings(testDataSource),
                     ApplicationServicesFixture.audit(testDataSource),
                     ApplicationServicesFixture.operations(testDataSource));

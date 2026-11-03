@@ -19,7 +19,7 @@ import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
 import com.zrlog.admin.web.interceptor.McpInterceptor;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.model.Log;
+import com.zrlog.data.repository.LogRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -193,7 +193,7 @@ public class AdminModuleSwitchTest {
                             java.util.Set.of("articles:read", "articles:read_drafts"),
                             () -> "https://blog.example",
                             () -> false,
-                            () -> new Log(db.dataSource()));
+                            () -> new LogRepository(db.dataSource()));
             var argsJson = new com.google.gson.JsonObject();
             argsJson.addProperty("id", saved.getLogId());
             var source = (KnowledgeModels.ArticleResult) knowledge.call("read_article", argsJson);

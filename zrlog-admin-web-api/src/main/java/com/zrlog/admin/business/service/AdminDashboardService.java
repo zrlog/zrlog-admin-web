@@ -7,7 +7,6 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.service.WebsiteKvService;
-import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.common.exception.ArgsException;
@@ -38,7 +37,6 @@ public class AdminDashboardService {
     private static final Type CONFIG_TYPE = new TypeToken<AdminDashboardConfigResponse>() {}.getType();
     private static final Logger LOGGER = Logger.getLogger(AdminDashboardService.class.getName());
     private final UserPreferenceService userPreferenceService;
-    private final AccountIdentityService identities;
     private final WebsiteKvService kvService;
     private final AdminStatisticsService statisticsService;
     private final ArticleQueryService articleService;
@@ -48,19 +46,18 @@ public class AdminDashboardService {
     @Inject
     public AdminDashboardService(WebsiteKvService kvService, AdminStatisticsService statisticsService,
                                  ArticleQueryService articleService, DashboardPluginLoader plugins,
-                                 UserPreferenceService userPreferenceService, AccountIdentityService identities,
+                                 UserPreferenceService userPreferenceService,
                                  DashboardLayoutPolicy layout) {
         this.kvService = Objects.requireNonNull(kvService);
         this.statisticsService = statisticsService;
         this.articleService = articleService;
         this.plugins = plugins;
         this.userPreferenceService = userPreferenceService;
-        this.identities = identities;
         this.layout = layout;
     }
 
-    public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO) {
-        return getConfig(request, adminTokenVO, false);
+    public AdminDashboardConfigResponse getConfig(AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO) {
+        return getConfig(actor, request, adminTokenVO, false);
     }
 
     public FirstUseChecklistResponse getFirstUseChecklist() {
@@ -80,11 +77,10 @@ public class AdminDashboardService {
         return new FirstUseChecklistResponse(FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_DISMISSED);
     }
 
-    public IndexResponse loadIndex(HttpRequest request, AdminTokenVO adminTokenVO) {
+    public IndexResponse loadIndex(AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO) {
         List<String> tips = loadWelcomeTips();
         Collections.shuffle(tips);
-        AdminDashboardConfigResponse config = getConfig(request, adminTokenVO, true);
-        AccountAccess actor = adminTokenVO == null ? null : DelegatedAccess.restrict(identities.account(adminTokenVO));
+        AdminDashboardConfigResponse config = getConfig(actor, request, adminTokenVO, true);
         boolean auditTrailEnabled = layout.isCardEnabled(config, "auditTrail");
         boolean activityEnabled = layout.isCardEnabled(config, "activity");
         ExecutorService executor = ThreadUtils.newFixedThreadPool(20);
@@ -142,9 +138,9 @@ public class AdminDashboardService {
         return tips;
     }
 
-    public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {
+    public AdminDashboardConfigResponse getConfig(AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {
         AdminDashboardConfigResponse savedConfig =
-                this.userPreferenceService.dashboard(adminTokenVO == null ? null : identities.account(adminTokenVO));
+                this.userPreferenceService.dashboard(actor);
         if (savedConfig == null) savedConfig = readSavedConfig();
         List<AdminDashboardCardConfigResponse> cards = layout.mergeCards(layout.extractCardItems(savedConfig.getCards()));
         List<AdminDashboardCardResponse> pluginPanels = layout.mergePluginPanels(
@@ -154,7 +150,6 @@ public class AdminDashboardService {
         }
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         config.setCards(layout.toItems(cards, pluginPanels));
-        AccountAccess actor = adminTokenVO == null ? null : DelegatedAccess.restrict(identities.account(adminTokenVO));
         if (actor == null || !AccountAction.SYSTEM_MANAGE.allowed(actor)) {
             config.getCards().removeIf(item -> "auditTrail".equals(item.getId()));
         }
@@ -162,7 +157,7 @@ public class AdminDashboardService {
         return config;
     }
 
-    public AdminDashboardConfigResponse saveConfig(AdminDashboardConfigRequest request, HttpRequest httpRequest,
+    public AdminDashboardConfigResponse saveConfig(AccountAccess actor, AdminDashboardConfigRequest request, HttpRequest httpRequest,
                                                    AdminTokenVO adminTokenVO) {
         List<AdminDashboardCardResponse> requestCards = layout.toCardResponses(request.getCards());
         List<AdminDashboardCardConfigResponse> cards = layout.mergeCards(layout.extractCardItems(requestCards));
@@ -173,8 +168,8 @@ public class AdminDashboardService {
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         config.setCards(dashboardCards);
         layout.fillRefreshConfig(config, request);
-        this.userPreferenceService.saveDashboard(identities.account(adminTokenVO), config);
-        return getConfig(httpRequest, adminTokenVO, true);
+        this.userPreferenceService.saveDashboard(actor, config);
+        return getConfig(actor, httpRequest, adminTokenVO, true);
     }
 
     private AdminDashboardConfigResponse readSavedConfig() {

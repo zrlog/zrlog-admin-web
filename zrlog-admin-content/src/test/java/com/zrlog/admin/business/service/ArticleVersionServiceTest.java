@@ -10,8 +10,8 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -54,8 +54,8 @@ public class ArticleVersionServiceTest {
 
     private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
         return new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
-                () -> new Log(testDataSource),
-                () -> new LogVersion(testDataSource));
+                () -> new LogRepository(testDataSource),
+                () -> new LogVersionRepository(testDataSource));
     }
 
     private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
@@ -230,9 +230,9 @@ public class ArticleVersionServiceTest {
                     AccountServicesFixture.component(testDataSource).preferences(),
                     newService(testDataSource),
                     new ArticlePinningService(
-                            () -> new Log(testDataSource),
+                            () -> new LogRepository(testDataSource),
                             ApplicationServicesFixture.locks(testDataSource)),
-                    () -> new Log(testDataSource),
+                    () -> new LogRepository(testDataSource),
                     ApplicationServicesFixture.locks(testDataSource));
         }
 

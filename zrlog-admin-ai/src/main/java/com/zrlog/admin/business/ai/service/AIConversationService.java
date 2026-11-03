@@ -11,7 +11,7 @@ import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
 import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.business.service.WebsiteKvService;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
@@ -26,7 +26,7 @@ public class AIConversationService {
     private static final long DRAFT_ARTICLE_ID = 0L;
     private final SecurityStore store;
     private final WebsiteKvService websiteKvService;
-    private final jakarta.inject.Provider<WebSite> websites;
+    private final jakarta.inject.Provider<WebSiteRepository> websites;
     private final AIFileService files;
     private final AIApprovalStore approvals;
     private final Integer conversationUserId;
@@ -35,7 +35,7 @@ public class AIConversationService {
     public AIConversationService(
             SecurityStore store,
             WebsiteKvService websiteKvService,
-            jakarta.inject.Provider<WebSite> websites,
+            jakarta.inject.Provider<WebSiteRepository> websites,
             AIFileService files,
             AIApprovalStore approvals) {
         this.store = store;
@@ -50,7 +50,7 @@ public class AIConversationService {
             Integer userId,
             SecurityStore store,
             WebsiteKvService websiteKvService,
-            jakarta.inject.Provider<WebSite> websites,
+            jakarta.inject.Provider<WebSiteRepository> websites,
             AIFileService files,
             AIApprovalStore approvals) {
         this.store = store;
@@ -124,7 +124,7 @@ public class AIConversationService {
             this.websites
                     .get()
                     .execute(
-                            "update website set value=null,remark=? where name like ? escape '!'",
+                            "update website set updatedAt=?,version=version+1,value=null,remark=? where name like ? escape '!'", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                             UUID.randomUUID().toString(),
                             "ai!_chat!_message!_u%!_" + articleId);
             return this.websiteKvService.remove(buildCacheKey(articleId));
@@ -244,7 +244,7 @@ public class AIConversationService {
             String value = json.toJson(updated), revision = UUID.randomUUID().toString();
             if (row == null) {
                 try {
-                    db.withSession(c -> db.update(c, "insert into website(name,value,remark) values(?,?,?)", key, value, revision));
+                    db.withSession(c -> db.update(c, "insert into website(createdAt,updatedAt,version,name,value,remark) values(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), key, value, revision));
                     return true;
                 } catch (SQLException e) {
                     if (db.withSession(c -> db.one(c, "select name from website where name=?", key)) == null) throw e;
@@ -252,8 +252,8 @@ public class AIConversationService {
             } else {
                 Object previous = row.get("remark");
                 int count = previous == null
-                        ? db.withSession(c -> db.update(c, "update website set value=?,remark=? where name=? and remark is null", value, revision, key))
-                        : db.withSession(c -> db.update(c, "update website set value=?,remark=? where name=? and remark=?", value, revision, key, previous));
+                        ? db.withSession(c -> db.update(c, "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark is null", new java.sql.Timestamp(System.currentTimeMillis()).toString(), value, revision, key))
+                        : db.withSession(c -> db.update(c, "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), value, revision, key, previous));
                 if (count == 1) return true;
             }
         }

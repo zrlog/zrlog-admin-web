@@ -9,7 +9,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -56,7 +56,7 @@ public class ScheduledPublicationTest {
         try (var db = open()) {
             var content = db.component(ContentComponent.class);
             var accounts = db.component(AccountComponent.class);
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             int id = draft(content, actor);
             AtomicInteger refreshed = new AtomicInteger();
             var provider = new ScheduledArticleTaskProvider(content.contentTools(), accounts.permissions(), ctx -> refreshed.incrementAndGet());
@@ -78,7 +78,7 @@ public class ScheduledPublicationTest {
         try (var db = open()) {
             var content = db.component(ContentComponent.class);
             var accounts = db.component(AccountComponent.class);
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             int id = draft(content, actor);
             var provider = new ScheduledArticleTaskProvider(content.contentTools(), accounts.permissions(), ctx -> {});
             JsonObject prepared = provider.prepare("article.publish", parameters(id, 0), actor);
@@ -97,7 +97,7 @@ public class ScheduledPublicationTest {
     public void refreshFailurePreservesPublicationAndMakesFollowupVisible() throws Exception {
         try (var db = open()) {
             var content = db.component(ContentComponent.class);
-            var actor = AccountAccess.from(new User(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
             int id = draft(content, actor);
             var provider = new ScheduledArticleTaskProvider(content.contentTools(), db.component(AccountComponent.class).permissions(), ctx -> {throw new IllegalStateException("offline");});
             var result = provider.execute("article.publish", provider.prepare("article.publish", parameters(id, 0), actor), context(actor));

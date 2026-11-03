@@ -15,7 +15,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -158,7 +158,7 @@ public class UploadControllerTest {
             assertTrue(uri.startsWith(dir + "/"));
             assertArrayEquals(
                     "thumb".getBytes(StandardCharsets.UTF_8),
-                    new DbFileService(() -> new WebSite(ignored.dataSource()))
+                    new DbFileService(() -> new WebSiteRepository(ignored.dataSource()))
                             .loadDbFile(uri));
         }
     }
@@ -204,7 +204,7 @@ public class UploadControllerTest {
                                 () -> null,
                                 AccountServicesFixture.component(source).identities(), AccountServicesFixture.component(source).permissions(),
                                 new DbFileService(
-                                        () -> new WebSite(source))), AccountServicesFixture.component(source).requestIdentity());
+                                        () -> new WebSiteRepository(source))), AccountServicesFixture.component(source).requestIdentity());
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;

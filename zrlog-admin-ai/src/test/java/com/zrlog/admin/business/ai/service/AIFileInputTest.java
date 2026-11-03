@@ -21,7 +21,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -263,7 +263,7 @@ public class AIFileInputTest {
                                     new AIConversationService(
                                             AccountServicesFixture.component(db.dataSource()).security(),
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                            () -> new WebSite(db.dataSource()),
+                                            () -> new WebSiteRepository(db.dataSource()),
                                             new AIFileService(),
                                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                                             .exportAIMessage(7L));
@@ -324,7 +324,7 @@ public class AIFileInputTest {
                                     new AIConversationService(
                                             AccountServicesFixture.component(db.dataSource()).security(),
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                                            () -> new WebSite(db.dataSource()),
+                                            () -> new WebSiteRepository(db.dataSource()),
                                             new AIFileService(),
                                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                                             .exportAIMessage(7L));
@@ -497,7 +497,7 @@ public class AIFileInputTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
             conversations.captureAccount(java.util.Objects.requireNonNullElse(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), 0)).appendAIMessageEntries(List.of(message), 7L);
@@ -550,7 +550,7 @@ public class AIFileInputTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
             conversations.captureAccount(java.util.Objects.requireNonNullElse(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), 0)).appendAIMessageEntries(List.of(message), -1L);
@@ -572,7 +572,7 @@ public class AIFileInputTest {
                     new AIConversationService(
                             AccountServicesFixture.component(db.dataSource()).security(),
                             ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()),
                             new AIFileService(),
                             AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
             conversations.captureAccount(java.util.Objects.requireNonNullElse(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), 0)).appendAIMessageEntries(List.of(entry), -1L);

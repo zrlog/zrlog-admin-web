@@ -109,7 +109,7 @@ public class AdminWebSetupProviderTest {
             var parent = component.store().tasks(0, 100, 0).stream()
                     .filter(row -> row.value.type.equals(com.zrlog.admin.business.automation.PluginScheduledTaskProvider.TYPE))
                     .findFirst().orElseThrow();
-            var owner = com.zrlog.data.security.AccountAccess.from(new com.zrlog.model.User(db.dataSource()).loadById(1));
+            var owner = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
             assertThrows(IllegalArgumentException.class, () -> component.tasks().delete(owner, parent.value.id, parent.value.revision));
             component.tasks().setEnabled(owner, parent.value.id, parent.value.revision, false);
             setup.getPlugins();

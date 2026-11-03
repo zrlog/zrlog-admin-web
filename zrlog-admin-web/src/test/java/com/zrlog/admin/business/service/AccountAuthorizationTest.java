@@ -21,8 +21,8 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
+import com.zrlog.data.repository.LogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 
 import java.util.HashSet;
@@ -129,8 +129,8 @@ public class AccountAuthorizationTest {
                     PermissionErrorException.class,
                     () ->
                             new ArticleVersionService(db.component(AccountComponent.class).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource()))
+                                    () -> new LogRepository(db.dataSource()),
+                                    () -> new LogVersionRepository(db.dataSource()))
                                     .listVersions(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), (int) id));
             db.execute("update log set privacy=? where logId=?", false, id);
             UpdateArticleRequest update = new UpdateArticleRequest();

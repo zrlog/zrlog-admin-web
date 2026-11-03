@@ -3,7 +3,7 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -20,7 +20,7 @@ import static com.zrlog.admin.business.service.WebSiteService.*;
 @Singleton
 public class FeatureLabService {
     private final WebhookService webhookService;
-    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+    private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
 
     private final BooleanSupplier accessAvailable;
 
@@ -28,7 +28,7 @@ public class FeatureLabService {
     public FeatureLabService(
             @Named("accessAvailable") BooleanSupplier accessAvailable,
             WebhookService webhookService,
-            jakarta.inject.Provider<WebSite> webSiteProvider) {
+            jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.webhookService = webhookService;
         this.webSiteProvider = webSiteProvider;
 

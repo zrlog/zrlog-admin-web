@@ -23,7 +23,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.rest.response.StandardResponse;
-import com.zrlog.model.WebSite;
+import com.zrlog.data.repository.WebSiteRepository;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -206,7 +206,7 @@ public class WebhookControllerDatabaseTest {
                             new WebhookService(
                                     ApplicationServicesFixture.messages(db.dataSource()),
                                     ApplicationServicesFixture.websiteCache(db.dataSource())),
-                            () -> new WebSite(db.dataSource()))
+                            () -> new WebSiteRepository(db.dataSource()))
                             .featureLab()
                             .getFeature_webhook_enabled());
             config.setEnabled(true);

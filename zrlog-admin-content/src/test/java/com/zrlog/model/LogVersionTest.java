@@ -1,108 +1,32 @@
 package com.zrlog.model;
 
-import com.hibegin.common.dao.DataSourceWrapper;
-import com.hibegin.common.dao.DatabaseConnectPoolInfo;
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.ResultSetHandler;
+import com.zrlog.admin.data.repository.LogVersionRepository;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.hibegin.common.dao.ResultValueConvertUtils;
 import org.junit.Test;
-
-import java.lang.reflect.Proxy;
 import java.sql.SQLException;
-import java.util.*;
-
+import java.util.Date;
 import static org.junit.Assert.*;
 
 public class LogVersionTest {
-
-    private static DataSourceWrapper dataSource(CapturingQueryRunner queryRunner) {
-        return (DataSourceWrapper) Proxy.newProxyInstance(
-                LogVersionTest.class.getClassLoader(),
-                new Class[]{DataSourceWrapper.class},
-                (proxy, method, args) -> {
-                    if ("getQueryRunner".equals(method.getName())) {
-                        return queryRunner;
-                    }
-                    if ("getDataSourceProperties".equals(method.getName())) {
-                        return new Properties();
-                    }
-                    if ("getDatabaseConnectPoolInfo".equals(method.getName())) {
-                        return new DatabaseConnectPoolInfo(0, 0);
-                    }
-                    if ("getDbInfo".equals(method.getName())) {
-                        return "test-db";
-                    }
-                    if ("isWebApi".equals(method.getName()) || "isDev".equals(method.getName())) {
-                        return false;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "DataSourceWrapperProxy";
-                    }
-                    Class<?> returnType = method.getReturnType();
-                    if (returnType == boolean.class) {
-                        return false;
-                    }
-                    if (returnType == int.class) {
-                        return 0;
-                    }
-                    if (returnType == long.class) {
-                        return 0L;
-                    }
-                    return null;
-                });
-    }
-
     @Test
-    public void shouldBuildSqlForArticleVersionWritesAndQueries() throws Exception {
-        CapturingQueryRunner queryRunner = new CapturingQueryRunner();
-        DataSourceWrapper source = dataSource(queryRunner);
-        {
-            LogVersion logVersion = new LogVersion(source);
-            Date createdAt = new Date(1_000);
-
-            assertTrue(logVersion.savePatch(7, 3, "{\"diff\":true}", 9, "title", createdAt, 2));
-            assertEquals("insert into log_version"
-                    + " (log_id, article_version, patch_json, user_id, title, created_at, from_version)"
-                    + " values (?, ?, ?, ?, ?, ?, ?)", queryRunner.sql);
-            assertArrayEquals(new Object[]{7, 3, "{\"diff\":true}", 9, "title", createdAt, 2},
-                    queryRunner.params);
-
-            assertTrue(logVersion.deleteByLogIdAndArticleVersion(7, 3));
-            assertEquals("delete from log_version where log_id=? and article_version=?", queryRunner.sql);
-            assertArrayEquals(new Object[]{7, 3}, queryRunner.params);
-
-            List<Map<String, Object>> rows = List.of(Map.of("article_version", 3));
-            queryRunner.rows = rows;
-            assertEquals(rows, logVersion.findVersionList(7));
-            assertEquals("select article_version, from_version, created_at, user_id, title from log_version"
-                    + " where log_id=? order by article_version desc", queryRunner.sql);
-            assertArrayEquals(new Object[]{7}, queryRunner.params);
-
-            assertEquals(rows, logVersion.findReversePatchesGreaterThanVersion(7, 2));
-            assertEquals("select article_version, patch_json from log_version"
-                    + " where log_id=? and article_version>? order by article_version desc", queryRunner.sql);
-            assertArrayEquals(new Object[]{7, 2}, queryRunner.params);
-        }
-    }
-
-    private static class CapturingQueryRunner extends QueryRunner {
-
-        private String sql;
-        private Object[] params = new Object[0];
-        private List<Map<String, Object>> rows = List.of();
-
-        @Override
-        public int update(String sql, Object... params) {
-            this.sql = sql;
-            this.params = Arrays.copyOf(params, params.length);
-            return 1;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> T query(String sql, ResultSetHandler<T> rsh, Object... params) throws SQLException {
-            this.sql = sql;
-            this.params = Arrays.copyOf(params, params.length);
-            return (T) rows;
+    public void storesHistoryTimeAndMetadataWithoutMixingArticleAndRowVersions() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            LogVersionRepository repository = new LogVersionRepository(db.dataSource());
+            Date time = new Date(1_000);
+            assertTrue(repository.savePatch(7, 3, "{\"diff\":true}", 9, "title", time, 2));
+            var history = repository.findVersionList(7).get(0);
+            assertEquals(3, ((Number) history.get("article_version")).intValue());
+            assertEquals(2, ((Number) history.get("from_version")).intValue());
+            assertEquals(1_000L, ResultValueConvertUtils.parseDate(history.get("created_at")).longValue());
+            var row = repository.findById(1L).orElseThrow();
+            assertEquals(Long.valueOf(0), row.getVersion());
+            assertEquals(1_000L, row.getCreatedAt().getTime());
+            assertEquals(1_000L, row.getUpdatedAt().getTime());
+            assertThrows(SQLException.class, () -> repository.savePatch(7, 3, "{}", 9, "duplicate", time, 2));
+            assertEquals("{\"diff\":true}", repository.findReversePatchesGreaterThanVersion(7, 2).get(0).get("patch_json"));
+            assertTrue(repository.deleteByLogIdAndArticleVersion(7, 3));
+            assertTrue(repository.findVersionList(7).isEmpty());
         }
     }
 }

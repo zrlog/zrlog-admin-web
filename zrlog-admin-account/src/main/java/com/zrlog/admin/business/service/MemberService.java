@@ -88,14 +88,14 @@ public final class MemberService {
                 throw new ArgsException("userName");
             // Persist an unset avatar as "" for older NOT NULL schemas; UserService supplies the default image on read.
             if (c.isWebApi()) {
-                if (store.update(c, "insert into user (userName,email,header,password,secretKey,role,enabled,authVersion) select ?,?,?,?,?,?,?,? "
+                if (store.update(c, "insert into user (createdAt,updatedAt,version,userName,email,header,password,secretKey,role,enabled,authVersion) select ?,?,0,?,?,?,?,?,?,?,? "
                                 + "where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?) "
-                                + "and not exists (select 1 from user where lower(userName)=?)",
+                                + "and not exists (select 1 from user where lower(userName)=?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0,
                         actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), name) != 1)
                     throw new PermissionErrorException();
             } else {
-                store.update(c, "insert into user (userName,email,header,password,secretKey,role,enabled,authVersion) values (?,?,?,?,?,?,?,?)",
+                store.update(c, "insert into user (createdAt,updatedAt,version,userName,email,header,password,secretKey,role,enabled,authVersion) values (?,?,0,?,?,?,?,?,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                         name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0);
             }
             return member(store.one(c, "select userId,userName,email,role,enabled from user where userName=?", name));
@@ -128,9 +128,9 @@ public final class MemberService {
                                         : PasswordHashUtils.hash(SecurityUtils.md5(body.password));
                         if (store.update(
                                 c,
-                                "update user set role=?,enabled=?,password=?,authVersion=authVersion+1 "
+                                "update user set updatedAt=?,version=version+1,role=?,enabled=?,password=?,authVersion=authVersion+1 "
                                         + "where userId=? and role=? and authVersion=? "
-                                        + "and exists (select 1 from user actor where actor.userId=? and actor.role=? and actor.enabled=? and actor.authVersion=?)",
+                                        + "and exists (select 1 from user actor where actor.userId=? and actor.role=? and actor.enabled=? and actor.authVersion=?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                                 body.role,
                                 body.enabled,
                                 password,
@@ -152,7 +152,7 @@ public final class MemberService {
                     }
                     store.update(
                             c,
-                            "update user set role=?,enabled=?,authVersion=authVersion+1 where userId=? and role<>?",
+                            "update user set updatedAt=?,version=version+1,role=?,enabled=?,authVersion=authVersion+1 where userId=? and role<>?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                             body.role,
                             body.enabled,
                             body.userId,
@@ -160,12 +160,13 @@ public final class MemberService {
                     if (body.password != null && !body.password.isEmpty())
                         store.update(
                                 c,
-                                "update user set password=? where userId=?",
+                                "update user set updatedAt=?,version=version+1,password=? where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                                 PasswordHashUtils.hash(SecurityUtils.md5(body.password)),
                                 body.userId);
                     store.update(
                             c,
-                            "update oauth_grant set revoked=? where userId=?",
+                            "update oauth_grant set updatedAt=?,version=version+1,revoked=? where userId=?",
+                            new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                             true,
                             body.userId);
                     return member(
@@ -189,19 +190,20 @@ public final class MemberService {
                 if (store.update(c, "with participants as materialized (select a.userId as oldOwner,b.userId as newOwner "
                                 + "from user a inner join user b on b.userId=? where a.userId=? and a.role=? and a.enabled=? "
                                 + "and a.authVersion=? and b.enabled=? and b.role<>?) "
-                                + "update user set role=case when userId=? then ? else ? end,authVersion=authVersion+1 "
+                                + "update user set role=case when userId=? then ? else ? end,authVersion=authVersion+1,updatedAt=?,version=version+1 "
                                 + "where userId in (select oldOwner from participants union all select newOwner from participants)",
                         body.userId, actor.getUserId(), "owner", true, actor.getAuthVersion(), true, "owner",
-                        actor.getUserId(), "admin", "owner") != 2) throw new PermissionErrorException();
+                        actor.getUserId(), "admin", "owner", new java.sql.Timestamp(System.currentTimeMillis()).toString()) != 2) throw new PermissionErrorException();
                 return null;
             }
             lockMembership(c, actor);
             Map<String, Object> target = store.one(c, "select * from user where userId=?", body.userId);
             if (!AccountAccess.from(target).isEnabled()) throw new PermissionErrorException();
-            if (store.update(c, "update user set role=?,authVersion=authVersion+1 where userId=? and role=?", "admin", actor.getUserId(), "owner") != 1)
+            if (store.update(c, "update user set updatedAt=?,version=version+1,role=?,authVersion=authVersion+1 where userId=? and role=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "admin", actor.getUserId(), "owner") != 1)
                 throw new PermissionErrorException();
-            store.update(c, "update user set role=?,authVersion=authVersion+1 where userId=?", "owner", body.userId);
-            store.update(c, "update oauth_grant set revoked=? where userId=? or userId=?", true, actor.getUserId(), body.userId);
+            store.update(c, "update user set updatedAt=?,version=version+1,role=?,authVersion=authVersion+1 where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "owner", body.userId);
+            store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where userId=? or userId=?",
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, actor.getUserId(), body.userId);
             return null;
         });
     }

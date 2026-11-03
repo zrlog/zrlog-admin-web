@@ -8,7 +8,7 @@ import com.zrlog.admin.business.automation.AutomationModels;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
-import com.zrlog.model.User;
+import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.util.List;
@@ -78,7 +78,7 @@ public class AIAutomationAssistantTest {
     }
 
     private static AccountAccess actor(InMemoryZrLogDatabase db) throws Exception {
-        return AccountAccess.from(new User(db.dataSource()).loadById(1));
+        return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
     }
 
     private static AutomationAssistant.Request request() {
