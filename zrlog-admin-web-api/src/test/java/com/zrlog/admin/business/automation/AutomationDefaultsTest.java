@@ -104,7 +104,7 @@ public class AutomationDefaultsTest {
             db.execute("INSERT INTO website(name,value,remark) VALUES(?,?,?)",
                     "assistant.task:old-development-task", "invalid old format", "0");
             assertTrue(defaults(db, store).initialize());
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var row = store.task(AutomationDefaults.systemId("system.cleanup-temporary"));
             var stopped = row.copy(StoredTask.class);
             stopped.enabled = false; stopped.schedule.intervalMinutes = 120;

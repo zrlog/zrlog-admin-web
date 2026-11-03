@@ -72,33 +72,6 @@ public class ArticlePinningService {
         return -1;
     }
 
-    private static ArticlePinningEntryResponse toEntry(Map<String, Object> row) {
-        ArticlePinningEntryResponse entry = new ArticlePinningEntryResponse();
-        entry.setLogId(toLong(getIgnoreCase(row, "logId")));
-        entry.setTitle(Objects.toString(getIgnoreCase(row, "title"), ""));
-        entry.setSticky(Objects.requireNonNullElse(toLong(getIgnoreCase(row, "sticky")), 0L));
-        return entry;
-    }
-
-    private static Object getIgnoreCase(Map<String, Object> row, String key) {
-        for (Map.Entry<String, Object> entry : row.entrySet()) {
-            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    private static Long toLong(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return Long.valueOf(value.toString());
-    }
-
     public ArticlePinningResponse list() throws SQLException {
         return response(queryPinnedArticles());
     }
@@ -173,37 +146,17 @@ public class ArticlePinningService {
     }
 
     private ArticlePinningEntryResponse requirePublicArticle(Long logId) throws SQLException {
-        Map<String, Object> row =
-                this.logProvider
-                        .get()
-                        .queryFirstWithParams(
-                                "select logId,title,sticky from "
-                                        + LogRepository.TABLE_NAME
-                                        + " where logId=? and rubbish=? and privacy=?",
-                                logId,
-                                false,
-                                false);
-        if (row == null || row.isEmpty()) {
-            throw new ArticlePinningNotAllowedException();
-        }
-        return toEntry(row);
+        ArticlePinningEntryResponse row = logProvider.get().queryOne(
+                "select logId,title,sticky from log where logId=? and rubbish=? and privacy=?",
+                ArticlePinningEntryResponse.class, logId, false, false);
+        if (row == null) throw new ArticlePinningNotAllowedException();
+        return row;
     }
 
     private List<ArticlePinningEntryResponse> queryPinnedArticles() throws SQLException {
-        List<ArticlePinningEntryResponse> items = new ArrayList<>();
-        for (Map<String, Object> row :
-                this.logProvider
-                        .get()
-                        .queryListWithParams(
-                                "select logId,title,sticky from "
-                                        + LogRepository.TABLE_NAME
-                                        + " where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
-                                false,
-                                false,
-                                0)) {
-            items.add(toEntry(row));
-        }
-        return items;
+        return logProvider.get().queryList(
+                "select logId,title,sticky from log where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
+                ArticlePinningEntryResponse.class, false, false, 0);
     }
 
     private void persist(List<ArticlePinningEntryResponse> items) throws SQLException {

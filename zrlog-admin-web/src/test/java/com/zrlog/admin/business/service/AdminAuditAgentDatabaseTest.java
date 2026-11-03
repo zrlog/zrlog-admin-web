@@ -40,7 +40,7 @@ public class AdminAuditAgentDatabaseTest {
     public void assistantUsesTheExistingOperationLogAndKeepsTheExecutionAccount() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
-            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
+            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L));
             var execution = new com.zrlog.admin.business.automation.TaskExecutionContext(
                     "test-run", actor, System.currentTimeMillis() + 1000, System::currentTimeMillis, () -> { });
             service.record(execution.audit(), AdminAuditAction.CREATE_ARTICLE, "Scheduled draft");

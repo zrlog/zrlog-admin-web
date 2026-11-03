@@ -78,7 +78,7 @@ public class AIAutomationAssistantTest {
     }
 
     private static AccountAccess actor(InMemoryZrLogDatabase db) throws Exception {
-        return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
     }
 
     private static AutomationAssistant.Request request() {

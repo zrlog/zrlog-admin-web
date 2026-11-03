@@ -8,7 +8,6 @@ import jakarta.inject.Provider;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 
@@ -28,24 +27,24 @@ final class DbFileStore {
     }
 
     Row find(String key) throws SQLException {
-        Map<String, Object> row = websites.get().queryFirstWithParams(
-                "SELECT " + COLUMNS + " FROM website WHERE name=?", FILE_PREFIX + key);
+        FileRow row = websites.get().queryOne(
+                "SELECT " + COLUMNS + " FROM website WHERE name=?", FileRow.class, FILE_PREFIX + key);
         return row == null ? null : new Row(row);
     }
 
-    List<Map<String, Object>> list(String path) throws SQLException {
+    List<FileRow> list(String path) throws SQLException {
         String prefix = FILE_PREFIX + (path.endsWith("/") ? path : path + "/");
         // Literal prefix, including long paths and '%'/'_'; D1 limits LIKE patterns to 50 bytes.
-        return websites.get().queryListWithParams("SELECT " + COLUMNS
+        return websites.get().queryList("SELECT " + COLUMNS
                         + " FROM website WHERE name>=? AND name<? AND substr(name,1,length(?))=? ORDER BY name",
-                prefix, prefix.substring(0, prefix.length() - 1) + "0", prefix, prefix);
+                FileRow.class, prefix, prefix.substring(0, prefix.length() - 1) + "0", prefix, prefix);
     }
 
-    List<Map<String, Object>> cleanupPage(String path, String after, int limit) throws SQLException {
+    List<FileRow> cleanupPage(String path, String after, int limit) throws SQLException {
         String prefix = FILE_PREFIX + path + "/";
-        return websites.get().queryListWithParams("SELECT " + COLUMNS
+        return websites.get().queryList("SELECT " + COLUMNS
                 + " FROM website WHERE name>=? AND name<? AND name>? ORDER BY name LIMIT ?",
-                prefix, prefix.substring(0, prefix.length() - 1) + "0", after, limit);
+                FileRow.class, prefix, prefix.substring(0, prefix.length() - 1) + "0", after, limit);
     }
 
     boolean deleteExpired(Row row, com.zrlog.data.security.AccountAccess actor) throws SQLException {
@@ -218,6 +217,13 @@ final class DbFileStore {
         return new IllegalStateException("Database file changed or its upload expired; retry the operation");
     }
 
+    static final class FileRow {
+        String name;
+        String remark;
+        long encodedSize;
+        String tail;
+    }
+
     static final class Row {
         final String name;
         final String remark;
@@ -229,15 +235,15 @@ final class DbFileStore {
             this.meta = meta;
         }
 
-        Row(Map<String, Object> row) {
-            name = row.get("name").toString();
-            remark = (String) row.get("remark");
+        Row(FileRow row) {
+            name = row.name.toString();
+            remark = (String) row.remark;
             if (remark == null || remark.isEmpty()) {
                 meta = new DbFileMetadata();
                 meta.formatVersion = 1;
                 meta.ready = true;
-                long encoded = ((Number) row.get("encodedSize")).longValue();
-                String tail = java.util.Objects.toString(row.get("tail"), "");
+                long encoded = ((Number) row.encodedSize).longValue();
+                String tail = java.util.Objects.toString(row.tail, "");
                 meta.size = encoded / 4 * 3 - (tail.endsWith("==") ? 2 : tail.endsWith("=") ? 1 : 0);
             } else {
                 meta = JSON.fromJson(remark, DbFileMetadata.class);

@@ -46,7 +46,7 @@ public class AccountAuthorizationTest {
     }
 
     static AccountAccess account(String role) {
-        return AccountAccess.from(Map.of("userId", 1, "role", role, "enabled", true, "authVersion", 0));
+        return AccountAccess.fromRow(Map.of("userId", 1, "role", role, "enabled", true, "authVersion", 0));
     }
 
     @Test

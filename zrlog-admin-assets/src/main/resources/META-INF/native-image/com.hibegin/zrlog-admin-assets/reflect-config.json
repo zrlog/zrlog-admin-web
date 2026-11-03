@@ -64,5 +64,15 @@
         "parameterTypes": []
       }
     ]
+  },
+  {
+    "name": "com.zrlog.admin.business.service.DbFileStore$FileRow",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "com.zrlog.admin.business.service.FileManagerReferenceService$ReferenceSignature",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true
   }
 ]

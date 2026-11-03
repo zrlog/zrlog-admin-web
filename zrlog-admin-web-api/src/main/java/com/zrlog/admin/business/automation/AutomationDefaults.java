@@ -38,8 +38,7 @@ public final class AutomationDefaults {
 
     private boolean initialize(String key, boolean plugins, AutomationStore.Snapshot<State> row) throws SQLException {
         if (row != null && row.value.complete) return true;
-        AccountAccess actor = AccountAccess.from(users.get().queryFirstWithParams(
-                "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));
+        AccountAccess actor = users.get().ownerAccess();
         if (!actor.isOwner()) return false;
         if (row == null) {
             State state = new State();

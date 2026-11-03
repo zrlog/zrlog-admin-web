@@ -122,7 +122,7 @@ public class AccountAuthorizationBoundaryTest {
             assertThrows(PermissionErrorException.class, () -> preferences.saveDashboard(null, dashboard));
             assertThrows(PermissionErrorException.class, () -> preferences.assistant(null));
             db.execute("update user set enabled=0 where userId=2");
-            var disabled = com.zrlog.data.security.AccountAccess.from(
+            var disabled = com.zrlog.data.security.AccountAccess.fromRow(
                     db.queryOne("select * from user where userId=2"));
             assertThrows(PermissionErrorException.class, () -> preferences.effective(disabled));
             assertThrows(PermissionErrorException.class, () -> preferences.updateBody(disabled, "{}"));

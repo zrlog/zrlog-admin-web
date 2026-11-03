@@ -12,22 +12,26 @@ import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import com.hibegin.common.dao.entity.OptimisticLockException;
 
 public class UserPasskeyRepository extends BaseRepository<UserPasskey, Long> {
+
+    private final DataSourceWrapper database;
 
     public static final String TABLE_NAME = "user_passkey";
 
     @Inject
     public UserPasskeyRepository(DataSourceWrapper database) {
         super(UserPasskey.class, database);
+        this.database = database;
     }
 
-    public List<Map<String, Object>> findByUserId(int userId) throws SQLException {
-        return queryListWithParams("select * from " + tableName + " where userId=? order by createdAt desc", userId);
+    public List<UserPasskey> findByUserId(int userId) throws SQLException {
+        return select("WHERE userId=? ORDER BY createdAt DESC", userId);
     }
 
-    public Map<String, Object> findByCredentialIdHash(String credentialIdHash) throws SQLException {
-        return queryFirstWithParams("select * from " + tableName + " where credentialIdHash=?", credentialIdHash);
+    public UserPasskey findByCredentialIdHash(String credentialIdHash) throws SQLException {
+        return findMatching(Map.of("credentialIdHash", credentialIdHash), 1).stream().findFirst().orElse(null);
     }
 
     public long countByUserId(int userId) throws SQLException {
@@ -42,23 +46,47 @@ public class UserPasskeyRepository extends BaseRepository<UserPasskey, Long> {
                         long signatureCount, String transports, String name, String aaguid,
                         boolean backupEligible, boolean backupState, String origin, String rpId,
                         long createdAt) throws SQLException {
-        return execute("insert into " + tableName
-                        + " (userId,credentialIdHash,credentialId,publicKeyCose,signatureCount,transports,name,aaguid,"
-                        + "backupEligible,backupState,origin,rpId,createdAt,lastUsedAt,updatedAt,version)"
-                        + " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)",
-                userId, credentialIdHash, credentialId, publicKeyCose, signatureCount, transports, name, aaguid,
-                backupEligible ? 1 : 0, backupState ? 1 : 0, origin, rpId, new java.sql.Timestamp(createdAt).toString(), null, new java.sql.Timestamp(createdAt).toString());
+        UserPasskey passkey = new UserPasskey();
+        passkey.setUserId(userId);
+        passkey.setCredentialIdHash(credentialIdHash);
+        passkey.setCredentialId(credentialId);
+        passkey.setPublicKeyCose(publicKeyCose);
+        passkey.setSignatureCount(signatureCount);
+        passkey.setTransports(transports);
+        passkey.setName(name);
+        passkey.setAaguid(aaguid);
+        passkey.setBackupEligible(backupEligible);
+        passkey.setBackupState(backupState);
+        passkey.setOrigin(origin);
+        passkey.setRpId(rpId);
+        new com.hibegin.common.dao.entity.EntityRepository<>(UserPasskey.class, database,
+                java.time.Clock.fixed(java.time.Instant.ofEpochMilli(createdAt), java.time.ZoneOffset.UTC)).insert(passkey);
+        return true;
     }
 
-    public boolean updateAfterAuthentication(long id, long signatureCount, boolean backupState, long lastUsedAt)
+    public boolean updateAfterAuthentication(UserPasskey passkey, long signatureCount, boolean backupState, long lastUsedAt)
             throws SQLException {
-        return execute("update " + tableName
-                        + " set signatureCount=?,backupState=?,lastUsedAt=?,updatedAt=?,version=version+1 where id=?"
-                        + " and ((signatureCount=0 and ?=0) or signatureCount<?)",
-                signatureCount, backupState ? 1 : 0, lastUsedAt, new java.sql.Timestamp(lastUsedAt).toString(), id, signatureCount, signatureCount);
+        long previous = passkey.getSignatureCount();
+        if (!(previous == 0 && signatureCount == 0) && signatureCount <= previous) return false;
+        passkey.setSignatureCount(signatureCount);
+        passkey.setBackupState(backupState);
+        passkey.setLastUsedAt(lastUsedAt);
+        try {
+            update(passkey);
+            return true;
+        } catch (OptimisticLockException conflict) {
+            return false;
+        }
     }
 
     public boolean deleteByIdAndUserId(long id, int userId) throws SQLException {
-        return execute("delete from " + tableName + " where id=? and userId=?", id, userId);
+        UserPasskey passkey = loadById(id);
+        if (passkey == null || !java.util.Objects.equals(passkey.getUserId(), userId)) return false;
+        try {
+            delete(passkey, Map.of("userId", userId));
+            return true;
+        } catch (OptimisticLockException conflict) {
+            return false;
+        }
     }
 }

@@ -371,7 +371,7 @@ public class PersonalAccessTokenServiceTest {
                 new KnowledgeService(
                         () -> {
                             try {
-                                return AccountAccess.from(new UserRepository(testDataSource).loadById(oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId));
+                                return AccountAccess.from(new UserRepository(testDataSource).loadById((long) (oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId)));
                             } catch (java.sql.SQLException e) {
                                 throw new RuntimeException(e);
                             }

@@ -20,6 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.sql.SQLException;
+import com.zrlog.model.OAuthClient;
+import com.zrlog.model.OAuthCredential;
+import com.zrlog.model.OAuthGrant;
+import com.zrlog.model.User;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -252,7 +256,7 @@ public final class OAuthService {
                     CLI_CLIENT_ID, "ZrLog CLI", JSON.toJson(List.of(CLI_REDIRECT)), true, new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), CLI_CLIENT_ID);
         } catch (SQLException concurrentInsert) {
             // Another first-time login may have inserted the fixed public client.
-            if (store.one(c, "select clientId from oauth_client where clientId=?", CLI_CLIENT_ID) == null)
+            if (store.scalar(c, "select clientId from oauth_client where clientId=?", CLI_CLIENT_ID) == null)
                 throw concurrentInsert;
         }
     }
@@ -300,12 +304,16 @@ public final class OAuthService {
     }
 
     private Client client(SecurityStore.Session c, String id) throws SQLException {
-        Map<String, Object> row = store.one(c, "select * from oauth_client where clientId=?", id);
-        if (row == null || !AccountAccess.truth(row.get("enabled"))) throw new OAuthException("invalid_client");
+        OAuthClient row = store.entity(c, OAuthClient.class, id);
+        if (row == null || !AccountAccess.truth(row.getEnabled())) throw new OAuthException("invalid_client");
+        return client(row);
+    }
+
+    private Client client(OAuthClient row) {
         Client client = new Client();
-        client.clientId = id;
-        client.name = (String) row.get("name");
-        client.redirectUris = Arrays.asList(JSON.fromJson((String) row.get("redirectUris"), String[].class));
+        client.clientId = row.getId();
+        client.name = (String) row.getName();
+        client.redirectUris = Arrays.asList(JSON.fromJson((String) row.getRedirectUris(), String[].class));
         return client;
     }
 
@@ -343,11 +351,7 @@ public final class OAuthService {
                             System.currentTimeMillis());
                     Number pendingCount =
                             (Number)
-                                    store.one(
-                                                    c,
-                                                    "select count(*) as total from oauth_credential where kind=?",
-                                                    "pending")
-                                            .get("total");
+                                    store.scalar(c, "select count(*) from oauth_credential where kind=?", "pending");
                     if (pendingCount.longValue() >= 1000)
                         throw new OAuthException("temporarily_unavailable", 503);
                     store.update(
@@ -365,8 +369,8 @@ public final class OAuthService {
         return store.withSession(c -> {
             lockPending(c, requestId);
             identities.revalidate(account);
-            Map<String, Object> row = credential(c, requestId, "pending");
-            Pending pending = JSON.fromJson((String) row.get("payload"), Pending.class);
+            OAuthCredential row = credential(c, requestId, "pending");
+            Pending pending = JSON.fromJson((String) row.getPayload(), Pending.class);
             if (pending.userId != 0 && (pending.userId != account.getUserId() || !equal(session, pending.sessionHash)))
                 throw new OAuthException("access_denied", 403);
             String csrf = random();
@@ -375,7 +379,7 @@ public final class OAuthService {
             pending.sessionHash = session;
             if (store.update(c, "update oauth_credential set updatedAt=?,version=version+1,payload=? where hash=? and used=? and payload=? and expiresAt>? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), JSON.toJson(pending), hash(requestId), false, row.get("payload"), System.currentTimeMillis(),
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), JSON.toJson(pending), hash(requestId), false, row.getPayload(), System.currentTimeMillis(),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1)
                 throw new OAuthException("invalid_grant");
             Consent result = new Consent();
@@ -403,8 +407,8 @@ public final class OAuthService {
         return store.withSession(c -> {
             lockPending(c, decision.requestId);
             identities.revalidate(account);
-            Map<String, Object> row = credential(c, decision.requestId, "pending");
-            Pending pending = JSON.fromJson((String) row.get("payload"), Pending.class);
+            OAuthCredential row = credential(c, decision.requestId, "pending");
+            Pending pending = JSON.fromJson((String) row.getPayload(), Pending.class);
             if (pending.userId != account.getUserId() || !equal(pending.sessionHash, session)
                     || !equal(pending.csrfHash, hash(decision.csrf))) throw new OAuthException("access_denied", 403);
             client(c, pending.request.client_id);
@@ -415,7 +419,7 @@ public final class OAuthService {
             // Validate everything before consuming. The payload comparison also protects a concurrent CSRF/session change.
             if (store.update(c, "update oauth_credential set updatedAt=?,version=version+1,used=? where hash=? and used=? and expiresAt>? and payload=? "
                             + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, hash(decision.requestId), false, System.currentTimeMillis(), row.get("payload"),
+                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, hash(decision.requestId), false, System.currentTimeMillis(), row.getPayload(),
                     account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1)
                 throw new OAuthException("invalid_grant");
             if (!decision.approve) return redirect(pending.request, "error", "access_denied");
@@ -450,10 +454,10 @@ public final class OAuthService {
         return value;
     }
 
-    private Map<String, Object> credential(SecurityStore.Session c, String value, String kind) throws SQLException {
+    private OAuthCredential credential(SecurityStore.Session c, String value, String kind) throws SQLException {
         if (value == null || !value.matches("[A-Za-z0-9_-]{43}")) throw new OAuthException("invalid_grant");
-        Map<String, Object> row = store.one(c, "select * from oauth_credential where hash=? and kind=?", hash(value), kind);
-        if (row == null || AccountAccess.truth(row.get("used")) || ((Number) row.get("expiresAt")).longValue() <= System.currentTimeMillis())
+        OAuthCredential row = store.firstEntity(c, OAuthCredential.class, "WHERE hash=? AND kind=? LIMIT 1", hash(value), kind);
+        if (row == null || AccountAccess.truth(row.getUsed()) || ((Number) row.getExpiresAt()).longValue() <= System.currentTimeMillis())
             throw new OAuthException("invalid_grant");
         return row;
     }
@@ -463,13 +467,13 @@ public final class OAuthService {
         store.lock(c, "update oauth_credential set used=used where hash=? and kind=?", hash(value), "pending");
     }
 
-    private Map<String, Object> liveGrant(SecurityStore.Session c, String id) throws SQLException {
-        Map<String, Object> grant = store.one(c, "select * from oauth_grant where id=?", id);
-        if (grant == null || AccountAccess.truth(grant.get("revoked"))) throw new OAuthException("invalid_grant");
-        AccountAccess account = AccountAccess.from(store.one(c, "select * from user where userId=?", grant.get("userId")));
-        if (!account.isEnabled() || account.getAuthVersion() != ((Number) grant.get("authVersion")).intValue())
+    private OAuthGrant liveGrant(SecurityStore.Session c, String id) throws SQLException {
+        OAuthGrant grant = store.entity(c, OAuthGrant.class, id);
+        if (grant == null || AccountAccess.truth(grant.getRevoked())) throw new OAuthException("invalid_grant");
+        AccountAccess account = AccountAccess.from(store.entity(c, User.class, grant.getUserId().longValue()));
+        if (!account.isEnabled() || account.getAuthVersion() != ((Number) grant.getAuthVersion()).intValue())
             throw new OAuthException("invalid_grant");
-        client(c, (String) grant.get("clientId"));
+        client(c, (String) grant.getClientId());
         return grant;
     }
 
@@ -484,28 +488,28 @@ public final class OAuthService {
             // Acquire a write lock before any read, including on SQLite with deferred transactions.
             store.lock(c, "update oauth_credential set used=used where hash=? and kind=?", hash(value), refresh ? "refresh" : "code");
             client(c, request.client_id);
-            Map<String, Object> record = store.one(c, "select * from oauth_credential where hash=? and kind=?", hash(value), refresh ? "refresh" : "code");
+            OAuthCredential record = store.firstEntity(c, OAuthCredential.class, "WHERE hash=? AND kind=? LIMIT 1", hash(value), refresh ? "refresh" : "code");
             if (record == null) throw new OAuthException("invalid_grant");
-            String grantId = (String) record.get("grantId");
+            String grantId = (String) record.getGrantId();
             // Serialize exchanges within the grant across processes, including refresh-token reuse detection.
             store.lock(c, "update oauth_grant set revoked=revoked where id=?", grantId);
-            Map<String, Object> grant = liveGrant(c, grantId);
-            if (!Objects.equals(grant.get("clientId"), request.client_id) || !Objects.equals(grant.get("resource"), request.resource))
+            OAuthGrant grant = liveGrant(c, grantId);
+            if (!Objects.equals(grant.getClientId(), request.client_id) || !Objects.equals(grant.getResource(), request.resource))
                 throw new OAuthException("invalid_grant");
             if (!refresh) {
-                AuthorizationRequest original = JSON.fromJson((String) record.get("payload"), AuthorizationRequest.class);
+                AuthorizationRequest original = JSON.fromJson((String) record.getPayload(), AuthorizationRequest.class);
                 if (!Objects.equals(original.redirect_uri, request.redirect_uri) || request.code_verifier == null
                         || !request.code_verifier.matches("[A-Za-z0-9._~-]{43,128}") || !equal(original.code_challenge, hash(request.code_verifier)))
                     throw new OAuthException("invalid_grant");
             }
-            record = store.one(c, "select * from oauth_credential where hash=?", hash(value));
-            if (AccountAccess.truth(record.get("used"))) {
+            record = store.entity(c, OAuthCredential.class, hash(value));
+            if (AccountAccess.truth(record.getUsed())) {
                 store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, grantId);
                 return null; // commit the revocation before reporting the error
             }
-            if (((Number) record.get("expiresAt")).longValue() <= System.currentTimeMillis())
+            if (((Number) record.getExpiresAt()).longValue() <= System.currentTimeMillis())
                 throw new OAuthException("invalid_grant");
-            Set<String> authorized = resourceScopes((String) grant.get("scope"), request.resource);
+            Set<String> authorized = resourceScopes((String) grant.getScope(), request.resource);
             Set<String> selected = request.scope == null ? authorized : resourceScopes(request.scope, request.resource);
             if (!containsScopes(authorized, selected)) throw new OAuthException("invalid_scope");
             if (store.update(c, "update oauth_credential set updatedAt=?,version=version+1,used=? where hash=? and used=? and expiresAt>?",
@@ -541,7 +545,7 @@ public final class OAuthService {
                                 + "and g.resource=? and u.enabled=? and u.authVersion=g.authVersion and a.enabled=?",
                         hash(bearer), "access", false, System.currentTimeMillis(), false, resource, true, true);
                 if (record == null) throw new OAuthException("invalid_token", 401);
-                AccountAccess account = AccountAccess.from(record);
+                AccountAccess account = AccountAccess.fromRow(record);
                 Set<String> scopes = resourceScopes(JSON.fromJson((String) record.get("payload"), String.class), resource);
                 Identity identity = new Identity();
                 if (adminResource().equals(resource)) {
@@ -567,9 +571,9 @@ public final class OAuthService {
     public void revoke(String token, String clientId) throws SQLException {
         if (token == null || token.length() > 512) return;
         store.withSession(c -> {
-            Map<String, Object> row = store.one(c, "select grantId from oauth_credential where hash=? and (kind=? or kind=?)", hash(token), "access", "refresh");
+            OAuthCredential row = store.firstEntity(c, OAuthCredential.class, "WHERE hash=? AND (kind=? OR kind=?) LIMIT 1", hash(token), "access", "refresh");
             if (row != null)
-                store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=? and clientId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, row.get("grantId"), clientId);
+                store.update(c, "update oauth_grant set updatedAt=?,version=version+1,revoked=? where id=? and clientId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, row.getGrantId(), clientId);
             return null;
         });
     }
@@ -616,9 +620,8 @@ public final class OAuthService {
                     page.mcpResource = isMcpEnabled() ? mcpResource() : null;
                     page.clients = new ArrayList<>();
                     if (page.administrator)
-                        for (Map<String, Object> row :
-                                store.list(c, "select * from oauth_client where enabled=?", true))
-                            page.clients.add(client(c, (String) row.get("clientId")));
+                        for (OAuthClient row : store.entities(c, OAuthClient.class, "WHERE enabled=?", true))
+                            page.clients.add(client(row));
                     page.personalTokenPermissions =
                             PersonalAccessTokenService.availablePermissions(account);
                     page.notificationEndpoint =

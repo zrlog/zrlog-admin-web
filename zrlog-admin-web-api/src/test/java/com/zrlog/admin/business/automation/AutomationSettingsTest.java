@@ -16,7 +16,7 @@ public class AutomationSettingsTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var service = new AutomationSettingsService(store, authority, () -> 1000, () -> true);
             assertEquals(60000, service.externalBudgetMillis());
             assertEquals(60000, service.manualBudgetMillis());
@@ -34,7 +34,7 @@ public class AutomationSettingsTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AutomationStore store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             AutomationSettingsService service = new AutomationSettingsService(store, authority, () -> 1000, () -> true);
             assertFalse(service.internalEnabled());
             assertThrows(PermissionErrorException.class, () -> service.authenticate("Bearer missing"));
@@ -64,7 +64,7 @@ public class AutomationSettingsTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AutomationStore store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             TaskAuthority authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             AutomationSettingsService service = new AutomationSettingsService(store, authority, () -> 1000, () -> false);
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("INSERT INTO website(createdAt,updatedAt,version,name,value) SELECT")) {

@@ -13,13 +13,12 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
-import java.util.Map;
+import com.zrlog.model.User;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import java.util.Objects;
 
 @Singleton
 public class MfaService {
-    private static final String MFA_ENABLED_COLUMN = "mfaEnabled";
-    private static final String MFA_SECRET_COLUMN = "mfaSecret";
     private final jakarta.inject.Provider<UserRepository> userProvider;
     @Inject
     public MfaService(jakarta.inject.Provider<UserRepository> userProvider) {
@@ -27,10 +26,10 @@ public class MfaService {
     }
 
     public MfaStatusResponse getMfaStatus(int userId, String siteTitle) throws SQLException {
-        Map<String, Object> user = this.userProvider.get().loadById(userId);
-        String userName = Objects.toString(user.get("userName"), "admin");
+        User user = loadUser(userId);
+        String userName = Objects.toString(user.getUserName(), "admin");
         boolean enabled = getMfaEnabled(user);
-        String secret = getOrCreateMfaSecret(userId);
+        String secret = getOrCreateMfaSecret(user);
         String issuer = Objects.toString(siteTitle, "ZrLog Admin");
         MfaStatusResponse response = new MfaStatusResponse();
         response.setEnabled(enabled);
@@ -44,18 +43,19 @@ public class MfaService {
     }
 
     public UpdateRecordResponse enableMfa(int userId, UpdateMfaRequest request) throws SQLException {
-        String secret = getOrCreateMfaSecret(userId);
+        User user = loadUser(userId);
+        String secret = getOrCreateMfaSecret(user);
         if (!MfaUtils.verifyCode(secret, request.getCode())) {
             throw new InvalidMfaCodeException();
         }
-        updateMfaFields(userId, true, secret);
+        updateMfaFields(user, true, secret);
         UpdateRecordResponse response = new UpdateRecordResponse(true);
         response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.mfa.enable.success"));
         return response;
     }
 
     public UpdateRecordResponse disableMfa(int userId, UpdateMfaRequest request) throws SQLException {
-        Map<String, Object> user = this.userProvider.get().loadById(userId);
+        User user = loadUser(userId);
         if (!getMfaEnabled(user)) {
             UpdateRecordResponse response = new UpdateRecordResponse(true);
             response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.mfa.disable.success"));
@@ -65,13 +65,13 @@ public class MfaService {
         if (StringUtils.isEmpty(secret) || !MfaUtils.verifyCode(secret, request.getCode())) {
             throw new InvalidMfaCodeException();
         }
-        updateMfaFields(userId, false, null);
+        updateMfaFields(user, false, null);
         UpdateRecordResponse response = new UpdateRecordResponse(true);
         response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.mfa.disable.success"));
         return response;
     }
 
-    public void verifyLoginMfa(Map<String, Object> user, String mfaCode) {
+    public void verifyLoginMfa(User user, String mfaCode) {
         if (!getMfaEnabled(user)) {
             return;
         }
@@ -85,54 +85,35 @@ public class MfaService {
     }
 
     public boolean isMfaEnabled(int userId) throws SQLException {
-        return getMfaEnabled(this.userProvider.get().loadById(userId));
+        return getMfaEnabled(loadUser(userId));
     }
 
-    public boolean getMfaEnabled(Map<String, Object> user) {
-        Object value = user.get(MFA_ENABLED_COLUMN);
-        if (Objects.isNull(value)) {
-            return false;
-        }
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).intValue() != 0;
-        }
-        return "1".equals(value.toString()) || "true".equalsIgnoreCase(value.toString());
+    public boolean getMfaEnabled(User user) {
+        return user != null && Boolean.TRUE.equals(user.getMfaEnabled());
     }
 
-    private String getMfaSecret(Map<String, Object> user) {
-        return Objects.toString(user.get(MFA_SECRET_COLUMN), "");
+    private String getMfaSecret(User user) {
+        return Objects.toString(user.getMfaSecret(), "");
     }
 
-    private String getOrCreateMfaSecret(int userId) throws SQLException {
-        Map<String, Object> user = this.userProvider.get().loadById(userId);
+    private User loadUser(int userId) throws SQLException {
+        User user = userProvider.get().loadById((long) userId);
+        if (user == null) throw new PermissionErrorException();
+        return user;
+    }
+
+    private String getOrCreateMfaSecret(User user) throws SQLException {
         String secret = getMfaSecret(user);
-        if (StringUtils.isNotEmpty(secret)) {
-            return secret;
-        }
+        if (StringUtils.isNotEmpty(secret)) return secret;
         secret = MfaUtils.generateSecret();
-        this.userProvider
-                .get()
-                .execute(
-                        "update user set updatedAt=?,version=version+1," + MFA_SECRET_COLUMN + "=? where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                        secret,
-                        userId);
+        user.setMfaSecret(secret);
+        userProvider.get().update(user);
         return secret;
     }
 
-    private void updateMfaFields(int userId, boolean enabled, String secret) throws SQLException {
-        this.userProvider
-                .get()
-                .execute(
-                        "update user set updatedAt=?,version=version+1,"
-                                + MFA_ENABLED_COLUMN
-                                + "=?, "
-                                + MFA_SECRET_COLUMN
-                                + "=? where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                        enabled ? 1 : 0,
-                        secret,
-                        userId);
+    private void updateMfaFields(User user, boolean enabled, String secret) throws SQLException {
+        user.setMfaEnabled(enabled);
+        user.setMfaSecret(secret);
+        userProvider.get().update(user);
     }
 }

@@ -118,7 +118,7 @@ public class HostAutomaticUpgradeOperationsTest {
             assertEquals(artifactVersion, displayed.getVersion());
             // A presentation change must never alter the identity sent to the updater.
             if (changeDisplayLabel) displayed.setVersion("4.0.2");
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var context = new TaskExecutionContext(RUN_ID, actor, 600000, () -> 0L, () -> { });
 
             assertTrue(operations.submit(displayed, context));

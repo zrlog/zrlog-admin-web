@@ -21,6 +21,7 @@ import java.net.URI;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
@@ -137,9 +138,14 @@ public class D1AccountStorageTest {
                     request.refresh_token = previous.refresh_token;
                 }
                 CyclicBarrier barrier = new CyclicBarrier(2);
+                AtomicInteger competingUpdates = new AtomicInteger();
                 String hash = OAuthService.hash(refresh ? request.refresh_token : request.code);
                 db.beforeWebApiUpdate((sql, args) -> {
-                    if (sql.startsWith("update oauth_credential set used=?") && hash.equals(args[1])) await(barrier);
+                    if (sql.startsWith("update oauth_credential set updatedAt=?,version=version+1,used=?")
+                            && hash.equals(args[2])) {
+                        competingUpdates.incrementAndGet();
+                        await(barrier);
+                    }
                 });
                 Callable<TokenResponse> exchange = () -> {
                     try {
@@ -150,6 +156,7 @@ public class D1AccountStorageTest {
                     }
                 };
                 List<TokenResponse> results = race(exchange, exchange);
+                assertEquals("Both exchanges must reach the competing credential update", 2, competingUpdates.get());
                 assertEquals(1L, results.stream().filter(Objects::nonNull).count());
                 TokenResponse issued = results.stream().filter(Objects::nonNull).findFirst().orElseThrow();
                 assertThrows(OAuthException.class, () -> oauth.authenticate(issued.access_token, oauth.mcpResource(), Set.of()));
@@ -166,11 +173,18 @@ public class D1AccountStorageTest {
             String id = pending(client);
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
             CyclicBarrier barrier = new CyclicBarrier(2);
+            AtomicInteger competingReads = new AtomicInteger();
+            String requestHash = OAuthService.hash(id);
             db.afterWebApiQuery((sql, args) -> {
-                if (sql.equals("select * from oauth_credential where hash=? and kind=?") && "pending".equals(args[1]))
+                String query = sql.replace("`", "").toLowerCase(Locale.ROOT);
+                if (query.contains(" from oauth_credential where hash=? and kind=?")
+                        && args.length == 2 && requestHash.equals(args[0]) && "pending".equals(args[1])) {
+                    competingReads.incrementAndGet();
                     await(barrier);
+                }
             });
             List<Consent> results = race(() -> consentAs(db, id, 1, "admin"), () -> consentAs(db, id, 2, "author"));
+            assertEquals("Both sessions must read the unbound pending credential", 2, competingReads.get());
             assertEquals(1L, results.stream().filter(Objects::nonNull).count());
             db.afterWebApiQuery((sql, args) -> {
             });

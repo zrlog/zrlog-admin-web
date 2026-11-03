@@ -60,7 +60,7 @@ public class DbFileChunksTest {
         db.execute("insert into log_version(log_id,article_version,from_version,patch_json) values(?,?,?,?)",
                 71, 0, 1, "{\"content\":\"" + root + "history.bin\"}");
         db.putWebsite("ai.saved-session", "{\"file\":\"" + root + "session.bin\"}");
-        var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
+        var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L));
         var context = new com.zrlog.admin.business.automation.TaskExecutionContext("cleanup", actor, now.get() + 60000, now::get, () -> {});
         DbFileService.CleanupBatch batch = service.cleanupTemporary(7, "", context);
         assertEquals(1, batch.removed);
@@ -91,7 +91,7 @@ public class DbFileChunksTest {
                 }
             };
             var cleanup = new DbFileService(() -> documents, now::get);
-            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
+            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L));
             var context = new com.zrlog.admin.business.automation.TaskExecutionContext("cleanup", actor,
                     now.get() + 60000, now::get, () -> {});
             assertEquals(0, cleanup.cleanupTemporary(7, "", context).removed);

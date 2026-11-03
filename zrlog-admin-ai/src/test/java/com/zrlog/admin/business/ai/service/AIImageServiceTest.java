@@ -183,7 +183,7 @@ public class AIImageServiceTest {
             seedImageConfig(db, "16:9");
             db.execute("insert into user(userId,userName,role,preferences) values(2,'writer','author',?)",
                     "{\"editor\":{\"coverAspectRatio\":\"1:1\"}}");
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
             var client = new FakeHttpClient(imageB64Response("writer-cover".getBytes(StandardCharsets.UTF_8)));
             var service = new AIImageService(client,
                     AccountServicesFixture.component(db.dataSource()).preferences(),

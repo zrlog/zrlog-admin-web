@@ -15,6 +15,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import com.zrlog.data.dto.ArticleCounts;
+import com.zrlog.data.dto.CommentCounts;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -43,28 +45,6 @@ public class AdminStatisticsService {
 
         this.cacheService = cacheService;
         this.systemInfo = systemInfo;
-    }
-
-    private static long toLong(Map<String, Object> row, String key) {
-        if (row == null) {
-            return 0L;
-        }
-        Object value = row.get(key);
-        if (value == null) {
-            value = row.get(key.toLowerCase(Locale.ROOT));
-        }
-        if (value == null) {
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                    value = entry.getValue();
-                    break;
-                }
-            }
-        }
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return 0L;
     }
 
     public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor) {
@@ -131,17 +111,17 @@ public class AdminStatisticsService {
 
     private void fillCommentCounts(StatisticsInfoResponse info) {
         try {
-            Map<String, Object> row =
+            CommentCounts row =
                     this.commentProvider
                             .get()
-                            .queryFirstWithParams(
+                            .queryOne(
                                     "SELECT count(1) AS totalCount,"
                                             + "SUM(CASE WHEN commTime > ? THEN 1 ELSE 0 END) AS todayCount "
                                             + "FROM "
                                             + CommentRepository.TABLE_NAME,
-                                    new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
-            info.setCommCount(toLong(row, "totalCount"));
-            info.setToDayCommCount(toLong(row, "todayCount"));
+                                    CommentCounts.class, new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+            info.setCommCount(row.totalCount);
+            info.setToDayCommCount(row.todayCount);
         } catch (SQLException e) {
             info.setCommCount(-1L);
             info.setToDayCommCount(-1L);
@@ -151,10 +131,10 @@ public class AdminStatisticsService {
 
     private void fillArticleCounts(StatisticsInfoResponse info) {
         try {
-            Map<String, Object> row =
+            ArticleCounts row =
                     this.logProvider
                             .get()
-                            .queryFirstWithParams(
+                            .queryOne(
                                     "SELECT "
                                             + "count(1) AS totalCount,"
                                             + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
@@ -167,15 +147,15 @@ public class AdminStatisticsService {
                                             + "inner join user u on u.userId = l.userId "
                                             + "inner join type t on t.typeId = l.typeId "
                                             + "where l.typeId is not null",
-                                    false,
+                                    ArticleCounts.class, false,
                                     false,
                                     true,
                                     true);
-            info.setArticleCount(toLong(row, "totalCount"));
-            info.setDraftCount(toLong(row, "draftCount"));
-            info.setPrivateCount(toLong(row, "privateCount"));
-            info.setPublishedCount(toLong(row, "publishedCount"));
-            info.setClickCount(toLong(row, "clickCount"));
+            info.setArticleCount(row.totalCount);
+            info.setDraftCount(row.draftCount);
+            info.setPrivateCount(row.privateCount);
+            info.setPublishedCount(row.publishedCount);
+            info.setClickCount(row.clickCount);
         } catch (SQLException e) {
             info.setArticleCount(0L);
             info.setDraftCount(0L);

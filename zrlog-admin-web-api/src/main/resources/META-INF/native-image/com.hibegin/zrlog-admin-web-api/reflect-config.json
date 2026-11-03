@@ -293,5 +293,10 @@
         "parameterTypes": []
       }
     ]
+  },
+  {
+    "name": "com.zrlog.admin.business.automation.AutomationStore$ExecutionProjection",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true
   }
 ]

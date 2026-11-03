@@ -38,9 +38,9 @@ public class AutomationNotificationTest {
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
         store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
         authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-        owner = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        owner = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "author", "author");
-        author = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
+        author = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
     }
 
     @After public void close() throws Exception { if (db != null) db.close(); }

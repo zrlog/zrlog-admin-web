@@ -31,7 +31,7 @@ public final class AIServiceDependencies {
     }
 
     public static com.zrlog.data.security.AccountAccess actor(DataSourceWrapper source) {
-        if (source == null) return com.zrlog.data.security.AccountAccess.from(java.util.Map.of(
+        if (source == null) return com.zrlog.data.security.AccountAccess.fromRow(java.util.Map.of(
                 "userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
         return AccountServicesFixture.component(source).requestIdentity().current();
     }

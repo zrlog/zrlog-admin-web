@@ -231,12 +231,12 @@ public class AdminResourceImplTest {
                     0, "internal", "Test passkey", "aaguid", true, false,
                     "https://request.example.com", "request.example.com", System.currentTimeMillis()));
 
-            long otherPasskeyId = ((Number) passkeys.findByCredentialIdHash("other-credential-hash").get("id"))
+            long otherPasskeyId = ((Number) passkeys.findByCredentialIdHash("other-credential-hash").getId())
                     .longValue();
             assertTrue(passkeys.deleteByIdAndUserId(otherPasskeyId, 1));
             assertEquals(true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
 
-            long passkeyId = ((Number) passkeys.findByCredentialIdHash("credential-hash").get("id")).longValue();
+            long passkeyId = ((Number) passkeys.findByCredentialIdHash("credential-hash").getId()).longValue();
             assertTrue(passkeys.deleteByIdAndUserId(passkeyId, 1));
             assertEquals(false, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
             assertEquals(false, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))

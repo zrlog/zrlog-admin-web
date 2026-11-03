@@ -15,6 +15,7 @@ import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
+import com.zrlog.model.WebSite;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
@@ -169,15 +170,15 @@ public class AIConversationService {
 
     private Set<String> referencedFileIds() throws SQLException {
         SecurityStore db = this.store;
-        List<Map<String, Object>> rows = db.withSession(c -> db.list(c,
-                "select name,value from website where value is not null and (name like ? escape '!' or name like ? escape '!')",
+        List<WebSite> rows = db.withSession(c -> db.entities(c, WebSite.class,
+                "WHERE value is not null and (name like ? escape '!' or name like ? escape '!')",
                 "ai!_chat!_message!_u" + conversationUserId() + "!_%", "ai!_pending!_u" + conversationUserId() + "!_%"));
         Set<String> ids = new HashSet<>();
         Gson json = new Gson();
         for (var row : rows) {
-            String value = Objects.toString(row.get("value"), "");
+            String value = Objects.toString(row.getValue(), "");
             if (value.isBlank()) continue;
-            if (row.get("name").toString().startsWith("ai_chat_message_")) {
+            if (row.getName().toString().startsWith("ai_chat_message_")) {
                 var entries = json.fromJson(value, AIResponseEntry.AIContentEntry[].class);
                 if (entries != null) for (var entry : entries)
                     if (entry.getAttachments() != null)
@@ -233,8 +234,8 @@ public class AIConversationService {
         String key = conversationKey(articleId);
         Gson json = new Gson();
         for (int attempt = 0; attempt < 8; attempt++) {
-            Map<String, Object> row = db.withSession(c -> db.one(c, "select value,remark from website where name=?", key));
-            String old = row == null ? null : Objects.toString(row.get("value"), null);
+            WebSite row = db.withSession(c -> db.firstEntity(c, WebSite.class, "WHERE name=? LIMIT 1", key));
+            String old = row == null ? null : Objects.toString(row.getValue(), null);
             List<AIResponseEntry.AIContentEntry> current = old == null || old.isBlank()
                     ? new ArrayList<>(getAiMessageInfoByArticleId(articleId).getAiMessages())
                     : new ArrayList<>(Arrays.asList(json.fromJson(old, AIResponseEntry.AIContentEntry[].class)));
@@ -247,10 +248,10 @@ public class AIConversationService {
                     db.withSession(c -> db.update(c, "insert into website(createdAt,updatedAt,version,name,value,remark) values(?,?,0,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(), key, value, revision));
                     return true;
                 } catch (SQLException e) {
-                    if (db.withSession(c -> db.one(c, "select name from website where name=?", key)) == null) throw e;
+                    if (db.withSession(c -> db.scalar(c, "select name from website where name=?", key)) == null) throw e;
                 }
             } else {
-                Object previous = row.get("remark");
+                Object previous = row.getRemark();
                 int count = previous == null
                         ? db.withSession(c -> db.update(c, "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark is null", new java.sql.Timestamp(System.currentTimeMillis()).toString(), value, revision, key))
                         : db.withSession(c -> db.update(c, "update website set updatedAt=?,version=version+1,value=?,remark=? where name=? and remark=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), value, revision, key, previous));

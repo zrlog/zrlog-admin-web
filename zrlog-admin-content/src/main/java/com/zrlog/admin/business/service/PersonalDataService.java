@@ -34,19 +34,16 @@ public class PersonalDataService {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
         CommentRepository comment = this.commentProvider.get();
-        Map<String, Object> commentStats = comment.queryFirstWithParams(
+        PersonalDataPreviewResponse response = comment.queryOne(
                 "select count(1) as commentCount,"
                         + " count(distinct logId) as commentArticleCount,"
                         + " max(commTime) as latestCommentTime"
                         + " from " + CommentRepository.TABLE_NAME
                         + " where " + COMMENT_MATCH_CONDITION,
-                normalizedQuery, normalizedQuery, normalizedQuery, normalizedQuery);
+                PersonalDataPreviewResponse.class, normalizedQuery, normalizedQuery, normalizedQuery, normalizedQuery);
 
-        PersonalDataPreviewResponse response = new PersonalDataPreviewResponse();
         response.setQuery(query);
-        response.setCommentCount(toLong(commentStats.get("commentCount")));
-        response.setCommentArticleCount(toLong(commentStats.get("commentArticleCount")));
-        response.setLatestCommentTime(formatDate(commentStats.get("latestCommentTime")));
+        response.setLatestCommentTime(formatDate(response.getLatestCommentTime()));
         fillAdminMatch(response, query, currentUserId);
         return response;
     }
@@ -54,17 +51,17 @@ public class PersonalDataService {
     public PersonalDataCommentExportResponse exportComments(PersonalDataPreviewRequest request) throws SQLException {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
-        List<Map<String, Object>> rows =
+        List<PersonalDataCommentExportResponse.CommentEntry> rows =
                 this.commentProvider
                         .get()
-                        .queryListWithParams(
+                        .queryList(
                                 "select commentId as id,userComment,userMail,userHome,userIp,userName,commTime,logId"
                                         + " from "
                                         + CommentRepository.TABLE_NAME
                                         + " where "
                                         + COMMENT_MATCH_CONDITION
                                         + " order by commTime desc",
-                                normalizedQuery,
+                                PersonalDataCommentExportResponse.CommentEntry.class, normalizedQuery,
                                 normalizedQuery,
                                 normalizedQuery,
                                 normalizedQuery);
@@ -77,22 +74,16 @@ public class PersonalDataService {
         return response;
     }
 
-    List<PersonalDataCommentExportResponse.CommentEntry> toCommentEntries(List<Map<String, Object>> rows) {
-        List<PersonalDataCommentExportResponse.CommentEntry> entries = new ArrayList<>();
-        for (Map<String, Object> row : rows) {
-            PersonalDataCommentExportResponse.CommentEntry entry =
-                    new PersonalDataCommentExportResponse.CommentEntry();
-            entry.setId(toLong(row.get("id")));
-            entry.setUserComment(toString(row.get("userComment")));
-            entry.setUserMail(toString(row.get("userMail")));
-            entry.setUserHome(toString(row.get("userHome")));
-            entry.setUserIp(toString(row.get("userIp")));
-            entry.setUserName(toString(row.get("userName")));
-            entry.setCommTime(formatDate(row.get("commTime")));
-            entry.setLogId(toLong(row.get("logId")));
-            entries.add(entry);
+    List<PersonalDataCommentExportResponse.CommentEntry> toCommentEntries(List<PersonalDataCommentExportResponse.CommentEntry> rows) {
+        for (var row : rows) {
+            row.setCommTime(formatDate(row.getCommTime()));
+            row.setUserComment(Objects.toString(row.getUserComment(), ""));
+            row.setUserMail(Objects.toString(row.getUserMail(), ""));
+            row.setUserHome(Objects.toString(row.getUserHome(), ""));
+            row.setUserIp(Objects.toString(row.getUserIp(), ""));
+            row.setUserName(Objects.toString(row.getUserName(), ""));
         }
-        return entries;
+        return rows;
     }
 
     private void fillAdminMatch(PersonalDataPreviewResponse response, String query, int currentUserId)
@@ -100,12 +91,12 @@ public class PersonalDataService {
         if (currentUserId <= 0) {
             return;
         }
-        Map<String, Object> user = this.userProvider.get().loadById(currentUserId);
+        com.zrlog.model.User user = this.userProvider.get().loadById((long) currentUserId);
         if (Objects.isNull(user)) {
             return;
         }
-        response.setAdminUserMatched(equalsIgnoreCase(query, user.get("userName")));
-        response.setAdminEmailMatched(equalsIgnoreCase(query, user.get("email")));
+        response.setAdminUserMatched(equalsIgnoreCase(query, user.getUserName()));
+        response.setAdminEmailMatched(equalsIgnoreCase(query, user.getEmail()));
     }
 
     boolean equalsIgnoreCase(String query, Object value) {

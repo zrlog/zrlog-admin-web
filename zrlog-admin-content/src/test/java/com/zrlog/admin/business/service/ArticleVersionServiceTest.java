@@ -11,12 +11,12 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.repository.LogRepository;
+import com.zrlog.model.Log;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -68,19 +68,19 @@ public class ArticleVersionServiceTest {
     @SuppressWarnings("unchecked")
     public void shouldBuildReversePatchForChangedSnapshotFields() throws Exception {
         ArticleVersionService service = newService(null);
-        Method method = method("buildReversePatch", Map.class, Map.class);
-        Map<String, Object> oldLog = new LinkedHashMap<>();
-        oldLog.put("title", "hello old world");
-        oldLog.put("content", "same");
-        oldLog.put("typeId", 2);
-        oldLog.put("editor_type", "markdown");
-        Map<String, Object> newLog = new LinkedHashMap<>();
-        newLog.put("title", "hello new world");
-        newLog.put("content", "same");
-        newLog.put("typeId", 3);
-        newLog.put("editor_type", "rich");
+        Method method = method("buildReversePatch", ArticleVersionService.Revision.class, Log.class);
+        Log oldLog = new Log();
+        oldLog.setTitle("hello old world");
+        oldLog.setContent("same");
+        oldLog.setTypeId(2);
+        oldLog.setEditorType("markdown");
+        Log newLog = new Log();
+        newLog.setTitle("hello new world");
+        newLog.setContent("same");
+        newLog.setTypeId(3);
+        newLog.setEditorType("rich");
 
-        Map<String, Object> patch = (Map<String, Object>) method.invoke(service, oldLog, newLog);
+        Map<String, Object> patch = (Map<String, Object>) method.invoke(service, service.beforeUpdate(oldLog), newLog);
 
         assertEquals(3, patch.size());
         assertTrue(patch.containsKey("title"));
@@ -148,9 +148,6 @@ public class ArticleVersionServiceTest {
         Method toInteger = method("toInteger", Object.class);
         Method toBoolean = method("toBoolean", Object.class);
         Method toStringValue = method("toStringValue", Object.class);
-        Method getIgnoreCase = method("getIgnoreCase", Map.class, String.class);
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("LASTUPDATEDATE", 123L);
 
         assertEquals("hello old world", applyTextReversePatch.invoke(null, "hello new world",
                 Map.of("prefixLength", 6, "suffixLength", 6, "oldMiddle", "old")));
@@ -166,8 +163,6 @@ public class ArticleVersionServiceTest {
         assertNull(toBoolean.invoke(null, new Object[]{null}));
         assertEquals("text", toStringValue.invoke(null, "text"));
         assertNull(toStringValue.invoke(null, new Object[]{null}));
-        assertEquals(123L, getIgnoreCase.invoke(null, row, "lastUpdateDate"));
-        assertNull(getIgnoreCase.invoke(null, row, "missing"));
     }
 
     @Test

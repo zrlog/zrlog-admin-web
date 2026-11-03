@@ -54,7 +54,7 @@ public class PluginScheduledTaskTest {
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open()) {
             var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             AtomicInteger invocations = new AtomicInteger();
             PluginCorePlugin core = (PluginCorePlugin) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{PluginCorePlugin.class},
                     (proxy, method, args) -> {
@@ -92,7 +92,7 @@ public class PluginScheduledTaskTest {
             var saved = store.tasks(0, 100, 0).get(0).value;
             assertTrue(saved.enabled);
             assertEquals(List.of(AccountAction.PLUGIN_MANAGE.getId()), saved.executionActions);
-            var owner = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var owner = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var run = engine.runNow(owner, saved.id, saved.revision, 660000);
             assertEquals(expectedParent, run.status);
             assertEquals(run.id, run.result.externalRunId);

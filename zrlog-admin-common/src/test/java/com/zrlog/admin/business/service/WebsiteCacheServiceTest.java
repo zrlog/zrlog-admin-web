@@ -59,8 +59,8 @@ public class WebsiteCacheServiceTest {
     public void shouldListCachedWebsiteKvEntries() throws Exception {
         FakeWebsiteKvService kv = new FakeWebsiteKvService();
         kv.rows = List.of(
-                Map.of("name", "admin_cache:a", "value", "one", "size", 3),
-                Map.of("name", "admin_cache:b", "value", "two", "size", "4")
+                entry("admin_cache:a", "one", 3),
+                entry("admin_cache:b", "two", 4)
         );
         WebsiteCacheService service = service(kv, null);
 
@@ -75,9 +75,15 @@ public class WebsiteCacheServiceTest {
         assertEquals(4L, entries.get(1).getSize());
     }
 
+    private static WebsiteKvService.Entry entry(String name, String value, long size) {
+        WebsiteKvService.Entry row = new WebsiteKvService.Entry();
+        row.name = name; row.value = value; row.size = size;
+        return row;
+    }
+
     private static class FakeWebsiteKvService extends WebsiteKvService {
         private final Map<String, String> values = new HashMap<>();
-        private List<Map<String, Object>> rows = List.of();
+        private List<WebsiteKvService.Entry> rows = List.of();
         private String lastGetKey;
         private String lastPutKey;
         private String lastRemoveKey;
@@ -112,7 +118,7 @@ public class WebsiteCacheServiceTest {
         }
 
         @Override
-        public List<Map<String, Object>> listByPrefix(String prefix) {
+        public List<WebsiteKvService.Entry> listByPrefix(String prefix) {
             lastListPrefix = prefix;
             return rows;
         }

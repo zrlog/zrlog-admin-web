@@ -11,7 +11,6 @@ import jakarta.inject.Singleton;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -82,11 +81,11 @@ public class WebsiteCacheService {
 
     public List<WebsiteKvEntryResponse> listEntries() {
         List<WebsiteKvEntryResponse> entries = new ArrayList<>();
-        for (Map<String, Object> row : kvService.listByPrefix(KEY_PREFIX)) {
+        for (WebsiteKvService.Entry row : kvService.listByPrefix(KEY_PREFIX)) {
             WebsiteKvEntryResponse entry = new WebsiteKvEntryResponse();
-            entry.setKey(Objects.toString(row.get("name"), ""));
-            entry.setValue(Objects.toString(row.get("value"), ""));
-            entry.setSize(toLong(row.get("size")));
+            entry.setKey(Objects.toString(row.name, ""));
+            entry.setValue(Objects.toString(row.value, ""));
+            entry.setSize(toLong(row.size));
             entries.add(entry);
         }
         return entries;

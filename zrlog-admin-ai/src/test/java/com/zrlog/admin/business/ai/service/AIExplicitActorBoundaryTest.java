@@ -64,7 +64,7 @@ public class AIExplicitActorBoundaryTest {
     }
 
     private static AccountAccess actor(InMemoryZrLogDatabase db) throws Exception {
-        return AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
+        return AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
     }
 
     private static AdminAuditContext audit() {

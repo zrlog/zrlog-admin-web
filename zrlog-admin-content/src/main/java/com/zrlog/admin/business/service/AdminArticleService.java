@@ -1,6 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.util.ObjectHelpers;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -27,9 +26,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
 import java.sql.SQLException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.Timestamp;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -66,12 +63,6 @@ public class AdminArticleService {
         this.locks = locks;
     }
 
-    private static boolean isPublicArticle(Map<String, Object> log) {
-        return log != null
-                && !ResultValueConvertUtils.toBoolean(log.get("privacy"))
-                && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
-    }
-
     private Lock getWriteLock(Integer logId) {
         // Existing articles share a lock across accounts; creation shares the max-id allocation
         // lock.
@@ -104,19 +95,16 @@ public class AdminArticleService {
         try {
             AccountAccess access = identities.revalidate(actor);
             permissionService.require(access, AccountAction.FILE_MANAGE);
-            Log row = permissionService.articleEntity(access, logId, false);
-            Map<String, Object> oldLog = ArticleRow.snapshot(row);
-            Map<String, Object> updates = references.replace(oldLog, from, to, prefix);
-            if (updates.isEmpty()) return 0;
-            int changedFields = updates.size();
-            if (updates.containsKey("content")) {
-                updates.put(
-                        "plain_content",
-                        ParseUtil.getPlainSearchText(Objects.toString(updates.get("content"), "")));
+            Log row = permissionService.article(access, logId, false);
+            var revision = articleVersionService.beforeUpdate(row);
+            var changes = references.replace(row, from, to, prefix);
+            if (changes.isEmpty()) return 0;
+            int changedFields = changes.size();
+            changes.applyTo(row);
+            if (changes.getContent() != null) {
+                row.setPlainContent(ParseUtil.getPlainSearchText(row.getContent()));
             }
-            updates.put("last_update_date", new Date());
-            commitUpdate(
-                    row, oldLog, updates, ((Number) oldLog.get("version")).intValue(), actor.getUserId());
+            commitUpdate(row, revision, Math.toIntExact(row.getVersion()), actor.getUserId());
             return changedFields;
         } finally {
             lock.unlock();
@@ -125,22 +113,20 @@ public class AdminArticleService {
 
     private void commitUpdate(
             Log row,
-            Map<String, Object> oldLog,
-            Map<String, Object> updates,
+            ArticleVersionService.Revision revision,
             Integer expectedVersion,
             Integer userId)
             throws SQLException {
-        Number dbVersion = (Number) oldLog.get("version");
+        Long dbVersion = row.getVersion();
         if (expectedVersion == null
                 || dbVersion.longValue() != expectedVersion
                 || expectedVersion < 0
                 || expectedVersion == Integer.MAX_VALUE) {
             throw new UpdateArticleExpireException();
         }
-        ArticleRow.apply(row, updates);
         try {
             if (logProvider.get().update(row)) {
-                articleVersionService.recordReversePatch(oldLog, ArticleRow.snapshot(row), userId);
+                articleVersionService.recordReversePatch(revision, row, userId);
             }
         } catch (OptimisticLockException conflict) {
             throw new UpdateArticleExpireException();
@@ -178,31 +164,28 @@ public class AdminArticleService {
             if (!createArticleRequest.isRubbish() && !createArticleRequest.isPrivacy() && !access.canPublish())
                 throw new PermissionErrorException();
             Log row = null;
-            Map<String, Object> oldLog = null;
             if (createArticleRequest instanceof UpdateArticleRequest) {
                 row =
-                        permissionService.articleEntity(
+                        permissionService.article(
                                 access,
                                 ((UpdateArticleRequest) createArticleRequest).getLogId(),
                                 false);
-                oldLog = ArticleRow.snapshot(row);
                 if ("contributor".equals(access.getRole())
-                        && !AccountAccess.truth(oldLog.get("rubbish")))
+                        && !Boolean.TRUE.equals(row.getRubbish()))
                     throw new PermissionErrorException();
-                if (AccountPermissionService.isPublic(oldLog) && !access.canPublish())
+                if (AccountPermissionService.isPublic(row) && !access.canPublish())
                     throw new PermissionErrorException();
             }
-            Map<String, Object> previousLog = oldLog;
             Log trackedRow = row;
-            boolean clearsPublicState = isPublicArticle(previousLog)
+            boolean clearsPublicState = AccountPermissionService.isPublic(row)
                     && (createArticleRequest.isPrivacy() || createArticleRequest.isRubbish());
             if (clearsPublicState) {
                 return articlePinningService.withOrderLock(
                         () ->
                                 persistArticle(
-                                        actor, createArticleRequest, trackedRow, previousLog, true));
+                                        actor, createArticleRequest, trackedRow, true));
             }
-            return persistArticle(actor, createArticleRequest, trackedRow, previousLog, false);
+            return persistArticle(actor, createArticleRequest, trackedRow, false);
         } finally {
             lock.unlock();
         }
@@ -215,16 +198,13 @@ public class AdminArticleService {
         try {
             AccountAccess access = identities.revalidate(actor);
             permissionService.require(access, AccountAction.ARTICLE_DELETE);
-            Log row = permissionService.articleEntity(access, logId, false);
+            Log row = permissionService.article(access, logId, false);
             deleted =
                     articlePinningService.withOrderLock(
                             () -> {
                                 this.logProvider.get().delete(row);
-                                boolean removed = true;
-                                if (removed) {
-                                    this.articlePinningService.normalizeOrderLocked();
-                                }
-                                return removed;
+                                this.articlePinningService.normalizeOrderLocked();
+                                return true;
                             });
         } finally {
             lock.unlock();
@@ -236,110 +216,61 @@ public class AdminArticleService {
     }
 
     private CreateOrUpdateArticleResponse persistArticle(AccountAccess actor,
-                                                         CreateArticleRequest createArticleRequest,
+                                                         CreateArticleRequest request,
                                                          Log row,
-                                                         Map<String, Object> oldLog,
                                                          boolean normalizePinning) throws SQLException {
-        Map<String, Object> log = getLog(actor, createArticleRequest, oldLog);
-        if (createArticleRequest instanceof UpdateArticleRequest) {
-            UpdateArticleRequest updateRequest = (UpdateArticleRequest) createArticleRequest;
-            Map<String, Object> updates = new HashMap<>(log);
-            updates.remove("logId");
-            if (!normalizePinning) updates.remove("sticky");
-            commitUpdate(row, oldLog, updates, updateRequest.getVersion(), actor.getUserId());
-            if (normalizePinning) {
-                this.articlePinningService.normalizeOrderLocked();
-            }
+        boolean wasPublic = AccountPermissionService.isPublic(row);
+        if (row != null) {
+            // History, authorization and the optimistic write share this loaded entity.
+            var revision = articleVersionService.beforeUpdate(row);
+            applyRequest(row, actor, request, normalizePinning);
+            commitUpdate(row, revision, ((UpdateArticleRequest) request).getVersion(), actor.getUserId());
+            if (normalizePinning) articlePinningService.normalizeOrderLocked();
         } else {
             row = new Log();
-            row.setId(((Number) log.get("logId")).longValue());
-            ArticleRow.apply(row, log);
-            this.logProvider.get().insert(row);
+            row.setId(logProvider.get().findMaxId() + 1);
+            row.setReleaseTime(new Timestamp(System.currentTimeMillis()));
+            row.setUserId(actor.getUserId());
+            applyRequest(row, actor, request, true);
+            logProvider.get().insert(row);
         }
         CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
-        response.setLogId((long) Double.parseDouble(log.get("logId") + ""));
+        response.setLogId(row.getId());
         response.setVersion(Math.toIntExact(row.getVersion()));
-        response.setPrivacy(createArticleRequest.isPrivacy());
-        response.setRubbish(createArticleRequest.isRubbish());
-        response.setPublicCacheRefreshRequired(
-                isPublicArticle(oldLog)
-                        || (!createArticleRequest.isPrivacy() && !createArticleRequest.isRubbish()));
+        response.setPrivacy(request.isPrivacy());
+        response.setRubbish(request.isRubbish());
+        response.setPublicCacheRefreshRequired(wasPublic || AccountPermissionService.isPublic(row));
         return response;
     }
 
-    private Map<String, Object> getLog(AccountAccess actor, CreateArticleRequest createArticleRequest,
-                                       Map<String, Object> oldLog) throws SQLException {
-        Map<String, Object> log;
-        long articleId;
-        if (createArticleRequest instanceof UpdateArticleRequest) {
-            // Authorization, version checking and reverse patches must use the same snapshot.
-            log = new HashMap<>(oldLog);
-            articleId = Objects.requireNonNull(((UpdateArticleRequest) createArticleRequest).getLogId());
+    private void applyRequest(Log row, AccountAccess actor, CreateArticleRequest request,
+                              boolean normalizePinning) throws SQLException {
+        row.setContent(request.getContent());
+        // Null/omitted values preserve arrangements selected by older clients.
+        if (request.getArrange_plugin() != null) row.setArrangePlugin(request.getArrange_plugin());
+        row.setTitle(Jsoup.clean(request.getTitle(), Safelist.basic()));
+        row.setKeywords(StringUtils.isNotEmpty(request.getKeywords())
+                ? Jsoup.clean(request.getKeywords(), Safelist.basic()) : null);
+        row.setMarkdown(request.getMarkdown());
+        row.setTypeId(Math.toIntExact(request.getTypeId()));
+        row.setCanComment(request.isCanComment());
+        row.setRecommended(request.isRecommended());
+        row.setPrivacy(request.isPrivacy());
+        row.setRubbish(request.isRubbish());
+        if (normalizePinning && (request.isPrivacy() || request.isRubbish())) row.setSticky(0);
+        row.setThumbnail(StringUtils.isEmpty(request.getThumbnail()) ? "" : request.getThumbnail());
+        String digest = Jsoup.clean(ObjectHelpers.requireNonNullElse(request.getDigest(), ""), Safelist.basicWithImages());
+        if (StringUtils.isEmpty(digest) && !request.isRubbish()) {
+            long autoSize = userPreferenceService.effective(actor).editor.autoDigestLength;
+            if (autoSize < 0) row.setDigest(row.getContent());
+            else if (autoSize == 0) row.setDigest("");
+            else row.setDigest(ParseUtil.autoDigest(row.getContent(), (int) autoSize));
         } else {
-            log = new HashMap<>();
-            articleId = this.logProvider.get().findMaxId() + 1;
-            log.put("releaseTime", new Date());
-            log.put("version", 0);
-            log.put("logId", articleId);
-            log.put("sticky", 0);
+            row.setDigest(digest);
         }
-        log.put("content", createArticleRequest.getContent());
-        // Null/omitted values preserve existing arrangements for older clients.
-        if (createArticleRequest.getArrange_plugin() != null) {
-            log.put("arrange_plugin", createArticleRequest.getArrange_plugin());
-        }
-        log.put("title", Jsoup.clean(createArticleRequest.getTitle(), Safelist.basic()));
-        if (StringUtils.isNotEmpty(createArticleRequest.getKeywords())) {
-            log.put("keywords", Jsoup.clean(createArticleRequest.getKeywords(), Safelist.basic()));
-        } else {
-            log.put("keywords", null);
-        }
-        log.put("markdown", createArticleRequest.getMarkdown());
-        if (!(createArticleRequest instanceof UpdateArticleRequest)) {
-            log.put("userId", actor.getUserId());
-        }
-        log.put("typeId", createArticleRequest.getTypeId());
-        log.put("last_update_date", new Date());
-        log.put("canComment", createArticleRequest.isCanComment());
-        log.put("recommended", createArticleRequest.isRecommended());
-        log.put("privacy", createArticleRequest.isPrivacy());
-        log.put("rubbish", createArticleRequest.isRubbish());
-        if (createArticleRequest.isPrivacy() || createArticleRequest.isRubbish()) {
-            log.put("sticky", 0);
-        }
-        if (StringUtils.isEmpty(createArticleRequest.getThumbnail())) {
-            log.put("thumbnail", "");
-        } else {
-            log.put("thumbnail", createArticleRequest.getThumbnail());
-        }
-        //fix digest xss
-        String parseInputDigest = Jsoup.clean(ObjectHelpers.requireNonNullElse(createArticleRequest.getDigest(), ""), Safelist.basicWithImages());
-        // 自动摘要
-        if (StringUtils.isEmpty(parseInputDigest) && Objects.equals(createArticleRequest.isRubbish(), false)) {
-            long autoSize =
-                    this.userPreferenceService.effective(actor)
-                            .editor
-                            .autoDigestLength;
-            if (autoSize < 0) {
-                log.put("digest", log.get("content"));
-            } else if (autoSize == 0) {
-                log.put("digest", "");
-            } else {
-                log.put("digest", ParseUtil.autoDigest((String) log.get("content"), (int) autoSize));
-            }
-        } else {
-            log.put("digest", parseInputDigest);
-        }
-        log.put("plain_content", ParseUtil.getPlainSearchText((String) log.get("content")));
-        log.put("editor_type", createArticleRequest.getEditorType());
-        String alias;
-        if (StringUtils.isEmpty(createArticleRequest.getAlias())) {
-            alias = Long.toString(articleId);
-        } else {
-            alias = createArticleRequest.getAlias();
-        }
-        log.put("alias", Jsoup.clean(alias.trim().replace(" ", "-").replace(".", "-"), Safelist.basic()));
-        return log;
+        row.setPlainContent(ParseUtil.getPlainSearchText(row.getContent()));
+        row.setEditorType(request.getEditorType());
+        String alias = StringUtils.isEmpty(request.getAlias()) ? Long.toString(row.getId()) : request.getAlias();
+        row.setAlias(Jsoup.clean(alias.trim().replace(" ", "-").replace(".", "-"), Safelist.basic()));
     }
-
 }

@@ -7,7 +7,7 @@ import com.zrlog.admin.business.security.SecurityStore;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
-import java.util.Map;
+import com.zrlog.model.WebSite;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -60,12 +60,12 @@ final class AIApprovalStore {
     }
 
     Run read(int userId, long articleId) throws SQLException {
-        Map<String, Object> row = db.withSession(c -> db.one(c,
-                "select value,remark from website where name=?", key(userId, articleId)));
-        if (row == null || row.get("value") == null) return null;
-        Run run = json.fromJson(row.get("value").toString(), Run.class);
+        WebSite row = db.withSession(c -> db.firstEntity(c, WebSite.class,
+                "WHERE name=? LIMIT 1", key(userId, articleId)));
+        if (row == null || row.getValue() == null) return null;
+        Run run = json.fromJson(row.getValue().toString(), Run.class);
         if (run == null || run.userId != userId || run.articleId != articleId
-                || !Objects.equals(run.revision, row.get("remark")))
+                || !Objects.equals(run.revision, row.getRemark()))
             throw new SQLException("Invalid assistant checkpoint");
         return run;
     }
@@ -133,9 +133,9 @@ final class AIApprovalStore {
 
     void check(Run run) throws SQLException {
         if (run.revision == null) return;
-        Map<String, Object> current = db.withSession(c -> db.one(c,
+        Object current = db.withSession(c -> db.scalar(c,
                 "select remark from website where name=?", key(run.userId, run.articleId)));
-        if (current == null || !Objects.equals(current.get("remark"), run.revision)) throw new Changed();
+        if (current == null || !Objects.equals(current, run.revision)) throw new Changed();
     }
 
     private String serialize(Run run) throws SQLException {

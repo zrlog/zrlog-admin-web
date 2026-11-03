@@ -43,7 +43,7 @@ public class KnowledgeServiceTest {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.from(new UserRepository(testDataSource).loadById(user));
+                        return AccountAccess.from(new UserRepository(testDataSource).loadById((long) user));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -90,7 +90,7 @@ public class KnowledgeServiceTest {
                                 for (Source s : page.articles) ids.add(s.id);
                                 offset = page.nextOffset;
                             }
-                            AccountAccess account = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+                            AccountAccess account = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
                             for (int id = 1; id <= 6; id++) {
                                 boolean expected =
                                         ArticleAccess.canRead(
@@ -120,7 +120,7 @@ public class KnowledgeServiceTest {
                     new KnowledgeService(
                             () -> {
                                 try {
-                                    return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+                                    return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }

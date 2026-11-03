@@ -275,7 +275,7 @@ public class FileManagerServiceTest {
                     assertArrayEquals(
                             "hello".getBytes(StandardCharsets.UTF_8),
                             service.read("/attached/docs/a.txt"));
-                    var readOnlyManager = AccountAccess.from(Map.of(
+                    var readOnlyManager = AccountAccess.fromRow(Map.of(
                                     "userId", 1, "role", "admin", "enabled", true, "authVersion", 0))
                             .restrictActions(Set.of());
                     assertThrows(PermissionErrorException.class, () -> service.rename(

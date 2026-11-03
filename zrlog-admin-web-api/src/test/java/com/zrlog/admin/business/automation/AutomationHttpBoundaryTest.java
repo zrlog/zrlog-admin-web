@@ -41,7 +41,7 @@ public class AutomationHttpBoundaryTest {
             var component = db.component(AutomationComponent.class);
             component.defaults().initialize();
             var store = component.store();
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var task = store.task(AutomationDefaults.systemId("system.auto-upgrade"));
             var run = new AutomationModels.Run();
             run.id = AutomationStore.ownerPrefix(0) + AutomationStore.timeKey(System.currentTimeMillis()) + "." + UUID.randomUUID();
@@ -158,10 +158,10 @@ public class AutomationHttpBoundaryTest {
                             .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
             assertNull(config.getRouter().getMethod("/api/admin/assistant/save", HttpMethod.GET));
             assertThrows(PermissionErrorException.class, () -> tasks.tasks().tasks(null, 0));
-            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             assertTrue(tasks.tasks().definitions(actor).stream().anyMatch(item -> item.type.equals("assistant.reminder")));
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "author", "author");
-            AccountAccess author = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
+            AccountAccess author = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
             assertThrows(PermissionErrorException.class, () -> tasks.settings().read(author));
             assertTrue(tasks.tasks().definitions(author).stream().noneMatch(item -> item.requiredActions.contains("system.manage")));
             db.execute("UPDATE user SET role=? WHERE userId=?", "author", 1);
@@ -196,7 +196,7 @@ public class AutomationHttpBoundaryTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             db.loadAdminWebModules();
             var component = db.component(AutomationComponent.class);
-            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            AccountAccess actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var issued = component.settings().rotate(actor, 0);
             assertEquals("/api/admin/assistant/trigger", issued.settings.triggerPath);
             assertEquals(AutomationTickInterceptor.PATH, issued.settings.triggerPath);

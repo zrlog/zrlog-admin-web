@@ -25,7 +25,7 @@ public final class AccountIdentityService {
     public AccountAccess account(AdminTokenVO token) {
         try {
             if (token == null) throw new PermissionErrorException();
-            AccountAccess account = AccountAccess.from(users.get().loadById(token.getUserId()));
+            AccountAccess account = AccountAccess.from(users.get().loadById((long) (token.getUserId())));
             if (!account.isEnabled() || token.getAuthVersion() != account.getAuthVersion()) {
                 throw new PermissionErrorException();
             }
@@ -41,7 +41,7 @@ public final class AccountIdentityService {
     public AccountAccess revalidate(AccountAccess actor) {
         try {
             if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
-            AccountAccess current = AccountAccess.from(users.get().loadById(actor.getUserId()));
+            AccountAccess current = AccountAccess.from(users.get().loadById((long) (actor.getUserId())));
             return requireUnchanged(actor, current);
         } catch (SQLException e) {
             throw new PermissionErrorException();

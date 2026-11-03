@@ -78,7 +78,7 @@ public class ArticlePublishingService {
         if (body.isRubbish() || body.isPrivacy() || scheduler.get() == null) throw new com.zrlog.common.exception.ArgsException("publishAt");
         if (body instanceof UpdateArticleRequest) {
             var current = permissions.article(actor, ((UpdateArticleRequest) body).getLogId(), true);
-            if (!AccountAccess.truth(current.get("rubbish"))) throw new com.zrlog.common.exception.ArgsException("publishAt");
+            if (!Boolean.TRUE.equals(current.getRubbish())) throw new com.zrlog.common.exception.ArgsException("publishAt");
         }
         body.setRubbish(true);
         return true;

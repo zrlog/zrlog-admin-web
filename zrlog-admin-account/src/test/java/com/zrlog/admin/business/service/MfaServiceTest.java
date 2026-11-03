@@ -8,17 +8,16 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.MfaTestCodeGenerator;
 import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
+import com.zrlog.model.User;
 
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.Assert.*;
 
 public class MfaServiceTest {
 
-    private static Map<String, Object> user(Object enabled) {
-        Map<String, Object> user = new HashMap<>();
-        user.put("mfaEnabled", enabled);
+    private static User user(Boolean enabled) {
+        User user = new User();
+        user.setMfaEnabled(enabled);
         return user;
     }
 
@@ -33,21 +32,15 @@ public class MfaServiceTest {
     }
 
     @Test
-    public void shouldReadMfaEnabledAcrossStorageRepresentations() {
+    public void shouldReadMfaEnabledFromTypedUser() {
         MfaService service = new MfaService(() -> {
             throw new IllegalStateException("Database is unavailable in this test");
         });
 
-        assertFalse(service.getMfaEnabled(new HashMap<>()));
+        assertFalse(service.getMfaEnabled(null));
+        assertFalse(service.getMfaEnabled(user(null)));
         assertTrue(service.getMfaEnabled(user(true)));
         assertFalse(service.getMfaEnabled(user(false)));
-        assertTrue(service.getMfaEnabled(user(1)));
-        assertFalse(service.getMfaEnabled(user(0)));
-        assertTrue(service.getMfaEnabled(user("1")));
-        assertTrue(service.getMfaEnabled(user("true")));
-        assertTrue(service.getMfaEnabled(user("TRUE")));
-        assertFalse(service.getMfaEnabled(user("0")));
-        assertFalse(service.getMfaEnabled(user(" true ")));
     }
 
     @Test
@@ -56,9 +49,9 @@ public class MfaServiceTest {
             throw new IllegalStateException("Database is unavailable in this test");
         });
 
-        service.verifyLoginMfa(new HashMap<>(), null);
+        service.verifyLoginMfa(user(null), null);
         service.verifyLoginMfa(user(false), "");
-        service.verifyLoginMfa(user(0), "123456");
+        service.verifyLoginMfa(user(false), "123456");
     }
 
     @Test
@@ -68,7 +61,7 @@ public class MfaServiceTest {
         });
 
         assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user(true), null));
-        assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user("1"), ""));
+        assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user(true), ""));
     }
 
     @Test
@@ -76,9 +69,9 @@ public class MfaServiceTest {
         MfaService service = new MfaService(() -> {
             throw new IllegalStateException("Database is unavailable in this test");
         });
-        Map<String, Object> missingSecret = user(true);
-        Map<String, Object> invalidCode = user(true);
-        invalidCode.put("mfaSecret", "JBSWY3DPEHPK3PXP");
+        User missingSecret = user(true);
+        User invalidCode = user(true);
+        invalidCode.setMfaSecret("JBSWY3DPEHPK3PXP");
 
         assertThrows(InvalidMfaCodeException.class, () -> service.verifyLoginMfa(missingSecret, "123456"));
         assertThrows(InvalidMfaCodeException.class, () -> service.verifyLoginMfa(invalidCode, "000000"));
@@ -110,9 +103,9 @@ public class MfaServiceTest {
 
             assertEquals(0, service.disableMfa(1, mfaRequest(currentCode(secret))).getError());
             assertFalse(service.isMfaEnabled(1));
-            Map<String, Object> user = db.queryOne("select mfaEnabled, mfaSecret from user where userId=?", 1);
+            User user = new UserRepository(db.dataSource()).loadById(1L);
             assertEquals(false, service.getMfaEnabled(user));
-            assertEquals(null, user.get("mfaSecret"));
+            assertEquals(null, user.getMfaSecret());
         }
     }
 

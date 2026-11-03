@@ -16,6 +16,7 @@ import jakarta.inject.Inject;
 
 import java.io.File;
 import java.sql.SQLException;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -233,34 +234,34 @@ public class FileManagerReferenceService {
         return new ArrayList<>(referenceMap.values());
     }
 
+    static final class ReferenceSignature {
+        long articleCount;
+        Long maxLogId;
+        Long maxVersion;
+        String updatedAt;
+    }
+
     private String buildArticleReferenceSignature() throws SQLException {
-        List<Map<String, Object>> rows =
-                this.logProvider
-                        .get()
-                        .queryList(
-                                "count(*) AS article_count, max(logId) AS max_log_id, max(version) AS max_version, max(last_update_date) AS max_last_update_date");
-        if (rows.isEmpty()) {
-            return "empty";
-        }
-        Map<String, Object> row = rows.get(0);
-        return Objects.toString(row.get("article_count"), "0")
-                + ":" + Objects.toString(row.get("max_log_id"), "0")
-                + ":" + Objects.toString(row.get("max_version"), "0")
-                + ":" + Objects.toString(row.get("max_last_update_date"), "");
+        ReferenceSignature row = logProvider.get().queryOne(
+                "select count(*) as articleCount,max(logId) as maxLogId,max(version) as maxVersion,max(last_update_date) as updatedAt from log",
+                ReferenceSignature.class);
+        if (row == null) return "empty";
+        return row.articleCount + ":" + Objects.toString(row.maxLogId, "0")
+                + ":" + Objects.toString(row.maxVersion, "0") + ":" + Objects.toString(row.updatedAt, "");
     }
 
     private FileReferenceIndexCacheVO rebuildReferenceIndex(String signature) throws SQLException {
-        List<Map<String, Object>> articles =
+        List<ArticleBasicDTO> articles =
                 this.logProvider
                         .get()
-                        .queryList("logId, title, alias, thumbnail, content, markdown");
+                        .queryList("select logId,title,alias,thumbnail,content,markdown from log", ArticleBasicDTO.class);
         Map<String, Map<Integer, FileReferenceVO>> localReferenceMap = new HashMap<>();
         Map<String, Map<Integer, FileReferenceVO>> externalReferenceMap = new LinkedHashMap<>();
-        for (Map<String, Object> article : articles) {
-            int logId = toInt(article.get("logId"));
-            FileReferenceVO articleReference = new FileReferenceVO(logId, Objects.toString(article.get("title"), ""),
-                    Objects.toString(article.get("alias"), ""));
-            String thumbnail = (String) article.get("thumbnail");
+        for (ArticleBasicDTO article : articles) {
+            int logId = toInt(article.getLogId());
+            FileReferenceVO articleReference = new FileReferenceVO(logId, Objects.toString(article.getTitle(), ""),
+                    Objects.toString(article.getAlias(), ""));
+            String thumbnail = (String) article.getThumbnail();
             String normalizedThumbnail = normalizeLocalResourcePath(thumbnail);
             if (normalizedThumbnail != null) {
                 FileReferenceVO reference = addReference(localReferenceMap, normalizedThumbnail, articleReference);
@@ -269,7 +270,7 @@ public class FileManagerReferenceService {
                 FileReferenceVO reference = addReference(externalReferenceMap, thumbnail.trim(), articleReference);
                 reference.setThumbnail(true);
             }
-            String content = (String) article.get("content");
+            String content = (String) article.getContent();
             if (StringUtils.isNotEmpty(content)) {
                 for (String path : references.extractLocalResourcePaths(content)) {
                     FileReferenceVO reference = addReference(localReferenceMap, path, articleReference);
@@ -280,7 +281,7 @@ public class FileManagerReferenceService {
                     reference.setContent(true);
                 }
             }
-            String markdown = (String) article.get("markdown");
+            String markdown = (String) article.getMarkdown();
             if (StringUtils.isNotEmpty(markdown)) {
                 for (String path : references.extractLocalMarkdownResourcePaths(markdown)) {
                     FileReferenceVO reference = addReference(localReferenceMap, path, articleReference);

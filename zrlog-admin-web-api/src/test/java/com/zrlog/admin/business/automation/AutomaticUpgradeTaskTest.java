@@ -46,7 +46,7 @@ public class AutomaticUpgradeTaskTest {
         store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
         authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
-        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         provider = new AutomaticUpgradeTaskProvider(store, operations, now::get);
         var registry = new TaskRegistry(() -> List.of(provider));
         service = new AutomationService(store, authority, registry, now::get);
@@ -466,7 +466,7 @@ public class AutomaticUpgradeTaskTest {
         operations.beforeSubmit = () -> { throw new IllegalStateException("unknown submission outcome"); };
         now.addAndGet(1000); engine.tick("internal", 660000);
         db.execute("INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)", 2, "admin-two", "admin", true, 0);
-        var admin = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
+        var admin = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
         assertThrows(IllegalStateException.class, () -> service.setEnabled(admin, task.id, task.revision, true));
         var review = plan(); review.parameters.addProperty("retryUnconfirmed", true);
         var saved = service.save(admin, review);
