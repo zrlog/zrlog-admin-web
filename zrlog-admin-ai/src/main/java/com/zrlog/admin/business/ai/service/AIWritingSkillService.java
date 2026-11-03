@@ -21,7 +21,6 @@ import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.List;
@@ -440,21 +439,6 @@ public class AIWritingSkillService extends AIService {
                         + "\n\n";
         return new AIStreamResponse(
                 200, "", new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private void sendStreamError(
-            OutputStream out, Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
-        try {
-            out.write(
-                    ("event: ai-error\n"
-                                    + "data: "
-                                    + gson.toJson(buildStreamErrorPayload(e, info, tool))
-                                    + "\n\n")
-                            .getBytes(StandardCharsets.UTF_8));
-            out.flush();
-        } catch (IOException ignored) {
-            // Client connection may already be closed.
-        }
     }
 
     AIStreamPayloads.ErrorPayload buildStreamErrorPayload(

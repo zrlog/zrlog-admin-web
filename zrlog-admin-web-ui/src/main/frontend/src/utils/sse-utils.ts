@@ -1,5 +1,5 @@
 import type {SseEvent as SharedSseEvent} from "@zrlog/utils";
-import {parseJsonSseEvent, readJsonSseStream} from "@zrlog/utils";
+import {readJsonSseStream} from "@zrlog/utils";
 import {MessageInstance} from "antd/es/message/interface";
 import {formatLabelValue, getBackendServerUrl, getRes, isStaticPage} from "./constants";
 import {
@@ -122,8 +122,6 @@ const getStaticSiteActionText = (siteTypes: string[], stage: "generating" | "syn
     }
     return stage === "generating" ? staticSiteRes.generatingHtml : staticSiteRes.syncing;
 };
-
-export const parseSseEvent = (chunk: string): SseEvent | null => parseJsonSseEvent(chunk);
 
 /** Shared POST transport for controller methods annotated with @RefreshCache. */
 export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheSseOptions<T> = {}): Promise<T> => {

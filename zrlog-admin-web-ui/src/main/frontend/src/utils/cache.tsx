@@ -10,10 +10,6 @@ const getCacheKey = () => {
     return window.location.host + "_cache_page_data_session_" + (getSsDate().key || "anonymous");
 };
 
-export const removePageCacheByLocation = (location: H.Location) => {
-    removeCacheDataByKey(getPageDataCacheKey(location));
-};
-
 export const getPageDataCacheKey = (location: H.Location) => {
     return getPageDataCacheKeyByPath(location.pathname, location.search);
 };

@@ -4,7 +4,6 @@ import com.hibegin.common.BaseLockObject;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.FileUtils;
-import com.hibegin.common.util.LoggerUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.business.plugin.StaticGenerationBudget;
@@ -27,10 +26,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 public class AdminStaticResourcePlugin extends BaseLockObject implements StaticSitePlugin {
-    private static final Logger LOGGER = LoggerUtil.getLogger(AdminStaticResourcePlugin.class);
     private static final String ID_CACHE_KEY = "admin_static_version";
     private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     private final AdminResource adminResource;

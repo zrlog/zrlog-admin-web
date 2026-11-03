@@ -171,15 +171,6 @@ public class WebSiteService {
         return contentProtector;
     }
 
-    public boolean isAdminLinkPreviewEnabled() {
-        return Objects.equals(
-                Boolean.TRUE,
-                queryToMap(
-                                Arrays.asList(ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY),
-                                ArticleEditWebSiteInfo.class)
-                        .getArticle_editor_link_preview_enabled());
-    }
-
     private <T> T queryToMap(List<String> names, Class<T> clazz) {
         Map<String, Object> webSiteByNameIn = this.webSiteProvider.get().getWebSiteByNameIn(names);
         return ResultBeanUtils.convert(webSiteByNameIn, clazz);

@@ -449,8 +449,6 @@ public class AIToolServiceTest {
         assertEquals(0, invoke(service, "normalizeScore", -10));
         assertEquals(0, invoke(service, "normalizeScore", "bad"));
         assertEquals(51, invoke(service, "normalizeScore", "50.6"));
-        assertEquals("", invoke(service, "valueToString", new Object[] {null}));
-        assertEquals("42", invoke(service, "valueToString", 42));
         assertEquals(
                 "prompt\n\ncontext",
                 invoke(service, "appendConversationContext", "prompt", "context"));

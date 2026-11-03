@@ -719,10 +719,6 @@ public class AIToolService extends AIService {
         return Math.min(100, Math.max(0, score));
     }
 
-    private String valueToString(Object value) {
-        return value == null ? "" : value.toString();
-    }
-
     private String cleanJsonContent(String content) {
         String cleaned = content == null ? "" : content.trim();
         if (cleaned.startsWith("```")) {

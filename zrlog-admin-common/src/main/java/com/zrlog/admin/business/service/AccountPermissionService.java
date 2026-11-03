@@ -61,16 +61,6 @@ public final class AccountPermissionService {
         actions.forEach(action -> requireAction(account, action));
     }
 
-    public static boolean allowsActions(
-            AccountAccess account, java.util.Collection<String> actions) {
-        try {
-            requireActions(account, actions);
-            return true;
-        } catch (PermissionErrorException denied) {
-            return false;
-        }
-    }
-
     public void require(AccountAccess account, AccountAction action) {
         if (account == null || !action.allowed(account)) throw new PermissionErrorException();
     }

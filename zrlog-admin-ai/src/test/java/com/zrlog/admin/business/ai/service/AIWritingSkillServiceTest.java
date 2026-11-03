@@ -16,9 +16,7 @@ import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.util.I18nUtil;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -492,7 +490,7 @@ public class AIWritingSkillServiceTest {
     }
 
     @Test
-    public void shouldBuildAndSendStreamErrorEvents() throws Exception {
+    public void shouldBuildStreamErrorEvents() throws Exception {
         AIWritingSkillService service =
                 new AIWritingSkillService(
                         com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
@@ -510,7 +508,6 @@ public class AIWritingSkillServiceTest {
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_provider(AIProviderType.DEEP_SEEK);
         info.setAi_model("deepseek-chat");
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         AIStreamResponse response =
                 (AIStreamResponse)
@@ -520,49 +517,14 @@ public class AIWritingSkillServiceTest {
                                 new AIRequestException("quota"),
                                 info,
                                 null);
-        invoke(service, "sendStreamError", out, new AIResponseException("bad chunk"), info, null);
 
         String responsePayload =
                 new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        String sentPayload = out.toString(StandardCharsets.UTF_8);
         assertEquals(200, response.getStatusCode());
         assertEquals("", response.getErrorBody());
         assertTrue(responsePayload.startsWith("event: ai-error\n"));
         assertTrue(responsePayload.contains("\"errorType\":\"provider_request\""));
         assertTrue(responsePayload.contains("\"provider\":\"DEEP_SEEK\""));
-        assertTrue(sentPayload.startsWith("event: ai-error\n"));
-        assertTrue(sentPayload.contains("\"errorType\":\"provider_response\""));
-    }
-
-    @Test
-    public void shouldIgnoreClosedClientWhenSendingStreamError() throws Exception {
-        OutputStream closed =
-                new OutputStream() {
-                    @Override
-                    public void write(int b) throws IOException {
-                        throw new IOException("closed");
-                    }
-                };
-
-        invoke(
-                new AIWritingSkillService(
-                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-                        AIServiceDependencies.conversations(null)
-                                .captureAccount(
-                                        Math.max(
-                                                1,
-                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
-                                                        .getUserId())),
-                        AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null)
-                                .permissions()),
-                "sendStreamError",
-                closed,
-                new AIResponseException("bad chunk"),
-                null,
-                null);
     }
 
     @Test

@@ -199,8 +199,6 @@ export type AssistantToolButton = {
     disabledReason?: string;
 };
 
-export type AssistantToolContextPolicy = "fullConversation" | "chatOnly" | "none";
-
 export type AssistantToolGroup = {
     key: AssistantToolButton["group"];
     label: string;
