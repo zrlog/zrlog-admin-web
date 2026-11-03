@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.HttpVersion;
@@ -16,6 +18,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.business.security.OAuthModels;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -30,17 +33,10 @@ import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.data.security.AccountAction;
-import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.NetworkProxy;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -49,8 +45,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-
-import static org.junit.Assert.*;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class AdminPageServiceTest {
 
@@ -63,10 +62,11 @@ public class AdminPageServiceTest {
     }
 
     private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminPageServiceTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        AdminPageServiceTest.class.getClassLoader(),
+                        new Class[] {HttpResponse.class},
+                        (proxy, method, args) -> null);
     }
 
     private static void setAdminToken() throws Exception {
@@ -74,7 +74,8 @@ public class AdminPageServiceTest {
         token.setUserId(1);
         token.setSessionId("session-1");
         token.setProtocol("http");
-        Method method = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
+        Method method =
+                AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
         method.setAccessible(true);
         method.invoke(null, token);
     }
@@ -92,8 +93,9 @@ public class AdminPageServiceTest {
 
     @Test
     public void shouldBuildServerSideDataForAnonymousRequest() throws Throwable {
-        ServerSideDataResponse<Object> response = pageService(new InMemoryZrLogDatabase.TestCacheService(), null).serverSide(
-                "/admin/index", request("/admin/index", "/blog"), response());
+        ServerSideDataResponse<Object> response =
+                pageService(new InMemoryZrLogDatabase.TestCacheService(), null)
+                        .serverSide("/admin/index", request("/admin/index", "/blog"), response());
 
         assertNull(response.getUser());
         assertNull(response.getData());
@@ -108,16 +110,32 @@ public class AdminPageServiceTest {
             applicationConfig = db.config();
             resources = db.resources();
             db.putWebsite("backend_server_url", "https://private-setting.example/sub");
-            resources = new AdminResourceImpl("", () -> 0L, resourceService(db.dataSource())::staticResourceBaseUrl);
+            resources =
+                    new AdminResourceImpl(
+                            "", () -> 0L, resourceService(db.dataSource())::staticResourceBaseUrl);
             AdminTokenThreadLocal.remove();
             for (String userAgent :
                     java.util.List.of("Browser", BaseStaticSitePlugin.STATIC_USER_AGENT)) {
-                HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
-                        (proxy, method, args) -> {
-                            if (method.getName().equals("getHeader") && "User-Agent".equals(args[0])) return userAgent;
-                            return method.invoke(request("/admin/website/admin", ""), args);
-                        });
-                String data = new com.google.gson.Gson().toJson(pageService(db.unitCacheService(), db.dataSource()).serverSide("/admin/website/admin", request, response()));
+                HttpRequest request =
+                        (HttpRequest)
+                                Proxy.newProxyInstance(
+                                        getClass().getClassLoader(),
+                                        new Class[] {HttpRequest.class},
+                                        (proxy, method, args) -> {
+                                            if (method.getName().equals("getHeader")
+                                                    && "User-Agent".equals(args[0]))
+                                                return userAgent;
+                                            return method.invoke(
+                                                    request("/admin/website/admin", ""), args);
+                                        });
+                String data =
+                        new com.google.gson.Gson()
+                                .toJson(
+                                        pageService(db.unitCacheService(), db.dataSource())
+                                                .serverSide(
+                                                        "/admin/website/admin",
+                                                        request,
+                                                        response()));
                 assertFalse(data.contains("backend_server_url"));
                 assertFalse(data.contains("private-setting.example"));
             }
@@ -132,14 +150,19 @@ public class AdminPageServiceTest {
             db.loadAdminWebModules();
             AccountAuthorizationTest.login(db, 1, "owner");
             for (String contextPath : java.util.List.of("", "/blog")) {
-                resources = new AdminResourceImpl(contextPath, () -> 0L, resourceService(db.dataSource())::staticResourceBaseUrl);
-                for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
+                resources =
+                        new AdminResourceImpl(
+                                contextPath,
+                                () -> 0L,
+                                resourceService(db.dataSource())::staticResourceBaseUrl);
+                for (String page :
+                        java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
                     assertTrue(resources.getAdminStaticCacheUris().contains(contextPath + page));
                     HttpRequest request =
                             (HttpRequest)
                                     Proxy.newProxyInstance(
                                             getClass().getClassLoader(),
-                                            new Class[]{HttpRequest.class},
+                                            new Class[] {HttpRequest.class},
                                             (proxy, method, args) -> {
                                                 if (method.getName().equals("getHeader")) {
                                                     if ("User-Agent".equals(args[0]))
@@ -153,20 +176,31 @@ public class AdminPageServiceTest {
                                                 return method.invoke(
                                                         request(page, contextPath), args);
                                             });
-                    String rendered = db.component(AdminUiComponent.class).pageRequests().buildHtml(request, response(), html(
-                            "<html><head><base href=\"/\"><link rel=\"manifest\" href=\"/admin/manifest.json\">"
-                                    + "<script src=\"/admin/static/app.js\"></script></head>"
-                                    + "<body><div id=\"__SS_DATA__\"></div></body></html>"));
+                    String rendered =
+                            db.component(AdminUiComponent.class)
+                                    .pageRequests()
+                                    .buildHtml(
+                                            request,
+                                            response(),
+                                            html(
+                                                    "<html><head><base href=\"/\"><link rel=\"manifest\" href=\"/admin/manifest.json\">"
+                                                            + "<script src=\"/admin/static/app.js\"></script></head>"
+                                                            + "<body><div id=\"__SS_DATA__\"></div></body></html>"));
                     Document document = Jsoup.parse(rendered);
-                    com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
-                            document.getElementById("__SS_DATA__").text()).getAsJsonObject();
+                    com.google.gson.JsonObject data =
+                            com.google.gson.JsonParser.parseString(
+                                            document.getElementById("__SS_DATA__").text())
+                                    .getAsJsonObject();
                     assertEquals(
                             AdminConstants.getAdminDocumentTitleByUri(
                                     page, ApplicationServicesFixture.site(db.config()).get()),
                             document.title());
                     assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
-                    assertEquals(contextPath + "/admin/static/app.js", document.selectFirst("script").attr("src"));
-                    assertTrue(data.getAsJsonObject("resourceInfo").get("staticPage").getAsBoolean());
+                    assertEquals(
+                            contextPath + "/admin/static/app.js",
+                            document.selectFirst("script").attr("src"));
+                    assertTrue(
+                            data.getAsJsonObject("resourceInfo").get("staticPage").getAsBoolean());
                     assertFalse(data.has("user"));
                     assertFalse(data.has("data"));
                     assertFalse(data.has("key"));
@@ -176,7 +210,8 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldInjectUiReviewReadinessAndPersonalAppearanceIntoTheFirstPage() throws Throwable {
+    public void shouldInjectUiReviewReadinessAndPersonalAppearanceIntoTheFirstPage()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
@@ -185,25 +220,49 @@ public class AdminPageServiceTest {
             config.setRouter(db.config().getServerConfig().getRouter());
             String page = "/admin/dev/ui";
             for (String contextPath : java.util.List.of("", "/blog")) {
-                resources = new AdminResourceImpl(contextPath, () -> 0L, resourceService(db.dataSource())::staticResourceBaseUrl);
-                AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
+                resources =
+                        new AdminResourceImpl(
+                                contextPath,
+                                () -> 0L,
+                                resourceService(db.dataSource())::staticResourceBaseUrl);
+                AdminPageRequestHandler service =
+                        db.component(AdminUiComponent.class).pageRequests();
                 for (String role : java.util.List.of("owner", "admin")) {
                     AccountAuthorizationTest.login(db, 1, role);
-                    db.component(AccountComponent.class).preferences()
-                            .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"language\":\"en_US\",\"appearance\":{"
-                                    + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
-                    Document document = Jsoup.parse(service.buildHtml(request(page, contextPath, config), response(),
-                            html("<html><head><base href=\"/\"></head><body><pre id=\"__SS_DATA__\"></pre></body></html>")));
-                    com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
-                            document.getElementById("__SS_DATA__").text()).getAsJsonObject();
+                    db.component(AccountComponent.class)
+                            .preferences()
+                            .updateBody(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "{\"language\":\"en_US\",\"appearance\":{"
+                                            + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
+                    Document document =
+                            Jsoup.parse(
+                                    service.buildHtml(
+                                            request(page, contextPath, config),
+                                            response(),
+                                            html(
+                                                    "<html><head><base href=\"/\"></head><body><pre id=\"__SS_DATA__\"></pre></body></html>")));
+                    com.google.gson.JsonObject data =
+                            com.google.gson.JsonParser.parseString(
+                                            document.getElementById("__SS_DATA__").text())
+                                    .getAsJsonObject();
                     assertTrue(data.get("data").getAsBoolean());
                     assertEquals(1, data.getAsJsonObject("user").get("userId").getAsInt());
-                    assertEquals(AdminTokenThreadLocal.getUser().getSessionId(), data.get("key").getAsString());
+                    assertEquals(
+                            AdminTokenThreadLocal.getUser().getSessionId(),
+                            data.get("key").getAsString());
                     com.google.gson.JsonObject resource = data.getAsJsonObject("resourceInfo");
                     assertEquals("antd", resource.get("admin_theme").getAsString());
                     assertEquals("en_US", resource.get("lang").getAsString());
-                    assertEquals(resource.get("lang"), data.getAsJsonObject("user").get("language"));
-                    assertEquals(resource.get("admin_theme"), data.getAsJsonObject("user").getAsJsonObject("appearance").get("theme"));
+                    assertEquals(
+                            resource.get("lang"), data.getAsJsonObject("user").get("language"));
+                    assertEquals(
+                            resource.get("admin_theme"),
+                            data.getAsJsonObject("user")
+                                    .getAsJsonObject("appearance")
+                                    .get("theme"));
                     assertEquals("#00875a", resource.get("admin_color_primary").getAsString());
                     assertTrue(resource.get("admin_darkMode").getAsBoolean());
                     assertTrue(resource.get("admin_compactMode").getAsBoolean());
@@ -214,8 +273,13 @@ public class AdminPageServiceTest {
                             AdminConstants.getAdminDocumentTitleByUri(
                                     page, ApplicationServicesFixture.site(db.config()).get()),
                             document.title());
-                    assertEquals(Boolean.TRUE, service.serverSide(page,
-                            request("/admin/ssJson", contextPath, config), response()).getData());
+                    assertEquals(
+                            Boolean.TRUE,
+                            service.serverSide(
+                                            page,
+                                            request("/admin/ssJson", contextPath, config),
+                                            response())
+                                    .getData());
                 }
                 for (String role : java.util.List.of("editor", "author", "contributor")) {
                     AccountAuthorizationTest.login(db, 1, role);
@@ -235,28 +299,34 @@ public class AdminPageServiceTest {
 
     @Test
     public void shouldRewriteAdminHtmlForNormalPage() throws Throwable {
-        String html = pageService(new InMemoryZrLogDatabase.TestCacheService(), null).buildHtml(
-                request("/admin/index", "/blog"),
-                response(),
-                html("<html><head>"
-                        + "<base href=\"/old/\">"
-                        + "<meta name=\"theme-color\" content=\"#000000\">"
-                        + "<link rel=\"manifest\" href=\"/admin/manifest.json\">"
-                        + "<link rel=\"stylesheet\" href=\"/admin/static/app.css\">"
-                        + "<link rel=\"shortcut icon\" href=\"/favicon.ico\">"
-                        + "<script src=\"/admin/static/app.js\"></script>"
-                        + "</head><body class=\"dark\"><div id=\"__SS_DATA__\"></div></body></html>"));
+        String html =
+                pageService(new InMemoryZrLogDatabase.TestCacheService(), null)
+                        .buildHtml(
+                                request("/admin/index", "/blog"),
+                                response(),
+                                html(
+                                        "<html><head>"
+                                                + "<base href=\"/old/\">"
+                                                + "<meta name=\"theme-color\" content=\"#000000\">"
+                                                + "<link rel=\"manifest\" href=\"/admin/manifest.json\">"
+                                                + "<link rel=\"stylesheet\" href=\"/admin/static/app.css\">"
+                                                + "<link rel=\"shortcut icon\" href=\"/favicon.ico\">"
+                                                + "<script src=\"/admin/static/app.js\"></script>"
+                                                + "</head><body class=\"dark\"><div id=\"__SS_DATA__\"></div></body></html>"));
 
         Document document = Jsoup.parse(html);
 
         assertTrue(document.body().hasClass("light"));
         assertFalse(document.body().hasClass("dark"));
         assertEquals("/blog/", document.selectFirst("base").attr("href"));
-        assertEquals("/blog/admin/manifest.json?v=build-1",
+        assertEquals(
+                "/blog/admin/manifest.json?v=build-1",
                 document.selectFirst("link[rel=manifest]").attr("href"));
-        assertEquals("/blog/admin/static/app.css",
+        assertEquals(
+                "/blog/admin/static/app.css",
                 document.selectFirst("link[rel=stylesheet]").attr("href"));
-        assertEquals("/blog/favicon.ico?v=build-1",
+        assertEquals(
+                "/blog/favicon.ico?v=build-1",
                 document.selectFirst("link[rel=shortcut icon]").attr("href"));
         assertEquals("/blog/admin/static/app.js", document.selectFirst("script").attr("src"));
         assertEquals("build-1", resources.getStaticResourceBuildId());
@@ -265,13 +335,16 @@ public class AdminPageServiceTest {
 
     @Test
     public void shouldRemoveManifestOnLoginPage() throws Throwable {
-        String html = pageService(new InMemoryZrLogDatabase.TestCacheService(), null).buildHtml(
-                request("/admin/login", "/"),
-                response(),
-                html("<html><head>"
-                        + "<base href=\"/old/\">"
-                        + "<link rel=\"manifest\" href=\"/admin/manifest.json\">"
-                        + "</head><body><div id=\"__SS_DATA__\"></div></body></html>"));
+        String html =
+                pageService(new InMemoryZrLogDatabase.TestCacheService(), null)
+                        .buildHtml(
+                                request("/admin/login", "/"),
+                                response(),
+                                html(
+                                        "<html><head>"
+                                                + "<base href=\"/old/\">"
+                                                + "<link rel=\"manifest\" href=\"/admin/manifest.json\">"
+                                                + "</head><body><div id=\"__SS_DATA__\"></div></body></html>"));
 
         Document document = Jsoup.parse(html);
 
@@ -280,47 +353,60 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldRewriteStaticResourcesWithConfiguredCdnHostFromRealWebsiteTable() throws Throwable {
+    public void shouldRewriteStaticResourcesWithConfiguredCdnHostFromRealWebsiteTable()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
             AdminTokenThreadLocal.remove();
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example");
 
-            String html = pageService(db.unitCacheService(), db.dataSource()).buildHtml(
-                    request("/admin/index", "/blog"),
-                    response(),
-                    html("<html><head>"
-                            + "<base href=\"/old/\">"
-                            + "<link rel=\"manifest\" href=\"/admin/manifest.json\">"
-                            + "<link rel=\"stylesheet\" href=\"/admin/static/app.css\">"
-                            + "<link rel=\"shortcut icon\" href=\"/favicon.ico\">"
-                            + "<script src=\"/admin/static/app.js\"></script>"
-                            + "</head><body><div id=\"__SS_DATA__\"></div></body></html>"));
+            String html =
+                    pageService(db.unitCacheService(), db.dataSource())
+                            .buildHtml(
+                                    request("/admin/index", "/blog"),
+                                    response(),
+                                    html(
+                                            "<html><head>"
+                                                    + "<base href=\"/old/\">"
+                                                    + "<link rel=\"manifest\" href=\"/admin/manifest.json\">"
+                                                    + "<link rel=\"stylesheet\" href=\"/admin/static/app.css\">"
+                                                    + "<link rel=\"shortcut icon\" href=\"/favicon.ico\">"
+                                                    + "<script src=\"/admin/static/app.js\"></script>"
+                                                    + "</head><body><div id=\"__SS_DATA__\"></div></body></html>"));
 
             Document document = Jsoup.parse(html);
 
-            assertEquals("https://cdn.example/blog/admin/manifest.json?v=test",
+            assertEquals(
+                    "https://cdn.example/blog/admin/manifest.json?v=test",
                     document.selectFirst("link[rel=manifest]").attr("href"));
-            assertEquals("https://cdn.example/blog/admin/static/app.css",
+            assertEquals(
+                    "https://cdn.example/blog/admin/static/app.css",
                     document.selectFirst("link[rel=stylesheet]").attr("href"));
-            assertEquals("https://cdn.example/blog/favicon.ico?v=test",
+            assertEquals(
+                    "https://cdn.example/blog/favicon.ico?v=test",
                     document.selectFirst("link[rel=shortcut icon]").attr("href"));
-            assertEquals("https://cdn.example/blog/admin/static/app.js",
+            assertEquals(
+                    "https://cdn.example/blog/admin/static/app.js",
                     document.selectFirst("script").attr("src"));
         }
     }
 
     @Test
-    public void shouldBuildServerSideDataForAdminPageResponseThroughRouterAndRealUser() throws Throwable {
+    public void shouldBuildServerSideDataForAdminPageResponseThroughRouterAndRealUser()
+            throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
             resources = ignored.resources();
             setAdminToken();
             RequestConfig requestConfig = requestConfig(ignored.dataSource());
 
-            ServerSideDataResponse<Object> response = pageService(ignored.unitCacheService(), ignored.dataSource()).serverSide(
-                    "/admin/ssr/page", request("/admin/ssr/page", "/blog", requestConfig), response());
+            ServerSideDataResponse<Object> response =
+                    pageService(ignored.unitCacheService(), ignored.dataSource())
+                            .serverSide(
+                                    "/admin/ssr/page",
+                                    request("/admin/ssr/page", "/blog", requestConfig),
+                                    response());
 
             assertEquals("admin", response.getUser().getUserName());
             assertEquals("session-1", response.getKey());
@@ -337,9 +423,11 @@ public class AdminPageServiceTest {
             setAdminToken();
             RequestConfig config = new RequestConfig();
             config.setRouter(new Router());
-            for (String uri : java.util.List.of("/admin/website/ai", "/admin/user/applications/tokens")) {
-                ServerSideDataResponse<Object> data = pageService(ignored.unitCacheService(), ignored.dataSource()).serverSide(
-                        uri, request(uri, "/blog", config), response());
+            for (String uri :
+                    java.util.List.of("/admin/website/ai", "/admin/user/applications/tokens")) {
+                ServerSideDataResponse<Object> data =
+                        pageService(ignored.unitCacheService(), ignored.dataSource())
+                                .serverSide(uri, request(uri, "/blog", config), response());
                 assertEquals("admin", data.getUser().getUserName());
                 assertEquals("session-1", data.getKey());
                 assertNotNull(data.getResourceInfo());
@@ -356,8 +444,12 @@ public class AdminPageServiceTest {
             setAdminToken();
             RequestConfig requestConfig = requestConfig(ignored.dataSource());
 
-            ServerSideDataResponse<Object> response = pageService(ignored.unitCacheService(), ignored.dataSource()).serverSide(
-                    "/admin/ssr/empty", request("/admin/ssr/empty", "/blog", requestConfig), response());
+            ServerSideDataResponse<Object> response =
+                    pageService(ignored.unitCacheService(), ignored.dataSource())
+                            .serverSide(
+                                    "/admin/ssr/empty",
+                                    request("/admin/ssr/empty", "/blog", requestConfig),
+                                    response());
 
             assertNotNull(response.getData());
             assertEquals(Object.class, response.getData().getClass());
@@ -365,7 +457,8 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldHydrateAccountSecurityWithOnlyTheCurrentUsersPasskeySummaries() throws Throwable {
+    public void shouldHydrateAccountSecurityWithOnlyTheCurrentUsersPasskeySummaries()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
@@ -377,22 +470,60 @@ public class AdminPageServiceTest {
             String page = "/admin/user/security";
             com.google.gson.Gson gson = new com.google.gson.Gson();
 
-            com.google.gson.JsonObject empty = gson.toJsonTree(service.serverSide(
-                    page, request(page, "/blog", config), response()).getData()).getAsJsonObject();
+            com.google.gson.JsonObject empty =
+                    gson.toJsonTree(
+                                    service.serverSide(
+                                                    page,
+                                                    request(page, "/blog", config),
+                                                    response())
+                                            .getData())
+                            .getAsJsonObject();
             assertEquals(0, empty.getAsJsonArray("passkeys").size());
 
-            db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
+            db.execute(
+                    "insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
             UserPasskeyRepository passkeys = new UserPasskeyRepository(db.dataSource());
-            passkeys.save(1, "own-hash", "own-credential", "own-public-key", 0, "internal",
-                    "Work computer", "aaguid", true, false, "https://example.com", "example.com", 1L);
-            passkeys.save(2, "other-hash", "other-credential", "other-public-key", 0, "internal",
-                    "Other account", "aaguid", true, false, "https://example.com", "example.com", 2L);
+            passkeys.save(
+                    1,
+                    "own-hash",
+                    "own-credential",
+                    "own-public-key",
+                    0,
+                    "internal",
+                    "Work computer",
+                    "aaguid",
+                    true,
+                    false,
+                    "https://example.com",
+                    "example.com",
+                    1L);
+            passkeys.save(
+                    2,
+                    "other-hash",
+                    "other-credential",
+                    "other-public-key",
+                    0,
+                    "internal",
+                    "Other account",
+                    "aaguid",
+                    true,
+                    false,
+                    "https://example.com",
+                    "example.com",
+                    2L);
 
-            com.google.gson.JsonObject data = gson.toJsonTree(service.serverSide(
-                    page, request(page, "/blog", config), response()).getData()).getAsJsonObject();
+            com.google.gson.JsonObject data =
+                    gson.toJsonTree(
+                                    service.serverSide(
+                                                    page,
+                                                    request(page, "/blog", config),
+                                                    response())
+                                            .getData())
+                            .getAsJsonObject();
             assertTrue(data.has("mfaEnabled"));
             assertEquals(1, data.getAsJsonArray("passkeys").size());
-            com.google.gson.JsonObject summary = data.getAsJsonArray("passkeys").get(0).getAsJsonObject();
+            com.google.gson.JsonObject summary =
+                    data.getAsJsonArray("passkeys").get(0).getAsJsonObject();
             assertEquals("Work computer", summary.get("name").getAsString());
             assertEquals(1L, summary.get("createdAt").getAsLong());
             assertFalse(data.toString().contains("Other account"));
@@ -400,12 +531,14 @@ public class AdminPageServiceTest {
             assertFalse(summary.has("publicKeyCose"));
 
             AdminTokenThreadLocal.remove();
-            assertNull(service.serverSide(page, request(page, "/blog", config), response()).getData());
+            assertNull(
+                    service.serverSide(page, request(page, "/blog", config), response()).getData());
         }
     }
 
     @Test
-    public void shouldLoadNestedAccountPagesThroughExistingApisWithoutWeakeningPermissions() throws Throwable {
+    public void shouldLoadNestedAccountPagesThroughExistingApisWithoutWeakeningPermissions()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
@@ -417,7 +550,8 @@ public class AdminPageServiceTest {
             AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
             for (String page : AdminAccountPages.PAGE_APIS.keySet()) {
                 if (page.equals(AdminAccountPages.AUTHORIZE)) continue;
-                ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
+                ServerSideDataResponse<Object> data =
+                        service.serverSide(page, request(page, "/blog", config), response());
                 assertNotNull(page, data.getData());
                 assertEquals(
                         AdminConstants.getAdminDocumentTitleByUri(
@@ -426,43 +560,58 @@ public class AdminPageServiceTest {
             }
             assertTrue(
                     service.serverSide(
-                                    "/admin/user/preferences/appearance",
-                                    request(
                                             "/admin/user/preferences/appearance",
-                                            "/blog",
-                                            config),
-                                    response())
-                            .getData()
+                                            request(
+                                                    "/admin/user/preferences/appearance",
+                                                    "/blog",
+                                                    config),
+                                            response())
+                                    .getData()
                             instanceof UserPreferencesResponse);
             assertTrue(
                     service.serverSide(
-                                    "/admin/user/applications/tokens",
-                                    request(
                                             "/admin/user/applications/tokens",
-                                            "/blog",
-                                            config),
-                                    response())
-                            .getData()
+                                            request(
+                                                    "/admin/user/applications/tokens",
+                                                    "/blog",
+                                                    config),
+                                            response())
+                                    .getData()
                             instanceof OAuthModels.Page);
             assertTrue(
                     service.serverSide(
-                                    "/admin/website/members",
-                                    request("/admin/website/members", "/blog", config),
-                                    response())
-                            .getData()
+                                            "/admin/website/members",
+                                            request("/admin/website/members", "/blog", config),
+                                            response())
+                                    .getData()
                             instanceof MemberModels.Page);
-            assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
+            assertNotNull(
+                    router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
             assertEquals(
                     AccountAction.PERMISSION_READ,
                     router.getMethod("/api/admin/access", HttpMethod.GET)
                             .getAnnotation(RequiresAction.class)
                             .value());
             assertFalse(router.getRouterMap().containsKey("/api/admin/user/applications"));
-            for (String oldPage : java.util.List.of("/admin/user/preferences", "/admin/user/applications", "/admin/user/permissions", "/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
+            for (String oldPage :
+                    java.util.List.of(
+                            "/admin/user/preferences",
+                            "/admin/user/applications",
+                            "/admin/user/permissions",
+                            "/admin/user/members",
+                            "/admin/members",
+                            "/admin/access",
+                            "/admin/oauth",
+                            "/admin/oauth/authorize")) {
                 assertFalse(oldPage, router.getRouterMap().containsKey(oldPage));
             }
             AccountAuthorizationTest.login(db, 1, "author");
-            assertNotNull(service.serverSide("/admin/user/applications/tokens", request("/admin/user/applications/tokens", "/blog", config), response()).getData());
+            assertNotNull(
+                    service.serverSide(
+                                    "/admin/user/applications/tokens",
+                                    request("/admin/user/applications/tokens", "/blog", config),
+                                    response())
+                            .getData());
             org.junit.Assert.assertThrows(
                     PermissionErrorException.class,
                     () ->
@@ -470,10 +619,30 @@ public class AdminPageServiceTest {
                                     "/admin/website/members",
                                     request("/admin/website/members", "/blog", config),
                                     response()));
-            assertNotNull(service.serverSide("/admin/user/preferences/session", request("/admin/user/preferences/session", "/blog", config), response()).getData());
-            assertNotNull(service.serverSide("/admin/user/preferences/writing", request("/admin/user/preferences/writing", "/blog", config), response()).getData());
-            assertNotNull(service.serverSide("/admin/user/preferences/assistant", request("/admin/user/preferences/assistant", "/blog", config), response()).getData());
-            assertNotNull(service.serverSide("/admin/user/applications/grants", request("/admin/user/applications/grants", "/blog", config), response()).getData());
+            assertNotNull(
+                    service.serverSide(
+                                    "/admin/user/preferences/session",
+                                    request("/admin/user/preferences/session", "/blog", config),
+                                    response())
+                            .getData());
+            assertNotNull(
+                    service.serverSide(
+                                    "/admin/user/preferences/writing",
+                                    request("/admin/user/preferences/writing", "/blog", config),
+                                    response())
+                            .getData());
+            assertNotNull(
+                    service.serverSide(
+                                    "/admin/user/preferences/assistant",
+                                    request("/admin/user/preferences/assistant", "/blog", config),
+                                    response())
+                            .getData());
+            assertNotNull(
+                    service.serverSide(
+                                    "/admin/user/applications/grants",
+                                    request("/admin/user/applications/grants", "/blog", config),
+                                    response())
+                            .getData());
             org.junit.Assert.assertThrows(
                     PermissionErrorException.class,
                     () ->
@@ -520,7 +689,8 @@ public class AdminPageServiceTest {
                     HttpRequest request = request(uri, contextPath, config);
                     for (String role : java.util.List.of("owner", "admin")) {
                         AccountAuthorizationTest.login(db, 1, role);
-                        ServerSideDataResponse<Object> response = service.serverSide(page, request, response());
+                        ServerSideDataResponse<Object> response =
+                                service.serverSide(page, request, response());
                         ProxySettingsResponse settings = (ProxySettingsResponse) response.getData();
                         assertEquals("http://proxy.example:3128", settings.getUrl());
                         assertEquals(".internal.example", settings.getNoProxy());
@@ -541,7 +711,8 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldLoadCompleteSystemInformationWithMatchingPermissionsAndTitle() throws Throwable {
+    public void shouldLoadCompleteSystemInformationWithMatchingPermissionsAndTitle()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
@@ -561,7 +732,8 @@ public class AdminPageServiceTest {
                         HttpRequest request = request(uri, contextPath, config);
                         for (String role : java.util.List.of("owner", "admin")) {
                             AccountAuthorizationTest.login(db, 1, role);
-                            ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
+                            ServerSideDataResponse<Object> result =
+                                    service.serverSide(page, request, response());
                             SystemResponse data = (SystemResponse) result.getData();
                             assertFalse(data.getServerInfos().isEmpty());
                             assertFalse(data.getServerInfos2().isEmpty());
@@ -588,16 +760,31 @@ public class AdminPageServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
-            // Replace the network boundary before production database-ready callbacks build bindings.
-            db.loadAdminWebModules(server -> {
-                assertEquals(server.getRouter().getMethod("/api/admin/website/version", HttpMethod.GET),
-                        server.getRouter().getMethod("/api/admin/system/version", HttpMethod.GET));
-                server.getBindings().controller(OfflineVersionController.class,
-                        (r, request, response) -> new OfflineVersionController(r.get(WebSiteSettingsService.class),
-                                r.get(UpgradeSettingsService.class), r.get(FeatureLabService.class),
-                                r.get(AdminPageDataFactory.class), db.dataSource()));
-                server.getRouter().addMapper("/api/admin/system/version", OfflineVersionController.class, "version");
-            });
+            // Replace the network boundary before production database-ready callbacks build
+            // bindings.
+            db.loadAdminWebModules(
+                    server -> {
+                        assertEquals(
+                                server.getRouter()
+                                        .getMethod("/api/admin/website/version", HttpMethod.GET),
+                                server.getRouter()
+                                        .getMethod("/api/admin/system/version", HttpMethod.GET));
+                        server.getBindings()
+                                .controller(
+                                        OfflineVersionController.class,
+                                        (r, request, response) ->
+                                                new OfflineVersionController(
+                                                        r.get(WebSiteSettingsService.class),
+                                                        r.get(UpgradeSettingsService.class),
+                                                        r.get(FeatureLabService.class),
+                                                        r.get(AdminPageDataFactory.class),
+                                                        db.dataSource()));
+                        server.getRouter()
+                                .addMapper(
+                                        "/api/admin/system/version",
+                                        OfflineVersionController.class,
+                                        "version");
+                    });
             RequestConfig config = new RequestConfig();
             config.setRouter(db.config().getServerConfig().getRouter());
             String page = "/admin/system/version";
@@ -614,9 +801,12 @@ public class AdminPageServiceTest {
                     HttpRequest request = request(uri, contextPath, config);
                     for (String role : java.util.List.of("owner", "admin")) {
                         AccountAuthorizationTest.login(db, 1, role);
-                        ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
+                        ServerSideDataResponse<Object> result =
+                                service.serverSide(page, request, response());
                         assertNotNull(((VersionResponse) result.getData()).getVersion());
-                        assertEquals("test changelog", ((VersionResponse) result.getData()).getChangelog());
+                        assertEquals(
+                                "test changelog",
+                                ((VersionResponse) result.getData()).getChangelog());
                         assertEquals(
                                 AdminConstants.getAdminDocumentTitleByUri(
                                         page, ApplicationServicesFixture.site(db.config()).get()),
@@ -634,7 +824,8 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldRedirectExistingSystemSettingsPagesPreservingContextAndEncodedQuery() throws Throwable {
+    public void shouldRedirectExistingSystemSettingsPagesPreservingContextAndEncodedQuery()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             resources = db.resources();
@@ -642,23 +833,35 @@ public class AdminPageServiceTest {
             RequestConfig config = new RequestConfig();
             config.setRouter(db.config().getServerConfig().getRouter());
             for (String page : java.util.List.of("version", "upgrade")) {
-                Method route = config.getRouter().getMethod("/admin/website/" + page, HttpMethod.GET);
+                Method route =
+                        config.getRouter().getMethod("/admin/website/" + page, HttpMethod.GET);
                 for (String contextPath : java.util.List.of("", "/", "/blog")) {
-                    for (String query : java.util.List.of("", "v=1&message=%E4%B8%AD%E6%96%87&value=a%2Bb%2525")) {
+                    for (String query :
+                            java.util.List.of(
+                                    "", "v=1&message=%E4%B8%AD%E6%96%87&value=a%2Bb%2525")) {
                         HttpRequest base = request("/admin/website/" + page, contextPath, config);
-                        HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
-                                new Class[]{HttpRequest.class}, (proxy, method, args) ->
-                                        method.getName().equals("getQueryStr") ? query : method.invoke(base, args));
+                        HttpRequest request =
+                                (HttpRequest)
+                                        Proxy.newProxyInstance(
+                                                getClass().getClassLoader(),
+                                                new Class[] {HttpRequest.class},
+                                                (proxy, method, args) ->
+                                                        method.getName().equals("getQueryStr")
+                                                                ? query
+                                                                : method.invoke(base, args));
                         var response =
                                 new SimpleHttpResponse(request, new ResponseConfig()) {
                                     @Override
                                     protected void send(
-                                            byte[] bytes, boolean body, boolean close) {
-                                    }
+                                            byte[] bytes, boolean body, boolean close) {}
                                 };
                         route.invoke(Controller.buildController(route, request, response));
                         String prefix = contextPath.equals("/") ? "" : contextPath;
-                        assertEquals(prefix + "/admin/system/" + page + (query.isEmpty() ? "" : "?" + query),
+                        assertEquals(
+                                prefix
+                                        + "/admin/system/"
+                                        + page
+                                        + (query.isEmpty() ? "" : "?" + query),
                                 response.getHeader().get("Location"));
                     }
                 }
@@ -678,7 +881,9 @@ public class AdminPageServiceTest {
                 Method route = router.getMethod("/api/admin/system/upgrade", method);
                 assertNotNull(route);
                 assertEquals(router.getMethod("/api/admin/website/upgrade", method), route);
-                assertEquals(AccountAction.SITE_CONFIGURE, route.getAnnotation(RequiresAction.class).value());
+                assertEquals(
+                        AccountAction.SITE_CONFIGURE,
+                        route.getAnnotation(RequiresAction.class).value());
             }
             assertEquals(
                     AdminConstants.getAdminDocumentTitleByUri(
@@ -698,8 +903,12 @@ public class AdminPageServiceTest {
             setAdminToken();
             RequestConfig requestConfig = requestConfig(ignored.dataSource());
 
-            ServerSideDataResponse<Object> response = pageService(ignored.unitCacheService(), ignored.dataSource()).serverSide(
-                    "/admin/ssr/plain", request("/admin/ssr/plain", "/blog", requestConfig), response());
+            ServerSideDataResponse<Object> response =
+                    pageService(ignored.unitCacheService(), ignored.dataSource())
+                            .serverSide(
+                                    "/admin/ssr/plain",
+                                    request("/admin/ssr/plain", "/blog", requestConfig),
+                                    response());
 
             assertNull(response.getData());
             assertEquals("session-1", response.getKey());
@@ -714,20 +923,31 @@ public class AdminPageServiceTest {
             setAdminToken();
             RequestConfig requestConfig = requestConfig(ignored.dataSource());
 
-            IllegalStateException exception = org.junit.Assert.assertThrows(IllegalStateException.class,
-                    () -> pageService(ignored.unitCacheService(), ignored.dataSource()).serverSide(
-                            "/admin/ssr/explode", request("/admin/ssr/explode", "/blog", requestConfig), response()));
+            IllegalStateException exception =
+                    org.junit.Assert.assertThrows(
+                            IllegalStateException.class,
+                            () ->
+                                    pageService(ignored.unitCacheService(), ignored.dataSource())
+                                            .serverSide(
+                                                    "/admin/ssr/explode",
+                                                    request(
+                                                            "/admin/ssr/explode",
+                                                            "/blog",
+                                                            requestConfig),
+                                                    response()));
 
             assertEquals("boom", exception.getMessage());
         }
     }
 
-    private AdminPageRequestHandler pageService(CacheService cache, DataSourceWrapper testDataSource) {
+    private AdminPageRequestHandler pageService(
+            CacheService cache, DataSourceWrapper testDataSource) {
         AdminResource ownedResources = resources;
-        var pages = new AdminPageDataFactory(
-                ApplicationServicesFixture.site(applicationConfig),
-                ownedResources::getStaticResourceBuildId,
-                ApplicationServicesFixture.messages(testDataSource));
+        var pages =
+                new AdminPageDataFactory(
+                        ApplicationServicesFixture.site(applicationConfig),
+                        ownedResources::getStaticResourceBuildId,
+                        ApplicationServicesFixture.messages(testDataSource));
         return new AdminPageRequestHandler(
                 AccountServicesFixture.component(testDataSource).requestIdentity(),
                 AccountServicesFixture.component(testDataSource).routeAuthorizer(),
@@ -754,7 +974,9 @@ public class AdminPageServiceTest {
                                     ApplicationServicesFixture.websiteCache(testDataSource)),
                             () -> new WebSiteRepository(testDataSource)),
                     site,
-                    () -> new WebSiteRepository(testDataSource).getStringValueByName("admin_static_resource_base_url"),
+                    () ->
+                            new WebSiteRepository(testDataSource)
+                                    .getStringValueByName("admin_static_resource_base_url"),
                     () -> new UserPasskeyRepository(testDataSource));
         }
         return new AdminResourceService(
@@ -786,7 +1008,7 @@ public class AdminPageServiceTest {
         return (HttpRequest)
                 Proxy.newProxyInstance(
                         AdminPageServiceTest.class.getClassLoader(),
-                        new Class[]{HttpRequest.class},
+                        new Class[] {HttpRequest.class},
                         (proxy, method, args) -> {
                             if ("getUri".equals(method.getName())) {
                                 return uri;
@@ -841,12 +1063,20 @@ public class AdminPageServiceTest {
     }
 
     public static class OfflineVersionController extends WebSiteController {
-        public OfflineVersionController(WebSiteSettingsService settings, UpgradeSettingsService upgrades,
-                                        FeatureLabService features, AdminPageDataFactory pages, DataSourceWrapper testDataSource) {
-            super(settings, upgrades, features, pages, ApplicationServicesFixture.settings(testDataSource),
+        public OfflineVersionController(
+                WebSiteSettingsService settings,
+                UpgradeSettingsService upgrades,
+                FeatureLabService features,
+                AdminPageDataFactory pages,
+                DataSourceWrapper testDataSource) {
+            super(
+                    settings,
+                    upgrades,
+                    features,
+                    pages,
+                    ApplicationServicesFixture.settings(testDataSource),
                     AccountServicesFixture.component(testDataSource).requestIdentity());
         }
-
 
         @Override
         @ResponseBody
@@ -923,6 +1153,5 @@ public class AdminPageServiceTest {
         public String getStaticResourceBuildId() {
             return "build-1";
         }
-
     }
 }

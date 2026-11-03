@@ -16,7 +16,6 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +62,9 @@ public final class AIReferenceService {
         return (SearchResult) knowledge(actor, settings).call("search_articles", arguments);
     }
 
-    public List<ResolvedReference> resolve(AccountAccess actor, ChatRequest input, UserPreferences.Assistant settings) throws SQLException {
+    public List<ResolvedReference> resolve(
+            AccountAccess actor, ChatRequest input, UserPreferences.Assistant settings)
+            throws SQLException {
         identities.revalidate(actor);
         if (!AccountAction.ARTICLE_ASSIST.allowed(actor)) throw new PermissionErrorException();
         List<ResolvedReference> result = new ArrayList<>();
@@ -74,7 +75,8 @@ public final class AIReferenceService {
                 JsonObject arguments = new JsonObject();
                 arguments.addProperty("id", reference.articleId);
                 arguments.addProperty("length", 4000);
-                resolved.article = (ArticleResult) knowledge(actor, settings).call("read_article", arguments);
+                resolved.article =
+                        (ArticleResult) knowledge(actor, settings).call("read_article", arguments);
             } else {
                 resolved.fileIndex = reference.fileIndex;
                 resolved.fileName = input.files.get(reference.fileIndex).name;

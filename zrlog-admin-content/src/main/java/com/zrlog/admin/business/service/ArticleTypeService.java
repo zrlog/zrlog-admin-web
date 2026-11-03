@@ -6,12 +6,11 @@ import com.hibegin.common.util.UrlEncodeUtils;
 import com.zrlog.admin.business.exception.DeleteTypeException;
 import com.zrlog.admin.business.rest.request.CreateTypeRequest;
 import com.zrlog.admin.business.rest.request.UpdateTypeRequest;
-import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.data.repository.AdminTypeRepository;
-import jakarta.inject.Inject;
+import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.model.Type;
-
+import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.Objects;
 
@@ -21,7 +20,8 @@ public class ArticleTypeService {
 
     @Inject
     public ArticleTypeService(
-            jakarta.inject.Provider<AdminLogRepository> logProvider, jakarta.inject.Provider<AdminTypeRepository> typeProvider) {
+            jakarta.inject.Provider<AdminLogRepository> logProvider,
+            jakarta.inject.Provider<AdminTypeRepository> typeProvider) {
         this.logProvider = logProvider;
         this.typeProvider = typeProvider;
     }
@@ -58,12 +58,15 @@ public class ArticleTypeService {
         return true;
     }
 
-
-    public PageData<TypeDTO> find(String homeUrl, PageRequest page, boolean staticHtml) throws SQLException {
+    public PageData<TypeDTO> find(String homeUrl, PageRequest page, boolean staticHtml)
+            throws SQLException {
         PageData<TypeDTO> data = this.typeProvider.get().find(page);
         for (TypeDTO typeDTO : data.getRows()) {
             typeDTO.setAmount(typeDTO.getTypeamount());
-            typeDTO.setUrl(homeUrl + UrlEncodeUtils.encodeUrl("sort/" + typeDTO.getAlias()) + (staticHtml ? ".html" : ""));
+            typeDTO.setUrl(
+                    homeUrl
+                            + UrlEncodeUtils.encodeUrl("sort/" + typeDTO.getAlias())
+                            + (staticHtml ? ".html" : ""));
         }
         return data;
     }

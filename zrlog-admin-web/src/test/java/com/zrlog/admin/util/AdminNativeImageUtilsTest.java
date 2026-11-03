@@ -1,5 +1,7 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -10,10 +12,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.model.AIModelCatalog;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
@@ -24,8 +22,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class AdminNativeImageUtilsTest {
 
@@ -50,7 +49,9 @@ public class AdminNativeImageUtilsTest {
     @Test
     public void shouldBuildNativeImageResourceListFromAdminResource() throws Exception {
         List<String> resources = new ArrayList<>(AdminNativeImageUtils.getResources());
-        resources.addAll(AdminUiNativeImageUtils.getResources(new TestAdminResource(Set.of("/admin/static/app.js"))));
+        resources.addAll(
+                AdminUiNativeImageUtils.getResources(
+                        new TestAdminResource(Set.of("/admin/static/app.js"))));
 
         assertTrue(resources.contains("/admin/static/app.js"));
         assertTrue(resources.contains(AdminConstants.ADMIN_HTML_PAGE));
@@ -72,16 +73,23 @@ public class AdminNativeImageUtilsTest {
     public void shouldRegisterRoutesAndCreateControllersThroughGeneratedFactories()
             throws Exception {
         Set<String> registered = new HashSet<>();
-        for (String module : List.of("account", "content", "assets", "ai", "access", "web-api", "web-ui")) {
-            String path = "/META-INF/native-image/com.hibegin/zrlog-admin-" + module + "/reflect-config.json";
+        for (String module :
+                List.of("account", "content", "assets", "ai", "access", "web-api", "web-ui")) {
+            String path =
+                    "/META-INF/native-image/com.hibegin/zrlog-admin-"
+                            + module
+                            + "/reflect-config.json";
             try (InputStream input = getClass().getResourceAsStream(path)) {
                 assertNotNull(path, input);
-                for (JsonElement element : JsonParser.parseReader(new InputStreamReader(input, StandardCharsets.UTF_8))
-                        .getAsJsonArray()) {
+                for (JsonElement element :
+                        JsonParser.parseReader(new InputStreamReader(input, StandardCharsets.UTF_8))
+                                .getAsJsonArray()) {
                     JsonObject entry = element.getAsJsonObject();
                     Class<?> controller = Class.forName(entry.get("name").getAsString());
                     if (!entry.has("methods")) {
-                        assertFalse("Route methods must remain explicitly registered", Controller.class.isAssignableFrom(controller));
+                        assertFalse(
+                                "Route methods must remain explicitly registered",
+                                Controller.class.isAssignableFrom(controller));
                         assertTrue(entry.get("allDeclaredFields").getAsBoolean());
                         assertTrue(entry.get("allDeclaredConstructors").getAsBoolean());
                         controller.getDeclaredConstructor();
@@ -89,9 +97,14 @@ public class AdminNativeImageUtilsTest {
                     }
                     for (JsonElement member : entry.getAsJsonArray("methods")) {
                         JsonObject method = member.getAsJsonObject();
-                        Class<?>[] parameters = new Class<?>[method.getAsJsonArray("parameterTypes").size()];
+                        Class<?>[] parameters =
+                                new Class<?>[method.getAsJsonArray("parameterTypes").size()];
                         for (int i = 0; i < parameters.length; i++) {
-                            parameters[i] = Class.forName(method.getAsJsonArray("parameterTypes").get(i).getAsString());
+                            parameters[i] =
+                                    Class.forName(
+                                            method.getAsJsonArray("parameterTypes")
+                                                    .get(i)
+                                                    .getAsString());
                         }
                         String name = method.get("name").getAsString();
                         if (name.equals("<init>")) controller.getConstructor(parameters);
@@ -106,18 +119,22 @@ public class AdminNativeImageUtilsTest {
         }
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            Set<Method> routes = new HashSet<>(db.config().getServerConfig().getRouter().getRouterMap().values());
+            Set<Method> routes =
+                    new HashSet<>(
+                            db.config().getServerConfig().getRouter().getRouterMap().values());
             assertTrue("Expected the real admin routes", routes.size() > 100);
             for (Method method : routes) {
                 if (!method.getDeclaringClass().getName().startsWith("com.zrlog.admin.")) continue;
                 String controller = method.getDeclaringClass().getName();
-                assertTrue(method.toString(), registered.contains(controller + "#" + method.getName()));
+                assertTrue(
+                        method.toString(),
+                        registered.contains(controller + "#" + method.getName()));
                 assertFalse(controller, registered.contains(controller + "#<init>"));
                 HttpRequest request =
                         (HttpRequest)
                                 java.lang.reflect.Proxy.newProxyInstance(
                                         getClass().getClassLoader(),
-                                        new Class<?>[]{HttpRequest.class},
+                                        new Class<?>[] {HttpRequest.class},
                                         (proxy, called, args) -> {
                                             if (called.getName().equals("getServerConfig"))
                                                 return db.config().getServerConfig();
@@ -166,6 +183,5 @@ public class AdminNativeImageUtilsTest {
         public String getStaticResourceBuildId() {
             return "test-build";
         }
-
     }
 }

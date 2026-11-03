@@ -17,7 +17,14 @@ public class AdminTypeRepository extends TypeRepository {
     }
 
     public PageData<TypeDTO> find(PageRequest page) {
-        return queryPageData("select t.typeId as id,t.alias,t.typeName,t.remark,t.arrange_plugin,(select count(logId) from " + LogRepository.TABLE_NAME +
-                " where typeid=t.typeid) as typeamount from " + tableName + " t", page, new Object[0], TypeDTO.class);
+        return queryPageData(
+                "select t.typeId as id,t.alias,t.typeName,t.remark,t.arrange_plugin,(select count(logId) from "
+                        + LogRepository.TABLE_NAME
+                        + " where typeid=t.typeid) as typeamount from "
+                        + tableName
+                        + " t",
+                page,
+                new Object[0],
+                TypeDTO.class);
     }
 }

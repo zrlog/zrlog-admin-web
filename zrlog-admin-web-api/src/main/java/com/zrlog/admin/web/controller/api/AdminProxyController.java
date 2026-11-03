@@ -16,7 +16,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 
 public class AdminProxyController extends BaseController {
@@ -26,8 +25,10 @@ public class AdminProxyController extends BaseController {
     private final AdminPageDataFactory pages;
 
     @Inject
-    public AdminProxyController(AdminPageDataFactory pages, AdminProxyService adminProxyService,
-                                AdminRequestIdentity requestIdentity) {
+    public AdminProxyController(
+            AdminPageDataFactory pages,
+            AdminProxyService adminProxyService,
+            AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.adminProxyService = adminProxyService;
 
@@ -48,8 +49,11 @@ public class AdminProxyController extends BaseController {
             response.renderCode(405);
             return null;
         }
-        return pages.response(requestIdentity.optional(), new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured()),
-                "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/proxy");
+        return pages.response(
+                requestIdentity.optional(),
+                new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured()),
+                "",
+                AdminConstants.ADMIN_URI_BASE_PATH + "/system/proxy");
     }
 
     @ResponseBody

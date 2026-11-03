@@ -10,7 +10,6 @@ import com.zrlog.admin.business.exception.AdminErrorCode;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -25,9 +24,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Private file inputs. No public upload URL, remote fetch or client-selected path.
- */
+/** Private file inputs. No public upload URL, remote fetch or client-selected path. */
 public final class AIFileService {
     public static final int MAX_REQUEST_BYTES = 12 * 1024 * 1024;
     public static final int MAX_CONTEXT_BYTES = 16 * 1024 * 1024;
@@ -40,7 +37,11 @@ public final class AIFileService {
     // Runtime storage is a directory, not a bundled configuration resource.
     @Inject
     public AIFileService() {
-        this(Path.of(PathUtil.getConfPath()).toAbsolutePath().normalize().resolve("ai-input-files"));
+        this(
+                Path.of(PathUtil.getConfPath())
+                        .toAbsolutePath()
+                        .normalize()
+                        .resolve("ai-input-files"));
     }
 
     AIFileService(Path root) {
@@ -50,9 +51,12 @@ public final class AIFileService {
     public static Capabilities capabilities(AIWebSiteInfo info) {
         Capabilities result = new Capabilities();
         String model = Objects.toString(info.getAi_model(), "").toLowerCase(Locale.ROOT);
-        boolean openai = info.getAi_provider() == AIProviderType.OPEN_AI
-                && model.matches("(?:gpt-(?:4o|4\\.1|5|6)(?:[.-].*)?|o3(?:-pro|-[0-9].*)?|o4-mini(?:-.*)?)")
-                && !model.matches(".*(?:audio|realtime|transcrib|tts|image|search|codex).*");
+        boolean openai =
+                info.getAi_provider() == AIProviderType.OPEN_AI
+                        && model.matches(
+                                "(?:gpt-(?:4o|4\\.1|5|6)(?:[.-].*)?|o3(?:-pro|-[0-9].*)?|o4-mini(?:-.*)?)")
+                        && !model.matches(
+                                ".*(?:audio|realtime|transcrib|tts|image|search|codex).*");
         if (openai) result.extensions = new ArrayList<>(TYPES.keySet());
         return result;
     }
@@ -61,9 +65,16 @@ public final class AIFileService {
         if (inputs == null || inputs.size() > 4) throw error("invalid");
         long total = 0;
         for (Input input : inputs) {
-            if (input == null || input.name == null || input.name.isBlank() || input.name.length() > 255
-                    || input.name.contains("/") || input.name.contains("\\") || input.name.codePoints().anyMatch(Character::isISOControl)
-                    || input.data == null || input.data.isEmpty() || input.data.length() > ((4 * 1024 * 1024 + 2) / 3) * 4)
+            if (input == null
+                    || input.name == null
+                    || input.name.isBlank()
+                    || input.name.length() > 255
+                    || input.name.contains("/")
+                    || input.name.contains("\\")
+                    || input.name.codePoints().anyMatch(Character::isISOControl)
+                    || input.data == null
+                    || input.data.isEmpty()
+                    || input.data.length() > ((4 * 1024 * 1024 + 2) / 3) * 4)
                 throw error("invalid");
             String mime = TYPES.get(extension(input.name));
             if (mime == null) throw error("unsupported");
@@ -73,15 +84,17 @@ public final class AIFileService {
             } catch (IllegalArgumentException e) {
                 throw error("invalid");
             }
-            if (bytes.length == 0 || bytes.length > 4 * 1024 * 1024 || (total += bytes.length) > 8 * 1024 * 1024)
-                throw error("size");
+            if (bytes.length == 0
+                    || bytes.length > 4 * 1024 * 1024
+                    || (total += bytes.length) > 8 * 1024 * 1024) throw error("size");
             validateBytes(bytes, mime);
         }
     }
 
     public static void requireSupported(AIWebSiteInfo info, Collection<String> names) {
         List<String> supported = capabilities(info).extensions;
-        for (String name : names) if (!supported.contains(extension(name))) throw error("unsupported");
+        for (String name : names)
+            if (!supported.contains(extension(name))) throw error("unsupported");
     }
 
     private static String extension(String name) {
@@ -90,22 +103,40 @@ public final class AIFileService {
     }
 
     private static void validateBytes(byte[] bytes, String mime) {
-        String prefix = new String(bytes, 0, Math.min(bytes.length, 12), StandardCharsets.ISO_8859_1);
+        String prefix =
+                new String(bytes, 0, Math.min(bytes.length, 12), StandardCharsets.ISO_8859_1);
         boolean valid;
         switch (mime) {
             case "image/png":
-                valid = bytes.length >= 33 && prefix.startsWith("\u0089PNG\r\n\u001a\n")
-                        && new String(bytes, 12, 4, StandardCharsets.US_ASCII).equals("IHDR");
+                valid =
+                        bytes.length >= 33
+                                && prefix.startsWith("\u0089PNG\r\n\u001a\n")
+                                && new String(bytes, 12, 4, StandardCharsets.US_ASCII)
+                                        .equals("IHDR");
                 break;
             case "image/jpeg":
-                valid = bytes.length >= 4 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8
-                        && (bytes[2] & 0xff) == 0xff
-                        && (bytes[bytes.length - 2] & 0xff) == 0xff && (bytes[bytes.length - 1] & 0xff) == 0xd9;
+                valid =
+                        bytes.length >= 4
+                                && (bytes[0] & 0xff) == 0xff
+                                && (bytes[1] & 0xff) == 0xd8
+                                && (bytes[2] & 0xff) == 0xff
+                                && (bytes[bytes.length - 2] & 0xff) == 0xff
+                                && (bytes[bytes.length - 1] & 0xff) == 0xd9;
                 break;
             case "image/webp":
-                valid = bytes.length >= 20 && prefix.startsWith("RIFF") && prefix.endsWith("WEBP")
-                        && Integer.toUnsignedLong(ByteBuffer.wrap(bytes, 4, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt()) == bytes.length - 8L
-                        && List.of("VP8 ", "VP8L", "VP8X").contains(new String(bytes, 12, 4, StandardCharsets.US_ASCII));
+                valid =
+                        bytes.length >= 20
+                                && prefix.startsWith("RIFF")
+                                && prefix.endsWith("WEBP")
+                                && Integer.toUnsignedLong(
+                                                ByteBuffer.wrap(bytes, 4, 4)
+                                                        .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                                                        .getInt())
+                                        == bytes.length - 8L
+                                && List.of("VP8 ", "VP8L", "VP8X")
+                                        .contains(
+                                                new String(
+                                                        bytes, 12, 4, StandardCharsets.US_ASCII));
                 break;
             case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
@@ -122,8 +153,13 @@ public final class AIFileService {
                 break;
             default:
                 try {
-                    String text = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
-                            .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString();
+                    String text =
+                            StandardCharsets.UTF_8
+                                    .newDecoder()
+                                    .onMalformedInput(CodingErrorAction.REPORT)
+                                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                                    .decode(ByteBuffer.wrap(bytes))
+                                    .toString();
                     valid = text.indexOf('\0') < 0;
                 } catch (CharacterCodingException e) {
                     valid = false;
@@ -139,14 +175,20 @@ public final class AIFileService {
         result.put(".jpeg", "image/jpeg");
         result.put(".webp", "image/webp");
         result.put(".pdf", "application/pdf");
-        result.put(".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        result.put(
+                ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
         result.put(".doc", "application/msword");
-        result.put(".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        result.put(
+                ".pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation");
         result.put(".ppt", "application/vnd.ms-powerpoint");
         result.put(".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         result.put(".xls", "application/vnd.ms-excel");
-        for (String extension : List.of(".txt", ".md", ".csv", ".tsv", ".json", ".html", ".xml", ".css", ".js", ".ts", ".py", ".java", ".c", ".cpp", ".h", ".go", ".rs", ".sh", ".yaml", ".yml"))
-            result.put(extension, "text/plain");
+        for (String extension :
+                List.of(
+                        ".txt", ".md", ".csv", ".tsv", ".json", ".html", ".xml", ".css", ".js",
+                        ".ts", ".py", ".java", ".c", ".cpp", ".h", ".go", ".rs", ".sh", ".yaml",
+                        ".yml")) result.put(extension, "text/plain");
         result.put(".csv", "text/csv");
         result.put(".tsv", "text/tsv");
         result.put(".md", "text/markdown");
@@ -170,10 +212,12 @@ public final class AIFileService {
     }
 
     public static AIFileInputException error(String key) {
-        return new AIFileInputException(AdminErrorCode.valueOf("AI_FILE_" + key.toUpperCase(Locale.ROOT)));
+        return new AIFileInputException(
+                AdminErrorCode.valueOf("AI_FILE_" + key.toUpperCase(Locale.ROOT)));
     }
 
-    public List<Attachment> save(int userId, List<Input> inputs, AIWebSiteInfo info) throws IOException {
+    public List<Attachment> save(int userId, List<Input> inputs, AIWebSiteInfo info)
+            throws IOException {
         validateInputs(inputs);
         requireSupported(info, inputs.stream().map(file -> file.name).collect(Collectors.toList()));
         if (inputs.isEmpty()) return List.of();
@@ -190,11 +234,15 @@ public final class AIFileService {
         try (var entries = Files.list(directory)) {
             for (Path entry : entries.collect(Collectors.toList())) {
                 if (!Files.isRegularFile(entry, LinkOption.NOFOLLOW_LINKS)) continue;
-                if (Files.getLastModifiedTime(entry).toMillis() + RETENTION < now) Files.delete(entry);
+                if (Files.getLastModifiedTime(entry).toMillis() + RETENTION < now)
+                    Files.delete(entry);
                 else used += Files.size(entry);
             }
         }
-        long requested = inputs.stream().mapToLong(file -> Base64.getDecoder().decode(file.data).length).sum();
+        long requested =
+                inputs.stream()
+                        .mapToLong(file -> Base64.getDecoder().decode(file.data).length)
+                        .sum();
         if (used + requested > QUOTA) throw error("quota");
         List<Attachment> result = new ArrayList<>();
         try {
@@ -223,14 +271,17 @@ public final class AIFileService {
 
     public byte[] read(int userId, Attachment file) throws IOException {
         Path path = path(userId, file);
-        if (file.expiresAt < System.currentTimeMillis() || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
-                || file.size <= 0 || file.size > 4 * 1024 * 1024 || Files.size(path) != file.size)
-            throw error("unavailable");
+        if (file.expiresAt < System.currentTimeMillis()
+                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
+                || file.size <= 0
+                || file.size > 4 * 1024 * 1024
+                || Files.size(path) != file.size) throw error("unavailable");
         byte[] bytes;
         try (InputStream in = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
             bytes = in.readNBytes(file.size + 1);
         }
-        if (bytes.length != file.size || !Objects.equals(TYPES.get(extension(file.name)), file.mimeType))
+        if (bytes.length != file.size
+                || !Objects.equals(TYPES.get(extension(file.name)), file.mimeType))
             throw error("unavailable");
         return bytes;
     }
@@ -243,12 +294,15 @@ public final class AIFileService {
     private Path directory(int userId) {
         if (userId <= 0) throw new PermissionErrorException();
         Path directory = root.resolve(Integer.toString(userId));
-        if (Files.isSymbolicLink(root) || Files.isSymbolicLink(directory)) throw new PermissionErrorException();
+        if (Files.isSymbolicLink(root) || Files.isSymbolicLink(directory))
+            throw new PermissionErrorException();
         return directory;
     }
 
     private Path path(int userId, Attachment file) {
-        if (file == null || file.id == null || !file.id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))
+        if (file == null
+                || file.id == null
+                || !file.id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))
             throw error("unavailable");
         return directory(userId).resolve(file.id);
     }

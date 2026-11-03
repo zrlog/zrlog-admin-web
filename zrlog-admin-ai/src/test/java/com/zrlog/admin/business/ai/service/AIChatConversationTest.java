@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.*;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
@@ -20,46 +22,68 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.data.security.AccountAccess;
-import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.util.I18nUtil;
-import org.junit.Test;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
 import java.util.logging.Level;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AIChatConversationTest {
 
-    private static final String ANSWER = "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Answer\"}}";
+    private static final String ANSWER =
+            "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Answer\"}}";
     private ZrLogConfig applicationConfig;
 
     private static String tool(String name, String args) {
-        return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"" + name + "\",\"arguments\":" + new Gson().toJson(args) + "}}]}}";
+        return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""
+                + name
+                + "\",\"arguments\":"
+                + new Gson().toJson(args)
+                + "}}]}}";
     }
 
     @Test
-    public void injectsAuthorizedArticleMetadataAndExcludesLegacySnapshotsAndBody() throws Exception {
+    public void injectsAuthorizedArticleMetadataAndExcludesLegacySnapshotsAndBody()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy,version) values(?,?,?,?,?,?,?,?)",
-                    7, 1, 1, "Current title", "BODY_NOT_AUTOMATICALLY_SENT", true, false, 3);
-            db.putWebsite("ai_chat_message_u1_7", "[{\"role\":\"user\",\"messageType\":\"articleContext\",\"content\":\"OBSOLETE_SNAPSHOT\"},"
-                    + "{\"role\":\"user\",\"messageType\":\"knowledge\",\"content\":\"Earlier question\"}]");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy,version) values(?,?,?,?,?,?,?,?)",
+                    7,
+                    1,
+                    1,
+                    "Current title",
+                    "BODY_NOT_AUTOMATICALLY_SENT",
+                    true,
+                    false,
+                    3);
+            db.putWebsite(
+                    "ai_chat_message_u1_7",
+                    "[{\"role\":\"user\",\"messageType\":\"articleContext\",\"content\":\"OBSOLETE_SNAPSHOT\"},"
+                            + "{\"role\":\"user\",\"messageType\":\"knowledge\",\"content\":\"Earlier question\"}]");
             scope("off", db.dataSource());
             Model model = new Model(applicationConfig, ANSWER);
             ChatRequest request = input();
             request.articleId = 7;
-            model.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes();
+            model.service
+                    .start(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            request,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
+                    .getInputStream()
+                    .readAllBytes();
             String providerMessages = model.requests.get(0).getAsJsonArray("messages").toString();
             assertFalse(providerMessages.contains("OBSOLETE_SNAPSHOT"));
             assertFalse(providerMessages.contains("BODY_NOT_AUTOMATICALLY_SENT"));
@@ -71,11 +95,23 @@ public class AIChatConversationTest {
             assertEquals("draft", metadata.get("status").getAsString());
             assertEquals(3, metadata.get("version").getAsInt());
             assertEquals(1, metadata.get("typeId").getAsInt());
-            String stored = Objects.toString(db.scalar("select value from website where name='ai_chat_message_u1_7'"));
+            String stored =
+                    Objects.toString(
+                            db.scalar(
+                                    "select value from website where name='ai_chat_message_u1_7'"));
             assertTrue(stored.contains("OBSOLETE_SNAPSHOT"));
             assertFalse(stored.contains("Current editor article metadata"));
             Model draft = new Model(applicationConfig, ANSWER);
-            draft.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes();
+            draft.service
+                    .start(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            input(),
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
+                    .getInputStream()
+                    .readAllBytes();
             assertEquals("unsaved", currentArticle(draft).get("status").getAsString());
             assertEquals(0, currentArticle(draft).get("articleId").getAsInt());
             assertFalse(currentArticle(draft).has("version"));
@@ -84,27 +120,63 @@ public class AIChatConversationTest {
 
     private JsonObject currentArticle(Model model) {
         return model.requests.get(0).getAsJsonArray("messages").asList().stream()
-                .map(JsonElement::getAsJsonObject).map(message -> message.get("content").getAsString())
+                .map(JsonElement::getAsJsonObject)
+                .map(message -> message.get("content").getAsString())
                 .filter(content -> content.startsWith("Current editor article metadata"))
-                .map(content -> JsonParser.parseString(content.substring(content.indexOf('\n') + 1)).getAsJsonObject())
-                .findFirst().orElseThrow();
+                .map(
+                        content ->
+                                JsonParser.parseString(content.substring(content.indexOf('\n') + 1))
+                                        .getAsJsonObject())
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test
-    public void asynchronousToolsFollowAccountLanguageWithoutLeakingTheBrowserLocale() throws Exception {
+    public void asynchronousToolsFollowAccountLanguageWithoutLeakingTheBrowserLocale()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
-             var ignored = AdminLanguageContext.open("zh_CN")) {
+                var ignored = AdminLanguageContext.open("zh_CN")) {
             configure(db);
             for (String language : List.of("en_US", "zh_CN", "en_US")) {
-                db.execute("update user set preferences=? where userId=1", "{\"language\":\"" + language + "\"}");
-                Model model = new Model(applicationConfig, tool("read_article", "{\"id\":999}"), ANSWER);
-                model.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor((com.hibegin.common.dao.DataSourceWrapper) applicationConfig.getDataSource()), input(), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit((com.hibegin.common.dao.DataSourceWrapper) applicationConfig.getDataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes();
-                JsonObject function = model.requests.get(0).getAsJsonArray("tools").get(0).getAsJsonObject().getAsJsonObject("function");
+                db.execute(
+                        "update user set preferences=? where userId=1",
+                        "{\"language\":\"" + language + "\"}");
+                Model model =
+                        new Model(applicationConfig, tool("read_article", "{\"id\":999}"), ANSWER);
+                model.service
+                        .start(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        (com.hibegin.common.dao.DataSourceWrapper)
+                                                applicationConfig.getDataSource()),
+                                input(),
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                        (com.hibegin.common.dao.DataSourceWrapper)
+                                                applicationConfig.getDataSource()),
+                                com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
+                        .getInputStream()
+                        .readAllBytes();
+                JsonObject function =
+                        model.requests
+                                .get(0)
+                                .getAsJsonArray("tools")
+                                .get(0)
+                                .getAsJsonObject()
+                                .getAsJsonObject("function");
                 assertEquals("search_articles", function.get("name").getAsString());
-                assertTrue(function.get("description").getAsString().startsWith(language.equals("en_US") ? "Search blog articles" : "按字面关键词"));
+                assertTrue(
+                        function.get("description")
+                                .getAsString()
+                                .startsWith(
+                                        language.equals("en_US")
+                                                ? "Search blog articles"
+                                                : "按字面关键词"));
                 String messages = model.requests.get(1).getAsJsonArray("messages").toString();
-                assertTrue(messages, messages.contains(language.equals("en_US")
-                        ? "Invalid tool arguments, unknown tool, or article unavailable" : "工具参数无效、工具不存在或文章不可用"));
+                assertTrue(
+                        messages,
+                        messages.contains(
+                                language.equals("en_US")
+                                        ? "Invalid tool arguments, unknown tool, or article unavailable"
+                                        : "工具参数无效、工具不存在或文章不可用"));
                 assertEquals("zh_CN", I18nUtil.getCurrentLocale());
             }
         }
@@ -113,7 +185,7 @@ public class AIChatConversationTest {
     @Test
     public void returnsDistinctSafeErrorsWithoutSavingFailedResponses() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
-             var logs = TestLogCapture.forClass(AIChatService.class)) {
+                var logs = TestLogCapture.forClass(AIChatService.class)) {
             configure(db);
             for (var failure :
                     Map.<Exception, String>of(
@@ -128,19 +200,42 @@ public class AIChatConversationTest {
                                     "providerResponseInvalid")
                             .entrySet()) {
                 AIChatService service =
-                        AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(applicationConfig),
-                            new AIChatModelClient(new AIFileService()) {
-                            @Override
-                            protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info,
-                                                                          String body,
-                                                                          AIChatStreamReader.Progress progress)
-                                    throws IOException {
-                                if (failure.getKey() instanceof IOException)
-                                    throw (IOException) failure.getKey();
-                                throw (RuntimeException) failure.getKey();
-                            }
-                        }, new AIFileService(), AIServiceDependencies.writing(db.dataSource()));
-                String wire = new String(service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor((com.hibegin.common.dao.DataSourceWrapper) applicationConfig.getDataSource()), input(), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit((com.hibegin.common.dao.DataSourceWrapper) applicationConfig.getDataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                        AIServiceDependencies.chat(
+                                db.dataSource(),
+                                null,
+                                ContentToolsFixture.from(applicationConfig),
+                                new AIChatModelClient(new AIFileService()) {
+                                    @Override
+                                    protected AIProviderResponses.Choice complete(
+                                            com.zrlog.data.security.AccountAccess actor,
+                                            AIWebSiteInfo info,
+                                            String body,
+                                            AIChatStreamReader.Progress progress)
+                                            throws IOException {
+                                        if (failure.getKey() instanceof IOException)
+                                            throw (IOException) failure.getKey();
+                                        throw (RuntimeException) failure.getKey();
+                                    }
+                                },
+                                new AIFileService(),
+                                AIServiceDependencies.writing(db.dataSource()));
+                String wire =
+                        new String(
+                                service.start(
+                                                com.zrlog.admin.business.ai.service
+                                                        .AIServiceDependencies.actor(
+                                                        (com.hibegin.common.dao.DataSourceWrapper)
+                                                                applicationConfig.getDataSource()),
+                                                input(),
+                                                com.zrlog.admin.business.ai.service
+                                                        .AIServiceDependencies.audit(
+                                                        (com.hibegin.common.dao.DataSourceWrapper)
+                                                                applicationConfig.getDataSource()),
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUser())
+                                        .getInputStream()
+                                        .readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
                 assertTrue(wire.contains("\"error\":\"" + failure.getValue() + "\""));
                 assertFalse(wire.contains("private provider detail"));
                 assertFalse(wire.contains("\"type\":\"done\""));
@@ -148,11 +243,16 @@ public class AIChatConversationTest {
             }
             assertTrue(
                     new AIConversationService(
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSiteRepository(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()),
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals(db.dataSource()))
+                            .captureAccount(
+                                    Math.max(
+                                            1,
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUserId()))
                             .exportAIMessage(-1L)
                             .getMessages()
                             .isEmpty());
@@ -165,7 +265,11 @@ public class AIChatConversationTest {
         info.setAi_provider(AIProviderType.QWEN);
         info.setAi_reasoning_enabled(true);
         AIProviderRequests.Message message = new AIProviderRequests.Message("assistant", null);
-        AIProviderRequests.ToolCall call = new Gson().fromJson("{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"search_articles\",\"arguments\":\"{}\"},\"extra_content\":{\"google\":{\"thought_signature\":\"opaque-signature\"}}}", AIProviderRequests.ToolCall.class);
+        AIProviderRequests.ToolCall call =
+                new Gson()
+                        .fromJson(
+                                "{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"search_articles\",\"arguments\":\"{}\"},\"extra_content\":{\"google\":{\"thought_signature\":\"opaque-signature\"}}}",
+                                AIProviderRequests.ToolCall.class);
         message.toolCalls = List.of(call);
         message.reasoningContent = "provider reasoning";
         JsonObject request =
@@ -201,13 +305,33 @@ public class AIChatConversationTest {
     }
 
     @Test
-    public void modelSearchesReadsThenAnswersWithServerSourcesWithoutSavingSharedHistory() throws Exception {
+    public void modelSearchesReadsThenAnswersWithServerSourcesWithoutSavingSharedHistory()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)", 1, 1, 1, "Deployment", "Use the deploy command.", false, false);
-            Model model = new Model(applicationConfig, tool("search_articles", "{}"), tool("read_article", "{\"id\":1}"), "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Use deploy. [Source](https://blog.example/1)\"}}");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)",
+                    1,
+                    1,
+                    1,
+                    "Deployment",
+                    "Use the deploy command.",
+                    false,
+                    false);
+            Model model =
+                    new Model(
+                            applicationConfig,
+                            tool("search_articles", "{}"),
+                            tool("read_article", "{\"id\":1}"),
+                            "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Use deploy. [Source](https://blog.example/1)\"}}");
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            model.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), new AIWebSiteInfo(), knowledge(db.dataSource()), out);
+            model.run(
+                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                            db.dataSource()),
+                    input(),
+                    new AIWebSiteInfo(),
+                    knowledge(db.dataSource()),
+                    out);
             assertEquals(3, model.requests.size());
             assertEquals(2, model.requests.get(0).getAsJsonArray("tools").size());
             JsonArray messages = model.requests.get(2).getAsJsonArray("messages");
@@ -228,33 +352,69 @@ public class AIChatConversationTest {
     }
 
     private void scope(String scope, DataSourceWrapper testDataSource) throws Exception {
-        new UserPreferenceService(ApplicationServicesFixture.settings(testDataSource),
-                new UserPreferenceStore(() -> new UserRepository(testDataSource)))
+        new UserPreferenceService(
+                        ApplicationServicesFixture.settings(testDataSource),
+                        new UserPreferenceStore(() -> new UserRepository(testDataSource)))
                 .update(
-                        AccountServicesFixture.component(testDataSource).requestIdentity().current(),
+                        AccountServicesFixture.component(testDataSource)
+                                .requestIdentity()
+                                .current(),
                         JsonParser.parseString(
                                         "{\"assistant\":{\"knowledgeScope\":\"" + scope + "\"}}")
                                 .getAsJsonObject());
     }
 
     @Test
-    public void savesOrdinaryConversationAndReloadsTrustedHistoryWithSourcesAndReasoning() throws Exception {
+    public void savesOrdinaryConversationAndReloadsTrustedHistoryWithSourcesAndReasoning()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)", 7, 1, 1, "Deployment", "Deploy instructions", false, false);
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)",
+                    7,
+                    1,
+                    1,
+                    "Deployment",
+                    "Deploy instructions",
+                    false,
+                    false);
             ChatRequest request = input();
             request.articleId = 7;
-            Model model = new Model(applicationConfig, tool("read_article", "{\"id\":7}"), ANSWER.replace("\"content\":", "\"reasoning_content\":\"Summarize sources.\",\"content\":"));
-            String stream = new String(model.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            Model model =
+                    new Model(
+                            applicationConfig,
+                            tool("read_article", "{\"id\":7}"),
+                            ANSWER.replace(
+                                    "\"content\":",
+                                    "\"reasoning_content\":\"Summarize sources.\",\"content\":"));
+            String stream =
+                    new String(
+                            model.service
+                                    .start(
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.actor(db.dataSource()),
+                                            request,
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.audit(db.dataSource()),
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUser())
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(stream.contains("\"type\":\"done\""));
             var saved =
                     new AIConversationService(
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSiteRepository(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()),
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals(db.dataSource()))
+                            .captureAccount(
+                                    Math.max(
+                                            1,
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUserId()))
                             .exportAIMessage(7L)
                             .getMessages();
             var reply = saved.get(saved.size() - 1);
@@ -271,7 +431,16 @@ public class AIChatConversationTest {
             forged.content = "FORGED HISTORY";
             followup.history = List.of(forged);
             Model next = new Model(applicationConfig, ANSWER);
-            next.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), followup, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes();
+            next.service
+                    .start(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            followup,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
+                    .getInputStream()
+                    .readAllBytes();
             String providerHistory = next.requests.get(0).getAsJsonArray("messages").toString();
             assertTrue(providerHistory.contains("What is in the blog?"));
             assertTrue(providerHistory.contains("Answer"));
@@ -279,11 +448,16 @@ public class AIChatConversationTest {
             assertFalse(providerHistory.contains("Summarize sources."));
             assertTrue(
                     new AIConversationService(
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSiteRepository(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()),
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals(db.dataSource()))
+                            .captureAccount(
+                                    Math.max(
+                                            1,
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUserId()))
                             .exportAIMessage(8L)
                             .getMessages()
                             .isEmpty());
@@ -291,24 +465,49 @@ public class AIChatConversationTest {
     }
 
     @Test
-    public void refusesUnauthorizedArticleBeforeCallingTheModelAndReportsSaveFailures() throws Exception {
+    public void refusesUnauthorizedArticleBeforeCallingTheModelAndReportsSaveFailures()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
             Model missing = new Model(applicationConfig, ANSWER);
             ChatRequest request = input();
             request.articleId = 99;
-            assertThrows(PermissionErrorException.class, () -> missing.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), request, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            missing.service.start(
+                                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                            db.dataSource()),
+                                    request,
+                                    com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                            db.dataSource()),
+                                    com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
             assertTrue(missing.requests.isEmpty());
             Model failed = new Model(applicationConfig, ANSWER);
-            failed.afterRequest = () -> {
-                try {
-                    db.execute("alter table website add constraint block_chat check (name not like 'ai_chat_message_%')");
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            };
-            String stream = new String(failed.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            failed.afterRequest =
+                    () -> {
+                        try {
+                            db.execute(
+                                    "alter table website add constraint block_chat check (name not like 'ai_chat_message_%')");
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    };
+            String stream =
+                    new String(
+                            failed.service
+                                    .start(
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.actor(db.dataSource()),
+                                            input(),
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.audit(db.dataSource()),
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUser())
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(stream.contains("\"error\":\"saveFailed\""));
             assertFalse(stream.contains("\"type\":\"done\""));
             assertFalse(stream.contains("\"type\":\"answer\""));
@@ -320,25 +519,95 @@ public class AIChatConversationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)", 1, 1, 1, "PUBLIC", "Public", false, false);
-            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)", 2, 1, 1, "PRIVATE", "Private", true, true);
-            ChatRequest forged = new Gson().fromJson("{\"input\":\"Search\",\"options\":{\"allArticles\":true,\"drafts\":true,\"privateArticles\":true}}", ChatRequest.class);
-            Model defaultModel = new Model(applicationConfig, tool("search_articles", "{}"), ANSWER);
-            String defaultStream = new String(defaultModel.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), forged, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)",
+                    1,
+                    1,
+                    1,
+                    "PUBLIC",
+                    "Public",
+                    false,
+                    false);
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)",
+                    2,
+                    1,
+                    1,
+                    "PRIVATE",
+                    "Private",
+                    true,
+                    true);
+            ChatRequest forged =
+                    new Gson()
+                            .fromJson(
+                                    "{\"input\":\"Search\",\"options\":{\"allArticles\":true,\"drafts\":true,\"privateArticles\":true}}",
+                                    ChatRequest.class);
+            Model defaultModel =
+                    new Model(applicationConfig, tool("search_articles", "{}"), ANSWER);
+            String defaultStream =
+                    new String(
+                            defaultModel
+                                    .service
+                                    .start(
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.actor(db.dataSource()),
+                                            forged,
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.audit(db.dataSource()),
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUser())
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(defaultStream.contains("PUBLIC"));
             assertFalse(defaultStream.contains("PRIVATE"));
             assertTrue(defaultModel.requests.get(0).has("tools"));
             scope("own_all", db.dataSource());
             Model expanded = new Model(applicationConfig, tool("search_articles", "{}"), ANSWER);
-            String expandedStream = new String(expanded.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            String expandedStream =
+                    new String(
+                            expanded.service
+                                    .start(
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.actor(db.dataSource()),
+                                            input(),
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.audit(db.dataSource()),
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUser())
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(expandedStream.contains("PRIVATE"));
             scope("off", db.dataSource());
             Model disabled = new Model(applicationConfig, ANSWER);
-            assertTrue(new String(disabled.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), forged, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).contains("Answer"));
+            assertTrue(
+                    new String(
+                                    disabled.service
+                                            .start(
+                                                    com.zrlog.admin.business.ai.service
+                                                            .AIServiceDependencies.actor(
+                                                            db.dataSource()),
+                                                    forged,
+                                                    com.zrlog.admin.business.ai.service
+                                                            .AIServiceDependencies.audit(
+                                                            db.dataSource()),
+                                                    com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                            .getUser())
+                                            .getInputStream()
+                                            .readAllBytes(),
+                                    java.nio.charset.StandardCharsets.UTF_8)
+                            .contains("Answer"));
             assertFalse(disabled.requests.get(0).has("tools"));
             assertFalse(disabled.requests.get(0).has("tool_choice"));
-            assertEquals("0", db.scalar("select count(*) from website where name='ai_chat_message_-1'").toString());
-            assertEquals("1", db.scalar("select count(*) from website where name='ai_chat_message_u1_-1'").toString());
+            assertEquals(
+                    "0",
+                    db.scalar("select count(*) from website where name='ai_chat_message_-1'")
+                            .toString());
+            assertEquals(
+                    "1",
+                    db.scalar("select count(*) from website where name='ai_chat_message_u1_-1'")
+                            .toString());
         }
     }
 
@@ -347,15 +616,26 @@ public class AIChatConversationTest {
         Model model = new Model(applicationConfig, ANSWER);
         AIWebSiteInfo info = new AIWebSiteInfo();
         info.setAi_prompt("Keep paragraphs short.");
-        model.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null), input(), info, null, new ByteArrayOutputStream());
+        model.run(
+                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                input(),
+                info,
+                null,
+                new ByteArrayOutputStream());
         JsonArray messages = model.requests.get(0).getAsJsonArray("messages");
-        assertEquals("Keep paragraphs short.", messages.get(0).getAsJsonObject().get("content").getAsString());
+        assertEquals(
+                "Keep paragraphs short.",
+                messages.get(0).getAsJsonObject().get("content").getAsString());
         assertFalse(model.requests.get(0).has("tools"));
     }
 
     @Test
     public void mountedToolsDoNotForceRetrievalOnAnOrdinaryTurn() throws Exception {
-        for (String prompt : List.of("Hello", "Rewrite this sentence: The sky is blue.", "Summarize your previous answer.")) {
+        for (String prompt :
+                List.of(
+                        "Hello",
+                        "Rewrite this sentence: The sky is blue.",
+                        "Summarize your previous answer.")) {
             ChatRequest request = input();
             request.input = prompt;
             // Any accidental database/permission lookup from the knowledge tools fails this test.
@@ -368,11 +648,17 @@ public class AIChatConversationTest {
                             () -> "https://blog.example",
                             () -> false,
                             () -> {
-                                throw new IllegalStateException("Database is unavailable in this test");
+                                throw new IllegalStateException(
+                                        "Database is unavailable in this test");
                             });
             Model model = new Model(applicationConfig, ANSWER);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            model.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null), request, new AIWebSiteInfo(), unused, out);
+            model.run(
+                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                    request,
+                    new AIWebSiteInfo(),
+                    unused,
+                    out);
             assertEquals(1, model.requests.size());
             assertEquals("auto", model.requests.get(0).get("tool_choice").getAsString());
             assertEquals(2, model.requests.get(0).getAsJsonArray("tools").size());
@@ -387,30 +673,64 @@ public class AIChatConversationTest {
     public void emitsActualReasoningAcrossToolRoundsOnlyWhenEnabled() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            String search = tool("search_articles", "{}").replace("\"tool_calls\":[", "\"reasoning_content\":\"I should find relevant articles.\",\"tool_calls\":[");
-            String answer = ANSWER.replace("\"content\":", "\"reasoningContent\":\"I can now summarize the sources.\",\"content\":");
+            String search =
+                    tool("search_articles", "{}")
+                            .replace(
+                                    "\"tool_calls\":[",
+                                    "\"reasoning_content\":\"I should find relevant articles.\",\"tool_calls\":[");
+            String answer =
+                    ANSWER.replace(
+                            "\"content\":",
+                            "\"reasoningContent\":\"I can now summarize the sources.\",\"content\":");
             Model model = new Model(applicationConfig, search, answer);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            model.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), new AIWebSiteInfo(), knowledge(db.dataSource()), out);
+            model.run(
+                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                            db.dataSource()),
+                    input(),
+                    new AIWebSiteInfo(),
+                    knowledge(db.dataSource()),
+                    out);
             String events = out.toString(java.nio.charset.StandardCharsets.UTF_8);
-            assertTrue(events.contains("\"reasoningContent\":\"I should find relevant articles.\""));
-            assertTrue(events.contains("\"reasoningContent\":\"I can now summarize the sources.\""));
-            assertTrue(events.indexOf("\"type\":\"reasoning\"") < events.indexOf("\"type\":\"tool\""));
-            assertTrue(model.requests.get(1).toString().contains("I should find relevant articles."));
+            assertTrue(
+                    events.contains("\"reasoningContent\":\"I should find relevant articles.\""));
+            assertTrue(
+                    events.contains("\"reasoningContent\":\"I can now summarize the sources.\""));
+            assertTrue(
+                    events.indexOf("\"type\":\"reasoning\"") < events.indexOf("\"type\":\"tool\""));
+            assertTrue(
+                    model.requests.get(1).toString().contains("I should find relevant articles."));
             AIWebSiteInfo disabled = new AIWebSiteInfo();
             disabled.setAi_reasoning_enabled(false);
             ByteArrayOutputStream hidden = new ByteArrayOutputStream();
-            new Model(applicationConfig, answer).run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), disabled, null, hidden);
-            assertFalse(hidden.toString(java.nio.charset.StandardCharsets.UTF_8).contains("reasoning"));
+            new Model(applicationConfig, answer)
+                    .run(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            input(),
+                            disabled,
+                            null,
+                            hidden);
+            assertFalse(
+                    hidden.toString(java.nio.charset.StandardCharsets.UTF_8).contains("reasoning"));
         }
     }
 
     @Test
     public void acceptsStringReasoningButDoesNotExposeOpaqueReasoningObjects() throws Exception {
         for (String value : List.of("\"Text reasoning\"", "{\"signature\":\"opaque-secret\"}")) {
-            Model model = new Model(applicationConfig, ANSWER.replace("\"content\":", "\"reasoning\":" + value + ",\"content\":"));
+            Model model =
+                    new Model(
+                            applicationConfig,
+                            ANSWER.replace(
+                                    "\"content\":", "\"reasoning\":" + value + ",\"content\":"));
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            model.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null), input(), new AIWebSiteInfo(), null, out);
+            model.run(
+                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                    input(),
+                    new AIWebSiteInfo(),
+                    null,
+                    out);
             String stream = out.toString(java.nio.charset.StandardCharsets.UTF_8);
             assertEquals(value.startsWith("\""), stream.contains("\"type\":\"reasoning\""));
             assertFalse(stream.contains("opaque-secret"));
@@ -422,25 +742,59 @@ public class AIChatConversationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            for (String response : List.of(tool("search_articles", "{}"), ANSWER, ANSWER.replace("\"content\":", "\"reasoning_content\":\"PRIVATE reasoning\",\"content\":"))) {
+            for (String response :
+                    List.of(
+                            tool("search_articles", "{}"),
+                            ANSWER,
+                            ANSWER.replace(
+                                    "\"content\":",
+                                    "\"reasoning_content\":\"PRIVATE reasoning\",\"content\":"))) {
                 scope("own_all", db.dataSource());
                 Model model = new Model(applicationConfig, response, ANSWER);
-                model.afterRequest = () -> {
-                    try {
-                        db.execute("update user set preferences=? where userId=1", "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                };
-                String stream = new String(model.service.start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                model.afterRequest =
+                        () -> {
+                            try {
+                                db.execute(
+                                        "update user set preferences=? where userId=1",
+                                        "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        };
+                String stream =
+                        new String(
+                                model.service
+                                        .start(
+                                                com.zrlog.admin.business.ai.service
+                                                        .AIServiceDependencies.actor(
+                                                        db.dataSource()),
+                                                input(),
+                                                com.zrlog.admin.business.ai.service
+                                                        .AIServiceDependencies.audit(
+                                                        db.dataSource()),
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUser())
+                                        .getInputStream()
+                                        .readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
                 assertFalse(stream, stream.contains("\"error\":\"permission\""));
                 assertTrue(stream, stream.contains("\"type\":\"answer\""));
                 assertTrue(stream, stream.contains("\"type\":\"done\""));
-                assertEquals(response.contains("PRIVATE reasoning"), stream.contains("PRIVATE reasoning"));
+                assertEquals(
+                        response.contains("PRIVATE reasoning"),
+                        stream.contains("PRIVATE reasoning"));
                 Model next = new Model(applicationConfig, ANSWER);
-                String nextStream = new String(next.service.start(AIServiceDependencies.actor(db.dataSource()), input(),
-                        AIServiceDependencies.audit(db.dataSource()), AdminTokenThreadLocal.getUser())
-                        .getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                String nextStream =
+                        new String(
+                                next.service
+                                        .start(
+                                                AIServiceDependencies.actor(db.dataSource()),
+                                                input(),
+                                                AIServiceDependencies.audit(db.dataSource()),
+                                                AdminTokenThreadLocal.getUser())
+                                        .getInputStream()
+                                        .readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
                 assertTrue(nextStream, nextStream.contains("\"type\":\"done\""));
                 assertFalse(next.requests.get(0).has("tools"));
             }
@@ -455,7 +809,9 @@ public class AIChatConversationTest {
             assertThrows(
                     AIResponseException.class,
                     () ->
-                            model.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()),
+                            model.run(
+                                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                            db.dataSource()),
                                     input(),
                                     new AIWebSiteInfo(),
                                     knowledge(db.dataSource()),
@@ -478,16 +834,31 @@ public class AIChatConversationTest {
             applicationConfig = db.config();
             Model model = new Model(applicationConfig, tool("search_articles", "{}"), ANSWER);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            model.run(AIServiceDependencies.actor(db.dataSource()), input(), new AIWebSiteInfo(),
-                    knowledge(db.dataSource()), out);
+            model.run(
+                    AIServiceDependencies.actor(db.dataSource()),
+                    input(),
+                    new AIWebSiteInfo(),
+                    knowledge(db.dataSource()),
+                    out);
             assertEquals(2, model.requests.size());
-            assertTrue(out.toString(java.nio.charset.StandardCharsets.UTF_8).contains("\"type\":\"done\""));
+            assertTrue(
+                    out.toString(java.nio.charset.StandardCharsets.UTF_8)
+                            .contains("\"type\":\"done\""));
             Model disconnected = new Model(applicationConfig, tool("search_articles", "{}"));
-            assertThrows(IOException.class, () -> disconnected.run(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input(), new AIWebSiteInfo(), knowledge(db.dataSource()), new OutputStream() {
-                public void write(int b) throws IOException {
-                    throw new IOException();
-                }
-            }));
+            assertThrows(
+                    IOException.class,
+                    () ->
+                            disconnected.run(
+                                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                            db.dataSource()),
+                                    input(),
+                                    new AIWebSiteInfo(),
+                                    knowledge(db.dataSource()),
+                                    new OutputStream() {
+                                        public void write(int b) throws IOException {
+                                            throw new IOException();
+                                        }
+                                    }));
             assertTrue(disconnected.requests.isEmpty());
         }
     }
@@ -497,42 +868,84 @@ public class AIChatConversationTest {
         final AIChatRunExecutor executor;
         final List<String> responses;
         final List<JsonObject> requests = new ArrayList<>();
-        Runnable afterRequest = () -> {
-        };
+        Runnable afterRequest = () -> {};
 
         Model(ZrLogConfig config, String... responses) {
             super(new AIFileService());
-            this.service = AIServiceDependencies.chat(config == null ? null : (DataSourceWrapper) config.getDataSource(), null, ContentToolsFixture.from(config),
-                            this, new AIFileService(), AIServiceDependencies.writing(config == null ? null : (DataSourceWrapper) config.getDataSource()));
-            this.executor = AIServiceDependencies.executor(config == null ? null : (DataSourceWrapper) config.getDataSource(), this, new AIFileService(), AIServiceDependencies.writing(config == null ? null : (DataSourceWrapper) config.getDataSource()));
+            this.service =
+                    AIServiceDependencies.chat(
+                            config == null ? null : (DataSourceWrapper) config.getDataSource(),
+                            null,
+                            ContentToolsFixture.from(config),
+                            this,
+                            new AIFileService(),
+                            AIServiceDependencies.writing(
+                                    config == null
+                                            ? null
+                                            : (DataSourceWrapper) config.getDataSource()));
+            this.executor =
+                    AIServiceDependencies.executor(
+                            config == null ? null : (DataSourceWrapper) config.getDataSource(),
+                            this,
+                            new AIFileService(),
+                            AIServiceDependencies.writing(
+                                    config == null
+                                            ? null
+                                            : (DataSourceWrapper) config.getDataSource()));
             this.responses = List.of(responses);
         }
 
-        void run(com.zrlog.data.security.AccountAccess actor, ChatRequest input, AIWebSiteInfo info,
-                 com.zrlog.admin.business.knowledge.ToolProvider knowledge, java.io.OutputStream out) throws Exception {
+        void run(
+                com.zrlog.data.security.AccountAccess actor,
+                ChatRequest input,
+                AIWebSiteInfo info,
+                com.zrlog.admin.business.knowledge.ToolProvider knowledge,
+                java.io.OutputStream out)
+                throws Exception {
             var run = executor.newRun(actor, input, info, knowledge != null);
             var events = new AIChatSseWriter();
-            executor.execute(actor, run, info, knowledge, new AIChatRunExecutor.Events() {
-                @Override
-                public void emit(com.zrlog.admin.business.ai.model.AIChatModels.Event event) throws IOException {
-                    events.write(out, event);
-                }
+            executor.execute(
+                    actor,
+                    run,
+                    info,
+                    knowledge,
+                    new AIChatRunExecutor.Events() {
+                        @Override
+                        public void emit(com.zrlog.admin.business.ai.model.AIChatModels.Event event)
+                                throws IOException {
+                            events.write(out, event);
+                        }
 
-                @Override
-                public void paused(com.zrlog.admin.business.ai.model.AIChatModels.Run paused) {
-                    throw new AssertionError("Use the chat entry point to test approval or input resumption");
-                }
-            }, null, answer -> { });
+                        @Override
+                        public void paused(
+                                com.zrlog.admin.business.ai.model.AIChatModels.Run paused) {
+                            throw new AssertionError(
+                                    "Use the chat entry point to test approval or input resumption");
+                        }
+                    },
+                    null,
+                    answer -> {});
         }
 
         @Override
-        protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
+        protected AIProviderResponses.Choice complete(
+                com.zrlog.data.security.AccountAccess actor,
+                AIWebSiteInfo info,
+                String body,
+                AIChatStreamReader.Progress progress)
+                throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
-            AIProviderResponses.Choice choice = new Gson().fromJson(responses.get(Math.min(requests.size() - 1, responses.size() - 1)), AIProviderResponses.Choice.class);
+            AIProviderResponses.Choice choice =
+                    new Gson()
+                            .fromJson(
+                                    responses.get(
+                                            Math.min(requests.size() - 1, responses.size() - 1)),
+                                    AIProviderResponses.Choice.class);
             if (choice.getMessage().getReasoningText() != null)
                 progress.emit("reasoning_delta", choice.getMessage().getReasoningText());
-            if (choice.getMessage().getContent() != null) progress.emit("delta", choice.getMessage().getContent());
+            if (choice.getMessage().getContent() != null)
+                progress.emit("delta", choice.getMessage().getContent());
             return choice;
         }
     }

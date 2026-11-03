@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -10,11 +12,6 @@ import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
-import org.junit.Test;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.Authenticator;
@@ -31,8 +28,10 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
-
-import static org.junit.Assert.*;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
+import org.junit.Test;
 
 public class AIChatServiceTest {
 
@@ -62,7 +61,9 @@ public class AIChatServiceTest {
 
             @Override
             public HttpHeaders headers() {
-                return HttpHeaders.of(Map.of("Content-Type", List.of("text/event-stream")), (name, value) -> true);
+                return HttpHeaders.of(
+                        Map.of("Content-Type", List.of("text/event-stream")),
+                        (name, value) -> true);
             }
 
             @Override
@@ -93,7 +94,14 @@ public class AIChatServiceTest {
         db.putWebsite("ai_api_key", "test-key");
         db.putWebsite("ai_prompt", "System prompt");
         for (int id = 33; id <= 39; id++) {
-            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy) values(?,?,?,?,?,?)", id, 1, 1, "Article", false, false);
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,rubbish,privacy) values(?,?,?,?,?,?)",
+                    id,
+                    1,
+                    1,
+                    "Article",
+                    false,
+                    false);
         }
     }
 
@@ -106,36 +114,62 @@ public class AIChatServiceTest {
     }
 
     @Test
-    public void streamingFragmentsAndContinuationDoNotRepeatRequestAuthorizationQueries() throws Exception {
+    public void streamingFragmentsAndContinuationDoNotRepeatRequestAuthorizationQueries()
+            throws Exception {
         List<Integer> queryCounts = new ArrayList<>();
         for (int fragments : List.of(1, 500)) {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
                 seedAiConfig(db);
-                db.execute("update user set preferences=? where userId=1", "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
+                db.execute(
+                        "update user set preferences=? where userId=1",
+                        "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
                 StringBuilder frames = new StringBuilder();
                 for (int i = 0; i < fragments; i++) {
-                    frames.append("data: {\"choices\":[{\"delta\":{\"content\":\"x\",\"reasoning_content\":\"r\"}}]}\n\n");
+                    frames.append(
+                            "data: {\"choices\":[{\"delta\":{\"content\":\"x\",\"reasoning_content\":\"r\"}}]}\n\n");
                 }
-                frames.append("data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n");
-                FakeHttpClient client = new FakeHttpClient(streamResponse(frames.toString()),
-                        streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"));
+                frames.append(
+                        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n");
+                FakeHttpClient client =
+                        new FakeHttpClient(
+                                streamResponse(frames.toString()),
+                                streamResponse(
+                                        "data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"));
                 var service = chat(db.config(), client);
                 var actor = AIServiceDependencies.actor(db.dataSource());
                 var audit = AIServiceDependencies.audit(db.dataSource());
                 List<String> queries = Collections.synchronizedList(new ArrayList<>());
                 db.afterWebApiQuery((sql, params) -> queries.add(sql));
 
-                String wire = new String(service.startStreamResponse(actor, "Question", 36L, audit, null)
-                        .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                String wire =
+                        new String(
+                                service.startStreamResponse(actor, "Question", 36L, audit, null)
+                                        .getInputStream()
+                                        .readAllBytes(),
+                                StandardCharsets.UTF_8);
 
                 assertTrue(wire, wire.contains("\"type\":\"done\""));
-                assertTrue(wire, wire.contains("\"content\":\"" + "x".repeat(fragments) + "done\""));
-                assertTrue(wire, wire.contains("\"reasoningContent\":\"" + "r".repeat(fragments) + "\""));
+                assertTrue(
+                        wire, wire.contains("\"content\":\"" + "x".repeat(fragments) + "done\""));
+                assertTrue(
+                        wire,
+                        wire.contains("\"reasoningContent\":\"" + "r".repeat(fragments) + "\""));
                 assertEquals(2, client.requests.size());
-                assertEquals(2, queries.stream().filter(sql -> sql.replace("`", "").toLowerCase(java.util.Locale.ROOT).contains(" from user ")).count());
-                assertEquals(1, queries.stream().filter(sql -> sql.startsWith("select preferences from user ")).count());
+                // Identity and preferences each load the user entity once per request.
+                assertEquals(
+                        2,
+                        queries.stream()
+                                .filter(
+                                        sql ->
+                                                sql.replace("`", "")
+                                                        .toLowerCase(java.util.Locale.ROOT)
+                                                        .contains(" from user "))
+                                .count());
                 queryCounts.add(queries.size());
-                String stored = Objects.toString(db.scalar("select value from website where name='ai_chat_message_u1_36'"));
+                String stored =
+                        Objects.toString(
+                                db.scalar(
+                                        "select value from website where name='ai_chat_message_u1_36'"));
                 assertTrue(stored, stored.contains("x".repeat(fragments) + "done"));
                 assertTrue(stored, stored.contains("r".repeat(fragments)));
             }
@@ -152,17 +186,41 @@ public class AIChatServiceTest {
                 db.putWebsite("ai_provider", "OPEN_AI");
                 db.putWebsite("ai_model", "gpt-6-astra");
                 db.putWebsite("ai_reasoning_enabled", enabled);
-                FakeHttpClient client = new FakeHttpClient(
-                        streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 1"))),
-                        streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 2"))),
-                        streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 3"))));
+                FakeHttpClient client =
+                        new FakeHttpClient(
+                                streamResponse(
+                                        OpenAIResponsesAdapterTest.terminal(
+                                                OpenAIResponsesAdapterTest.MESSAGE.replace(
+                                                        "Answer", "Answer 1"))),
+                                streamResponse(
+                                        OpenAIResponsesAdapterTest.terminal(
+                                                OpenAIResponsesAdapterTest.MESSAGE.replace(
+                                                        "Answer", "Answer 2"))),
+                                streamResponse(
+                                        OpenAIResponsesAdapterTest.terminal(
+                                                OpenAIResponsesAdapterTest.MESSAGE.replace(
+                                                        "Answer", "Answer 3"))));
                 for (int turn = 1; turn <= 3; turn++) {
                     ChatRequest input = new ChatRequest();
                     input.articleId = 36;
                     input.input = "Question " + turn;
                     // Each browser request creates a new service and restores history from storage.
-                    String payload = new String(chat(applicationConfig, client).start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
-                            .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                    String payload =
+                            new String(
+                                    chat(applicationConfig, client)
+                                            .start(
+                                                    com.zrlog.admin.business.ai.service
+                                                            .AIServiceDependencies.actor(
+                                                            db.dataSource()),
+                                                    input,
+                                                    com.zrlog.admin.business.ai.service
+                                                            .AIServiceDependencies.audit(
+                                                            db.dataSource()),
+                                                    com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                            .getUser())
+                                            .getInputStream()
+                                            .readAllBytes(),
+                                    StandardCharsets.UTF_8);
                     assertTrue(payload, payload.contains("\"type\":\"done\""));
                     assertFalse(payload, payload.contains("\"type\":\"error\""));
                     assertTrue(payload, payload.contains("Answer " + turn));
@@ -170,25 +228,43 @@ public class AIChatServiceTest {
                     int assistants = 0;
                     for (int index = 0; index < items.size(); index++) {
                         JsonObject item = items.get(index).getAsJsonObject();
-                        JsonObject content = item.getAsJsonArray("content").get(0).getAsJsonObject();
+                        JsonObject content =
+                                item.getAsJsonArray("content").get(0).getAsJsonObject();
                         if ("assistant".equals(item.get("role").getAsString())) {
                             assistants++;
                             assertEquals("output_text", content.get("type").getAsString());
                             assertEquals("Answer " + assistants, content.get("text").getAsString());
                             JsonObject question = items.get(index - 1).getAsJsonObject();
                             assertEquals("user", question.get("role").getAsString());
-                            assertEquals("Question " + assistants, question.getAsJsonArray("content").get(0)
-                                    .getAsJsonObject().get("text").getAsString());
+                            assertEquals(
+                                    "Question " + assistants,
+                                    question.getAsJsonArray("content")
+                                            .get(0)
+                                            .getAsJsonObject()
+                                            .get("text")
+                                            .getAsString());
                         } else {
                             assertEquals("input_text", content.get("type").getAsString());
                         }
                     }
                     assertEquals(turn - 1, assistants);
-                    assertEquals(input.input, items.get(items.size() - 1).getAsJsonObject()
-                            .getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString());
+                    assertEquals(
+                            input.input,
+                            items.get(items.size() - 1)
+                                    .getAsJsonObject()
+                                    .getAsJsonArray("content")
+                                    .get(0)
+                                    .getAsJsonObject()
+                                    .get("text")
+                                    .getAsString());
                 }
                 assertEquals(3, client.requests.size());
-                String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+                String stored =
+                        String.valueOf(
+                                db.queryOne(
+                                                "select value from website where name=?",
+                                                "ai_chat_message_u1_36")
+                                        .get("value"));
                 for (int turn = 1; turn <= 3; turn++) {
                     assertTrue(stored.contains("Question " + turn));
                     assertTrue(stored.contains("Answer " + turn));
@@ -197,24 +273,56 @@ public class AIChatServiceTest {
     }
 
     @Test
-    public void shouldStreamAndPersistOpenAiSummariesThroughTheExistingBrowserProtocol() throws Exception {
+    public void shouldStreamAndPersistOpenAiSummariesThroughTheExistingBrowserProtocol()
+            throws Exception {
         for (boolean enabled : List.of(true, false))
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                 applicationConfig = db.config();
                 seedAiConfig(db);
                 db.putWebsite("ai_provider", "OPEN_AI");
                 db.putWebsite("ai_model", "gpt-6-astra");
-                db.putWebsite("ai_base_url", "https://gateway.example/v1/chat/completions?route=test");
+                db.putWebsite(
+                        "ai_base_url", "https://gateway.example/v1/chat/completions?route=test");
                 db.putWebsite("ai_max_completion_tokens", 8192);
                 db.putWebsite("ai_reasoning_enabled", enabled);
-                FakeHttpClient client = new FakeHttpClient(streamResponse(
-                        OpenAIResponsesAdapterTest.frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
-                                + OpenAIResponsesAdapterTest.frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
-                                + OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)));
-                String payload = new String(chat(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
-                        .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
-                assertEquals("https://gateway.example/v1/responses?route=test", client.requests.get(0).uri().toString());
+                FakeHttpClient client =
+                        new FakeHttpClient(
+                                streamResponse(
+                                        OpenAIResponsesAdapterTest.frame(
+                                                        "{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
+                                                + OpenAIResponsesAdapterTest.frame(
+                                                        "{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
+                                                + OpenAIResponsesAdapterTest.terminal(
+                                                        OpenAIResponsesAdapterTest.REASONING
+                                                                + ","
+                                                                + OpenAIResponsesAdapterTest
+                                                                        .MESSAGE)));
+                String payload =
+                        new String(
+                                chat(applicationConfig, client)
+                                        .startStreamResponse(
+                                                com.zrlog.admin.business.ai.service
+                                                        .AIServiceDependencies.actor(
+                                                        db.dataSource()),
+                                                "Question",
+                                                36L,
+                                                com.zrlog.admin.business.ai.service
+                                                        .AIServiceDependencies.audit(
+                                                        db.dataSource()),
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUser())
+                                        .getInputStream()
+                                        .readAllBytes(),
+                                StandardCharsets.UTF_8);
+                String stored =
+                        String.valueOf(
+                                db.queryOne(
+                                                "select value from website where name=?",
+                                                "ai_chat_message_u1_36")
+                                        .get("value"));
+                assertEquals(
+                        "https://gateway.example/v1/responses?route=test",
+                        client.requests.get(0).uri().toString());
                 JsonObject request = client.requestBodies.get(0);
                 assertEquals(enabled, request.has("reasoning"));
                 assertEquals("gpt-6-astra", request.get("model").getAsString());
@@ -239,12 +347,40 @@ public class AIChatServiceTest {
             seedAiConfig(db);
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "gpt-6-astra");
-            String partial = OpenAIResponsesAdapterTest.completed(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)
-                    .replace("\"status\":\"completed\",\"output\"", "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
-            FakeHttpClient client = new FakeHttpClient(streamResponse(OpenAIResponsesAdapterTest.frame("{\"type\":\"response.incomplete\",\"response\":" + partial + "}")),
-                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", " continued"))));
-            String payload = new String(chat(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
-                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String partial =
+                    OpenAIResponsesAdapterTest.completed(
+                                    OpenAIResponsesAdapterTest.REASONING
+                                            + ","
+                                            + OpenAIResponsesAdapterTest.MESSAGE)
+                            .replace(
+                                    "\"status\":\"completed\",\"output\"",
+                                    "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(
+                                    OpenAIResponsesAdapterTest.frame(
+                                            "{\"type\":\"response.incomplete\",\"response\":"
+                                                    + partial
+                                                    + "}")),
+                            streamResponse(
+                                    OpenAIResponsesAdapterTest.terminal(
+                                            OpenAIResponsesAdapterTest.MESSAGE.replace(
+                                                    "Answer", " continued"))));
+            String payload =
+                    new String(
+                            chat(applicationConfig, client)
+                                    .startStreamResponse(
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.actor(db.dataSource()),
+                                            "Question",
+                                            36L,
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.audit(db.dataSource()),
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUser())
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            StandardCharsets.UTF_8);
             assertTrue(payload, payload.contains("\"content\":\"Answer continued\""));
             assertTrue(client.requestBodies.get(1).toString().contains("opaque-state"));
             assertTrue(client.requestBodies.get(1).toString().contains("final_answer"));
@@ -254,24 +390,48 @@ public class AIChatServiceTest {
     }
 
     @Test
-    public void shouldStartStreamResponseThroughPublicOverloadsUsingRealWebsiteTable() throws Exception {
+    public void shouldStartStreamResponseThroughPublicOverloadsUsingRealWebsiteTable()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"plan \","
-                            + "\"content\":\"first\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
-                            + "data: [DONE]\n\n"),
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"second\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
-                            + "data: [DONE]\n\n"));
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"plan \","
+                                            + "\"content\":\"first\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
+                                            + "data: [DONE]\n\n"),
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"second\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
+                                            + "data: [DONE]\n\n"));
             AIChatService service = chat(applicationConfig, client);
 
-            AIStreamResponse first = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
-            String firstPayload = new String(first.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            AIStreamResponse second = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 37L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
-            String secondPayload = new String(second.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            AIStreamResponse first =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Question",
+                            36L,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            String firstPayload =
+                    new String(first.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            AIStreamResponse second =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Question",
+                            37L,
+                            null,
+                            null,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            String secondPayload =
+                    new String(second.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, first.getStatusCode());
             assertEquals(200, second.getStatusCode());
@@ -279,12 +439,21 @@ public class AIChatServiceTest {
             assertTrue(firstPayload.contains("first"));
             assertTrue(firstPayload.contains("\"reasoningContent\":\"plan \""));
             assertTrue(secondPayload.contains("second"));
-            String firstStored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+            String firstStored =
+                    String.valueOf(
+                            db.queryOne(
+                                            "select value from website where name=?",
+                                            "ai_chat_message_u1_36")
+                                    .get("value"));
             assertTrue(firstStored.contains("first"));
             assertTrue(firstStored.contains("\"reasoningContent\":\"plan \""));
-            assertTrue(String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_u1_37").get("value")).contains("second"));
+            assertTrue(
+                    String.valueOf(
+                                    db.queryOne(
+                                                    "select value from website where name=?",
+                                                    "ai_chat_message_u1_37")
+                                            .get("value"))
+                            .contains("second"));
         }
     }
 
@@ -294,17 +463,32 @@ public class AIChatServiceTest {
             applicationConfig = db.config();
             seedAiConfig(db);
             db.putWebsite("ai_reasoning_enabled", false);
-            FakeHttpClient client = new FakeHttpClient(
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden\","
-                            + "\"content\":\"answer\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
-                            + "data: [DONE]\n\n"));
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden\","
+                                            + "\"content\":\"answer\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
+                                            + "data: [DONE]\n\n"));
             AIChatService service = chat(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 39L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
-            String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            String stored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_u1_39").get("value"));
+            AIStreamResponse response =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Question",
+                            39L,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            String payload =
+                    new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String stored =
+                    String.valueOf(
+                            db.queryOne(
+                                            "select value from website where name=?",
+                                            "ai_chat_message_u1_39")
+                                    .get("value"));
 
             assertEquals(200, response.getStatusCode());
             assertTrue(payload.contains("answer"));
@@ -315,44 +499,84 @@ public class AIChatServiceTest {
     }
 
     @Test
-    public void shouldPersistAnswerWhenProviderSendsAnEmptyUsageDeltaAfterFinishing() throws Exception {
+    public void shouldPersistAnswerWhenProviderSendsAnEmptyUsageDeltaAfterFinishing()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(streamResponse(
-                    "data: {\"choices\":[{\"delta\":{\"content\":\"Answer🙂\"},\"finish_reason\":\"stop\"}]}\n\n"
-                            + "data: {\"error\":null,\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],"
-                            + "\"usage\":{\"completion_tokens\":3}}\n\n"
-                            + "data: [DONE]\n\n"));
-            String payload = new String(chat(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
-                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"Answer🙂\"},\"finish_reason\":\"stop\"}]}\n\n"
+                                            + "data: {\"error\":null,\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],"
+                                            + "\"usage\":{\"completion_tokens\":3}}\n\n"
+                                            + "data: [DONE]\n\n"));
+            String payload =
+                    new String(
+                            chat(applicationConfig, client)
+                                    .startStreamResponse(
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.actor(db.dataSource()),
+                                            "Question",
+                                            36L,
+                                            com.zrlog.admin.business.ai.service
+                                                    .AIServiceDependencies.audit(db.dataSource()),
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUser())
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            StandardCharsets.UTF_8);
             assertTrue(payload, payload.contains("\"type\":\"delta\""));
             assertTrue(payload, payload.contains("\"type\":\"answer\""));
             assertTrue(payload, payload.contains("\"type\":\"done\""));
             assertFalse(payload, payload.contains("\"type\":\"error\""));
             assertEquals(1, client.requests.size());
-            String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+            String stored =
+                    String.valueOf(
+                            db.queryOne(
+                                            "select value from website where name=?",
+                                            "ai_chat_message_u1_36")
+                                    .get("value"));
             assertTrue(stored, stored.contains("Answer🙂"));
         }
     }
 
     @Test
-    public void shouldStartStreamResponseContinueAndPersistMessagesThroughRealWebsiteTable() throws Exception {
+    public void shouldStartStreamResponseContinueAndPersistMessagesThroughRealWebsiteTable()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part \"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"done\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
-                            + "data: [DONE]\n\n"));
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"part \"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"done\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
+                                            + "data: [DONE]\n\n"));
             AIChatService service = chat(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 33L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
-            String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            String stored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_u1_33").get("value"));
+            AIStreamResponse response =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Question",
+                            33L,
+                            null,
+                            null,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            String payload =
+                    new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String stored =
+                    String.valueOf(
+                            db.queryOne(
+                                            "select value from website where name=?",
+                                            "ai_chat_message_u1_33")
+                                    .get("value"));
 
             assertEquals(200, response.getStatusCode());
             assertEquals(2, client.requests.size());
@@ -368,23 +592,40 @@ public class AIChatServiceTest {
     }
 
     @Test
-    public void shouldEmitIncompleteErrorWhenContinuationRoundsAreExhaustedThroughRealWebsiteTable() throws Exception {
+    public void shouldEmitIncompleteErrorWhenContinuationRoundsAreExhaustedThroughRealWebsiteTable()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part0\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part1\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part2\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part3\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"));
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"part0\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"part1\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"part2\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"part3\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"));
             AIChatService service = chat(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 38L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
-            String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            AIStreamResponse response =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Question",
+                            38L,
+                            null,
+                            null,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            String payload =
+                    new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, response.getStatusCode());
             assertEquals(4, client.requests.size());
@@ -392,7 +633,9 @@ public class AIChatServiceTest {
             assertTrue(payload.contains("\"content\":\"part3\""));
             assertTrue(payload.contains("\"type\":\"error\""));
             assertTrue(payload.contains("\"error\":\"responseIncomplete\""));
-            assertEquals(null, db.queryOne("select value from website where name=?", "ai_chat_message_u1_38"));
+            assertEquals(
+                    null,
+                    db.queryOne("select value from website where name=?", "ai_chat_message_u1_38"));
         }
     }
 
@@ -401,15 +644,28 @@ public class AIChatServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(
-                    streamResponse(503, "{\"error\":{\"message\":\"busy\"}}"),
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"recovered\"}}]}\n\n"
-                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
-                            + "data: [DONE]\n\n"));
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            streamResponse(503, "{\"error\":{\"message\":\"busy\"}}"),
+                            streamResponse(
+                                    "data: {\"choices\":[{\"delta\":{\"content\":\"recovered\"}}]}\n\n"
+                                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
+                                            + "data: [DONE]\n\n"));
             AIChatService service = chat(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Retry", 34L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
-            String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            AIStreamResponse response =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Retry",
+                            34L,
+                            null,
+                            null,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            String payload =
+                    new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, response.getStatusCode());
             assertEquals(2, client.requests.size());
@@ -422,13 +678,25 @@ public class AIChatServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(streamResponse(429, "{\"error\":{\"message\":\"quota\"}}"));
+            FakeHttpClient client =
+                    new FakeHttpClient(streamResponse(429, "{\"error\":{\"message\":\"quota\"}}"));
             AIChatService service = chat(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Retry", 35L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            AIStreamResponse response =
+                    service.startStreamResponse(
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                    db.dataSource()),
+                            "Retry",
+                            35L,
+                            null,
+                            null,
+                            com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(
+                                    db.dataSource()),
+                            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
 
             assertEquals(200, response.getStatusCode());
-            String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String payload =
+                    new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(payload.contains("\"error\":\"providerRequestFailed\""));
             assertFalse(payload.contains("quota"));
         }
@@ -436,13 +704,18 @@ public class AIChatServiceTest {
 
     private static AIChatService chat(ZrLogConfig config, HttpClient client) {
         var source = (DataSourceWrapper) config.getDataSource();
-        AIChatModelClient model = new AIChatModelClient(client, new AIFileService()) {
-            @Override
-            void pauseBeforeStreamRetry(int attempt) {
-            }
-        };
-        return AIServiceDependencies.chat(source, null, ContentToolsFixture.from(config), model,
-                new AIFileService(), AIServiceDependencies.writing(source));
+        AIChatModelClient model =
+                new AIChatModelClient(client, new AIFileService()) {
+                    @Override
+                    void pauseBeforeStreamRetry(int attempt) {}
+                };
+        return AIServiceDependencies.chat(
+                source,
+                null,
+                ContentToolsFixture.from(config),
+                model,
+                new AIFileService(),
+                AIServiceDependencies.writing(source));
     }
 
     static class FakeHttpClient extends HttpClient {
@@ -502,7 +775,8 @@ public class AIChatServiceTest {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
+        public <T> HttpResponse<T> send(
+                HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
             requests.add(request);
             java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
             request.bodyPublisher()
@@ -523,23 +797,24 @@ public class AIChatServiceTest {
                                     throw new AssertionError(error);
                                 }
 
-                                public void onComplete() {
-                                }
+                                public void onComplete() {}
                             });
-            requestBodies.add(GSON.fromJson(body.toString(StandardCharsets.UTF_8), JsonObject.class));
+            requestBodies.add(
+                    GSON.fromJson(body.toString(StandardCharsets.UTF_8), JsonObject.class));
             return (HttpResponse<T>) responses.get(index++);
         }
 
         @Override
-        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request,
-                                                                HttpResponse.BodyHandler<T> responseBodyHandler) {
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request,
-                                                                HttpResponse.BodyHandler<T> responseBodyHandler,
-                                                                HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                HttpRequest request,
+                HttpResponse.BodyHandler<T> responseBodyHandler,
+                HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
             throw new UnsupportedOperationException();
         }
     }

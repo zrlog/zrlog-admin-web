@@ -1,14 +1,14 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.util.WebSiteUtils;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class WebSiteServiceDatabaseTest {
 
@@ -26,7 +26,9 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite("system_notification", "notice");
 
             WebSiteService service =
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()));
+                    new WebSiteService(
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()));
             BasicWebSiteInfo basic = service.basicWebSiteInfo();
             BlogWebSiteInfo blog = service.blogWebSiteInfo();
 
@@ -55,18 +57,26 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.ARTICLE_COVER_ASPECT_RATIO_KEY, "bad");
 
             WebSiteService service =
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()));
+                    new WebSiteService(
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSiteRepository(db.dataSource()));
             AdminWebSiteInfo admin = service.adminWebSiteInfo();
             ArticleEditWebSiteInfo articleEdit = service.articleEditWebSiteInfo();
 
             assertEquals(WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR, admin.getAdmin_color_primary());
             assertEquals(Long.valueOf(10L), admin.getAdmin_article_page_size());
-            assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60 / 1000), admin.getSession_timeout());
+            assertEquals(
+                    Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60 / 1000),
+                    admin.getSession_timeout());
             assertEquals(Long.valueOf(0), articleEdit.getArticle_auto_digest_length());
-            assertEquals(ArticleEditWebSiteInfo.DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL, articleEdit.getArticle_edit_auto_save_interval());
+            assertEquals(
+                    ArticleEditWebSiteInfo.DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL,
+                    articleEdit.getArticle_edit_auto_save_interval());
             assertEquals(Boolean.FALSE, articleEdit.getArticle_editor_link_preview_enabled());
             assertEquals(Boolean.FALSE, articleEdit.getArticle_publish_check_enabled());
-            assertEquals(ArticleEditWebSiteInfo.DEFAULT_ARTICLE_COVER_ASPECT_RATIO, articleEdit.getArticle_cover_aspect_ratio());
+            assertEquals(
+                    ArticleEditWebSiteInfo.DEFAULT_ARTICLE_COVER_ASPECT_RATIO,
+                    articleEdit.getArticle_cover_aspect_ratio());
         }
     }
 
@@ -79,11 +89,12 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.FEATURE_PERSONAL_DATA_ENABLED_KEY, true);
             FeatureLabWebSiteInfo featureLab =
                     new FeatureLabService(
-                            () -> true,
-                            new WebhookService(
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    ApplicationServicesFixture.websiteCache(db.dataSource())),
-                            () -> new WebSiteRepository(db.dataSource()))
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(
+                                                    db.dataSource())),
+                                    () -> new WebSiteRepository(db.dataSource()))
                             .featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());
@@ -91,10 +102,14 @@ public class WebSiteServiceDatabaseTest {
             assertEquals(Boolean.FALSE, featureLab.getFeature_webhook_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_personal_data_enabled());
             assertTrue(
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()))
+                    new WebSiteService(
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()))
                             .isFeatureResourceReferenceEnabled());
             assertTrue(
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSiteRepository(db.dataSource()))
+                    new WebSiteService(
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSiteRepository(db.dataSource()))
                             .isFeatureArticleExtensionFilterEnabled());
         }
     }

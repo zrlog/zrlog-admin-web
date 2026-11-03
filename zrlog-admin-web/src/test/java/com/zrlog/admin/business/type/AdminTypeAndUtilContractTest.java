@@ -1,5 +1,7 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
@@ -12,8 +14,6 @@ import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.util.BlogBuildInfoUtil;
-import org.junit.Test;
-
 import java.io.File;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminTypeAndUtilContractTest {
 
@@ -32,66 +31,70 @@ public class AdminTypeAndUtilContractTest {
     }
 
     private static HttpRequest requestWithFiles(Map<String, File> files) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminTypeAndUtilContractTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getFile".equals(method.getName())) {
-                        return files.get(args[0]);
-                    }
-                    if ("getParaToStr".equals(method.getName())) {
-                        return "dir".equals(args[0]) ? "request-dir" : null;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminTypeAndUtilContractTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if ("getFile".equals(method.getName())) {
+                                return files.get(args[0]);
+                            }
+                            if ("getParaToStr".equals(method.getName())) {
+                                return "dir".equals(args[0]) ? "request-dir" : null;
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "HttpRequestProxy";
+                            }
+                            return null;
+                        });
     }
 
     private static HttpRequest request(String uri, String contextPath, String queryString) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminTypeAndUtilContractTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getUri".equals(method.getName())) {
-                        return uri;
-                    }
-                    if ("getContextPath".equals(method.getName())) {
-                        return contextPath;
-                    }
-                    if ("getQueryStr".equals(method.getName())) {
-                        return queryString;
-                    }
-                    if ("getHeader".equals(method.getName())) {
-                        return null;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminTypeAndUtilContractTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if ("getUri".equals(method.getName())) {
+                                return uri;
+                            }
+                            if ("getContextPath".equals(method.getName())) {
+                                return contextPath;
+                            }
+                            if ("getQueryStr".equals(method.getName())) {
+                                return queryString;
+                            }
+                            if ("getHeader".equals(method.getName())) {
+                                return null;
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "HttpRequestProxy";
+                            }
+                            return null;
+                        });
     }
 
     private static HttpResponse response(AtomicReference<String> redirect) {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminTypeAndUtilContractTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> {
-                    if ("redirect".equals(method.getName())) {
-                        redirect.set(args[0].toString());
-                        return null;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpResponseProxy";
-                    }
-                    return null;
-                });
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        AdminTypeAndUtilContractTest.class.getClassLoader(),
+                        new Class[] {HttpResponse.class},
+                        (proxy, method, args) -> {
+                            if ("redirect".equals(method.getName())) {
+                                redirect.set(args[0].toString());
+                                return null;
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "HttpResponseProxy";
+                            }
+                            return null;
+                        });
     }
 
     @Test
     public void shouldExposeAdminAuditActionMetadata() {
-        assertEquals("admin.audit.action.loginSuccess", AdminAuditAction.LOGIN_SUCCESS.getI18nKey());
+        assertEquals(
+                "admin.audit.action.loginSuccess", AdminAuditAction.LOGIN_SUCCESS.getI18nKey());
         assertEquals("login", AdminAuditAction.LOGIN_SUCCESS.getType());
         assertEquals("article", AdminAuditAction.CREATE_ARTICLE.getType());
         assertEquals("system", AdminAuditAction.EXECUTE_UPGRADE.getType());
@@ -124,15 +127,27 @@ public class AdminTypeAndUtilContractTest {
 
         DevKit.configDev(serverConfig);
 
-        assertTrue(serverConfig.getStaticResourceMapper().containsKey(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH + "/"));
-        assertTrue(serverConfig.getStaticResourceMapper().containsKey(
-                AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH + "/"));
+        assertTrue(
+                serverConfig
+                        .getStaticResourceMapper()
+                        .containsKey(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH + "/"));
+        assertTrue(
+                serverConfig
+                        .getStaticResourceMapper()
+                        .containsKey(
+                                AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH + "/"));
 
         DevKit.disableDev(serverConfig);
 
-        assertFalse(serverConfig.getStaticResourceMapper().containsKey(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH + "/"));
-        assertFalse(serverConfig.getStaticResourceMapper().containsKey(
-                AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH + "/"));
+        assertFalse(
+                serverConfig
+                        .getStaticResourceMapper()
+                        .containsKey(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH + "/"));
+        assertFalse(
+                serverConfig
+                        .getStaticResourceMapper()
+                        .containsKey(
+                                AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH + "/"));
     }
 
     @Test
@@ -148,7 +163,8 @@ public class AdminTypeAndUtilContractTest {
         String fromNullDir = UploadFileUtils.generatorUri(null, file);
         String fromEmptyDir = UploadFileUtils.generatorUri(" ", file);
         String fromRequestedName = UploadFileUtils.generatorUri("images", file, "cover-final.png");
-        String fromNestedRequestedName = UploadFileUtils.generatorUri("images", file, "../cover-final.png");
+        String fromNestedRequestedName =
+                UploadFileUtils.generatorUri("images", file, "../cover-final.png");
         String fromName = UploadFileUtils.generatorUri("docs", "readme.md");
 
         assertTrue(fromFile.startsWith("/attached/images/"));
@@ -186,10 +202,13 @@ public class AdminTypeAndUtilContractTest {
         Files.write(avatar.toPath(), "avatar".getBytes(StandardCharsets.UTF_8));
         Files.write(fallback.toPath(), "fallback".getBytes(StandardCharsets.UTF_8));
 
-        String uri = UploadFileUtils.generatorUri("avatar", requestWithFiles(Map.of(
-                "avatar", avatar,
-                "file", fallback
-        )));
+        String uri =
+                UploadFileUtils.generatorUri(
+                        "avatar",
+                        requestWithFiles(
+                                Map.of(
+                                        "avatar", avatar,
+                                        "file", fallback)));
 
         assertTrue(uri.startsWith("/attached/request-dir/"));
         assertTrue(uri.endsWith(".jpg"));
@@ -199,31 +218,37 @@ public class AdminTypeAndUtilContractTest {
     public void shouldRedirectUnLoginPageRequestsWithEncodedOriginalUri() {
         AtomicReference<String> redirect = new AtomicReference<>();
 
-        AdminWebTools.blockUnLoginRequestHandler(request("/admin", "/blog", "a=1 b=2"), response(redirect), true);
+        AdminWebTools.blockUnLoginRequestHandler(
+                request("/admin", "/blog", "a=1 b=2"), response(redirect), true);
 
-        assertTrue(redirect.get().startsWith(AdminConstants.ADMIN_LOGIN_URI_PATH + "?redirectFrom="));
+        assertTrue(
+                redirect.get().startsWith(AdminConstants.ADMIN_LOGIN_URI_PATH + "?redirectFrom="));
         assertTrue(redirect.get().contains("%2Fblog%2Fadmin%2Findex"));
         assertTrue(redirect.get().contains("a%3D1+b%3D2"));
     }
 
     @Test
     public void shouldKeepContextPathWithoutGlobalConfigOrCdn() {
-        assertEquals("/blog", AdminWebTools.getAdminStaticResourceBaseUrl(request("/admin", "/blog", ""), () -> ""));
+        assertEquals(
+                "/blog",
+                AdminWebTools.getAdminStaticResourceBaseUrl(
+                        request("/admin", "/blog", ""), () -> ""));
     }
 
     @Test
     public void shouldParseSystemLoadLines() throws Exception {
-        assertEquals("1.23, 0.50, 0.10", SystemLoad.parseLine(
-                "up 1 day, load averages: 1.23, 0.50, 0.10"));
-        assertEquals("1.23, 0.50, 0.10", SystemLoad.parseLine(
-                "load average: 1.23, 0.50, 0.10"));
+        assertEquals(
+                "1.23, 0.50, 0.10",
+                SystemLoad.parseLine("up 1 day, load averages: 1.23, 0.50, 0.10"));
+        assertEquals("1.23, 0.50, 0.10", SystemLoad.parseLine("load average: 1.23, 0.50, 0.10"));
         assertEquals("---", SystemLoad.parseLine("no load here"));
     }
 
     @Test
     public void shouldBuildStaticSiteProgressResponse() throws Exception {
         StaticSiteProgressResponse response =
-                AdminStaticSiteProgress.response(4, 1, 1, 1, 1, List.of(StaticSiteType.BLOG.name()));
+                AdminStaticSiteProgress.response(
+                        4, 1, 1, 1, 1, List.of(StaticSiteType.BLOG.name()));
 
         assertEquals(4, response.getTotal());
         assertEquals(1, response.getHandled());
@@ -235,11 +260,22 @@ public class AdminTypeAndUtilContractTest {
 
     @Test
     public void shouldConvertServerInfoSnapshotAndFormatFileSizes() throws Exception {
-        ServerInfoSnapshot data = new ServerInfoSnapshot("Linux", "amd64", "6.0", "/app", "VM", "21",
-                "SWS/1", "Asia/Shanghai", "MySQL", "UTF-8");
+        ServerInfoSnapshot data =
+                new ServerInfoSnapshot(
+                        "Linux",
+                        "amd64",
+                        "6.0",
+                        "/app",
+                        "VM",
+                        "21",
+                        "SWS/1",
+                        "Asia/Shanghai",
+                        "MySQL",
+                        "UTF-8");
 
-        Map<String, String> infoByKey = ServerInfoUtils.convertToServerInfos(data).stream()
-                .collect(Collectors.toMap(ServerInfo::getKey, ServerInfo::getValue));
+        Map<String, String> infoByKey =
+                ServerInfoUtils.convertToServerInfos(data).stream()
+                        .collect(Collectors.toMap(ServerInfo::getKey, ServerInfo::getValue));
 
         assertEquals("Linux - amd64 - 6.0", infoByKey.get("system"));
         assertEquals("/app", infoByKey.get("runPath"));

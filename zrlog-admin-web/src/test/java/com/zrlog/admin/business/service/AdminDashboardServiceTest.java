@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.data.repository.AdminCommentRepository;
+import static org.junit.Assert.*;
+
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -10,6 +11,8 @@ import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -18,11 +21,7 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.Test;
-
-import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
@@ -34,8 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.*;
+import javax.net.ssl.SSLSession;
+import org.junit.Test;
 
 public class AdminDashboardServiceTest {
 
@@ -43,7 +42,8 @@ public class AdminDashboardServiceTest {
     private final DashboardLayoutPolicy layout = new DashboardLayoutPolicy();
     private final DashboardPluginLoader loader = new DashboardPluginLoader(() -> null);
 
-    private static AdminDashboardCardConfigResponse cardConfig(String id, Boolean enabled, Integer sort) {
+    private static AdminDashboardCardConfigResponse cardConfig(
+            String id, Boolean enabled, Integer sort) {
         AdminDashboardCardConfigResponse card = new AdminDashboardCardConfigResponse();
         card.setId(id);
         card.setEnabled(enabled);
@@ -51,7 +51,8 @@ public class AdminDashboardServiceTest {
         return card;
     }
 
-    private static AdminDashboardCardConfigResponse findCard(List<AdminDashboardCardConfigResponse> cards, String id) {
+    private static AdminDashboardCardConfigResponse findCard(
+            List<AdminDashboardCardConfigResponse> cards, String id) {
         for (AdminDashboardCardConfigResponse card : cards) {
             if (id.equals(card.getId())) {
                 return card;
@@ -71,7 +72,8 @@ public class AdminDashboardServiceTest {
         return panel;
     }
 
-    private static AdminDashboardCardResponse findDashboardItem(List<AdminDashboardCardResponse> cards, String id) {
+    private static AdminDashboardCardResponse findDashboardItem(
+            List<AdminDashboardCardResponse> cards, String id) {
         for (AdminDashboardCardResponse card : cards) {
             if (id.equals(card.getId())) {
                 return card;
@@ -103,7 +105,8 @@ public class AdminDashboardServiceTest {
 
             @Override
             public java.net.http.HttpRequest request() {
-                return java.net.http.HttpRequest.newBuilder(URI.create("https://example.com")).build();
+                return java.net.http.HttpRequest.newBuilder(URI.create("https://example.com"))
+                        .build();
             }
 
             @Override
@@ -113,12 +116,14 @@ public class AdminDashboardServiceTest {
 
             @Override
             public HttpHeaders headers() {
-                return HttpHeaders.of(Map.of("content-type", List.of("application/json")), (name, value) -> true);
+                return HttpHeaders.of(
+                        Map.of("content-type", List.of("application/json")), (name, value) -> true);
             }
 
             @Override
             public InputStream body() {
-                return new ByteArrayInputStream(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                return new ByteArrayInputStream(
+                        body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
 
             @Override
@@ -184,7 +189,8 @@ public class AdminDashboardServiceTest {
         AdminDashboardCardResponse normalizedPanel = DashboardLayoutPolicy.normalizePanel(panel);
 
         assertSame(panel, normalizedPanel);
-        assertEquals("/admin/plugins/reminder/surface?scope=dashboard", normalizedPanel.getSurfaceUrl());
+        assertEquals(
+                "/admin/plugins/reminder/surface?scope=dashboard", normalizedPanel.getSurfaceUrl());
         assertEquals("/admin/plugins/reminder/surfaceAction", normalizedPanel.getActionUrl());
     }
 
@@ -311,7 +317,8 @@ public class AdminDashboardServiceTest {
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
         AdminDashboardCardConfigResponse missing = cardConfig(null, false, 1);
 
-        List<AdminDashboardCardConfigResponse> cards = layout.mergeCards(List.of(welcome, localDraft, unknown, missing));
+        List<AdminDashboardCardConfigResponse> cards =
+                layout.mergeCards(List.of(welcome, localDraft, unknown, missing));
 
         assertEquals(7, cards.size());
         assertEquals("localDraft", cards.get(0).getId());
@@ -341,8 +348,8 @@ public class AdminDashboardServiceTest {
         customView.setViewUrl("settings");
         customView.setSort(15);
 
-        List<AdminDashboardCardResponse> panels = layout.mergePluginPanels(List.of(saved, customView),
-                List.of(standard));
+        List<AdminDashboardCardResponse> panels =
+                layout.mergePluginPanels(List.of(saved, customView), List.of(standard));
 
         assertEquals(2, panels.size());
         assertEquals("reminder", panels.get(0).getId());
@@ -370,8 +377,10 @@ public class AdminDashboardServiceTest {
         pluginItem.setError("error");
         pluginItem.setSurfaceLoaded(true);
 
-        List<AdminDashboardCardConfigResponse> cards = layout.extractCardItems(List.of(cardItem, pluginItem));
-        List<AdminDashboardCardResponse> plugins = layout.extractPluginItems(List.of(cardItem, pluginItem));
+        List<AdminDashboardCardConfigResponse> cards =
+                layout.extractCardItems(List.of(cardItem, pluginItem));
+        List<AdminDashboardCardResponse> plugins =
+                layout.extractPluginItems(List.of(cardItem, pluginItem));
         layout.clearRuntimeData(List.of(pluginItem));
         List<AdminDashboardCardResponse> items = layout.toItems(cards, plugins);
 
@@ -415,22 +424,28 @@ public class AdminDashboardServiceTest {
     @Test
     public void shouldValidatePluginMetadataEntriesAndUrls() throws Exception {
 
-
         assertTrue(loader.hasEntry(List.of("/surface", "other"), "surface"));
         assertTrue(loader.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
         assertFalse(loader.hasEntry(List.of("other"), "surface"));
         assertFalse(loader.hasEntry("surface", "surface"));
-        assertTrue(loader.hasSurfaceMetadata(
-                Map.of("paths", List.of("surface"), "actions", List.of())));
-        assertFalse(loader.hasSurfaceMetadata(
-                Map.of("paths", List.of("index"), "actions", List.of("other"))));
-        assertEquals("/admin/plugins/reminder/surface", DashboardLayoutPolicy.pluginUrl("reminder", "surface"));
+        assertTrue(
+                loader.hasSurfaceMetadata(
+                        Map.of("paths", List.of("surface"), "actions", List.of())));
+        assertFalse(
+                loader.hasSurfaceMetadata(
+                        Map.of("paths", List.of("index"), "actions", List.of("other"))));
+        assertEquals(
+                "/admin/plugins/reminder/surface",
+                DashboardLayoutPolicy.pluginUrl("reminder", "surface"));
         assertEquals("reminder", DashboardLayoutPolicy.normalizePluginName(" reminder "));
         assertNull(DashboardLayoutPolicy.normalizePluginName("../reminder"));
-        assertEquals("/admin/plugins/reminder/surface?x=1",
-                DashboardLayoutPolicy.normalizePluginContextPath("/admin/plugins/reminder/surface?x=1"));
+        assertEquals(
+                "/admin/plugins/reminder/surface?x=1",
+                DashboardLayoutPolicy.normalizePluginContextPath(
+                        "/admin/plugins/reminder/surface?x=1"));
         assertNull(DashboardLayoutPolicy.normalizePluginContextPath("//example.com/surface"));
-        assertEquals("settings/index?tab=base",
+        assertEquals(
+                "settings/index?tab=base",
                 DashboardLayoutPolicy.normalizePluginViewUrl("/settings/index?tab=base"));
         assertNull(DashboardLayoutPolicy.normalizePluginViewUrl("ftp://example.com/file"));
         assertTrue(DashboardLayoutPolicy.hasParentPathSegment("a/../b"));
@@ -457,19 +472,33 @@ public class AdminDashboardServiceTest {
             pluginCard.setSort(3);
             request.setCards(List.of(pluginCard));
 
-            AdminDashboardConfigResponse config = service.saveConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), request, null, token());
-            AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
-            Map<String, Object> saved = db.queryOne("select preferences as value from user where userId=1");
-            assertNull(db.scalar("select value from website where name=?", AdminDashboardService.DASHBOARD_CONFIG_KEY));
+            AdminDashboardConfigResponse config =
+                    service.saveConfig(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .identities()
+                                    .account(token()),
+                            request,
+                            null,
+                            token());
+            AdminDashboardCardResponse pluginItem =
+                    findDashboardItem(config.getCards(), "reminder");
+            Map<String, Object> saved =
+                    db.queryOne("select preferences as value from user where userId=1");
+            assertNull(
+                    db.scalar(
+                            "select value from website where name=?",
+                            AdminDashboardService.DASHBOARD_CONFIG_KEY));
 
             assertNotNull(pluginItem);
             assertEquals("plugin", pluginItem.getKind());
             assertEquals("surface", pluginItem.getType());
             assertEquals(Boolean.TRUE, pluginItem.getSurfaceLoaded());
             assertEquals("Reminder Surface", pluginItem.getTitle());
-            assertEquals(List.of("/api/plugins", "/api/plugins", "/admin/plugins/reminder/surface"),
+            assertEquals(
+                    List.of("/api/plugins", "/api/plugins", "/admin/plugins/reminder/surface"),
                     plugin.requestedUris);
-            assertEquals("Reminder Surface", ((Map<String, Object>) pluginItem.getData()).get("title"));
+            assertEquals(
+                    "Reminder Surface", ((Map<String, Object>) pluginItem.getData()).get("title"));
             assertNotNull(saved);
             assertTrue(String.valueOf(saved.get("value")).contains("\"pluginName\":\"reminder\""));
             assertFalse(String.valueOf(saved.get("value")).contains("Reminder Surface"));
@@ -477,17 +506,26 @@ public class AdminDashboardServiceTest {
     }
 
     @Test
-    public void shouldFallbackToDefaultsAndSurfaceErrorWhenSavedConfigCannotLoadPlugin() throws Exception {
+    public void shouldFallbackToDefaultsAndSurfaceErrorWhenSavedConfigCannotLoadPlugin()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY,
+            db.putWebsite(
+                    AdminDashboardService.DASHBOARD_CONFIG_KEY,
                     "{\"cards\":[{\"kind\":\"plugin\",\"id\":\"missing\",\"enabled\":true,\"sort\":1,"
                             + "\"type\":\"surface\",\"surfaceUrl\":\"/admin/plugins/missing/surface\","
                             + "\"actionUrl\":\"/admin/plugins/missing/surfaceAction\"}],"
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
             AdminDashboardConfigResponse config =
-                    db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard()
-                            .getConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), null, token(), true);
+                    db.component(com.zrlog.admin.web.di.AdminComponent.class)
+                            .dashboard()
+                            .getConfig(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .identities()
+                                            .account(token()),
+                                    null,
+                                    token(),
+                                    true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
             assertEquals(Boolean.TRUE, config.getAutoRefreshEnabled());
@@ -499,8 +537,14 @@ public class AdminDashboardServiceTest {
 
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
             AdminDashboardConfigResponse fallback =
-                    db.component(com.zrlog.admin.web.di.AdminComponent.class).dashboard()
-                            .getConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), null, token());
+                    db.component(com.zrlog.admin.web.di.AdminComponent.class)
+                            .dashboard()
+                            .getConfig(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .identities()
+                                            .account(token()),
+                                    null,
+                                    token());
 
             assertEquals(7, fallback.getCards().size());
             assertNotNull(findDashboardItem(fallback.getCards(), "welcome"));
@@ -525,8 +569,12 @@ public class AdminDashboardServiceTest {
             FirstUseChecklistResponse dismissed = service.dismissFirstUseChecklist(1);
             assertEquals("dismissed", dismissed.getStatus());
             assertNull(service.getFirstUseChecklist());
-            assertEquals("dismissed", db.queryOne("select value from website where name=?",
-                    AdminDashboardService.FIRST_USE_CHECKLIST_KEY).get("value"));
+            assertEquals(
+                    "dismissed",
+                    db.queryOne(
+                                    "select value from website where name=?",
+                                    AdminDashboardService.FIRST_USE_CHECKLIST_KEY)
+                            .get("value"));
         }
     }
 
@@ -537,7 +585,8 @@ public class AdminDashboardServiceTest {
             SlowSurfacePluginCorePlugin plugin = new SlowSurfacePluginCorePlugin();
             db.config().getAllPlugins().add(plugin);
             try {
-                db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY,
+                db.putWebsite(
+                        AdminDashboardService.DASHBOARD_CONFIG_KEY,
                         "{\"cards\":[{\"kind\":\"plugin\",\"id\":\"reminder\",\"enabled\":true,\"sort\":1,"
                                 + "\"pluginName\":\"reminder\",\"type\":\"surface\","
                                 + "\"surfaceUrl\":\"/admin/plugins/reminder/surface\","
@@ -546,41 +595,57 @@ public class AdminDashboardServiceTest {
                 long start = System.nanoTime();
                 AdminDashboardConfigResponse config =
                         new AdminDashboardService(
-                            new WebsiteKvService(() -> new WebSiteRepository(db.dataSource())),
-                            new AdminStatisticsService(
-                                        db.unitCacheService(),
-                                        RuntimeInfoFixture.from(db.config()),
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        () -> new AdminLogRepository(db.dataSource()),
-                                        () -> new AdminCommentRepository(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
-                                        ApplicationServicesFixture.capability(
-                                                db.config(), ArticleAssistant.class),
-                                        new AdminPageDataFactory(
-                                                ApplicationServicesFixture.site(
-                                                        db.config()),
-                                                ApplicationServicesFixture.buildId(
-                                                        db.resources()),
-                                                ApplicationServicesFixture.messages(
-                                                        db.dataSource())),
-                                        AccountServicesFixture.component(db.dataSource())
-                                                .permissions(),
+                                        new WebsiteKvService(
+                                                () -> new WebSiteRepository(db.dataSource())),
+                                        new AdminStatisticsService(
+                                                db.unitCacheService(),
+                                                RuntimeInfoFixture.from(db.config()),
+                                                ApplicationServicesFixture.audit(db.dataSource()),
+                                                () -> new AdminLogRepository(db.dataSource()),
+                                                () -> new AdminCommentRepository(db.dataSource())),
+                                        new ArticleQueryService(
+                                                db.unitCacheService(),
+                                                ApplicationServicesFixture.capability(
+                                                        db.config(), ArticleAssistant.class),
+                                                new AdminPageDataFactory(
+                                                        ApplicationServicesFixture.site(
+                                                                db.config()),
+                                                        ApplicationServicesFixture.buildId(
+                                                                db.resources()),
+                                                        ApplicationServicesFixture.messages(
+                                                                db.dataSource())),
+                                                AccountServicesFixture.component(db.dataSource())
+                                                        .permissions(),
+                                                AccountServicesFixture.component(db.dataSource())
+                                                        .preferences(),
+                                                () -> new AdminLogRepository(db.dataSource())),
+                                        new com.zrlog.admin.business.service.DashboardPluginLoader(
+                                                () -> db.config().getPlugin(PluginCorePlugin.class),
+                                                50),
                                         AccountServicesFixture.component(db.dataSource())
                                                 .preferences(),
-                                        () -> new AdminLogRepository(db.dataSource())),
-                            new com.zrlog.admin.business.service.DashboardPluginLoader(() -> db.config().getPlugin(PluginCorePlugin.class), 50),
-                            AccountServicesFixture.component(db.dataSource())
-                                        .preferences(),
-                            new com.zrlog.admin.business.service.DashboardLayoutPolicy())
-                                .getConfig(AccountServicesFixture.component(db.dataSource()).identities().account(token()), null, token(), true);
+                                        new com.zrlog.admin.business.service
+                                                .DashboardLayoutPolicy())
+                                .getConfig(
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .identities()
+                                                .account(token()),
+                                        null,
+                                        token(),
+                                        true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-                AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
+                AdminDashboardCardResponse pluginItem =
+                        findDashboardItem(config.getCards(), "reminder");
 
-                assertTrue("dashboard preload should timeout quickly, elapsed=" + elapsedMillis, elapsedMillis < 1000);
+                assertTrue(
+                        "dashboard preload should timeout quickly, elapsed=" + elapsedMillis,
+                        elapsedMillis < 1000);
                 assertNotNull(pluginItem);
                 assertEquals(Boolean.FALSE, pluginItem.getSurfaceLoaded());
                 assertNotNull(pluginItem.getError());
-                assertTrue("Timed-out plugin work must be interrupted", plugin.interrupted.await(1, TimeUnit.SECONDS));
+                assertTrue(
+                        "Timed-out plugin work must be interrupted",
+                        plugin.interrupted.await(1, TimeUnit.SECONDS));
             } finally {
                 plugin.release.countDown();
                 db.config().getAllPlugins().remove(plugin);
@@ -592,35 +657,45 @@ public class AdminDashboardServiceTest {
         private final List<String> requestedUris = new ArrayList<>();
 
         @Override
-        public boolean refreshCache(String cacheVersion, com.hibegin.http.server.api.HttpRequest request) {
+        public boolean refreshCache(
+                String cacheVersion, com.hibegin.http.server.api.HttpRequest request) {
             return true;
         }
 
         @Override
-        public CloseResponseHandle getContext(String uri, HttpMethod method,
-                                              com.hibegin.http.server.api.HttpRequest request,
-                                              AdminTokenVO adminTokenVO) {
+        public CloseResponseHandle getContext(
+                String uri,
+                HttpMethod method,
+                com.hibegin.http.server.api.HttpRequest request,
+                AdminTokenVO adminTokenVO) {
             requestedUris.add(uri);
             if ("/api/plugins".equals(uri)) {
-                return closeResponse("{\"plugins\":[{\"shortName\":\"reminder\",\"paths\":[\"surface\"],"
-                        + "\"actions\":[\"surfaceAction\"],\"indexPage\":\"settings\"}]}");
+                return closeResponse(
+                        "{\"plugins\":[{\"shortName\":\"reminder\",\"paths\":[\"surface\"],"
+                                + "\"actions\":[\"surfaceAction\"],\"indexPage\":\"settings\"}]}");
             }
             if ("/admin/plugins/reminder/surface".equals(uri)) {
-                return closeResponse("{\"success\":true,\"data\":{\"title\":\"Reminder Surface\",\"count\":2}}");
+                return closeResponse(
+                        "{\"success\":true,\"data\":{\"title\":\"Reminder Surface\",\"count\":2}}");
             }
             return closeResponse("{\"success\":false,\"message\":\"missing\"}");
         }
 
         @Override
-        public <T> T requestService(com.hibegin.http.server.api.HttpRequest inputRequest,
-                                    Map<String, String[]> params, AdminTokenVO adminTokenVO, Class<T> clazz) {
+        public <T> T requestService(
+                com.hibegin.http.server.api.HttpRequest inputRequest,
+                Map<String, String[]> params,
+                AdminTokenVO adminTokenVO,
+                Class<T> clazz) {
             return null;
         }
 
         @Override
-        public boolean accessPlugin(String uri, com.hibegin.http.server.api.HttpRequest request,
-                                    com.hibegin.http.server.api.HttpResponse response,
-                                    AdminTokenVO adminTokenVO) {
+        public boolean accessPlugin(
+                String uri,
+                com.hibegin.http.server.api.HttpRequest request,
+                com.hibegin.http.server.api.HttpResponse response,
+                AdminTokenVO adminTokenVO) {
             return false;
         }
 
@@ -646,12 +721,17 @@ public class AdminDashboardServiceTest {
     }
 
     private static class SlowSurfacePluginCorePlugin extends FakePluginCorePlugin {
-        private final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
-        private final java.util.concurrent.CountDownLatch interrupted = new java.util.concurrent.CountDownLatch(1);
+        private final java.util.concurrent.CountDownLatch release =
+                new java.util.concurrent.CountDownLatch(1);
+        private final java.util.concurrent.CountDownLatch interrupted =
+                new java.util.concurrent.CountDownLatch(1);
+
         @Override
-        public CloseResponseHandle getContext(String uri, HttpMethod method,
-                                              com.hibegin.http.server.api.HttpRequest request,
-                                              AdminTokenVO adminTokenVO) {
+        public CloseResponseHandle getContext(
+                String uri,
+                HttpMethod method,
+                com.hibegin.http.server.api.HttpRequest request,
+                AdminTokenVO adminTokenVO) {
             if ("/admin/plugins/reminder/surface".equals(uri)) {
                 try {
                     release.await();

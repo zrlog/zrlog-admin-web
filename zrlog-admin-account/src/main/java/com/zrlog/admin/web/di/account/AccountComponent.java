@@ -20,7 +20,6 @@ import dagger.BindsInstance;
 import dagger.Component;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;

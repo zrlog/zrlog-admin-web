@@ -5,27 +5,31 @@ import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.LongSupplier;
 
-/** Submits a confirmed upgrade policy and records the exact target before touching the application. */
+/**
+ * Submits a confirmed upgrade policy and records the exact target before touching the application.
+ */
 public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider {
     static final String KEY = "assistant.v1.upgrade";
     private final AutomationStore store;
     private final Operations operations;
     private final LongSupplier clock;
 
-    public AutomaticUpgradeTaskProvider(AutomationStore store, Operations operations, LongSupplier clock) {
+    public AutomaticUpgradeTaskProvider(
+            AutomationStore store, Operations operations, LongSupplier clock) {
         this.store = store;
         this.operations = operations;
         this.clock = clock;
     }
 
     @Override
-    public List<String> types() { return List.of("system.auto-upgrade"); }
+    public List<String> types() {
+        return List.of("system.auto-upgrade");
+    }
 
     @Override
     public List<AutomationModels.Definition> definitions() {
@@ -61,10 +65,13 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
-    public JsonObject prepare(String type, JsonObject parameters, AccountAccess actor) throws SQLException {
+    public JsonObject prepare(String type, JsonObject parameters, AccountAccess actor)
+            throws SQLException {
         TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
-        if (!operations.available()) throw new IllegalArgumentException("automation.taskUnavailable");
-        if (!parameters.has("channel") || !parameters.get("channel").isJsonPrimitive()
+        if (!operations.available())
+            throw new IllegalArgumentException("automation.taskUnavailable");
+        if (!parameters.has("channel")
+                || !parameters.get("channel").isJsonPrimitive()
                 || !parameters.getAsJsonPrimitive("channel").isString()
                 || !operations.channel().equals(parameters.get("channel").getAsString())) {
             throw new IllegalArgumentException("automation.upgrade.channelChanged");
@@ -90,46 +97,59 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     @Override
     public boolean awaitingCompletion(String type, JsonObject parameters) throws SQLException {
         var receipt = store.read(KEY, Receipt.class);
-        return receipt != null && "assistant".equals(receipt.value.source)
-                && !"confirmed".equals(receipt.value.state) && installed(receipt.value);
+        return receipt != null
+                && "assistant".equals(receipt.value.source)
+                && !"confirmed".equals(receipt.value.state)
+                && installed(receipt.value);
     }
 
     @Override
-    public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
+    public AutomationModels.Result execute(
+            String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
         context.checkActive();
         TaskAuthority.require(context.actor(), AccountAction.SYSTEM_MANAGE.getId());
         if (!operations.available()) return attention("unsupported");
-        if (!Objects.equals(parameters.get("channel").getAsString(), operations.channel())) return attention("channelChanged");
+        if (!Objects.equals(parameters.get("channel").getAsString(), operations.channel()))
+            return attention("channelChanged");
         var before = store.read(KEY, Receipt.class);
-        if (before != null && !"confirmed".equals(before.value.state)
+        if (before != null
+                && !"confirmed".equals(before.value.state)
                 && !("manual".equals(before.value.source) && installed(before.value))) {
             Receipt previous = before.value;
             if (installed(previous)) {
                 return UpgradeResourceCompletion.result(previous, false);
             }
-            boolean retry = parameters.has("retryReceiptId")
-                    && previous.runId.equals(parameters.get("retryReceiptId").getAsString())
-                    && canRetry(previous);
+            boolean retry =
+                    parameters.has("retryReceiptId")
+                            && previous.runId.equals(parameters.get("retryReceiptId").getAsString())
+                            && canRetry(previous);
             if (!retry) {
-                return clock.getAsLong() - previous.startedAt > 1800000 ? attention("unconfirmed") : submitted(previous);
+                return clock.getAsLong() - previous.startedAt > 1800000
+                        ? attention("unconfirmed")
+                        : submitted(previous);
             }
         }
         PreCheckVersionResponse check;
-        try { check = operations.check(); }
-        catch (RuntimeException error) {
+        try {
+            check = operations.check();
+        } catch (RuntimeException error) {
             var failed = AutomationModels.Result.success("admin.assistant.version.error.failed");
             failed.status = "failed";
             return failed;
         }
         context.checkActive();
-        if (!Objects.equals(parameters.get("channel").getAsString(), operations.channel())) return attention("channelChanged");
-        if (!Boolean.TRUE.equals(check.getUpgrade())) return AutomationModels.Result.success("admin.assistant.version.status.current");
+        if (!Objects.equals(parameters.get("channel").getAsString(), operations.channel()))
+            return attention("channelChanged");
+        if (!Boolean.TRUE.equals(check.getUpgrade()))
+            return AutomationModels.Result.success("admin.assistant.version.status.current");
         if (!Boolean.TRUE.equals(check.getOnlineUpgradable())) return attention("unsupported");
-        if (check.getBackupProtection() != null && Boolean.TRUE.equals(check.getBackupProtection().getRequiresRiskAcceptance())) {
+        if (check.getBackupProtection() != null
+                && Boolean.TRUE.equals(check.getBackupProtection().getRequiresRiskAcceptance())) {
             return attention("backupReview");
         }
         Version version = check.getVersion();
-        if (version == null || version.getBuildId() == null || version.getBuildId().isBlank()) return attention("targetUnknown");
+        if (version == null || version.getBuildId() == null || version.getBuildId().isBlank())
+            return attention("targetUnknown");
         if (version.getBuildId().equals(operations.currentBuildId()))
             return AutomationModels.Result.success("admin.assistant.version.status.current");
         Receipt receipt = new Receipt();
@@ -140,19 +160,27 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         receipt.startedAt = clock.getAsLong();
         receipt.state = "pending";
         receipt.source = "assistant";
-        // One application-wide claim prevents separate authorized tasks from submitting two upgrades.
-        if (!store.writeAuthorized(KEY, before, receipt, context.actor())) return attention("pending");
+        // One application-wide claim prevents separate authorized tasks from submitting two
+        // upgrades.
+        if (!store.writeAuthorized(KEY, before, receipt, context.actor()))
+            return attention("pending");
         context.checkActive();
         boolean accepted = operations.submit(version, context);
         return accepted ? submitted(receipt) : attention("unconfirmed");
     }
 
     @Override
-    public AutomationModels.Result recover(String type, JsonObject parameters, String runId, AccountAccess actor) throws SQLException {
+    public AutomationModels.Result recover(
+            String type, JsonObject parameters, String runId, AccountAccess actor)
+            throws SQLException {
         TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
         var receipt = store.read(KEY, Receipt.class);
-        return receipt != null && receipt.value.runId.equals(runId) && installed(receipt.value)
-                && "confirmed".equals(receipt.value.state) ? UpgradeResourceCompletion.result(receipt.value, true) : null;
+        return receipt != null
+                        && receipt.value.runId.equals(runId)
+                        && installed(receipt.value)
+                        && "confirmed".equals(receipt.value.state)
+                ? UpgradeResourceCompletion.result(receipt.value, true)
+                : null;
     }
 
     private boolean retryAvailable() {
@@ -165,15 +193,21 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     private boolean canRetry(Receipt receipt) throws SQLException {
-        if (!"assistant".equals(receipt.source) || installed(receipt) || "confirmed".equals(receipt.state)) return false;
+        if (!"assistant".equals(receipt.source)
+                || installed(receipt)
+                || "confirmed".equals(receipt.state)) return false;
         var run = store.run(receipt.runId);
-        return run != null && run.value.finishedAt != null
+        return run != null
+                && run.value.finishedAt != null
                 && (List.of("uncertain", "needs_attention").contains(run.value.status)
-                || ("submitted".equals(run.value.status) && clock.getAsLong() - receipt.startedAt > 1800000));
+                        || ("submitted".equals(run.value.status)
+                                && clock.getAsLong() - receipt.startedAt > 1800000));
     }
 
     private boolean installed(Receipt receipt) {
-        return receipt.buildId != null && !receipt.buildId.isBlank() && receipt.buildId.equals(operations.currentBuildId());
+        return receipt.buildId != null
+                && !receipt.buildId.isBlank()
+                && receipt.buildId.equals(operations.currentBuildId());
     }
 
     /** Complete the original execution independently of its next schedule or enabled state. */
@@ -181,9 +215,11 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         new UpgradeResourceCompletion(store, authority, operations, clock).complete(budgetMillis);
     }
 
-    public void completeInstalled(TaskAuthority authority, long budgetMillis,
-                                  AutomationStore.Snapshot<Receipt> receipt) throws SQLException {
-        new UpgradeResourceCompletion(store, authority, operations, clock).complete(budgetMillis, receipt);
+    public void completeInstalled(
+            TaskAuthority authority, long budgetMillis, AutomationStore.Snapshot<Receipt> receipt)
+            throws SQLException {
+        new UpgradeResourceCompletion(store, authority, operations, clock)
+                .complete(budgetMillis, receipt);
     }
 
     private static AutomationModels.Result submitted(Receipt receipt) {
@@ -203,10 +239,15 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
 
     public interface Operations {
         boolean available();
+
         String channel();
+
         String currentBuildId();
+
         PreCheckVersionResponse check();
+
         boolean submit(Version target, TaskExecutionContext context) throws Exception;
+
         void synchronizeResources(TaskExecutionContext context) throws Exception;
     }
 

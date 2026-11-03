@@ -3,8 +3,7 @@ package com.zrlog.admin.business.security;
 import java.util.List;
 
 public final class AccessModels {
-    private AccessModels() {
-    }
+    private AccessModels() {}
 
     public static class Action {
         public String id;

@@ -1,8 +1,6 @@
 package com.zrlog.admin.data.dto;
 
-/**
- * commentId as id,userComment,header,commTime,userMail,userHome,userIp,userName,hide,logId
- */
+/** commentId as id,userComment,header,commTime,userMail,userHome,userIp,userName,hide,logId */
 public class CommentDTO {
 
     private Long id;

@@ -10,7 +10,6 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 
 public class ArticleRevisionService {
@@ -29,7 +28,11 @@ public class ArticleRevisionService {
     }
 
     public ArticleVersionCompareResponse compare(
-            AccountAccess actor, Integer id, Integer fromVersion, Integer toVersion, HttpRequest request)
+            AccountAccess actor,
+            Integer id,
+            Integer fromVersion,
+            Integer toVersion,
+            HttpRequest request)
             throws SQLException {
         LoadEditArticleResponse current = queries.loadDetail(actor, id.toString(), request);
         return versions.compare(
@@ -47,7 +50,8 @@ public class ArticleRevisionService {
                 || body.getTargetVersion() == null) {
             throw new ArgsException("logId/version/targetVersion");
         }
-        LoadEditArticleResponse current = queries.loadDetail(actor, body.getLogId().toString(), request);
+        LoadEditArticleResponse current =
+                queries.loadDetail(actor, body.getLogId().toString(), request);
         LoadEditArticleResponse target =
                 versions.loadVersion(body.getLogId(), body.getTargetVersion(), current);
         UpdateArticleRequest update = BeanUtil.convert(target, UpdateArticleRequest.class);

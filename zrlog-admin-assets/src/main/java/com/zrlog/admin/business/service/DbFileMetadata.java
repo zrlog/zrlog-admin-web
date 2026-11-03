@@ -13,7 +13,8 @@ public final class DbFileMetadata {
     public int chunkSize;
     public int chunkCount;
 
-    // Persist cleanup ownership before writing/deleting any chunks. These fields also fence stale writers.
+    // Persist cleanup ownership before writing/deleting any chunks. These fields also fence stale
+    // writers.
     public String pendingBatch;
     public long pendingUntil;
     public String retiredBatch;

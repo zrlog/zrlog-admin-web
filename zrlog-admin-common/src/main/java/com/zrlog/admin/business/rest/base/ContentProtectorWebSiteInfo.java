@@ -3,21 +3,20 @@ package com.zrlog.admin.business.rest.base;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.common.Validator;
 import com.zrlog.data.util.WebSiteUtils;
-
 import java.util.Arrays;
 import java.util.List;
 
 public class ContentProtectorWebSiteInfo implements Validator {
 
-    private static final List<String> SUPPORTED_LICENSE_TYPES = Arrays.asList(
-            "ALL_RIGHTS_RESERVED",
-            "CC_BY_4_0",
-            "CC_BY_SA_4_0",
-            "CC_BY_ND_4_0",
-            "CC_BY_NC_4_0",
-            "CC_BY_NC_SA_4_0",
-            "CC_BY_NC_ND_4_0"
-    );
+    private static final List<String> SUPPORTED_LICENSE_TYPES =
+            Arrays.asList(
+                    "ALL_RIGHTS_RESERVED",
+                    "CC_BY_4_0",
+                    "CC_BY_SA_4_0",
+                    "CC_BY_ND_4_0",
+                    "CC_BY_NC_4_0",
+                    "CC_BY_NC_SA_4_0",
+                    "CC_BY_NC_ND_4_0");
 
     private Boolean content_protector_enabled;
     private String content_protector_license_type;

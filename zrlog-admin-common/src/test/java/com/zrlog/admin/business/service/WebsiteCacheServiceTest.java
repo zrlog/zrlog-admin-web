@@ -1,23 +1,23 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.reflect.TypeToken;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.business.service.WebsiteKvService;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class WebsiteCacheServiceTest {
 
-    private static WebsiteCacheService service(FakeWebsiteKvService kvService, DataSourceWrapper testDataSource) throws Exception {
+    private static WebsiteCacheService service(
+            FakeWebsiteKvService kvService, DataSourceWrapper testDataSource) throws Exception {
         WebsiteCacheService service =
                 new WebsiteCacheService(ApplicationServicesFixture.websiteKv(testDataSource));
         Field field = WebsiteCacheService.class.getDeclaredField("kvService");
@@ -34,8 +34,7 @@ public class WebsiteCacheServiceTest {
         kv.values.put("admin_cache:list", "[{\"name\":\"one\"}]");
         kv.values.put("admin_cache:bad", "{");
         WebsiteCacheService service = service(kv, null);
-        Type listType = new TypeToken<List<Map<String, Object>>>() {
-        }.getType();
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
 
         Map<String, Object> config = service.getJson("config", Map.class);
         assertEquals("admin_cache:config", kv.lastGetKey);
@@ -58,10 +57,7 @@ public class WebsiteCacheServiceTest {
     @Test
     public void shouldListCachedWebsiteKvEntries() throws Exception {
         FakeWebsiteKvService kv = new FakeWebsiteKvService();
-        kv.rows = List.of(
-                entry("admin_cache:a", "one", 3),
-                entry("admin_cache:b", "two", 4)
-        );
+        kv.rows = List.of(entry("admin_cache:a", "one", 3), entry("admin_cache:b", "two", 4));
         WebsiteCacheService service = service(kv, null);
 
         List<WebsiteKvEntryResponse> entries = service.listEntries();
@@ -77,7 +73,9 @@ public class WebsiteCacheServiceTest {
 
     private static WebsiteKvService.Entry entry(String name, String value, long size) {
         WebsiteKvService.Entry row = new WebsiteKvService.Entry();
-        row.name = name; row.value = value; row.size = size;
+        row.name = name;
+        row.value = value;
+        row.size = size;
         return row;
     }
 
@@ -88,10 +86,12 @@ public class WebsiteCacheServiceTest {
         private String lastPutKey;
         private String lastRemoveKey;
         private String lastListPrefix;
+
         FakeWebsiteKvService() {
-            super(() -> {
-                throw new AssertionError("Unexpected database access");
-            });
+            super(
+                    () -> {
+                        throw new AssertionError("Unexpected database access");
+                    });
         }
 
         @Override

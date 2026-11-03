@@ -4,7 +4,6 @@ import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.model.User;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.Map;
 
@@ -21,7 +20,8 @@ public class AdminUserRepository extends UserRepository {
     }
 
     public String getPasswordByUserId(int userId) throws SQLException {
-        return (String) queryFirstObj("select password from " + tableName + " where userId=?", userId);
+        return (String)
+                queryFirstObj("select password from " + tableName + " where userId=?", userId);
     }
 
     public boolean updatePassword(int userId, String password) throws SQLException {
@@ -31,7 +31,8 @@ public class AdminUserRepository extends UserRepository {
         return update(user);
     }
 
-    public void updateEmailUserNameHeaderByUserId(String email, String userName, String header, int userId) throws SQLException {
+    public void updateEmailUserNameHeaderByUserId(
+            String email, String userName, String header, int userId) throws SQLException {
         User user = loadById((long) userId);
         if (user == null) return;
         user.setHeader(header);

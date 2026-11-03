@@ -15,9 +15,17 @@ public class ServerInfoSnapshot {
     private final String dbServerVersion;
     private final String fileEncoding;
 
-    public ServerInfoSnapshot(String osName, String osArch, String osVersion, String runtimePath, String javaVmName,
-                              String javaVersion, String webServer, String timezone, String dbServerVersion,
-                              String fileEncoding) {
+    public ServerInfoSnapshot(
+            String osName,
+            String osArch,
+            String osVersion,
+            String runtimePath,
+            String javaVmName,
+            String javaVersion,
+            String webServer,
+            String timezone,
+            String dbServerVersion,
+            String fileEncoding) {
         this.osName = osName;
         this.osArch = osArch;
         this.osVersion = osVersion;
@@ -41,8 +49,7 @@ public class ServerInfoSnapshot {
                 value(properties, "server.info"),
                 value(properties, "user.timezone"),
                 value(properties, "dbServer.version"),
-                value(properties, "file.encoding")
-        );
+                value(properties, "file.encoding"));
     }
 
     private static String value(Properties properties, String key) {
@@ -51,8 +58,17 @@ public class ServerInfoSnapshot {
     }
 
     public ServerInfoSnapshot withWebServer(String webServer) {
-        return new ServerInfoSnapshot(osName, osArch, osVersion, runtimePath, javaVmName, javaVersion, webServer,
-                timezone, dbServerVersion, fileEncoding);
+        return new ServerInfoSnapshot(
+                osName,
+                osArch,
+                osVersion,
+                runtimePath,
+                javaVmName,
+                javaVersion,
+                webServer,
+                timezone,
+                dbServerVersion,
+                fileEncoding);
     }
 
     public String getOsName() {

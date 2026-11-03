@@ -11,7 +11,8 @@ public class MessageCenterNoticeResponse {
     private Long updatedAt;
     private Object payload;
 
-    public static MessageCenterNoticeResponse of(String taskKey, String type, String status, Long updatedAt, Object payload) {
+    public static MessageCenterNoticeResponse of(
+            String taskKey, String type, String status, Long updatedAt, Object payload) {
         MessageCenterNoticeResponse response = new MessageCenterNoticeResponse();
         response.setTaskKey(taskKey);
         response.setType(type);

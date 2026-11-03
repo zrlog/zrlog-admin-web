@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
@@ -7,20 +9,20 @@ import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.knowledge.ContentToolCatalog;
-import org.junit.Test;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class OpenAIResponsesAdapterTest {
-    static final String REASONING = "{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"检查文章🙂\"}],\"encrypted_content\":\"opaque-state\"}";
-    static final String MESSAGE = "{\"type\":\"message\",\"id\":\"msg_1\",\"role\":\"assistant\",\"status\":\"completed\",\"phase\":\"final_answer\",\"content\":[{\"type\":\"output_text\",\"text\":\"Answer\",\"annotations\":[]}]}";
-    static final String CALL = "{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"read_article\",\"arguments\":\"{\\\"id\\\":7}\",\"status\":\"completed\"}";
+    static final String REASONING =
+            "{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"检查文章🙂\"}],\"encrypted_content\":\"opaque-state\"}";
+    static final String MESSAGE =
+            "{\"type\":\"message\",\"id\":\"msg_1\",\"role\":\"assistant\",\"status\":\"completed\",\"phase\":\"final_answer\",\"content\":[{\"type\":\"output_text\",\"text\":\"Answer\",\"annotations\":[]}]}";
+    static final String CALL =
+            "{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"read_article\",\"arguments\":\"{\\\"id\\\":7}\",\"status\":\"completed\"}";
     private final Gson gson = new Gson();
     private final OpenAIResponsesAdapter adapter = new OpenAIResponsesAdapter();
 
@@ -36,8 +38,12 @@ public class OpenAIResponsesAdapterTest {
         return frame("{\"type\":\"response.completed\",\"response\":" + completed(output) + "}");
     }
 
-    private AIProviderResponses.Choice read(String body, boolean sse, boolean summaries, List<String> events) throws IOException {
-        return adapter.read(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)), sse, summaries,
+    private AIProviderResponses.Choice read(
+            String body, boolean sse, boolean summaries, List<String> events) throws IOException {
+        return adapter.read(
+                new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)),
+                sse,
+                summaries,
                 (type, text) -> events.add(type + ":" + text));
     }
 
@@ -46,15 +52,22 @@ public class OpenAIResponsesAdapterTest {
         request.setModel("gpt-6-astra");
         request.setStream(true);
         request.setMaxCompletionTokens(8192);
-        request.setMessages(new ArrayList<>(List.of(new AIProviderRequests.Message("system", "Prompt"),
-                new AIProviderRequests.Message("user", "Question"))));
+        request.setMessages(
+                new ArrayList<>(
+                        List.of(
+                                new AIProviderRequests.Message("system", "Prompt"),
+                                new AIProviderRequests.Message("user", "Question"))));
         return request;
     }
 
     @Test
     public void buildsStatelessResponsesRequestAndPreservesOptionalToolFields() {
         var completion = completion();
-        completion.tools = List.of(gson.fromJson("{\"type\":\"function\",\"function\":{\"name\":\"read_article\",\"description\":\"Read\",\"parameters\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"}}}}}", AIProviderRequests.Tool.class));
+        completion.tools =
+                List.of(
+                        gson.fromJson(
+                                "{\"type\":\"function\",\"function\":{\"name\":\"read_article\",\"description\":\"Read\",\"parameters\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"}}}}}",
+                                AIProviderRequests.Tool.class));
         JsonObject body = gson.toJsonTree(adapter.request(completion, true)).getAsJsonObject();
         assertEquals("gpt-6-astra", body.get("model").getAsString());
         assertEquals("auto", body.getAsJsonObject("reasoning").get("summary").getAsString());
@@ -62,10 +75,13 @@ public class OpenAIResponsesAdapterTest {
         assertEquals(8192, body.get("max_output_tokens").getAsInt());
         assertTrue(body.get("stream").getAsBoolean());
         assertFalse(body.get("store").getAsBoolean());
-        assertEquals("reasoning.encrypted_content", body.getAsJsonArray("include").get(0).getAsString());
+        assertEquals(
+                "reasoning.encrypted_content", body.getAsJsonArray("include").get(0).getAsString());
         assertFalse(body.has("messages"));
         assertFalse(body.has("max_completion_tokens"));
-        assertEquals("system", body.getAsJsonArray("input").get(0).getAsJsonObject().get("role").getAsString());
+        assertEquals(
+                "system",
+                body.getAsJsonArray("input").get(0).getAsJsonObject().get("role").getAsString());
         JsonObject tool = body.getAsJsonArray("tools").get(0).getAsJsonObject();
         assertEquals("read_article", tool.get("name").getAsString());
         assertFalse(tool.has("function"));
@@ -84,23 +100,38 @@ public class OpenAIResponsesAdapterTest {
 
     @Test
     public void emitsSummaryBeforeCompletionAndDoesNotDuplicateSnapshots() throws Exception {
-        try (PipedInputStream input = new PipedInputStream(4096); PipedOutputStream output = new PipedOutputStream(input)) {
+        try (PipedInputStream input = new PipedInputStream(4096);
+                PipedOutputStream output = new PipedOutputStream(input)) {
             CountDownLatch first = new CountDownLatch(1);
             List<String> events = new CopyOnWriteArrayList<>();
             ExecutorService pool = Executors.newSingleThreadExecutor();
             try {
-                Future<AIProviderResponses.Choice> result = pool.submit(() -> adapter.read(input, true, true, (type, text) -> {
-                    events.add(type + ":" + text);
-                    first.countDown();
-                }));
-                byte[] bytes = frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}").getBytes(StandardCharsets.UTF_8);
+                Future<AIProviderResponses.Choice> result =
+                        pool.submit(
+                                () ->
+                                        adapter.read(
+                                                input,
+                                                true,
+                                                true,
+                                                (type, text) -> {
+                                                    events.add(type + ":" + text);
+                                                    first.countDown();
+                                                }));
+                byte[] bytes =
+                        frame(
+                                        "{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
+                                .getBytes(StandardCharsets.UTF_8);
                 for (byte value : bytes) output.write(value);
                 output.flush();
                 assertTrue(first.await(3, TimeUnit.SECONDS));
                 assertFalse(result.isDone());
-                output.write((frame("{\"type\":\"response.reasoning_summary_text.done\",\"text\":\"检查文章🙂\"}")
-                        + frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
-                        + terminal(REASONING + "," + MESSAGE)).getBytes(StandardCharsets.UTF_8));
+                output.write(
+                        (frame(
+                                                "{\"type\":\"response.reasoning_summary_text.done\",\"text\":\"检查文章🙂\"}")
+                                        + frame(
+                                                "{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
+                                        + terminal(REASONING + "," + MESSAGE))
+                                .getBytes(StandardCharsets.UTF_8));
                 output.flush();
                 var reply = result.get(3, TimeUnit.SECONDS).getMessage();
                 assertEquals("检查文章🙂", reply.getReasoningText());
@@ -114,9 +145,12 @@ public class OpenAIResponsesAdapterTest {
     }
 
     @Test
-    public void replaysOpaqueReasoningPhaseAndToolCallIdsWithoutDuplicatingAssistantContent() throws Exception {
+    public void replaysOpaqueReasoningPhaseAndToolCallIdsWithoutDuplicatingAssistantContent()
+            throws Exception {
         List<String> events = new ArrayList<>();
-        var reply = read(terminal(REASONING + "," + MESSAGE + "," + CALL), true, true, events).getMessage();
+        var reply =
+                read(terminal(REASONING + "," + MESSAGE + "," + CALL), true, true, events)
+                        .getMessage();
         assertEquals("call_1", reply.toolCalls.get(0).id);
         var completion = completion();
         var assistant = new AIProviderRequests.Message("assistant", reply.getContent());
@@ -147,11 +181,16 @@ public class OpenAIResponsesAdapterTest {
     }
 
     @Test
-    public void disablingSummariesDropsVisibleContentButKeepsOpaqueContinuationAndJsonFallback() throws Exception {
+    public void disablingSummariesDropsVisibleContentButKeepsOpaqueContinuationAndJsonFallback()
+            throws Exception {
         for (boolean sse : List.of(false, true)) {
             List<String> events = new ArrayList<>();
-            String body = sse ? frame("{\"type\":\"response.reasoning_summary_text.delta\",\"delta\":\"hidden\"}") + terminal(REASONING + "," + MESSAGE)
-                    : completed(REASONING + "," + MESSAGE);
+            String body =
+                    sse
+                            ? frame(
+                                            "{\"type\":\"response.reasoning_summary_text.delta\",\"delta\":\"hidden\"}")
+                                    + terminal(REASONING + "," + MESSAGE)
+                            : completed(REASONING + "," + MESSAGE);
             var reply = read(body, sse, false, events).getMessage();
             assertNull(reply.getReasoningText());
             assertEquals(List.of("delta:Answer"), events);
@@ -163,53 +202,126 @@ public class OpenAIResponsesAdapterTest {
 
     @Test
     public void supportsMultipleSummaryPartsAndRefusals() throws Exception {
-        String reasoning = REASONING.replace("检查文章🙂", "First").replace("}],", "},{\"type\":\"summary_text\",\"text\":\"Second\"}],");
-        String message = MESSAGE.replace("\"output_text\",\"text\":\"Answer\",\"annotations\":[]", "\"refusal\",\"refusal\":\"Cannot comply\"");
+        String reasoning =
+                REASONING
+                        .replace("检查文章🙂", "First")
+                        .replace("}],", "},{\"type\":\"summary_text\",\"text\":\"Second\"}],");
+        String message =
+                MESSAGE.replace(
+                        "\"output_text\",\"text\":\"Answer\",\"annotations\":[]",
+                        "\"refusal\",\"refusal\":\"Cannot comply\"");
         List<String> events = new ArrayList<>();
-        var reply = read(frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"First\"}")
-                + frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":1,\"delta\":\"Second\"}")
-                + frame("{\"type\":\"response.refusal.delta\",\"delta\":\"Cannot comply\"}") + terminal(reasoning + "," + message), true, true, events).getMessage();
+        var reply =
+                read(
+                                frame(
+                                                "{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"First\"}")
+                                        + frame(
+                                                "{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":1,\"delta\":\"Second\"}")
+                                        + frame(
+                                                "{\"type\":\"response.refusal.delta\",\"delta\":\"Cannot comply\"}")
+                                        + terminal(reasoning + "," + message),
+                                true,
+                                true,
+                                events)
+                        .getMessage();
         assertEquals("First\n\nSecond", reply.getReasoningText());
         assertEquals("Cannot comply", reply.getContent());
-        assertEquals(List.of("reasoning_delta:First", "reasoning_delta:\n\n", "reasoning_delta:Second", "delta:Cannot comply"), events);
+        assertEquals(
+                List.of(
+                        "reasoning_delta:First",
+                        "reasoning_delta:\n\n",
+                        "reasoning_delta:Second",
+                        "delta:Cannot comply"),
+                events);
     }
 
     @Test
     public void truncationCanContinueProseButNeverExecutesPartialTools() throws Exception {
-        String incomplete = completed(REASONING + "," + MESSAGE).replace("\"status\":\"completed\",\"output\"", "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
+        String incomplete =
+                completed(REASONING + "," + MESSAGE)
+                        .replace(
+                                "\"status\":\"completed\",\"output\"",
+                                "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
         assertEquals("length", read(incomplete, false, true, new ArrayList<>()).getFinishReason());
-        assertThrows(AIIncompleteResponseException.class, () -> read(incomplete.replace(MESSAGE, CALL), false, true, new ArrayList<>()));
-        assertThrows(AIIncompleteResponseException.class, () -> read(incomplete.replace("max_output_tokens", "content_filter"), false, true, new ArrayList<>()));
-        for (String body : List.of("", "data: [DONE]\n\n", frame("{\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}"))) {
-            assertThrows(AIIncompleteResponseException.class, () -> read(body, true, true, new ArrayList<>()));
+        assertThrows(
+                AIIncompleteResponseException.class,
+                () -> read(incomplete.replace(MESSAGE, CALL), false, true, new ArrayList<>()));
+        assertThrows(
+                AIIncompleteResponseException.class,
+                () ->
+                        read(
+                                incomplete.replace("max_output_tokens", "content_filter"),
+                                false,
+                                true,
+                                new ArrayList<>()));
+        for (String body :
+                List.of(
+                        "",
+                        "data: [DONE]\n\n",
+                        frame("{\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}"))) {
+            assertThrows(
+                    AIIncompleteResponseException.class,
+                    () -> read(body, true, true, new ArrayList<>()));
         }
     }
 
     @Test
     public void rejectsErrorsMalformedToolsAndExcessiveInput() {
-        for (String body : List.of(frame("{\"type\":\"error\",\"message\":\"private detail\"}"),
-                frame("{\"type\":\"response.failed\"}"), "data: null\n\n", "data: {broken}\n\n",
-                terminal(CALL + "," + CALL), terminal(CALL.replace("\"completed\"", "\"in_progress\"")),
-                terminal(CALL.replace("\"call_1\"", "\"\"")),
-                frame("{\"type\":\"response.function_call_arguments.delta\",\"output_index\":-1,\"delta\":\"{}\"}"),
-                frame("{\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"delta\":" + gson.toJson("x".repeat(ContentToolCatalog.MAX_ARGUMENT_LENGTH + 1)) + "}"))) {
-            assertThrows(AIResponseException.class, () -> read(body, true, true, new ArrayList<>()));
+        for (String body :
+                List.of(
+                        frame("{\"type\":\"error\",\"message\":\"private detail\"}"),
+                        frame("{\"type\":\"response.failed\"}"),
+                        "data: null\n\n",
+                        "data: {broken}\n\n",
+                        terminal(CALL + "," + CALL),
+                        terminal(CALL.replace("\"completed\"", "\"in_progress\"")),
+                        terminal(CALL.replace("\"call_1\"", "\"\"")),
+                        frame(
+                                "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":-1,\"delta\":\"{}\"}"),
+                        frame(
+                                "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"delta\":"
+                                        + gson.toJson(
+                                                "x"
+                                                        .repeat(
+                                                                ContentToolCatalog
+                                                                                .MAX_ARGUMENT_LENGTH
+                                                                        + 1))
+                                        + "}"))) {
+            assertThrows(
+                    AIResponseException.class, () -> read(body, true, true, new ArrayList<>()));
         }
-        assertThrows(IOException.class, () -> read("data: " + "x".repeat(AIChatStreamReader.MAX_RESPONSE_BYTES), true, true, new ArrayList<>()));
+        assertThrows(
+                IOException.class,
+                () ->
+                        read(
+                                "data: " + "x".repeat(AIChatStreamReader.MAX_RESPONSE_BYTES),
+                                true,
+                                true,
+                                new ArrayList<>()));
     }
 
     @Test
     public void closesProviderConnectionWhenBrowserDisconnects() {
         boolean[] closed = {false};
-        InputStream input = new ByteArrayInputStream(frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}").getBytes(StandardCharsets.UTF_8)) {
-            @Override
-            public void close() {
-                closed[0] = true;
-            }
-        };
-        assertThrows(IOException.class, () -> adapter.read(input, true, true, (type, text) -> {
-            throw new IOException("Disconnected");
-        }));
+        InputStream input =
+                new ByteArrayInputStream(
+                        frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
+                                .getBytes(StandardCharsets.UTF_8)) {
+                    @Override
+                    public void close() {
+                        closed[0] = true;
+                    }
+                };
+        assertThrows(
+                IOException.class,
+                () ->
+                        adapter.read(
+                                input,
+                                true,
+                                true,
+                                (type, text) -> {
+                                    throw new IOException("Disconnected");
+                                }));
         assertTrue(closed[0]);
     }
 }

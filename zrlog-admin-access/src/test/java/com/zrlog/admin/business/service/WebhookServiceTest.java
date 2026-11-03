@@ -1,21 +1,20 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class WebhookServiceTest {
 
@@ -34,8 +33,9 @@ public class WebhookServiceTest {
         return allocate(WebhookService.class);
     }
 
-    private static WebhookService newService(FakeWebsiteCacheService cacheService,
-                                             FakeMessageCenterStateService stateService) throws Exception {
+    private static WebhookService newService(
+            FakeWebsiteCacheService cacheService, FakeMessageCenterStateService stateService)
+            throws Exception {
         WebhookService service = newService();
         setField(service, "cacheService", cacheService);
         setField(service, "messageCenterStateService", stateService);
@@ -140,7 +140,8 @@ public class WebhookServiceTest {
 
         assertEquals("12345678", service.previewToken("12345678"));
         assertEquals("abcd...ijkl", service.previewToken("abcdefghijkl"));
-        assertEquals("3c469e9d6c5875d37a43f353d4f88e61fcf812c66eee3457465a40b0da4153e0",
+        assertEquals(
+                "3c469e9d6c5875d37a43f353d4f88e61fcf812c66eee3457465a40b0da4153e0",
                 service.sha256("token"));
     }
 
@@ -246,8 +247,11 @@ public class WebhookServiceTest {
 
         private boolean changed;
         private boolean mayHaveUnread;
+
         FakeMessageCenterStateService(DataSourceWrapper testDataSource) {
-            super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSiteRepository(testDataSource));
+            super(
+                    ApplicationServicesFixture.websiteCache(testDataSource),
+                    () -> new WebSiteRepository(testDataSource));
         }
 
         @Override

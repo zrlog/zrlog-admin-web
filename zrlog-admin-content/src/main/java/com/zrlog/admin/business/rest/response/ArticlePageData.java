@@ -2,7 +2,6 @@ package com.zrlog.admin.business.rest.response;
 
 import com.hibegin.common.dao.dto.PageData;
 import com.zrlog.common.cache.dto.TypeDTO;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,8 +14,7 @@ public class ArticlePageData extends PageData<ArticleResponseEntry> implements S
     private ArticleStatusCountResponse statusCounts;
     private List<TypeDTO> types = new ArrayList<>();
 
-    public ArticlePageData() {
-    }
+    public ArticlePageData() {}
 
     public List<String> getColumns() {
         return columns;

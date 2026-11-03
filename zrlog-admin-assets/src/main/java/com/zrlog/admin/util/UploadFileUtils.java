@@ -3,7 +3,6 @@ package com.zrlog.admin.util;
 import com.hibegin.common.util.SecurityUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
-
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -64,7 +63,9 @@ public class UploadFileUtils {
             return "";
         }
         String normalized = dir.replace("\\", "/").replaceAll("/{2,}", "/");
-        if (normalized.equals(AdminConstants.ATTACHED_FOLDER.substring(0, AdminConstants.ATTACHED_FOLDER.length() - 1))) {
+        if (normalized.equals(
+                AdminConstants.ATTACHED_FOLDER.substring(
+                        0, AdminConstants.ATTACHED_FOLDER.length() - 1))) {
             return "/";
         }
         if (normalized.startsWith(AdminConstants.ATTACHED_FOLDER)) {
@@ -90,5 +91,4 @@ public class UploadFileUtils {
         }
         return normalized;
     }
-
 }

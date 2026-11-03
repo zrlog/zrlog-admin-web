@@ -8,25 +8,39 @@ import com.zrlog.data.di.DataComponent;
 import dagger.BindsInstance;
 import dagger.Component;
 import jakarta.inject.Singleton;
-
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 @Singleton
-@Component(modules = {DataBindingsModule.class, AccountBindingsModule.class, AutomationModule.class,
-        com.zrlog.business.di.ServiceBindingsModule.class})
+@Component(
+        modules = {
+            DataBindingsModule.class,
+            AccountBindingsModule.class,
+            AutomationModule.class,
+            com.zrlog.business.di.ServiceBindingsModule.class
+        })
 public interface AutomationComponent {
     com.zrlog.admin.web.controller.api.AutomationController controller();
+
     AutomationService tasks();
+
     ArticlePublicationScheduleService publicationScheduler();
+
     AutomationEngine engine();
+
     AutomationSettingsService settings();
+
     AutomationTickService ticks();
+
     AutomationSchedulerPlugin plugin();
+
     AutomationStore store();
+
     AutomationDefaults defaults();
+
     TaskRegistry registry();
+
     AutomationProposalService proposals();
 
     @Component.Factory

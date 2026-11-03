@@ -18,16 +18,15 @@ import com.zrlog.data.di.DataComponent;
 import dagger.BindsInstance;
 import dagger.Component;
 import jakarta.inject.Singleton;
-
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 @Singleton
 @Component(
         modules = {
-                DataBindingsModule.class,
-                ServiceBindingsModule.class,
-                AccountBindingsModule.class
+            DataBindingsModule.class,
+            ServiceBindingsModule.class,
+            AccountBindingsModule.class
         })
 public interface AssetsComponent {
     UploadService uploads();

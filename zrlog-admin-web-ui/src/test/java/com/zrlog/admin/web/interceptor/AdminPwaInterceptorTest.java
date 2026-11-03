@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -10,58 +12,61 @@ import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.page.AdminManifestController;
-import org.junit.Test;
-
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminPwaInterceptorTest {
 
     private static AdminResource resources() {
-        return (AdminResource) Proxy.newProxyInstance(AdminPwaInterceptorTest.class.getClassLoader(),
-                new Class[]{AdminResource.class}, (proxy, method, args) -> {
-                    if ("renderServiceWorker".equals(method.getName())) {
-                        return new java.io.ByteArrayInputStream("const urlsToCache = [];".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    }
-                    throw new UnsupportedOperationException(method.getName());
-                });
+        return (AdminResource)
+                Proxy.newProxyInstance(
+                        AdminPwaInterceptorTest.class.getClassLoader(),
+                        new Class[] {AdminResource.class},
+                        (proxy, method, args) -> {
+                            if ("renderServiceWorker".equals(method.getName())) {
+                                return new java.io.ByteArrayInputStream(
+                                        "const urlsToCache = [];"
+                                                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                            }
+                            throw new UnsupportedOperationException(method.getName());
+                        });
     }
 
     private static HttpRequest request(String uri, ServerConfig serverConfig) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminPwaInterceptorTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return uri;
-                        case "getMethod":
-                            return HttpMethod.GET;
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "getContextPath":
-                            return "/blog";
-                        case "getScheme":
-                            return "http";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminPwaInterceptorTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getUri":
+                                    return uri;
+                                case "getMethod":
+                                    return HttpMethod.GET;
+                                case "getHeader":
+                                    return "Host".equals(args[0]) ? "localhost:18080" : null;
+                                case "getHeaderMap":
+                                case "getParamMap":
+                                case "decodeParamMap":
+                                    return Map.of();
+                                case "getContextPath":
+                                    return "/blog";
+                                case "getScheme":
+                                    return "http";
+                                case "getServerConfig":
+                                    return serverConfig;
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     @Test
@@ -69,11 +74,15 @@ public class AdminPwaInterceptorTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ResponseRecorder response = new ResponseRecorder();
 
-            new AdminPwaInterceptor(resources()).doInterceptor(
-                    request(AdminConstants.ADMIN_SERVICE_WORKER_JS, new ServerConfig()), response.response());
+            new AdminPwaInterceptor(resources())
+                    .doInterceptor(
+                            request(AdminConstants.ADMIN_SERVICE_WORKER_JS, new ServerConfig()),
+                            response.response());
 
             assertTrue(response.headers.get("Content-Type").contains("javascript"));
-            assertEquals("const urlsToCache = [];", new String(response.written, java.nio.charset.StandardCharsets.UTF_8));
+            assertEquals(
+                    "const urlsToCache = [];",
+                    new String(response.written, java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 
@@ -81,8 +90,10 @@ public class AdminPwaInterceptorTest {
     public void shouldRenderPackagedPwaResourceWhenPresent() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminPwaInterceptor(resources()).doInterceptor(
-                request(AdminResource.ADMIN_ASSET_MANIFEST_JSON, new ServerConfig()), response.response());
+        new AdminPwaInterceptor(resources())
+                .doInterceptor(
+                        request(AdminResource.ADMIN_ASSET_MANIFEST_JSON, new ServerConfig()),
+                        response.response());
 
         assertTrue(response.headers.get("Content-Type").contains("json"));
         assertTrue(response.written.length > 0);
@@ -93,13 +104,23 @@ public class AdminPwaInterceptorTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ResponseRecorder response = new ResponseRecorder();
             ServerConfig serverConfig = new ServerConfig();
-            serverConfig.getBindings().controller(AdminManifestController.class,
-                    (r, request, responseHandle) -> new AdminManifestController(ignored.unitCacheService()::getPublicWebSiteInfo));
+            serverConfig
+                    .getBindings()
+                    .controller(
+                            AdminManifestController.class,
+                            (r, request, responseHandle) ->
+                                    new AdminManifestController(
+                                            ignored.unitCacheService()::getPublicWebSiteInfo));
             Router router = serverConfig.getRouter();
-            router.addMapper(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH, AdminManifestController.class, "manifest");
+            router.addMapper(
+                    AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH,
+                    AdminManifestController.class,
+                    "manifest");
 
-            new AdminPwaInterceptor(resources()).doInterceptor(
-                    request(AdminConstants.ADMIN_PWA_MANIFEST_JSON, serverConfig), response.response());
+            new AdminPwaInterceptor(resources())
+                    .doInterceptor(
+                            request(AdminConstants.ADMIN_PWA_MANIFEST_JSON, serverConfig),
+                            response.response());
 
             AdminManifestResponse manifest = (AdminManifestResponse) response.renderedJson;
             assertNotNull(manifest);
@@ -112,8 +133,10 @@ public class AdminPwaInterceptorTest {
     public void shouldRender404WhenPwaResourceIsMissing() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminPwaInterceptor(resources()).doInterceptor(
-                request("/admin/pwa/missing.json", new ServerConfig()), response.response());
+        new AdminPwaInterceptor(resources())
+                .doInterceptor(
+                        request("/admin/pwa/missing.json", new ServerConfig()),
+                        response.response());
 
         assertEquals(Integer.valueOf(404), response.renderedCode);
     }
@@ -125,29 +148,30 @@ public class AdminPwaInterceptorTest {
         private Integer renderedCode;
 
         private HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(
-                    AdminPwaInterceptorTest.class.getClassLoader(),
-                    new Class[]{HttpResponse.class},
-                    (proxy, method, args) -> {
-                        switch (method.getName()) {
-                            case "addHeader":
-                                headers.put(args[0].toString(), args[1].toString());
-                                return null;
-                            case "write":
-                                if (args[0] instanceof InputStream) {
-                                    written = ((InputStream) args[0]).readAllBytes();
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            AdminPwaInterceptorTest.class.getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                switch (method.getName()) {
+                                    case "addHeader":
+                                        headers.put(args[0].toString(), args[1].toString());
+                                        return null;
+                                    case "write":
+                                        if (args[0] instanceof InputStream) {
+                                            written = ((InputStream) args[0]).readAllBytes();
+                                        }
+                                        return null;
+                                    case "renderJson":
+                                        renderedJson = args[0];
+                                        return null;
+                                    case "renderCode":
+                                        renderedCode = (Integer) args[0];
+                                        return null;
+                                    default:
+                                        return null;
                                 }
-                                return null;
-                            case "renderJson":
-                                renderedJson = args[0];
-                                return null;
-                            case "renderCode":
-                                renderedCode = (Integer) args[0];
-                                return null;
-                            default:
-                                return null;
-                        }
-                    });
+                            });
         }
     }
 }

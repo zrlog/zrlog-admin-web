@@ -3,10 +3,9 @@ package com.zrlog.admin.business.rest.request;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
+import java.util.Objects;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
-
-import java.util.Objects;
 
 public class CreateArticleRequest implements Validator {
 
@@ -28,8 +27,13 @@ public class CreateArticleRequest implements Validator {
     private Long publishAt;
 
     /** Optional publication time, Unix epoch milliseconds. */
-    public Long getPublishAt() { return publishAt; }
-    public void setPublishAt(Long publishAt) { this.publishAt = publishAt; }
+    public Long getPublishAt() {
+        return publishAt;
+    }
+
+    public void setPublishAt(Long publishAt) {
+        this.publishAt = publishAt;
+    }
 
     private boolean preserveDraftAiMessages;
 
@@ -82,7 +86,8 @@ public class CreateArticleRequest implements Validator {
     }
 
     public void validateArrangePlugin() {
-        if (arrange_plugin != null && !arrange_plugin.isEmpty()
+        if (arrange_plugin != null
+                && !arrange_plugin.isEmpty()
                 && !arrange_plugin.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")) {
             throw new ArgsException("arrange_plugin");
         }
@@ -171,7 +176,8 @@ public class CreateArticleRequest implements Validator {
     @Override
     public void doValid() {
         validateArrangePlugin();
-        if (publishAt != null && (publishAt < 0 || publishAt > 253402300799000L)) throw new ArgsException("publishAt");
+        if (publishAt != null && (publishAt < 0 || publishAt > 253402300799000L))
+            throw new ArgsException("publishAt");
         if (Objects.isNull(typeId) || typeId <= 0) {
             throw new ArgsException("typeId");
         }

@@ -1,15 +1,13 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.JsonObject;
-
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 public final class KnowledgeModels {
-    private KnowledgeModels() {
-    }
+    private KnowledgeModels() {}
 
     public static class Options {
         public boolean allArticles;
@@ -79,5 +77,4 @@ public final class KnowledgeModels {
             this.code = code;
         }
     }
-
 }

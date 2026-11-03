@@ -1,12 +1,11 @@
 package com.zrlog.admin.business.exception;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.HashSet;
 import java.util.Set;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 public class AdminErrorCodeTest {
 
@@ -15,7 +14,9 @@ public class AdminErrorCodeTest {
         Set<Integer> legacyCodes = new HashSet<>();
 
         for (AdminErrorCode code : AdminErrorCode.values()) {
-            assertTrue("Duplicate legacy code " + code.getLegacyCode(), legacyCodes.add(code.getLegacyCode()));
+            assertTrue(
+                    "Duplicate legacy code " + code.getLegacyCode(),
+                    legacyCodes.add(code.getLegacyCode()));
         }
     }
 

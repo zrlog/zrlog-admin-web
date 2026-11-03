@@ -30,12 +30,9 @@ import com.zrlog.data.di.DataComponent;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSiteInfoProvider;
-
 import java.util.List;
 
-/**
- * React pages, PWA and static publishing; the API can run without this provider.
- */
+/** React pages, PWA and static publishing; the API can run without this provider. */
 public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
     private final ZrLogConfig config;
     private final String contextPath;
@@ -44,10 +41,23 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
     public AdminUiWebSetup(ZrLogConfig config, String contextPath) {
         this.config = config;
         this.contextPath = contextPath;
-        this.resources = new AdminResourceImpl(contextPath, () -> config.isInstalled()
-                ? config.getServerConfig().getBindings().build().get(CacheService.class).getWebSiteVersion() : 0L,
-                request -> config.getServerConfig().getBindings().build().get(AdminResourceService.class)
-                        .staticResourceBaseUrl(request));
+        this.resources =
+                new AdminResourceImpl(
+                        contextPath,
+                        () ->
+                                config.isInstalled()
+                                        ? config.getServerConfig()
+                                                .getBindings()
+                                                .build()
+                                                .get(CacheService.class)
+                                                .getWebSiteVersion()
+                                        : 0L,
+                        request ->
+                                config.getServerConfig()
+                                        .getBindings()
+                                        .build()
+                                        .get(AdminResourceService.class)
+                                        .staticResourceBaseUrl(request));
         if (config.getServerConfig().isNativeImageAgent()) AdminUiNativeImageUtils.reg(resources);
     }
 
@@ -78,7 +88,9 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
                                                 resources::getStaticResourceBuildId,
                                                 config::isInstalled))
                 .singleton(AdminPageService.class, r -> r.get(AdminUiComponent.class).pages())
-                .singleton(AdminPageRequestHandler.class, r -> r.get(AdminUiComponent.class).pageRequests())
+                .singleton(
+                        AdminPageRequestHandler.class,
+                        r -> r.get(AdminUiComponent.class).pageRequests())
                 .controller(
                         AdminStaticSiteController.class,
                         (r, request, response) -> r.get(AdminUiComponent.class).staticSites())
@@ -100,21 +112,42 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
                         r ->
                                 new AdminStaticResourceInterceptor(
                                         () -> config.getPlugin(AdminStaticResourcePlugin.class)));
-        List<Class<? extends Interceptor>> interceptors = config.getServerConfig().getInterceptors();
-        interceptors.addAll(interceptors.indexOf(AdminLoginInterceptor.class), List.of(
-                PwaInterceptor.class, AdminPwaInterceptor.class,
-                AdminStaticResourceInterceptor.class, AdminPluginInterceptor.class));
+        List<Class<? extends Interceptor>> interceptors =
+                config.getServerConfig().getInterceptors();
+        interceptors.addAll(
+                interceptors.indexOf(AdminLoginInterceptor.class),
+                List.of(
+                        PwaInterceptor.class, AdminPwaInterceptor.class,
+                        AdminStaticResourceInterceptor.class, AdminPluginInterceptor.class));
         Router router = config.getServerConfig().getRouter();
         router.addMapper(AdminConstants.ADMIN_URI_BASE_PATH, AdminPageController.class);
-        resources.getAdminPageUris().forEach(uri -> router.addMapper(
-                uri.substring(contextPath.length()), AdminPageController.class, "index"));
-        AdminAccountPages.PAGE_APIS.keySet().forEach(uri -> router.addMapper(uri, AdminPageController.class, "index"));
-        router.addMapper(AdminConstants.ADMIN_URI_BASE_PATH + "/template/download", AdminTemplatePageController.class, "download");
-        router.addMapper(TemplateInfoHelper.ADMIN_PREVIEW_IMAGE_URI, AdminTemplatePageController.class, "previewImage");
-        router.addMapper(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH, AdminManifestController.class, "manifest");
+        resources
+                .getAdminPageUris()
+                .forEach(
+                        uri ->
+                                router.addMapper(
+                                        uri.substring(contextPath.length()),
+                                        AdminPageController.class,
+                                        "index"));
+        AdminAccountPages.PAGE_APIS
+                .keySet()
+                .forEach(uri -> router.addMapper(uri, AdminPageController.class, "index"));
+        router.addMapper(
+                AdminConstants.ADMIN_URI_BASE_PATH + "/template/download",
+                AdminTemplatePageController.class,
+                "download");
+        router.addMapper(
+                TemplateInfoHelper.ADMIN_PREVIEW_IMAGE_URI,
+                AdminTemplatePageController.class,
+                "previewImage");
+        router.addMapper(
+                AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH,
+                AdminManifestController.class,
+                "manifest");
         router.addMapper("/api/admin/static-site", AdminStaticSiteController.class);
         for (String uri : AdminConstants.adminStaticResources) {
-            config.getServerConfig().addStaticResourceMapper(uri, uri, AdminUiWebSetup.class::getResourceAsStream);
+            config.getServerConfig()
+                    .addStaticResourceMapper(uri, uri, AdminUiWebSetup.class::getResourceAsStream);
         }
     }
 

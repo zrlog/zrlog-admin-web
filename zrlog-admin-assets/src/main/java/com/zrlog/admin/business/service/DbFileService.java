@@ -9,7 +9,6 @@ import com.zrlog.common.exception.NotImplementException;
 import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,10 +43,14 @@ public class DbFileService {
     }
 
     /** The caller owns the input stream. No complete-file Base64 string is allocated. */
-    public UploadFileResponse toDbFile(String key, InputStream input, String originalName) throws SQLException, IOException {
+    public UploadFileResponse toDbFile(String key, InputStream input, String originalName)
+            throws SQLException, IOException {
         requirePath(key);
         String filename = originalName == null ? null : basename(originalName);
-        if (filename != null && (filename.isBlank() || filename.length() > 255 || filename.codePoints().anyMatch(Character::isISOControl)))
+        if (filename != null
+                && (filename.isBlank()
+                        || filename.length() > 255
+                        || filename.codePoints().anyMatch(Character::isISOControl)))
             throw new IllegalArgumentException("Invalid original filename");
         DbFileStore.Row claim = store.claim(key);
         try {
@@ -96,7 +99,10 @@ public class DbFileService {
         }
     }
 
-    /** Verify a bounded-memory snapshot before HTTP writes headers. Close removes the local scratch file. */
+    /**
+     * Verify a bounded-memory snapshot before HTTP writes headers. Close removes the local scratch
+     * file.
+     */
     public InputStream openDbFile(String key) throws IOException {
         requirePath(key);
         Path temp = null;
@@ -115,25 +121,33 @@ public class DbFileService {
                 } else {
                     for (int index = 0; index < row.meta.chunkCount; index++) {
                         String encoded = store.value(DbFileStore.chunkKey(row.meta.batch, index));
-                        if (encoded.length() > ((CHUNK_BYTES + 2) / 3) * 4) throw new IOException("Oversized database file chunk");
+                        if (encoded.length() > ((CHUNK_BYTES + 2) / 3) * 4)
+                            throw new IOException("Oversized database file chunk");
                         byte[] bytes = Base64.getDecoder().decode(encoded);
                         int expected = (int) Math.min(CHUNK_BYTES, row.meta.size - size);
-                        if (bytes.length != expected) throw new IOException("Invalid database file chunk length");
+                        if (bytes.length != expected)
+                            throw new IOException("Invalid database file chunk length");
                         output.write(bytes);
                         digest.update(bytes);
                         size += bytes.length;
                     }
                 }
             }
-            if (size != row.meta.size || (row.meta.sha256 != null && !row.meta.sha256.equals(hex(digest.digest()))))
+            if (size != row.meta.size
+                    || (row.meta.sha256 != null && !row.meta.sha256.equals(hex(digest.digest()))))
                 throw new IOException("Database file integrity check failed");
             Path snapshot = temp;
-            FileInputStream result = new FileInputStream(temp.toFile()) {
-                @Override
-                public void close() throws IOException {
-                    try { super.close(); } finally { Files.deleteIfExists(snapshot); }
-                }
-            };
+            FileInputStream result =
+                    new FileInputStream(temp.toFile()) {
+                        @Override
+                        public void close() throws IOException {
+                            try {
+                                super.close();
+                            } finally {
+                                Files.deleteIfExists(snapshot);
+                            }
+                        }
+                    };
             temp = null;
             return result;
         } catch (SQLException | IllegalArgumentException e) {
@@ -162,16 +176,26 @@ public class DbFileService {
             String name = directory ? relative.substring(0, slash) : relative;
             String filePath = (path.endsWith("/") ? path : path + "/") + name;
             if (entries.containsKey(name)) continue;
-            FileEntryVO entry = new FileEntryVO(name, filePath, directory ? "directory" : "file",
-                    directory ? 0 : row.meta.size, directory ? "" : FileEntryUtils.toMimeType(name),
-                    directory ? 0 : row.meta.uploadedAt);
+            FileEntryVO entry =
+                    new FileEntryVO(
+                            name,
+                            filePath,
+                            directory ? "directory" : "file",
+                            directory ? 0 : row.meta.size,
+                            directory ? "" : FileEntryUtils.toMimeType(name),
+                            directory ? 0 : row.meta.uploadedAt);
             if (!directory) {
                 entry.setOriginalName(row.meta.originalName);
                 entry.setUploadedAt(row.meta.uploadedAt);
             }
             entry.setAccess(FileEntryAccess.ADMIN_ONLY);
-            entry.setActions(directory ? List.of(FileEntryAction.OPEN, FileEntryAction.DELETE)
-                    : List.of(FileEntryAction.PREVIEW, FileEntryAction.DOWNLOAD, FileEntryAction.DELETE));
+            entry.setActions(
+                    directory
+                            ? List.of(FileEntryAction.OPEN, FileEntryAction.DELETE)
+                            : List.of(
+                                    FileEntryAction.PREVIEW,
+                                    FileEntryAction.DOWNLOAD,
+                                    FileEntryAction.DELETE));
             entries.put(name, FileEntryUtils.decorateEntry(entry));
         }
         return new ArrayList<>(entries.values());
@@ -185,14 +209,19 @@ public class DbFileService {
     public boolean deleteByPrefix(String path) throws SQLException {
         requirePath(path);
         boolean deleted = false;
-        for (DbFileStore.FileRow record : store.list(path)) deleted |= store.delete(new DbFileStore.Row(record));
+        for (DbFileStore.FileRow record : store.list(path))
+            deleted |= store.delete(new DbFileStore.Row(record));
         return deleted;
     }
 
     /** Expiry applies only to timestamped temporary resources, with a cursor for bounded work. */
-    public CleanupBatch cleanupTemporary(int retentionDays, String after,
-                                         com.zrlog.admin.business.automation.TaskExecutionContext context) throws Exception {
-        if (retentionDays < 1 || retentionDays > 3650) throw new IllegalArgumentException("automation.invalidParameters");
+    public CleanupBatch cleanupTemporary(
+            int retentionDays,
+            String after,
+            com.zrlog.admin.business.automation.TaskExecutionContext context)
+            throws Exception {
+        if (retentionDays < 1 || retentionDays > 3650)
+            throw new IllegalArgumentException("automation.invalidParameters");
         String root = com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
         String prefix = DbFileStore.FILE_PREFIX + root + "/";
         if (after == null || !after.startsWith(prefix)) after = "";
@@ -205,11 +234,19 @@ public class DbFileService {
             DbFileStore.Row row = new DbFileStore.Row(record);
             result.scanned++;
             result.cursor = row.name;
-            if (row.meta.pendingBatch != null && row.meta.pendingUntil > clock.getAsLong()) continue;
-            // Resume abandoned writes and retired chunk removal using the existing conditional lifecycle.
-            if (row.meta.pendingBatch != null || row.meta.retiredBatch != null || row.meta.deleting || !row.meta.ready) {
+            if (row.meta.pendingBatch != null && row.meta.pendingUntil > clock.getAsLong())
+                continue;
+            // Resume abandoned writes and retired chunk removal using the existing conditional
+            // lifecycle.
+            if (row.meta.pendingBatch != null
+                    || row.meta.retiredBatch != null
+                    || row.meta.deleting
+                    || !row.meta.ready) {
                 row = store.recover(row);
-                if (row == null) { result.removed++; continue; }
+                if (row == null) {
+                    result.removed++;
+                    continue;
+                }
             }
             if (row.meta.uploadedAt <= 0 || row.meta.uploadedAt >= cutoff) continue;
             if (store.deleteExpired(row, context.actor())) result.removed++;
@@ -225,8 +262,11 @@ public class DbFileService {
     }
 
     private static void requirePath(String path) {
-        if (path == null || !path.startsWith("/") || DbFileStore.FILE_PREFIX.length() + path.length() > 255
-                || path.indexOf('\0') >= 0) throw new IllegalArgumentException("Invalid database file path");
+        if (path == null
+                || !path.startsWith("/")
+                || DbFileStore.FILE_PREFIX.length() + path.length() > 255
+                || path.indexOf('\0') >= 0)
+            throw new IllegalArgumentException("Invalid database file path");
     }
 
     private static String basename(String path) {
@@ -235,13 +275,18 @@ public class DbFileService {
     }
 
     private static MessageDigest digest() {
-        try { return MessageDigest.getInstance("SHA-256"); }
-        catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
+        try {
+            return MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static String hex(byte[] bytes) {
         StringBuilder result = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) result.append(Character.forDigit((b & 255) >>> 4, 16)).append(Character.forDigit(b & 15, 16));
+        for (byte b : bytes)
+            result.append(Character.forDigit((b & 255) >>> 4, 16))
+                    .append(Character.forDigit(b & 15, 16));
         return result.toString();
     }
 }

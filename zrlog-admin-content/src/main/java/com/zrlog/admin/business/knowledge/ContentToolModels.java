@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ContentToolModels {
-    private ContentToolModels() {
-    }
+    private ContentToolModels() {}
 
     public static class ArticleDetails {
         public long id;

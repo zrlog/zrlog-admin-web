@@ -12,13 +12,12 @@ import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.admin.util.UploadFileUtils;
 import com.zrlog.business.plugin.PluginCorePlugin;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -55,27 +54,54 @@ public class UploadService {
         this.pluginCore = Objects.requireNonNull(pluginCore);
     }
 
-    public UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, HttpRequest request,
-                                               AdminTokenVO adminTokenVO) throws IOException, SQLException {
+    public UploadFileResponse saveUploadedFile(
+            AccountAccess actor,
+            File file,
+            String dir,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO)
+            throws IOException, SQLException {
         return saveUploadedFile(actor, file, dir, null, request, adminTokenVO);
     }
 
-    public UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, String name, HttpRequest request,
-                                               AdminTokenVO adminTokenVO) throws IOException, SQLException {
+    public UploadFileResponse saveUploadedFile(
+            AccountAccess actor,
+            File file,
+            String dir,
+            String name,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO)
+            throws IOException, SQLException {
         return saveUploadedFile(actor, file, dir, name, null, request, adminTokenVO);
     }
 
-    public UploadFileResponse saveUploadedFile(AccountAccess actor, UploadedFile upload, String dir, String name,
-                                               HttpRequest request, AdminTokenVO adminTokenVO) throws IOException, SQLException {
+    public UploadFileResponse saveUploadedFile(
+            AccountAccess actor,
+            UploadedFile upload,
+            String dir,
+            String name,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO)
+            throws IOException, SQLException {
         return saveUploadedFile(actor, upload, dir, name, false, request, adminTokenVO);
     }
 
-    public UploadFileResponse saveUploadedFile(AccountAccess actor, UploadedFile upload, String dir, String name,
-                                               boolean temporary, HttpRequest request, AdminTokenVO adminTokenVO) throws IOException, SQLException {
+    public UploadFileResponse saveUploadedFile(
+            AccountAccess actor,
+            UploadedFile upload,
+            String dir,
+            String name,
+            boolean temporary,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO)
+            throws IOException, SQLException {
         authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
         String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
         if (temporary) {
-            if (resolvedDir.contains("..") || resolvedDir.contains("%") || resolvedDir.contains("?") || resolvedDir.contains("#")) {
+            if (resolvedDir.contains("..")
+                    || resolvedDir.contains("%")
+                    || resolvedDir.contains("?")
+                    || resolvedDir.contains("#")) {
                 throw new ArgsException("dir");
             }
             if (normalizeTemporaryDir(resolvedDir) == null) {
@@ -83,17 +109,36 @@ public class UploadService {
             }
         }
         String originalName = upload.getOriginalFilename();
-        return saveUploadedFile(actor, upload.getFile(), resolvedDir, name,
-                originalName == null || originalName.isEmpty() ? null : originalName, request, adminTokenVO);
+        return saveUploadedFile(
+                actor,
+                upload.getFile(),
+                resolvedDir,
+                name,
+                originalName == null || originalName.isEmpty() ? null : originalName,
+                request,
+                adminTokenVO);
     }
 
-    /** Uploaded resources can be read through the same delegated asset permission without file-manager access. */
+    /**
+     * Uploaded resources can be read through the same delegated asset permission without
+     * file-manager access.
+     */
     public InputStream openTemporaryResource(AccountAccess actor, String path) throws IOException {
         authorize(actor, null, AccountAction.ASSET_UPLOAD);
-        if (path == null || !path.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/")
-                || path.contains("..") || path.contains("%") || path.contains("\\") || path.contains("//")
-                || path.contains("?") || path.contains("#")) throw new ArgsException("path");
-        if (!actor.isAdministrator() && !path.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/")) {
+        if (path == null
+                || !path.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/")
+                || path.contains("..")
+                || path.contains("%")
+                || path.contains("\\")
+                || path.contains("//")
+                || path.contains("?")
+                || path.contains("#")) throw new ArgsException("path");
+        if (!actor.isAdministrator()
+                && !path.startsWith(
+                        AdminConstants.ADMIN_DB_ATTACHED_TMP
+                                + "/users/"
+                                + actor.getUserId()
+                                + "/")) {
             throw new PermissionErrorException();
         }
         try {
@@ -103,14 +148,22 @@ public class UploadService {
         }
     }
 
-    private UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, String name, String originalName,
-                                                HttpRequest request, AdminTokenVO adminTokenVO) throws IOException, SQLException {
+    private UploadFileResponse saveUploadedFile(
+            AccountAccess actor,
+            File file,
+            String dir,
+            String name,
+            String originalName,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO)
+            throws IOException, SQLException {
         authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
         String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
         if (!actor.isAdministrator()) {
-            resolvedDir = normalizeTemporaryDir(resolvedDir) == null
-                    ? "users/" + actor.getUserId()
-                    : AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId();
+            resolvedDir =
+                    normalizeTemporaryDir(resolvedDir) == null
+                            ? "users/" + actor.getUserId()
+                            : AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId();
         }
         String uri = UploadFileUtils.generatorUri(resolvedDir, file, name);
         String temporaryUri = buildTemporaryUri(resolvedDir, file, name);
@@ -124,18 +177,25 @@ public class UploadService {
         return getCloudUrl(uri, finalFilePath, request, adminTokenVO);
     }
 
-    public UploadFileResponse getCloudUrl(String uri, String finalFilePath, HttpRequest request, AdminTokenVO adminTokenVO) {
+    public UploadFileResponse getCloudUrl(
+            String uri, String finalFilePath, HttpRequest request, AdminTokenVO adminTokenVO) {
         String contextPath = request.getContextPath();
         // try push to cloud
         String url;
         try {
             Map<String, String[]> uploadParams = new HashMap<>();
-            uploadParams.put("fileInfo", new String[]{finalFilePath + "," + uri});
-            uploadParams.put("name", new String[]{"uploadService"});
+            uploadParams.put("fileInfo", new String[] {finalFilePath + "," + uri});
+            uploadParams.put("name", new String[] {"uploadService"});
 
             PluginCorePlugin pluginCorePlugin = pluginCore.get();
-            UploadServiceResponseEntity[] urls = pluginCorePlugin == null ? null : pluginCorePlugin.requestService(request,
-                    uploadParams, adminTokenVO, UploadServiceResponseEntity[].class);
+            UploadServiceResponseEntity[] urls =
+                    pluginCorePlugin == null
+                            ? null
+                            : pluginCorePlugin.requestService(
+                                    request,
+                                    uploadParams,
+                                    adminTokenVO,
+                                    UploadServiceResponseEntity[].class);
             if (urls != null && urls.length > 0) {
                 url = urls[0].getUrl();
                 if (!url.startsWith("https://") && !url.startsWith("http://")) {
@@ -155,15 +215,23 @@ public class UploadService {
         return new UploadFileResponse(url);
     }
 
-    public UploadFileResponse saveThumbnailBytes(AccountAccess actor, byte[] bytes, String extension, HttpRequest request,
-                                                 AdminTokenVO adminTokenVO) {
+    public UploadFileResponse saveThumbnailBytes(
+            AccountAccess actor,
+            byte[] bytes,
+            String extension,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO) {
         authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
         String uri = buildGeneratedThumbnailUri(bytes, extension);
         return saveBytesToUri(bytes, uri, request, adminTokenVO);
     }
 
-    public UploadFileResponse saveAvatarBytes(AccountAccess actor, byte[] bytes, String extension, HttpRequest request,
-                                              AdminTokenVO adminTokenVO) {
+    public UploadFileResponse saveAvatarBytes(
+            AccountAccess actor,
+            byte[] bytes,
+            String extension,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO) {
         authorize(actor, adminTokenVO, AccountAction.ACCOUNT_SELF);
         String dir = actor.isAdministrator() ? "image" : "users/" + actor.getUserId();
         String uri = UploadFileUtils.generatorUri(dir, "upload." + normalizeExtension(extension));
@@ -174,8 +242,9 @@ public class UploadService {
         identities.revalidate(actor);
         permissions.require(actor, action);
         // A transport credential must belong to the same operation's explicit actor.
-        if (credential != null && (credential.getUserId() != actor.getUserId()
-                || credential.getAuthVersion() != actor.getAuthVersion())) {
+        if (credential != null
+                && (credential.getUserId() != actor.getUserId()
+                        || credential.getAuthVersion() != actor.getAuthVersion())) {
             throw new PermissionErrorException();
         }
     }
@@ -190,8 +259,10 @@ public class UploadService {
             return null;
         }
         String uri = UploadFileUtils.generatorUri(normalizedDir, file, name);
-        String suffix = uri.substring(AdminConstants.ATTACHED_FOLDER.length() - 1).replaceAll("/{2,}", "/");
-        return AdminConstants.ADMIN_DB_ATTACHED_TMP + (suffix.startsWith("/") ? suffix : "/" + suffix);
+        String suffix =
+                uri.substring(AdminConstants.ATTACHED_FOLDER.length() - 1).replaceAll("/{2,}", "/");
+        return AdminConstants.ADMIN_DB_ATTACHED_TMP
+                + (suffix.startsWith("/") ? suffix : "/" + suffix);
     }
 
     String normalizeTemporaryDir(String dir) {
@@ -209,7 +280,8 @@ public class UploadService {
         return null;
     }
 
-    private UploadFileResponse saveBytesToUri(byte[] bytes, String uri, HttpRequest request, AdminTokenVO adminTokenVO) {
+    private UploadFileResponse saveBytesToUri(
+            byte[] bytes, String uri, HttpRequest request, AdminTokenVO adminTokenVO) {
         String finalFilePath = PathUtil.getStaticFile(uri).toString();
         File thumbnailFile = new File(finalFilePath);
         if (!thumbnailFile.getParentFile().exists()) {
@@ -228,7 +300,11 @@ public class UploadService {
         joiner.add(md5(bytes));
         joiner.add(normalizeExtension(extension));
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-        return AdminConstants.ATTACHED_FOLDER + "thumbnail/" + sdf.format(new Date()) + "/" + joiner;
+        return AdminConstants.ATTACHED_FOLDER
+                + "thumbnail/"
+                + sdf.format(new Date())
+                + "/"
+                + joiner;
     }
 
     private String md5(byte[] bytes) {

@@ -1,8 +1,6 @@
 package com.zrlog.admin.business.audit;
 
-/**
- * Immutable attribution and source metadata. Carries no request, credential or service.
- */
+/** Immutable attribution and source metadata. Carries no request, credential or service. */
 public final class AdminAuditContext {
     private final int actorUserId;
     private final String ip;

@@ -10,8 +10,7 @@ public class AIModelEntry {
     private Boolean retired;
     private String retirementSource;
 
-    public AIModelEntry() {
-    }
+    public AIModelEntry() {}
 
     public AIModelEntry(String name, AIModelCapability... capabilities) {
         this.name = name;

@@ -1,22 +1,25 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import org.junit.Test;
-
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 public class AdminAuditServiceTest {
 
     @Test
     public void existingAssistantReferencesBecomeLinksWithoutChangingStoredHistory() {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
         String runId = "0000000000.00000001793405016977.2e28cb7f-7ecb-4545-908c-085adaf3e485";
-        for (var action : List.of(AdminAuditAction.EXECUTE_UPGRADE, AdminAuditAction.SYNC_ADMIN_STATIC_SITE)) {
+        for (var action :
+                List.of(
+                        AdminAuditAction.EXECUTE_UPGRADE,
+                        AdminAuditAction.SYNC_ADMIN_STATIC_SITE)) {
             String prefix = action == AdminAuditAction.EXECUTE_UPGRADE ? "assistant:" : "upgrade:";
             var raw = entry(action.name(), "system", prefix + runId);
             raw.setActorUserId(1);
@@ -40,9 +43,13 @@ public class AdminAuditServiceTest {
 
     @Test
     public void assistantAuditReferenceSurvivesReadAndDisplayWithoutReplacingArticleTitle() {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
-        var raw = service.readLogs("[{\"action\":\"CREATE_ARTICLE\",\"type\":\"article\","
-                + "\"content\":\"Scheduled article\",\"assistantRunId\":\"article-run\",\"actorUserId\":2}]").get(0);
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        var raw =
+                service.readLogs(
+                                "[{\"action\":\"CREATE_ARTICLE\",\"type\":\"article\","
+                                        + "\"content\":\"Scheduled article\",\"assistantRunId\":\"article-run\",\"actorUserId\":2}]")
+                        .get(0);
         var display = service.toDisplayLog(raw);
         assertEquals("article-run", display.getAssistantRunId());
         assertEquals("Scheduled article", display.getContent());
@@ -52,14 +59,23 @@ public class AdminAuditServiceTest {
     @Test
     public void fixedAuditContentUsesTheReaderLanguageAndPersonalContentStaysLiteral() {
         var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
-        var raw = service.readLogs("[{\"action\":\"CONFIGURE_ASSISTANT_TASK\",\"contentKey\":\"admin.assistant.cleanup.title\"}]").get(0);
+        var raw =
+                service.readLogs(
+                                "[{\"action\":\"CONFIGURE_ASSISTANT_TASK\",\"contentKey\":\"admin.assistant.cleanup.title\"}]")
+                        .get(0);
         try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
             assertEquals("Clean up temporary resources", service.toDisplayLog(raw).getContent());
         }
         try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
             assertTrue(service.toDisplayLog(raw).getContent().contains("清理"));
-            assertEquals("admin.assistant.cleanup.title", service.toDisplayLog(
-                    entry("CONFIGURE_ASSISTANT_TASK", "system", "admin.assistant.cleanup.title")).getContent());
+            assertEquals(
+                    "admin.assistant.cleanup.title",
+                    service.toDisplayLog(
+                                    entry(
+                                            "CONFIGURE_ASSISTANT_TASK",
+                                            "system",
+                                            "admin.assistant.cleanup.title"))
+                            .getContent());
         }
     }
 
@@ -73,13 +89,15 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldReadOnlyValidAuditLogEntriesFromJson() throws Exception {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
 
         assertTrue(service.readLogs(null).isEmpty());
         assertTrue(service.readLogs("not-json").isEmpty());
 
-        List<AdminAuditLogEntryResponse> logs = service.readLogs(
-                "[{\"action\":\"REFRESH_CACHE\",\"timestamp\":123.0,\"crawler\":\"true\"},\"invalid\",{\"type\":\"security\"}]");
+        List<AdminAuditLogEntryResponse> logs =
+                service.readLogs(
+                        "[{\"action\":\"REFRESH_CACHE\",\"timestamp\":123.0,\"crawler\":\"true\"},\"invalid\",{\"type\":\"security\"}]");
 
         assertEquals(2, logs.size());
         assertEquals("REFRESH_CACHE", logs.get(0).getAction());
@@ -90,9 +108,11 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldReadAgentFieldsAndKeepLegacyLogsCompatible() {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
-        List<AdminAuditLogEntryResponse> logs = service.readLogs(
-                "[{\"browser\":\"ZrLogCtl 0.1.42\",\"agentName\":\"dot\",\"agentVersion\":\"1.2\"},{\"browser\":\"Chrome\"}]");
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        List<AdminAuditLogEntryResponse> logs =
+                service.readLogs(
+                        "[{\"browser\":\"ZrLogCtl 0.1.42\",\"agentName\":\"dot\",\"agentVersion\":\"1.2\"},{\"browser\":\"Chrome\"}]");
         AdminAuditLogEntryResponse display = service.toDisplayLog(logs.get(0));
         assertEquals("ZrLogCtl 0.1.42", display.getBrowser());
         assertEquals("dot", display.getAgentName());
@@ -103,11 +123,15 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldSanitizeSecurityLogsForDisplay() throws Exception {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
 
-        AdminAuditLogEntryResponse byType = service.toDisplayLog(entry("UNKNOWN", "security", "secret"));
-        AdminAuditLogEntryResponse byAction = service.toDisplayLog(entry("UPDATE_PASSWORD", "system", "secret"));
-        AdminAuditLogEntryResponse regular = service.toDisplayLog(entry("REFRESH_CACHE", "system", "cache"));
+        AdminAuditLogEntryResponse byType =
+                service.toDisplayLog(entry("UNKNOWN", "security", "secret"));
+        AdminAuditLogEntryResponse byAction =
+                service.toDisplayLog(entry("UPDATE_PASSWORD", "system", "secret"));
+        AdminAuditLogEntryResponse regular =
+                service.toDisplayLog(entry("REFRESH_CACHE", "system", "cache"));
 
         assertEquals("", byType.getContent());
         assertEquals("", byAction.getContent());
@@ -115,13 +139,16 @@ public class AdminAuditServiceTest {
         var upgrade = entry("EXECUTE_UPGRADE", "system", "upgradeRiskAccepted");
         assertEquals("", service.toDisplayLog(upgrade).getContent());
         assertEquals("upgradeRiskAccepted", upgrade.getContent());
-        assertEquals("upgradeRiskAccepted", service.toDisplayLog(
-                entry("CREATE_ARTICLE", "article", "upgradeRiskAccepted")).getContent());
+        assertEquals(
+                "upgradeRiskAccepted",
+                service.toDisplayLog(entry("CREATE_ARTICLE", "article", "upgradeRiskAccepted"))
+                        .getContent());
     }
 
     @Test
     public void shouldConvertAuditLogFieldsForDisplay() throws Exception {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
 
         AdminAuditLogEntryResponse raw = entry("UNKNOWN", "system", "done");
         raw.setTimestamp(123L);
@@ -143,7 +170,8 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldResolveAuditActionsAndUnknownValues() throws Exception {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
 
         assertEquals(AdminAuditAction.REFRESH_CACHE, service.toAuditAction("REFRESH_CACHE"));
         assertEquals(null, service.toAuditAction("MISSING"));
@@ -152,7 +180,8 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldSanitizeSecurityActionContent() throws Exception {
-        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
+        AdminAuditService service =
+                new AdminAuditService(ApplicationServicesFixture.websiteKv(null));
 
         assertEquals("", service.sanitizeContent(AdminAuditAction.UPDATE_PASSWORD, "secret"));
         assertEquals("", service.sanitizeContent(AdminAuditAction.REFRESH_CACHE, null));

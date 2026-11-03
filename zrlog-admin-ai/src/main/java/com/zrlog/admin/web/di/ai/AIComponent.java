@@ -20,13 +20,15 @@ import jakarta.inject.Singleton;
 @Singleton
 @Component(
         modules = {
-                DataBindingsModule.class,
-                ServiceBindingsModule.class,
-                AccountBindingsModule.class
+            DataBindingsModule.class,
+            ServiceBindingsModule.class,
+            AccountBindingsModule.class
         })
 public interface AIComponent {
     com.zrlog.admin.business.ai.service.AIAutomationAssistant automationAssistant();
+
     com.zrlog.admin.business.ai.service.AIScheduledTaskProvider scheduledTasks();
+
     AIConversationService conversations();
 
     AIPublishCheckService publishing();

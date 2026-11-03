@@ -8,10 +8,10 @@ public class AdminDashboardWelcomeDataResponse {
     private List<String> tips;
     private String versionInfo;
 
-    public AdminDashboardWelcomeDataResponse() {
-    }
+    public AdminDashboardWelcomeDataResponse() {}
 
-    public AdminDashboardWelcomeDataResponse(String welcomeTip, List<String> tips, String versionInfo) {
+    public AdminDashboardWelcomeDataResponse(
+            String welcomeTip, List<String> tips, String versionInfo) {
         this.welcomeTip = welcomeTip;
         this.tips = tips;
         this.versionInfo = versionInfo;

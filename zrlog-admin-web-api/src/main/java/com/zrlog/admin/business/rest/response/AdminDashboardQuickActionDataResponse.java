@@ -4,8 +4,7 @@ public class AdminDashboardQuickActionDataResponse {
 
     private Long draftCount;
 
-    public AdminDashboardQuickActionDataResponse() {
-    }
+    public AdminDashboardQuickActionDataResponse() {}
 
     public AdminDashboardQuickActionDataResponse(Long draftCount) {
         this.draftCount = draftCount;

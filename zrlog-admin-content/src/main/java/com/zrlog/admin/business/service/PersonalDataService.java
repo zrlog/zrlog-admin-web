@@ -8,7 +8,6 @@ import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.data.repository.CommentRepository;
 import com.zrlog.data.repository.UserRepository;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.*;
 
@@ -29,18 +28,25 @@ public class PersonalDataService {
         this.commentProvider = commentProvider;
     }
 
-    public PersonalDataPreviewResponse preview(PersonalDataPreviewRequest request, int currentUserId)
-            throws SQLException {
+    public PersonalDataPreviewResponse preview(
+            PersonalDataPreviewRequest request, int currentUserId) throws SQLException {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
         CommentRepository comment = this.commentProvider.get();
-        PersonalDataPreviewResponse response = comment.queryOne(
-                "select count(1) as commentCount,"
-                        + " count(distinct logId) as commentArticleCount,"
-                        + " max(commTime) as latestCommentTime"
-                        + " from " + CommentRepository.TABLE_NAME
-                        + " where " + COMMENT_MATCH_CONDITION,
-                PersonalDataPreviewResponse.class, normalizedQuery, normalizedQuery, normalizedQuery, normalizedQuery);
+        PersonalDataPreviewResponse response =
+                comment.queryOne(
+                        "select count(1) as commentCount,"
+                                + " count(distinct logId) as commentArticleCount,"
+                                + " max(commTime) as latestCommentTime"
+                                + " from "
+                                + CommentRepository.TABLE_NAME
+                                + " where "
+                                + COMMENT_MATCH_CONDITION,
+                        PersonalDataPreviewResponse.class,
+                        normalizedQuery,
+                        normalizedQuery,
+                        normalizedQuery,
+                        normalizedQuery);
 
         response.setQuery(query);
         response.setLatestCommentTime(formatDate(response.getLatestCommentTime()));
@@ -48,7 +54,8 @@ public class PersonalDataService {
         return response;
     }
 
-    public PersonalDataCommentExportResponse exportComments(PersonalDataPreviewRequest request) throws SQLException {
+    public PersonalDataCommentExportResponse exportComments(PersonalDataPreviewRequest request)
+            throws SQLException {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
         List<PersonalDataCommentExportResponse.CommentEntry> rows =
@@ -61,7 +68,8 @@ public class PersonalDataService {
                                         + " where "
                                         + COMMENT_MATCH_CONDITION
                                         + " order by commTime desc",
-                                PersonalDataCommentExportResponse.CommentEntry.class, normalizedQuery,
+                                PersonalDataCommentExportResponse.CommentEntry.class,
+                                normalizedQuery,
                                 normalizedQuery,
                                 normalizedQuery,
                                 normalizedQuery);
@@ -74,7 +82,8 @@ public class PersonalDataService {
         return response;
     }
 
-    List<PersonalDataCommentExportResponse.CommentEntry> toCommentEntries(List<PersonalDataCommentExportResponse.CommentEntry> rows) {
+    List<PersonalDataCommentExportResponse.CommentEntry> toCommentEntries(
+            List<PersonalDataCommentExportResponse.CommentEntry> rows) {
         for (var row : rows) {
             row.setCommTime(formatDate(row.getCommTime()));
             row.setUserComment(Objects.toString(row.getUserComment(), ""));
@@ -86,7 +95,8 @@ public class PersonalDataService {
         return rows;
     }
 
-    private void fillAdminMatch(PersonalDataPreviewResponse response, String query, int currentUserId)
+    private void fillAdminMatch(
+            PersonalDataPreviewResponse response, String query, int currentUserId)
             throws SQLException {
         if (currentUserId <= 0) {
             return;

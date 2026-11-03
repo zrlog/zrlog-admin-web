@@ -1,5 +1,7 @@
 package com.zrlog.admin.business;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.ai.model.AIModelCapability;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.ai.prompt.AIPromptVO;
@@ -11,8 +13,6 @@ import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.util.WebSiteUtils;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -26,16 +26,17 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminDtoContractTest {
 
-    private static List<Class<?>> classesUnder(String relativeDir, String packageName) throws Exception {
+    private static List<Class<?>> classesUnder(String relativeDir, String packageName)
+            throws Exception {
         List<Class<?>> classes = new ArrayList<>();
         try (Stream<Path> modules = Files.list(Paths.get(".."))) {
-            for (Path module : modules.filter(path -> path.getFileName().toString().startsWith("zrlog-admin-"))
-                    .collect(Collectors.toList())) {
+            for (Path module :
+                    modules.filter(path -> path.getFileName().toString().startsWith("zrlog-admin-"))
+                            .collect(Collectors.toList())) {
                 Path root = module.resolve(relativeDir);
                 if (!Files.isDirectory(root)) continue;
                 classes.addAll(classesInDirectory(root, packageName));
@@ -44,14 +45,19 @@ public class AdminDtoContractTest {
         return classes;
     }
 
-    private static List<Class<?>> classesInDirectory(Path root, String packageName) throws Exception {
+    private static List<Class<?>> classesInDirectory(Path root, String packageName)
+            throws Exception {
         List<Class<?>> classes = new ArrayList<>();
         try (Stream<Path> stream = Files.walk(root)) {
-            for (Path path : stream.filter(p -> p.toString().endsWith(".java")).collect(Collectors.toList())) {
+            for (Path path :
+                    stream.filter(p -> p.toString().endsWith(".java"))
+                            .collect(Collectors.toList())) {
                 String relative = root.relativize(path).toString();
-                String className = packageName + "." + relative
-                        .replace(File.separatorChar, '.')
-                        .replaceAll("\\.java$", "");
+                String className =
+                        packageName
+                                + "."
+                                + relative.replace(File.separatorChar, '.')
+                                        .replaceAll("\\.java$", "");
                 Class<?> type = Class.forName(className);
                 if (!type.isAnnotation()) {
                     classes.add(type);
@@ -225,25 +231,39 @@ public class AdminDtoContractTest {
         return sb.toString();
     }
 
-    //TODO: Add service/controller fixtures for admin workflows that require DAO records,
+    // TODO: Add service/controller fixtures for admin workflows that require DAO records,
     // uploaded files, plugin runtime, SSE, or HTTP controller state.
     @Test
     public void shouldExerciseAdminBeanContracts() throws Exception {
         List<Class<?>> classes = new ArrayList<>();
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/dto",
-                "com.zrlog.admin.business.dto"));
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/rest/base",
-                "com.zrlog.admin.business.rest.base"));
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/rest/request",
-                "com.zrlog.admin.business.rest.request"));
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/rest/response",
-                "com.zrlog.admin.business.rest.response"));
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/ai/dto",
-                "com.zrlog.admin.business.ai.dto"));
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/ai/prompt",
-                "com.zrlog.admin.business.ai.prompt"));
-        classes.addAll(classesUnder("src/main/java/com/zrlog/admin/business/ai/model",
-                "com.zrlog.admin.business.ai.model"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/dto",
+                        "com.zrlog.admin.business.dto"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/rest/base",
+                        "com.zrlog.admin.business.rest.base"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/rest/request",
+                        "com.zrlog.admin.business.rest.request"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/rest/response",
+                        "com.zrlog.admin.business.rest.response"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/ai/dto",
+                        "com.zrlog.admin.business.ai.dto"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/ai/prompt",
+                        "com.zrlog.admin.business.ai.prompt"));
+        classes.addAll(
+                classesUnder(
+                        "src/main/java/com/zrlog/admin/business/ai/model",
+                        "com.zrlog.admin.business.ai.model"));
 
         int exercised = 0;
         for (Class<?> type : expandDeclaredClasses(classes)) {
@@ -257,26 +277,36 @@ public class AdminDtoContractTest {
 
     @Test
     public void shouldExposeAiProviderAndPromptContracts() {
-        assertTrue(new com.zrlog.admin.business.ai.model.AIModelEntry(
-                "text-model", AIModelCapability.TEXT).supports(AIModelCapability.TEXT));
-        assertFalse(new com.zrlog.admin.business.ai.model.AIModelEntry(
-                "text-model", AIModelCapability.TEXT).supports(AIModelCapability.IMAGE_GENERATION));
+        assertTrue(
+                new com.zrlog.admin.business.ai.model.AIModelEntry(
+                                "text-model", AIModelCapability.TEXT)
+                        .supports(AIModelCapability.TEXT));
+        assertFalse(
+                new com.zrlog.admin.business.ai.model.AIModelEntry(
+                                "text-model", AIModelCapability.TEXT)
+                        .supports(AIModelCapability.IMAGE_GENERATION));
 
         assertEquals("deepseek-flash", AIProviderType.DEEP_SEEK.getModels().get(0));
         assertTrue(AIProviderType.DEEP_SEEK.getModels().contains("deepseek-chat"));
-        assertTrue(AIProviderType.DEEP_SEEK.getModelEntries().stream()
-                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow().isRetired());
+        assertTrue(
+                AIProviderType.DEEP_SEEK.getModelEntries().stream()
+                        .filter(model -> model.getName().equals("deepseek-chat"))
+                        .findFirst()
+                        .orElseThrow()
+                        .isRetired());
         assertEquals("gpt-6-astra", AIProviderType.OPEN_AI.getModels().get(0));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-sol"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-terra"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-luna"));
         assertEquals("qwen3.8-max", AIProviderType.QWEN.getModels().get(0));
         assertEquals("gemini-3.8-flash", AIProviderType.GOOGLE_GEMINI.getModels().get(0));
-        assertFalse(AIProviderType.GOOGLE_GEMINI.getModels().contains("gemini-3.1-flash-lite-preview"));
+        assertFalse(
+                AIProviderType.GOOGLE_GEMINI.getModels().contains("gemini-3.1-flash-lite-preview"));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2"));
         assertEquals("gpt-image-2.5-sunburst", AIProviderType.OPEN_AI.getImageModels().get(0));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2.5-flare"));
-        assertEquals("gemini-3.1-flash-image", AIProviderType.GOOGLE_GEMINI.getImageModels().get(0));
+        assertEquals(
+                "gemini-3.1-flash-image", AIProviderType.GOOGLE_GEMINI.getImageModels().get(0));
         assertNotNull(AIProviderType.OPEN_AI.getBaseUrl());
         assertFalse(AIProviderType.DEEP_SEEK.getModels().isEmpty());
         assertTrue(AIProviderType.DEEP_SEEK.getImageModels().isEmpty());
@@ -306,7 +336,8 @@ public class AdminDtoContractTest {
         Version version = new Version();
         version.setVersion("3.6.1");
         assertSame(version, MessageCenterNoticeResponse.versionUpdatePayload(version).getVersion());
-        assertEquals(Integer.valueOf(4), MessageCenterNoticeResponse.unreadCommentPayload(4).getCount());
+        assertEquals(
+                Integer.valueOf(4), MessageCenterNoticeResponse.unreadCommentPayload(4).getCount());
 
         Map<String, Object> noticePayload = Collections.singletonMap("id", 7L);
         WebhookMessageNoticeEntry webhookNotice = new WebhookMessageNoticeEntry();
@@ -318,7 +349,8 @@ public class AdminDtoContractTest {
         webhookNotice.setClosable(true);
         webhookNotice.setPayload(noticePayload);
         MessageCenterNoticeResponse.WebhookMessagePayload webhookPayload =
-                com.zrlog.admin.business.service.WebhookService.webhookMessagePayload(webhookNotice);
+                com.zrlog.admin.business.service.WebhookService.webhookMessagePayload(
+                        webhookNotice);
         assertEquals("Webhook", webhookPayload.getTitle());
         assertEquals("payload arrived", webhookPayload.getDescription());
         assertEquals("Open", webhookPayload.getActionLabel());
@@ -329,7 +361,8 @@ public class AdminDtoContractTest {
 
         MessageCenterOperationNoticeEntry operationNotice = new MessageCenterOperationNoticeEntry();
         operationNotice.setTitleKey("admin.messageCenter.operation.publishCheck.title");
-        operationNotice.setDescriptionKey("admin.messageCenter.operation.publishCheck.errorDescription");
+        operationNotice.setDescriptionKey(
+                "admin.messageCenter.operation.publishCheck.errorDescription");
         operationNotice.setActionLabelKey("admin.messageCenter.operation.articleEdit.action");
         operationNotice.setActionPath("/admin/tasks");
         operationNotice.setSourceKey("admin.article.edit.manage");
@@ -337,16 +370,27 @@ public class AdminDtoContractTest {
         operationNotice.setPayload(noticePayload);
         MessageCenterNoticeResponse.OperationTaskPayload operationPayload =
                 MessageCenterNoticeResponse.operationPayload(operationNotice);
-        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.messageCenter.operation.publishCheck.title"), operationPayload.getTitle());
-        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.messageCenter.operation.publishCheck.errorDescription"), operationPayload.getDescription());
-        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.messageCenter.operation.articleEdit.action"), operationPayload.getActionLabel());
+        assertEquals(
+                com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                        "admin.messageCenter.operation.publishCheck.title"),
+                operationPayload.getTitle());
+        assertEquals(
+                com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                        "admin.messageCenter.operation.publishCheck.errorDescription"),
+                operationPayload.getDescription());
+        assertEquals(
+                com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                        "admin.messageCenter.operation.articleEdit.action"),
+                operationPayload.getActionLabel());
         assertEquals("/admin/tasks", operationPayload.getActionPath());
-        assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.article.edit.manage"), operationPayload.getSource());
+        assertEquals(
+                com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.article.edit.manage"),
+                operationPayload.getSource());
         assertEquals(Boolean.FALSE, operationPayload.getClosable());
         assertSame(noticePayload, operationPayload.getPayload());
 
-        MessageCenterNoticeResponse notice = MessageCenterNoticeResponse.of(
-                "task", "webhook", "unread", 123L, webhookPayload);
+        MessageCenterNoticeResponse notice =
+                MessageCenterNoticeResponse.of("task", "webhook", "unread", 123L, webhookPayload);
         assertEquals("task", notice.getTaskKey());
         assertEquals("webhook", notice.getType());
         assertEquals("unread", notice.getStatus());
@@ -363,7 +407,8 @@ public class AdminDtoContractTest {
         contextMeta.setMarkdownLength(512);
         contextMeta.setCreatedAt(123456L);
 
-        AIResponseEntry.AIContentEntry content = new AIResponseEntry.AIContentEntry("assistant", "body");
+        AIResponseEntry.AIContentEntry content =
+                new AIResponseEntry.AIContentEntry("assistant", "body");
         content.setContextMeta(contextMeta);
 
         assertEquals("assistant", content.getRole());
@@ -396,7 +441,9 @@ public class AdminDtoContractTest {
 
         AdminWebSiteInfo admin = new AdminWebSiteInfo();
         admin.doValid();
-        assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60000), admin.getSession_timeout());
+        assertEquals(
+                Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60000),
+                admin.getSession_timeout());
         admin.setSession_timeout(5L);
         assertThrows(ArgsException.class, admin::doValid);
         admin.setSession_timeout(30L);
@@ -422,13 +469,16 @@ public class AdminDtoContractTest {
         articleEdit.setArticle_publish_check_enabled(null);
         articleEdit.setArticle_cover_aspect_ratio("5:4");
         articleEdit.doValid();
-        assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH),
+        assertEquals(
+                Long.valueOf(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH),
                 articleEdit.getArticle_auto_digest_length());
-        assertEquals(ArticleEditWebSiteInfo.DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL,
+        assertEquals(
+                ArticleEditWebSiteInfo.DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL,
                 articleEdit.getArticle_edit_auto_save_interval());
         assertEquals(Boolean.FALSE, articleEdit.getArticle_editor_link_preview_enabled());
         assertEquals(Boolean.TRUE, articleEdit.getArticle_publish_check_enabled());
-        assertEquals(ArticleEditWebSiteInfo.DEFAULT_ARTICLE_COVER_ASPECT_RATIO,
+        assertEquals(
+                ArticleEditWebSiteInfo.DEFAULT_ARTICLE_COVER_ASPECT_RATIO,
                 articleEdit.getArticle_cover_aspect_ratio());
         articleEdit.setArticle_edit_auto_save_interval(10L);
         articleEdit.setArticle_cover_aspect_ratio("21:9");

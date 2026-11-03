@@ -1,14 +1,10 @@
 package com.zrlog.admin.data.repository;
 
-import com.zrlog.model.LogVersion;
-import com.zrlog.data.repository.BaseRepository;
-
-import com.zrlog.data.repository.*;
-
-
 import com.hibegin.common.dao.DataSourceWrapper;
+import com.zrlog.data.repository.*;
+import com.zrlog.data.repository.BaseRepository;
+import com.zrlog.model.LogVersion;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
@@ -25,12 +21,23 @@ public class LogVersionRepository extends BaseRepository<LogVersion, Long> {
         this.database = database;
     }
 
-    public boolean deleteByLogIdAndArticleVersion(Integer logId, Integer articleVersion) throws SQLException {
-        return execute("delete from " + tableName + " where log_id=? and article_version=?", logId, articleVersion);
+    public boolean deleteByLogIdAndArticleVersion(Integer logId, Integer articleVersion)
+            throws SQLException {
+        return execute(
+                "delete from " + tableName + " where log_id=? and article_version=?",
+                logId,
+                articleVersion);
     }
 
-    public boolean savePatch(Integer logId, Integer articleVersion, String patchJson, Integer userId, String title, Date createdAt,
-                             Integer fromVersion) throws SQLException {
+    public boolean savePatch(
+            Integer logId,
+            Integer articleVersion,
+            String patchJson,
+            Integer userId,
+            String title,
+            Date createdAt,
+            Integer fromVersion)
+            throws SQLException {
         LogVersion history = new LogVersion();
         history.setLogId(logId);
         history.setArticleVersion(articleVersion);
@@ -38,8 +45,13 @@ public class LogVersionRepository extends BaseRepository<LogVersion, Long> {
         history.setUserId(userId);
         history.setTitle(title);
         history.setFromVersion(fromVersion);
-        new com.hibegin.common.dao.entity.EntityRepository<>(LogVersion.class, database,
-                java.time.Clock.fixed(java.time.Instant.ofEpochMilli(createdAt.getTime()), java.time.ZoneOffset.UTC)).insert(history);
+        new com.hibegin.common.dao.entity.EntityRepository<>(
+                        LogVersion.class,
+                        database,
+                        java.time.Clock.fixed(
+                                java.time.Instant.ofEpochMilli(createdAt.getTime()),
+                                java.time.ZoneOffset.UTC))
+                .insert(history);
         return true;
     }
 
@@ -52,12 +64,17 @@ public class LogVersionRepository extends BaseRepository<LogVersion, Long> {
     }
 
     public List<Summary> findVersionList(Integer logId) throws SQLException {
-        return queryList("SELECT article_version AS articleVersion,from_version AS fromVersion,created_at AS createdAt,user_id AS userId,title FROM log_version WHERE log_id=? ORDER BY article_version DESC", Summary.class, logId);
+        return queryList(
+                "SELECT article_version AS articleVersion,from_version AS fromVersion,created_at AS createdAt,user_id AS userId,title FROM log_version WHERE log_id=? ORDER BY article_version DESC",
+                Summary.class,
+                logId);
     }
 
-    public List<LogVersion> findReversePatchesGreaterThanVersion(Integer logId, Integer targetVersion) throws SQLException {
-        return select("WHERE log_id=? AND article_version>? ORDER BY article_version DESC",
-                logId, targetVersion
-        );
+    public List<LogVersion> findReversePatchesGreaterThanVersion(
+            Integer logId, Integer targetVersion) throws SQLException {
+        return select(
+                "WHERE log_id=? AND article_version>? ORDER BY article_version DESC",
+                logId,
+                targetVersion);
     }
 }

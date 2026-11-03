@@ -18,5 +18,4 @@ public class AIRequestException extends AbstractAdminBusinessException {
     public Integer getStatusCode() {
         return statusCode;
     }
-
 }

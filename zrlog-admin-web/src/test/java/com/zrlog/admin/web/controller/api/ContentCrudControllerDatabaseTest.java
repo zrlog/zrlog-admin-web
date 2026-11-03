@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.server.api.HttpRequest;
@@ -14,22 +16,20 @@ import com.zrlog.common.cache.dto.LinkDTO;
 import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class ContentCrudControllerDatabaseTest {
 
     private ZrLogConfig applicationConfig;
 
-    private static void setControllerFields(Controller controller, Map<String, String> params, String body,
-                                            String uri) throws Exception {
+    private static void setControllerFields(
+            Controller controller, Map<String, String> params, String body, String uri)
+            throws Exception {
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, body, uri));
@@ -39,57 +39,63 @@ public class ContentCrudControllerDatabaseTest {
     }
 
     private static HttpRequest request(Map<String, String> params, String body, String uri) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                ContentCrudControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getParaToStr":
-                            if (args.length == 2) {
-                                return params.getOrDefault(args[0].toString(), args[1].toString());
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        ContentCrudControllerDatabaseTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getParaToStr":
+                                    if (args.length == 2) {
+                                        return params.getOrDefault(
+                                                args[0].toString(), args[1].toString());
+                                    }
+                                    return params.get(args[0].toString());
+                                case "getParaToInt":
+                                    String value = params.get(args[0].toString());
+                                    if (value == null && args.length == 2) {
+                                        return args[1];
+                                    }
+                                    return value == null ? null : Integer.parseInt(value);
+                                case "getInputStream":
+                                    return body == null
+                                            ? null
+                                            : new ByteArrayInputStream(
+                                                    body.getBytes(StandardCharsets.UTF_8));
+                                case "getUri":
+                                    return uri;
+                                case "getHeader":
+                                    if ("Host".equals(args[0])) {
+                                        return "localhost:18080";
+                                    }
+                                    return "User-Agent".equals(args[0]) ? "JUnit" : null;
+                                case "getHeaderMap":
+                                    return Map.of("X-Real-IP", "127.0.0.1");
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "getContextPath":
+                                    return "/";
+                                case "getScheme":
+                                    return "http";
+                                case "decodeParamMap":
+                                    return Map.of();
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return params.get(args[0].toString());
-                        case "getParaToInt":
-                            String value = params.get(args[0].toString());
-                            if (value == null && args.length == 2) {
-                                return args[1];
-                            }
-                            return value == null ? null : Integer.parseInt(value);
-                        case "getInputStream":
-                            return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                        case "getUri":
-                            return uri;
-                        case "getHeader":
-                            if ("Host".equals(args[0])) {
-                                return "localhost:18080";
-                            }
-                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getContextPath":
-                            return "/";
-                        case "getScheme":
-                            return "http";
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
+                        });
     }
 
     private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                ContentCrudControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        ContentCrudControllerDatabaseTest.class.getClassLoader(),
+                        new Class[] {HttpResponse.class},
+                        (proxy, method, args) -> null);
     }
 
     @Test
@@ -97,19 +103,36 @@ public class ContentCrudControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            typeController(Map.of(), "{\"typeName\":\"News\",\"alias\":\"news\",\"remark\":\"<b>Remark</b>\"}", db.dataSource())
+            typeController(
+                            Map.of(),
+                            "{\"typeName\":\"News\",\"alias\":\"news\",\"remark\":\"<b>Remark</b>\"}",
+                            db.dataSource())
                     .add();
-            Number typeId = (Number) db.queryOne("select typeId from type where alias=?", "news").get("typeId");
+            Number typeId =
+                    (Number)
+                            db.queryOne("select typeId from type where alias=?", "news")
+                                    .get("typeId");
 
-            typeController(Map.of(),
-                    "{\"id\":" + typeId + ",\"typeName\":\"Updates\",\"alias\":\"updates\"}", db.dataSource())
+            typeController(
+                            Map.of(),
+                            "{\"id\":"
+                                    + typeId
+                                    + ",\"typeName\":\"Updates\",\"alias\":\"updates\"}",
+                            db.dataSource())
                     .update();
-            AdminPageDataResponse<PageData<TypeDTO>> page = typeController(Map.of(), null, db.dataSource()).index();
+            AdminPageDataResponse<PageData<TypeDTO>> page =
+                    typeController(Map.of(), null, db.dataSource()).index();
 
             assertFalse(page.getData().getRows().isEmpty());
-            assertEquals("Updates", db.queryOne("select typeName from type where typeId=?", typeId).get("typeName"));
-            assertEquals("", db.queryOne("select remark from type where typeId=?", typeId).get("remark"));
-            DeleteResponse deleted = typeController(Map.of("id", typeId.toString()), null, db.dataSource()).delete();
+            assertEquals(
+                    "Updates",
+                    db.queryOne("select typeName from type where typeId=?", typeId)
+                            .get("typeName"));
+            assertEquals(
+                    "",
+                    db.queryOne("select remark from type where typeId=?", typeId).get("remark"));
+            DeleteResponse deleted =
+                    typeController(Map.of("id", typeId.toString()), null, db.dataSource()).delete();
             assertTrue(deleted.getData().getDelete());
             assertNull(db.queryOne("select typeId from type where typeId=?", typeId));
         }
@@ -120,23 +143,38 @@ public class ContentCrudControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            blogNavController(Map.of(),
-                    "{\"navName\":\"Docs\",\"url\":\"https://example.com/docs\",\"icon\":\"book\",\"sort\":3}", db.dataSource())
+            blogNavController(
+                            Map.of(),
+                            "{\"navName\":\"Docs\",\"url\":\"https://example.com/docs\",\"icon\":\"book\",\"sort\":3}",
+                            db.dataSource())
                     .add();
-            Number navId = (Number) db.queryOne("select navId from lognav where navName=?", "Docs").get("navId");
+            Number navId =
+                    (Number)
+                            db.queryOne("select navId from lognav where navName=?", "Docs")
+                                    .get("navId");
 
-            blogNavController(Map.of(),
-                    "{\"id\":" + navId + ",\"navName\":\"Docs Updated\","
-                            + "\"url\":\"https://example.com/new-docs\",\"icon\":\"file\"}", db.dataSource())
+            blogNavController(
+                            Map.of(),
+                            "{\"id\":"
+                                    + navId
+                                    + ",\"navName\":\"Docs Updated\","
+                                    + "\"url\":\"https://example.com/new-docs\",\"icon\":\"file\"}",
+                            db.dataSource())
                     .update();
-            AdminPageDataResponse<PageData<LogNavDTO>> page = blogNavController(Map.of(), null, db.dataSource()).index();
+            AdminPageDataResponse<PageData<LogNavDTO>> page =
+                    blogNavController(Map.of(), null, db.dataSource()).index();
             DeleteResponse deleted =
-                    blogNavController(Map.of("id", " , " + navId + "," + navId + " , "), null, db.dataSource()).delete();
+                    blogNavController(
+                                    Map.of("id", " , " + navId + "," + navId + " , "),
+                                    null,
+                                    db.dataSource())
+                            .delete();
 
-            LogNavDTO row = page.getData().getRows().stream()
-                    .filter(e -> e.getId().equals(navId.longValue()))
-                    .findFirst()
-                    .orElseThrow();
+            LogNavDTO row =
+                    page.getData().getRows().stream()
+                            .filter(e -> e.getId().equals(navId.longValue()))
+                            .findFirst()
+                            .orElseThrow();
             assertEquals("Docs Updated", row.getNavName());
             assertEquals("https://example.com/new-docs", row.getJumpUrl());
             assertEquals(0L, row.getSort().longValue());
@@ -150,27 +188,38 @@ public class ContentCrudControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            linkController(Map.of(),
-                    "{\"linkName\":\"ZrLog\",\"url\":\"https://www.zrlog.com\","
-                            + "\"alt\":\"<b>Blog</b>\",\"icon\":\"link\",\"sort\":5}", db.dataSource())
+            linkController(
+                            Map.of(),
+                            "{\"linkName\":\"ZrLog\",\"url\":\"https://www.zrlog.com\","
+                                    + "\"alt\":\"<b>Blog</b>\",\"icon\":\"link\",\"sort\":5}",
+                            db.dataSource())
                     .add();
-            Number linkId = (Number) db.queryOne("select linkId from link where linkName=?", "ZrLog")
-                    .get("linkId");
+            Number linkId =
+                    (Number)
+                            db.queryOne("select linkId from link where linkName=?", "ZrLog")
+                                    .get("linkId");
 
-            linkController(Map.of(),
-                    "{\"id\":" + linkId + ",\"linkName\":\"ZrLog Home\","
-                            + "\"url\":\"https://www.zrlog.com/home\",\"icon\":\"home\",\"sort\":1}", db.dataSource())
+            linkController(
+                            Map.of(),
+                            "{\"id\":"
+                                    + linkId
+                                    + ",\"linkName\":\"ZrLog Home\","
+                                    + "\"url\":\"https://www.zrlog.com/home\",\"icon\":\"home\",\"sort\":1}",
+                            db.dataSource())
                     .update();
-            AdminPageDataResponse<PageData<LinkDTO>> page = linkController(Map.of(), null, db.dataSource()).index();
+            AdminPageDataResponse<PageData<LinkDTO>> page =
+                    linkController(Map.of(), null, db.dataSource()).index();
 
-            LinkDTO row = page.getData().getRows().stream()
-                    .filter(e -> e.getId().equals(linkId.longValue()))
-                    .findFirst()
-                    .orElseThrow();
+            LinkDTO row =
+                    page.getData().getRows().stream()
+                            .filter(e -> e.getId().equals(linkId.longValue()))
+                            .findFirst()
+                            .orElseThrow();
             assertEquals("ZrLog Home", row.getLinkName());
             assertEquals("https://www.zrlog.com/home", row.getUrl());
             assertEquals("", db.queryOne("select alt from link where linkId=?", linkId).get("alt"));
-            DeleteResponse deleted = linkController(Map.of("id", linkId.toString()), null, db.dataSource()).delete();
+            DeleteResponse deleted =
+                    linkController(Map.of("id", linkId.toString()), null, db.dataSource()).delete();
             assertTrue(deleted.getData().getDelete());
             assertNull(db.queryOne("select linkId from link where linkId=?", linkId));
         }
@@ -181,29 +230,51 @@ public class ContentCrudControllerDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
             applicationConfig = ignored.config();
-            LinkController controller = linkController(Map.of("id", "0"), null, ignored.dataSource());
+            LinkController controller =
+                    linkController(Map.of("id", "0"), null, ignored.dataSource());
 
             assertThrows(ArgsException.class, controller::delete);
         }
     }
 
-    private TypeController typeController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
+    private TypeController typeController(
+            Map<String, String> params, String body, DataSourceWrapper testDataSource)
+            throws Exception {
         TypeController controller =
-                applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).typeController();
+                applicationConfig
+                        .getServerConfig()
+                        .getBindings()
+                        .build()
+                        .get(ContentComponent.class)
+                        .typeController();
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
-    private BlogNavController blogNavController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
+    private BlogNavController blogNavController(
+            Map<String, String> params, String body, DataSourceWrapper testDataSource)
+            throws Exception {
         BlogNavController controller =
-                applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).blogNavController();
+                applicationConfig
+                        .getServerConfig()
+                        .getBindings()
+                        .build()
+                        .get(ContentComponent.class)
+                        .blogNavController();
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
-    private LinkController linkController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
+    private LinkController linkController(
+            Map<String, String> params, String body, DataSourceWrapper testDataSource)
+            throws Exception {
         LinkController controller =
-                applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).linkController();
+                applicationConfig
+                        .getServerConfig()
+                        .getBindings()
+                        .build()
+                        .get(ContentComponent.class)
+                        .linkController();
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

@@ -1,14 +1,13 @@
 package com.zrlog.admin.support;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.util.Locale;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 public final class MfaTestCodeGenerator {
 
-    private MfaTestCodeGenerator() {
-    }
+    private MfaTestCodeGenerator() {}
 
     public static String currentCode(String secret) {
         long currentCounter = System.currentTimeMillis() / 1000 / 30;
@@ -23,10 +22,11 @@ public final class MfaTestCodeGenerator {
             mac.init(new SecretKeySpec(secretBytes, "HmacSHA1"));
             byte[] hash = mac.doFinal(counterBytes);
             int offset = hash[hash.length - 1] & 0x0F;
-            int binary = ((hash[offset] & 0x7F) << 24)
-                    | ((hash[offset + 1] & 0xFF) << 16)
-                    | ((hash[offset + 2] & 0xFF) << 8)
-                    | (hash[offset + 3] & 0xFF);
+            int binary =
+                    ((hash[offset] & 0x7F) << 24)
+                            | ((hash[offset + 1] & 0xFF) << 16)
+                            | ((hash[offset + 2] & 0xFF) << 8)
+                            | (hash[offset + 3] & 0xFF);
             return String.format(Locale.ROOT, "%06d", binary % 1_000_000);
         } catch (Exception e) {
             throw new IllegalStateException("Generate MFA test code failed", e);

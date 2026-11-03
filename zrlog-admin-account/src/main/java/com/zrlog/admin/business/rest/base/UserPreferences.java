@@ -1,8 +1,6 @@
 package com.zrlog.admin.business.rest.base;
 
-/**
- * Nullable fields are personal overrides; null inherits the site default.
- */
+/** Nullable fields are personal overrides; null inherits the site default. */
 public class UserPreferences {
     public String language;
     public Appearance appearance;

@@ -8,7 +8,6 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.util.ManifestUtils;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -30,8 +29,10 @@ public class AdminResourceImpl implements AdminResource {
     private final LongSupplier siteVersion;
     private final Function<HttpRequest, String> staticResourceUrl;
 
-    public AdminResourceImpl(String contextPath, LongSupplier siteVersion,
-                             Function<HttpRequest, String> staticResourceUrl) {
+    public AdminResourceImpl(
+            String contextPath,
+            LongSupplier siteVersion,
+            Function<HttpRequest, String> staticResourceUrl) {
         this.siteVersion = Objects.requireNonNull(siteVersion);
         this.staticResourceUrl = Objects.requireNonNull(staticResourceUrl);
         this.basePath = contextPath + "/";
@@ -52,22 +53,27 @@ public class AdminResourceImpl implements AdminResource {
     }
 
     private Set<String> getStaticUri() {
-        InputStream resourceAsStream = AdminResourceImpl.class.getResourceAsStream(ADMIN_ASSET_MANIFEST_JSON);
+        InputStream resourceAsStream =
+                AdminResourceImpl.class.getResourceAsStream(ADMIN_ASSET_MANIFEST_JSON);
         Set<String> cacheUris = new LinkedHashSet<>();
         if (Objects.isNull(resourceAsStream)) {
             return cacheUris;
         }
         String str = IOUtil.getStringInputStream(resourceAsStream);
         if (StringUtils.isNotEmpty(str)) {
-            Map<String, Object> map = new Gson().fromJson(str, new TypeToken<>() {
-            });
+            Map<String, Object> map = new Gson().fromJson(str, new TypeToken<>() {});
             Map<String, Object> staticFiles = (Map<String, Object>) map.get("files");
             if (Objects.nonNull(staticFiles)) {
-                cacheUris.addAll(staticFiles.values().stream().filter(e -> !((String) e).endsWith(".html")).map(String::valueOf).collect(Collectors.toList()));
+                cacheUris.addAll(
+                        staticFiles.values().stream()
+                                .filter(e -> !((String) e).endsWith(".html"))
+                                .map(String::valueOf)
+                                .collect(Collectors.toList()));
                 cacheUris = new LinkedHashSet<>(wrapperUris(cacheUris));
             }
         }
-        cacheUris.addAll(wrapperUris(getUris(AdminConstants.ADMIN_URI_BASE_PATH + "/pwa-resource.txt")));
+        cacheUris.addAll(
+                wrapperUris(getUris(AdminConstants.ADMIN_URI_BASE_PATH + "/pwa-resource.txt")));
         return cacheUris;
     }
 
@@ -75,11 +81,24 @@ public class AdminResourceImpl implements AdminResource {
     public ByteArrayInputStream renderServiceWorker(HttpRequest request) {
         Set<String> realUris = new LinkedHashSet<>();
         String adminResourceUrl = staticResourceUrl.apply(request);
-        String withoutContextPath = adminResourceUrl.substring(0, adminResourceUrl.length() - contextPath.length());
+        String withoutContextPath =
+                adminResourceUrl.substring(0, adminResourceUrl.length() - contextPath.length());
         // HTML embeds account identity and article data, so only precache static assets.
         staticUris.forEach(uri -> realUris.add(withoutContextPath + uri));
-        String newUrls = "const urlsToCache = " + new Gson().newBuilder().disableHtmlEscaping().setPrettyPrinting().create().toJson(realUris);
-        return new ByteArrayInputStream(IOUtil.getStringInputStream(AdminResourceImpl.class.getResourceAsStream(AdminConstants.ADMIN_SERVICE_WORKER_JS)).replace("const urlsToCache = []", newUrls).getBytes());
+        String newUrls =
+                "const urlsToCache = "
+                        + new Gson()
+                                .newBuilder()
+                                .disableHtmlEscaping()
+                                .setPrettyPrinting()
+                                .create()
+                                .toJson(realUris);
+        return new ByteArrayInputStream(
+                IOUtil.getStringInputStream(
+                                AdminResourceImpl.class.getResourceAsStream(
+                                        AdminConstants.ADMIN_SERVICE_WORKER_JS))
+                        .replace("const urlsToCache = []", newUrls)
+                        .getBytes());
     }
 
     @Override
@@ -98,16 +117,19 @@ public class AdminResourceImpl implements AdminResource {
 
     private Set<String> wrapperUris(Set<String> uris) {
         Set<String> cacheUris = new LinkedHashSet<>();
-        uris.forEach(file -> {
-            if (file.startsWith(AdminConstants.ADMIN_URI_BASE_PATH)) {
-                cacheUris.add((basePath + file.substring(1)));
-            } else if (file.startsWith("admin/")) {
-                cacheUris.add((basePath + file));
-            } else {
-                //vendors
-                cacheUris.add(new File((basePath + AdminConstants.ADMIN_URI_BASE_PATH + file)).toString());
-            }
-        });
+        uris.forEach(
+                file -> {
+                    if (file.startsWith(AdminConstants.ADMIN_URI_BASE_PATH)) {
+                        cacheUris.add((basePath + file.substring(1)));
+                    } else if (file.startsWith("admin/")) {
+                        cacheUris.add((basePath + file));
+                    } else {
+                        // vendors
+                        cacheUris.add(
+                                new File((basePath + AdminConstants.ADMIN_URI_BASE_PATH + file))
+                                        .toString());
+                    }
+                });
         return cacheUris;
     }
 
@@ -118,7 +140,10 @@ public class AdminResourceImpl implements AdminResource {
 
     @Override
     public Set<String> getAdminPageUris() {
-        return pageUris.stream().filter(e -> e.startsWith(basePath + "admin/")).map(e -> e.split("\\?")[0]).collect(Collectors.toSet());
+        return pageUris.stream()
+                .filter(e -> e.startsWith(basePath + "admin/"))
+                .map(e -> e.split("\\?")[0])
+                .collect(Collectors.toSet());
     }
 
     @Override

@@ -21,7 +21,6 @@ import com.zrlog.install.web.config.DefaultInstallConfig;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.MemoryRuntime;
-
 import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -57,8 +56,12 @@ public class MemoryApplication {
 
         DevZrLogConfig config = prepareRuntime(port);
         WebServerBuilder build = new WebServerBuilder.Builder().config(config).build();
-        LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + config.getServerConfig().getContextPath()
-                + "/admin/login, root=" + PathUtil.getRootPath());
+        LOGGER.info(
+                "Start ZrLog admin memory application at http://127.0.0.1:"
+                        + port
+                        + config.getServerConfig().getContextPath()
+                        + "/admin/login, root="
+                        + PathUtil.getRootPath());
         build.start();
     }
 
@@ -95,8 +98,10 @@ public class MemoryApplication {
         if (!Files.exists(configPath)) {
             throw new IllegalStateException("Missing " + configPath);
         }
-        InstallConfigVO installConfigVO = GSON.fromJson(Files.readString(configPath), InstallConfigVO.class);
-        Properties properties = InMemoryDatabase.h2Properties(installConfigVO.getDbConfig().getDbName());
+        InstallConfigVO installConfigVO =
+                GSON.fromJson(Files.readString(configPath), InstallConfigVO.class);
+        Properties properties =
+                InMemoryDatabase.h2Properties(installConfigVO.getDbConfig().getDbName());
         installConfigVO.getDbConfig().setJdbcUrl(properties.getProperty("jdbcUrl"));
         installConfigVO.getDbConfig().setDriverClass(properties.getProperty("driverClass"));
         return installConfigVO;
@@ -158,18 +163,23 @@ public class MemoryApplication {
         }
 
         @Override
-        public CloseResponseHandle getContext(String uri, HttpMethod method, HttpRequest request, AdminTokenVO adminTokenVO) {
+        public CloseResponseHandle getContext(
+                String uri, HttpMethod method, HttpRequest request, AdminTokenVO adminTokenVO) {
             return new CloseResponseHandle();
         }
 
         @Override
-        public <T> T requestService(HttpRequest inputRequest, Map<String, String[]> params, AdminTokenVO adminTokenVO,
-                                    Class<T> clazz) {
+        public <T> T requestService(
+                HttpRequest inputRequest,
+                Map<String, String[]> params,
+                AdminTokenVO adminTokenVO,
+                Class<T> clazz) {
             return null;
         }
 
         @Override
-        public boolean accessPlugin(String uri, HttpRequest request, HttpResponse response, AdminTokenVO adminTokenVO)
+        public boolean accessPlugin(
+                String uri, HttpRequest request, HttpResponse response, AdminTokenVO adminTokenVO)
                 throws URISyntaxException {
             return false;
         }

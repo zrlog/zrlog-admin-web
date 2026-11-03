@@ -12,20 +12,17 @@ import com.zrlog.common.TokenService;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import jakarta.inject.Inject;
-
 import java.io.InputStream;
 import java.util.Objects;
 
 public class AdminPageController extends Controller {
-
 
     private final AdminPageRequestHandler adminPageService;
     private final TokenService tokenService;
 
     @Inject
     public AdminPageController(
-            AdminPageRequestHandler adminPageService,
-            TokenService tokenService) {
+            AdminPageRequestHandler adminPageService, TokenService tokenService) {
         this.tokenService = tokenService;
         this.adminPageService = adminPageService;
     }
@@ -36,22 +33,26 @@ public class AdminPageController extends Controller {
             renderIndex();
             return;
         }
-        if (Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH) || Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH + "/")) {
+        if (Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH)
+                || Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH + "/")) {
             response.redirect(Constants.ADMIN_URI_BASE_PATH + AdminConstants.INDEX_URI_PATH);
             return;
         }
         if (Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH + "/website/version")
-                || Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH + "/website/upgrade")) {
+                || Objects.equals(
+                        request.getUri(), Constants.ADMIN_URI_BASE_PATH + "/website/upgrade")) {
             String query = request.getQueryStr();
-            response.redirect(request.getUri().replace("/website/", "/system/")
-                    + (query == null || query.isEmpty() ? "" : "?" + query));
+            response.redirect(
+                    request.getUri().replace("/website/", "/system/")
+                            + (query == null || query.isEmpty() ? "" : "?" + query));
             return;
         }
         renderIndex();
     }
 
     private void renderIndex() throws Throwable {
-        InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_HTML_PAGE);
+        InputStream inputStream =
+                AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_HTML_PAGE);
         if (Objects.isNull(inputStream)) {
             response.renderCode(404);
             return;

@@ -11,11 +11,15 @@ public class StaticSiteProgressResponse {
     private int retrying;
     private List<String> siteTypes;
 
-    public StaticSiteProgressResponse() {
-    }
+    public StaticSiteProgressResponse() {}
 
-    public StaticSiteProgressResponse(int total, int handled, int handing, int pending, int retrying,
-                                      List<String> siteTypes) {
+    public StaticSiteProgressResponse(
+            int total,
+            int handled,
+            int handing,
+            int pending,
+            int retrying,
+            List<String> siteTypes) {
         this.total = total;
         this.handled = handled;
         this.handing = handing;

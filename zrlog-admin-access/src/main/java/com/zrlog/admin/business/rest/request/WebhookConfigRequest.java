@@ -2,7 +2,6 @@ package com.zrlog.admin.business.rest.request;
 
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
-
 import java.util.Objects;
 
 public class WebhookConfigRequest implements Validator {

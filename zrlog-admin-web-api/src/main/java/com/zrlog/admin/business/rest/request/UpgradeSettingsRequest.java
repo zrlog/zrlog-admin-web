@@ -3,9 +3,7 @@ package com.zrlog.admin.business.rest.request;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.common.exception.ArgsException;
 
-/**
- * Only edited repository selections are sent; null preserves the updater setting.
- */
+/** Only edited repository selections are sent; null preserves the updater setting. */
 public class UpgradeSettingsRequest extends UpgradeWebSiteInfo {
     private String dockerRepository;
 

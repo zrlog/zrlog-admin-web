@@ -25,5 +25,4 @@ public class AIIncompleteResponseException extends AbstractAdminBusinessExceptio
     public Integer getContinuationRounds() {
         return continuationRounds;
     }
-
 }

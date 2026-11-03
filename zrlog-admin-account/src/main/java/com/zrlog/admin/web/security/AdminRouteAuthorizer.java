@@ -9,13 +9,10 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 
-/**
- * HTTP route metadata and parameter parsing stay at the Web boundary.
- */
+/** HTTP route metadata and parameter parsing stay at the Web boundary. */
 @Singleton
 public final class AdminRouteAuthorizer {
     private final AccountPermissionService permissions;
@@ -35,7 +32,8 @@ public final class AdminRouteAuthorizer {
         }
     }
 
-    public void checkRoute(AccountAccess account, Method method, HttpRequest request) throws SQLException {
+    public void checkRoute(AccountAccess account, Method method, HttpRequest request)
+            throws SQLException {
         if (method == null) throw new PermissionErrorException();
         RequiresAction binding = method.getAnnotation(RequiresAction.class);
         if (binding == null) throw new PermissionErrorException();
@@ -46,7 +44,8 @@ public final class AdminRouteAuthorizer {
             try {
                 long articleId = Long.parseLong(id);
                 if (articleId <= 0) {
-                    if (articleId != 0 && articleId != -account.getUserId()) throw new PermissionErrorException();
+                    if (articleId != 0 && articleId != -account.getUserId())
+                        throw new PermissionErrorException();
                 } else permissions.readArticle(account, articleId);
             } catch (NumberFormatException e) {
                 throw new PermissionErrorException();

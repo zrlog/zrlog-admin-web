@@ -22,7 +22,6 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Set;
@@ -53,16 +52,19 @@ public class AdminTagController extends BaseController {
     public AdminPageDataResponse<PageData<TagManagementEntryResponse>> index() throws SQLException {
         PublicWebSiteInfo website = site.get();
         String key = request.getParaToStr("key", "");
-        PageData<TagManagementEntryResponse> data = tagManagementService.find(
-                ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
-                ControllerUtil.getPageRequest(this),
-                key, Boolean.TRUE.equals(website.getGenerator_html_status()));
+        PageData<TagManagementEntryResponse> data =
+                tagManagementService.find(
+                        ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
+                        ControllerUtil.getPageRequest(this),
+                        key,
+                        Boolean.TRUE.equals(website.getGenerator_html_status()));
         return pages.response(requestIdentity.optional(), data, "", request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.preview")
-    public ApiStandardResponse<TagManagementPreviewResponse> preview() throws IOException, SQLException {
+    public ApiStandardResponse<TagManagementPreviewResponse> preview()
+            throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         String operation = request.getParaToStr("operation", "rename");
         validateOperation(operation);
@@ -74,32 +76,38 @@ public class AdminTagController extends BaseController {
     @ResponseBody
     @RequestLock
     @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.rename")
-    public ApiStandardResponse<TagManagementPreviewResponse> rename() throws IOException, SQLException {
+    public ApiStandardResponse<TagManagementPreviewResponse> rename()
+            throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("rename");
         validateTargetTag(requestBody, "rename");
-        return new ApiStandardResponse<>(tagManagementService.execute(requestIdentity.optional(), requestBody, "rename"));
+        return new ApiStandardResponse<>(
+                tagManagementService.execute(requestIdentity.optional(), requestBody, "rename"));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
     @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.merge")
-    public ApiStandardResponse<TagManagementPreviewResponse> merge() throws IOException, SQLException {
+    public ApiStandardResponse<TagManagementPreviewResponse> merge()
+            throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("merge");
         validateTargetTag(requestBody, "merge");
-        return new ApiStandardResponse<>(tagManagementService.execute(requestIdentity.optional(), requestBody, "merge"));
+        return new ApiStandardResponse<>(
+                tagManagementService.execute(requestIdentity.optional(), requestBody, "merge"));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
     @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.delete")
-    public ApiStandardResponse<TagManagementPreviewResponse> delete() throws IOException, SQLException {
+    public ApiStandardResponse<TagManagementPreviewResponse> delete()
+            throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("delete");
-        return new ApiStandardResponse<>(tagManagementService.execute(requestIdentity.optional(), requestBody, "delete"));
+        return new ApiStandardResponse<>(
+                tagManagementService.execute(requestIdentity.optional(), requestBody, "delete"));
     }
 
     private void validateOperation(String operation) {
@@ -112,7 +120,8 @@ public class AdminTagController extends BaseController {
         if (!"delete".equals(operation) && StringUtils.isEmpty(requestBody.getTargetTag())) {
             throw new ArgsException("targetTag");
         }
-        if (!"delete".equals(operation) && requestBody.getSourceTag().equals(requestBody.getTargetTag())) {
+        if (!"delete".equals(operation)
+                && requestBody.getSourceTag().equals(requestBody.getTargetTag())) {
             throw new ArgsException("targetTag");
         }
     }

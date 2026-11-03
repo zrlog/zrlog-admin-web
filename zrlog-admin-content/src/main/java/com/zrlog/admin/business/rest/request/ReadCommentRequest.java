@@ -15,7 +15,5 @@ public class ReadCommentRequest implements Validator {
     }
 
     @Override
-    public void doValid() {
-
-    }
+    public void doValid() {}
 }

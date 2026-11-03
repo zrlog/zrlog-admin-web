@@ -8,5 +8,4 @@ public class AIImageDownloadException extends AbstractAdminBusinessException {
     public AIImageDownloadException(String detail) {
         super(AdminErrorCode.AI_IMAGE_DOWNLOAD_FAILED, detail);
     }
-
 }

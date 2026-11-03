@@ -14,7 +14,6 @@ import com.zrlog.data.repository.CommentRepository;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.util.ParseUtil;
 import jakarta.inject.Inject;
-
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.*;
@@ -57,14 +56,22 @@ public class AdminLogRepository extends LogRepository {
         }
         if (idOrAlias instanceof Number || ParseUtil.isNumeric(String.valueOf(idOrAlias))) {
             String sql =
-                    "select l.*,last_update_date as lastUpdateDate,u.userName,u.header as header,(select count(commentId) from " + CommentRepository.TABLE_NAME + " where logId=l.logId) commentSize ,t.alias as typeAlias,t.typeName as typeName  from " + tableName + " l inner join user u,type t where t.typeId=l.typeId and u.userId=l.userId and l.logId=?";
+                    "select l.*,last_update_date as lastUpdateDate,u.userName,u.header as header,(select count(commentId) from "
+                            + CommentRepository.TABLE_NAME
+                            + " where logId=l.logId) commentSize ,t.alias as typeAlias,t.typeName as typeName  from "
+                            + tableName
+                            + " l inner join user u,type t where t.typeId=l.typeId and u.userId=l.userId and l.logId=?";
             ArticleBasicDTO log = queryOne(sql, ArticleBasicDTO.class, idOrAlias);
             if (log != null) {
                 return log;
             }
         }
         String sql =
-                "select l.*,last_update_date as lastUpdateDate,u.userName,u.header as header,(select count(commentId) from " + CommentRepository.TABLE_NAME + " where logId=l.logId) commentSize ,t.alias as typeAlias,t.typeName as typeName  from " + tableName + " l inner join user u,type t where t.typeId=l.typeId and u.userId=l.userId and l.alias=?";
+                "select l.*,last_update_date as lastUpdateDate,u.userName,u.header as header,(select count(commentId) from "
+                        + CommentRepository.TABLE_NAME
+                        + " where logId=l.logId) commentSize ,t.alias as typeAlias,t.typeName as typeName  from "
+                        + tableName
+                        + " l inner join user u,type t where t.typeId=l.typeId and u.userId=l.userId and l.alias=?";
         ArticleBasicDTO log = queryOne(sql, ArticleBasicDTO.class, String.valueOf(idOrAlias));
         if (Objects.isNull(log)) {
             return null;
@@ -78,32 +85,41 @@ public class AdminLogRepository extends LogRepository {
             return 0;
         }
         return number.longValue();
-
     }
 
-    /**
-     * 管理员查询文章
-     */
-    public PageData<ArticleBasicDTO> find(PageRequest pageRequest, String keywords, String typeAlias) {
+    /** 管理员查询文章 */
+    public PageData<ArticleBasicDTO> find(
+            PageRequest pageRequest, String keywords, String typeAlias) {
         return find(pageRequest, keywords, typeAlias, "");
     }
 
-    /**
-     * 管理员查询文章
-     */
-    public PageData<ArticleBasicDTO> find(PageRequest pageRequest, String keywords, String typeAlias, String status) {
+    /** 管理员查询文章 */
+    public PageData<ArticleBasicDTO> find(
+            PageRequest pageRequest, String keywords, String typeAlias, String status) {
         return find(pageRequest, keywords, typeAlias, status, null);
     }
 
-    public PageData<ArticleBasicDTO> find(PageRequest pageRequest, String keywords, String typeAlias, String status, Integer authorId) {
+    public PageData<ArticleBasicDTO> find(
+            PageRequest pageRequest,
+            String keywords,
+            String typeAlias,
+            String status,
+            Integer authorId) {
         return find(pageRequest, keywords, typeAlias, status, authorId, null);
     }
 
-    public PageData<ArticleBasicDTO> find(PageRequest pageRequest, String keywords, String typeAlias, String status, Integer authorId, Integer privateOwnerId) {
+    public PageData<ArticleBasicDTO> find(
+            PageRequest pageRequest,
+            String keywords,
+            String typeAlias,
+            String status,
+            Integer authorId,
+            Integer privateOwnerId) {
         String searchKeywords = "";
         List<Object> searchParam = new ArrayList<>();
         if (StringUtils.isNotEmpty(keywords)) {
-            searchKeywords = " and (l.title like ? or l.plain_content like ? or l.keywords like ? or l.alias like ?)";
+            searchKeywords =
+                    " and (l.title like ? or l.plain_content like ? or l.keywords like ? or l.alias like ?)";
             searchParam.add("%" + keywords + "%");
             searchParam.add("%" + keywords + "%");
             searchParam.add("%" + keywords + "%");
@@ -141,13 +157,21 @@ public class AdminLogRepository extends LogRepository {
         }
         String pageSort = getPageSort(pageRequest);
         String sql =
-                "select l.*,t.typeName,l.logId as id,l.last_update_date as lastUpdateDate,t" +
-                        ".alias as typeAlias,u.userName,u.header as header,(select count(commentId) from " + CommentRepository.TABLE_NAME + " " +
-                        "where " + "logId=l.logId ) commentSize from " + tableName + " l inner join user u inner " + "join type t where u" + ".userId=l.userId" + searchKeywords +
-                        " and t.typeid=l.typeid and l.typeid is not null order " + "by " + pageSort;
-        return queryPageData(
-                sql, pageRequest,
-                searchParam.toArray(), ArticleBasicDTO.class);
+                "select l.*,t.typeName,l.logId as id,l.last_update_date as lastUpdateDate,t"
+                        + ".alias as typeAlias,u.userName,u.header as header,(select count(commentId) from "
+                        + CommentRepository.TABLE_NAME
+                        + " "
+                        + "where "
+                        + "logId=l.logId ) commentSize from "
+                        + tableName
+                        + " l inner join user u inner "
+                        + "join type t where u"
+                        + ".userId=l.userId"
+                        + searchKeywords
+                        + " and t.typeid=l.typeid and l.typeid is not null order "
+                        + "by "
+                        + pageSort;
+        return queryPageData(sql, pageRequest, searchParam.toArray(), ArticleBasicDTO.class);
     }
 
     public ArticleCounts getCounts() throws SQLException {
@@ -169,17 +193,23 @@ public class AdminLogRepository extends LogRepository {
                         + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
                         + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount,"
                         + "SUM(l.click) AS clickCount "
-                        + "FROM " + tableName + " l "
+                        + "FROM "
+                        + tableName
+                        + " l "
                         + "inner join user u on u.userId = l.userId "
                         + "inner join type t on t.typeId = l.typeId "
                         + "where l.typeId is not null"
                         + (authorId == null ? "" : " and l.userId=?")
                         + (privateOwnerId == null ? "" : " and (l.privacy=? or l.userId=?)"),
-                ArticleCounts.class, parameters.toArray());
+                ArticleCounts.class,
+                parameters.toArray());
     }
 
     public Map<String, Long> getArticleData() throws SQLException {
-        List<ArticleBasicDTO> lo = queryList("select releaseTime from " + tableName + " order by releaseTime desc", ArticleBasicDTO.class);
+        List<ArticleBasicDTO> lo =
+                queryList(
+                        "select releaseTime from " + tableName + " order by releaseTime desc",
+                        ArticleBasicDTO.class);
         Map<String, Long> archives = new LinkedHashMap<>();
         for (ArticleBasicDTO entry : lo) {
             Object value = entry.getReleaseTime();
@@ -203,7 +233,13 @@ public class AdminLogRepository extends LogRepository {
 
     public long countByTypeId(Integer typeId) {
         try {
-            return ((Number) queryFirstObj("select count(1) as count from " + tableName + " where typeId=?", typeId)).longValue();
+            return ((Number)
+                            queryFirstObj(
+                                    "select count(1) as count from "
+                                            + tableName
+                                            + " where typeId=?",
+                                    typeId))
+                    .longValue();
         } catch (SQLException e) {
             throw new DAOException(e);
         }

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.knowledge;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -18,6 +20,8 @@ import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -27,17 +31,11 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.data.security.AccountAccess;
-import com.zrlog.admin.data.repository.AdminLogRepository;
-import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.data.repository.TagRepository;
 import com.zrlog.data.repository.TypeRepository;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.util.I18nUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import java.lang.reflect.Proxy;
 import java.sql.SQLException;
 import java.util.*;
@@ -45,13 +43,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class McpContentServiceTest {
 
-    private static final String CREATE = "{\"title\":\"Original\",\"typeId\":1,\"status\":\"draft\",\"markdown\":\"Original body\",\"content\":\"<p>Original body</p>\",\"keywords\":\"real,notes\",\"digest\":\"Original summary\",\"alias\":\"original\"}";
+    private static final String CREATE =
+            "{\"title\":\"Original\",\"typeId\":1,\"status\":\"draft\",\"markdown\":\"Original body\",\"content\":\"<p>Original body</p>\",\"keywords\":\"real,notes\",\"digest\":\"Original summary\",\"alias\":\"original\"}";
     private final String database;
     private ZrLogConfig applicationConfig;
 
@@ -61,7 +61,7 @@ public class McpContentServiceTest {
 
     @Parameterized.Parameters(name = "database={0}")
     public static String[] databases() {
-        return new String[]{"h2", "sqlite"};
+        return new String[] {"h2", "sqlite"};
     }
 
     private static JsonObject args(String value) {
@@ -69,27 +69,33 @@ public class McpContentServiceTest {
     }
 
     private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(McpContentServiceTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-            switch (method.getName()) {
-                case "getUri":
-                    return "/mcp";
-                case "getContextPath":
-                    return "/sub";
-                case "getRemoteHost":
-                    return "127.0.0.1";
-                case "getHeader":
-                    return null;
-                case "getHeaderMap":
-                case "getParamMap":
-                    return Map.of();
-                default:
-                    return method.getReturnType().isPrimitive() ? 0 : null;
-            }
-        });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        McpContentServiceTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getUri":
+                                    return "/mcp";
+                                case "getContextPath":
+                                    return "/sub";
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "getHeader":
+                                    return null;
+                                case "getHeaderMap":
+                                case "getParamMap":
+                                    return Map.of();
+                                default:
+                                    return method.getReturnType().isPrimitive() ? 0 : null;
+                            }
+                        });
     }
 
     private InMemoryZrLogDatabase open() throws Exception {
-        return database.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
+        return database.equals("sqlite")
+                ? InMemoryZrLogDatabase.openSqlite()
+                : InMemoryZrLogDatabase.open();
     }
 
     private String token(DataSourceWrapper testDataSource, String... permissions) throws Exception {
@@ -98,41 +104,65 @@ public class McpContentServiceTest {
         body.permissionMode = permissions.length == 0 ? "inherit" : "custom";
         body.permissions = List.of(permissions);
         return new PersonalAccessTokenService(
-                new OAuthService(
-                        ApplicationServicesFixture.backend(applicationConfig)
-                                ::configured,
-                        ApplicationServicesFixture.available(
-                                applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
-                        AccountServicesFixture.component(testDataSource).security(),
-                        tokenResource ->
-                                new PersonalAccessTokenService(
-                                        tokenResource,
+                        new OAuthService(
+                                        ApplicationServicesFixture.backend(applicationConfig)
+                                                ::configured,
+                                        ApplicationServicesFixture.available(
+                                                applicationConfig, McpWebSetup.class),
                                         AccountServicesFixture.component(testDataSource)
-                                                .identities(), AccountServicesFixture.component(testDataSource)
-                                        .permissions(),
+                                                .permissions(),
                                         AccountServicesFixture.component(testDataSource)
-                                                .security()),
-                        AccountServicesFixture.component(testDataSource).backend())
-                        .mcpResource(),
-                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                AccountServicesFixture.component(testDataSource).security())
-                .create(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body)
+                                                .identities(),
+                                        AccountServicesFixture.component(testDataSource).security(),
+                                        tokenResource ->
+                                                new PersonalAccessTokenService(
+                                                        tokenResource,
+                                                        AccountServicesFixture.component(
+                                                                        testDataSource)
+                                                                .identities(),
+                                                        AccountServicesFixture.component(
+                                                                        testDataSource)
+                                                                .permissions(),
+                                                        AccountServicesFixture.component(
+                                                                        testDataSource)
+                                                                .security()),
+                                        AccountServicesFixture.component(testDataSource).backend())
+                                .mcpResource(),
+                        AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security())
+                .create(
+                        new GrantAuthority(
+                                AccountServicesFixture.component(testDataSource)
+                                        .requestIdentity()
+                                        .current(),
+                                !com.zrlog.admin.business.security.DelegatedAccess.restricted()),
+                        body)
                 .token;
     }
 
-    private McpContentService tools(String token, String language, ContentToolService content, AttachmentStorage storage, DataSourceWrapper testDataSource) {
+    private McpContentService tools(
+            String token,
+            String language,
+            ContentToolService content,
+            AttachmentStorage storage,
+            DataSourceWrapper testDataSource) {
         OAuthService oauth =
                 new OAuthService(
                         ApplicationServicesFixture.backend(applicationConfig)::configured,
                         ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).security(),
                         tokenResource ->
                                 new PersonalAccessTokenService(
                                         tokenResource,
-                                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                                        AccountServicesFixture.component(testDataSource).security()),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .identities(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .permissions(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .security()),
                         AccountServicesFixture.component(testDataSource).backend());
         return new McpContentService(
                 () -> {
@@ -144,27 +174,38 @@ public class McpContentServiceTest {
                 },
                 request(),
                 language,
-                () -> new ContentToolFactory((toolAccount, toolScopes, toolRequest, toolLanguage, toolAudit, toolCredential, toolKnowledge) ->
-                        new ContentToolProvider(toolAccount,
-                                toolAudit,
-                                toolCredential,
-                                toolScopes,
-                                toolRequest,
-                                toolLanguage,
-                                content,
-                                () -> storage,
-                                toolKnowledge,
-                                AccountServicesFixture.component(testDataSource).identities()),
-                        (toolActor, toolScopes, toolLanguage) ->
-                                new KnowledgeService(
-                                        toolActor,
+                () ->
+                        new ContentToolFactory(
+                                (toolAccount,
                                         toolScopes,
-                                        ApplicationServicesFixture.backend(applicationConfig)
-                                                ::configured,
-                                        () -> false,
+                                        toolRequest,
                                         toolLanguage,
-                                        () -> new AdminLogRepository(testDataSource)),
-                        AccountServicesFixture.component(testDataSource).identities()),
+                                        toolAudit,
+                                        toolCredential,
+                                        toolKnowledge) ->
+                                        new ContentToolProvider(
+                                                toolAccount,
+                                                toolAudit,
+                                                toolCredential,
+                                                toolScopes,
+                                                toolRequest,
+                                                toolLanguage,
+                                                content,
+                                                () -> storage,
+                                                toolKnowledge,
+                                                AccountServicesFixture.component(testDataSource)
+                                                        .identities()),
+                                (toolActor, toolScopes, toolLanguage) ->
+                                        new KnowledgeService(
+                                                toolActor,
+                                                toolScopes,
+                                                ApplicationServicesFixture.backend(
+                                                                applicationConfig)
+                                                        ::configured,
+                                                () -> false,
+                                                toolLanguage,
+                                                () -> new AdminLogRepository(testDataSource)),
+                                AccountServicesFixture.component(testDataSource).identities()),
                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                 AccountServicesFixture.component(testDataSource).identities());
     }
@@ -173,28 +214,32 @@ public class McpContentServiceTest {
         return tools(
                 token,
                 "en_US",
-                new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService(), testDataSource),
-                        request -> {
-                        },
+                new ContentToolService(
+                        publishing(new InMemoryZrLogDatabase.TestCacheService(), testDataSource),
+                        request -> {},
                         AccountServicesFixture.component(testDataSource).permissions(),
                         () -> new TagRepository(testDataSource),
                         () -> new TypeRepository(testDataSource)),
-                null, testDataSource);
+                null,
+                testDataSource);
     }
 
-    private ArticlePublishingService publishing(CacheService cache, DataSourceWrapper testDataSource) {
+    private ArticlePublishingService publishing(
+            CacheService cache, DataSourceWrapper testDataSource) {
         return publishing(cache, testDataSource, ApplicationServicesFixture.audit(testDataSource));
     }
 
-    private ArticlePublishingService publishing(CacheService cache, DataSourceWrapper testDataSource,
-                                                AdminAuditService audit) {
+    private ArticlePublishingService publishing(
+            CacheService cache, DataSourceWrapper testDataSource, AdminAuditService audit) {
         return new ArticlePublishingService(
-                new AdminArticleService(ApplicationServicesFixture.capability(
-                        applicationConfig, ArticleAssistant.class),
+                new AdminArticleService(
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, ArticleAssistant.class),
                         AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).preferences(),
-                        new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
+                        new ArticleVersionService(
+                                AccountServicesFixture.component(testDataSource).permissions(),
                                 () -> new AdminLogRepository(testDataSource),
                                 () -> new LogVersionRepository(testDataSource)),
                         new ArticlePinningService(
@@ -202,7 +247,8 @@ public class McpContentServiceTest {
                                 ApplicationServicesFixture.locks(testDataSource)),
                         () -> new AdminLogRepository(testDataSource),
                         ApplicationServicesFixture.locks(testDataSource)),
-                new ArticleQueryService(cache,
+                new ArticleQueryService(
+                        cache,
                         ApplicationServicesFixture.capability(
                                 applicationConfig, ArticleAssistant.class),
                         new AdminPageDataFactory(
@@ -225,28 +271,34 @@ public class McpContentServiceTest {
     @Test
     public void preservesEmojiCreationAndPublicationLogsWithLegacyUtf8Storage() throws Exception {
         try (InMemoryZrLogDatabase db = open();
-             TestLogCapture logs = TestLogCapture.forClass(AdminAuditService.class)) {
+                TestLogCapture logs = TestLogCapture.forClass(AdminAuditService.class)) {
             applicationConfig = db.config();
-            WebsiteKvService auditStore = new WebsiteKvService(db.dataSource()) {
-                @Override
-                public boolean putString(String key, String value) throws SQLException {
-                    // H2/SQLite accept supplementary characters; enforce MySQL utf8's limit here.
-                    if (value.codePoints().anyMatch(codePoint -> codePoint > 0xffff)) {
-                        throw new SQLException("Incorrect string value for website.value", "HY000", 1366);
-                    }
-                    return super.putString(key, value);
-                }
-            };
+            WebsiteKvService auditStore =
+                    new WebsiteKvService(db.dataSource()) {
+                        @Override
+                        public boolean putString(String key, String value) throws SQLException {
+                            // H2/SQLite accept supplementary characters; enforce MySQL utf8's limit
+                            // here.
+                            if (value.codePoints().anyMatch(codePoint -> codePoint > 0xffff)) {
+                                throw new SQLException(
+                                        "Incorrect string value for website.value", "HY000", 1366);
+                            }
+                            return super.putString(key, value);
+                        }
+                    };
             AdminAuditService audit = new AdminAuditService(auditStore);
-            McpContentService tools = tools(
-                    token(db.dataSource()), "en_US",
-                    new ContentToolService(publishing(db.unitCacheService(), db.dataSource(), audit),
-                            request -> {
-                            },
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            () -> new TagRepository(db.dataSource()),
-                            () -> new TypeRepository(db.dataSource())),
-                    null, db.dataSource());
+            McpContentService tools =
+                    tools(
+                            token(db.dataSource()),
+                            "en_US",
+                            new ContentToolService(
+                                    publishing(db.unitCacheService(), db.dataSource(), audit),
+                                    request -> {},
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new TagRepository(db.dataSource()),
+                                    () -> new TypeRepository(db.dataSource())),
+                            null,
+                            db.dataSource());
             tools.call("create_article", args(CREATE));
 
             String title = "大理🌿 重庆🌶️ 家人👨‍👩‍👧 𠮷 \\uD83C\\uDF3F \"游记\"";
@@ -256,24 +308,70 @@ public class McpContentServiceTest {
             SavedArticle draft = (SavedArticle) tools.call("create_article", create);
             assertEquals("draft", draft.status);
             assertEquals(title, db.scalar("select title from log where logId=?", draft.id));
-            assertEquals(2, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L))).size());
-            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L))).get(0).getContent());
+            assertEquals(
+                    2,
+                    audit.getRecentLogs(
+                                    com.zrlog.data.security.AccountAccess.from(
+                                            new com.zrlog.data.repository.UserRepository(
+                                                            db.dataSource())
+                                                    .loadById(1L)))
+                            .size());
+            assertEquals(
+                    title,
+                    audit.getRecentLogs(
+                                    com.zrlog.data.security.AccountAccess.from(
+                                            new com.zrlog.data.repository.UserRepository(
+                                                            db.dataSource())
+                                                    .loadById(1L)))
+                            .get(0)
+                            .getContent());
 
-            SavedArticle published = (SavedArticle) tools.call("publish_article",
-                    args("{\"id\":" + draft.id + ",\"version\":0}"));
+            SavedArticle published =
+                    (SavedArticle)
+                            tools.call(
+                                    "publish_article",
+                                    args("{\"id\":" + draft.id + ",\"version\":0}"));
 
             assertEquals("published", published.status);
             assertEquals(1, published.version);
-            JsonArray stored = JsonParser.parseString(auditStore.getString("admin_audit_log")).getAsJsonArray();
+            JsonArray stored =
+                    JsonParser.parseString(auditStore.getString("admin_audit_log"))
+                            .getAsJsonArray();
             assertEquals(3, stored.size());
-            assertEquals("PUBLISH_ARTICLE", stored.get(0).getAsJsonObject().get("action").getAsString());
-            assertEquals("CREATE_ARTICLE", stored.get(1).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "PUBLISH_ARTICLE", stored.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "CREATE_ARTICLE", stored.get(1).getAsJsonObject().get("action").getAsString());
             assertEquals(title, stored.get(0).getAsJsonObject().get("content").getAsString());
             assertEquals(title, stored.get(1).getAsJsonObject().get("content").getAsString());
             assertEquals("Original", stored.get(2).getAsJsonObject().get("content").getAsString());
-            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L))).get(0).getContent());
-            assertEquals(title, audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L))).get(1).getContent());
-            assertEquals("MCP", audit.getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L))).get(0).getBrowser());
+            assertEquals(
+                    title,
+                    audit.getRecentLogs(
+                                    com.zrlog.data.security.AccountAccess.from(
+                                            new com.zrlog.data.repository.UserRepository(
+                                                            db.dataSource())
+                                                    .loadById(1L)))
+                            .get(0)
+                            .getContent());
+            assertEquals(
+                    title,
+                    audit.getRecentLogs(
+                                    com.zrlog.data.security.AccountAccess.from(
+                                            new com.zrlog.data.repository.UserRepository(
+                                                            db.dataSource())
+                                                    .loadById(1L)))
+                            .get(1)
+                            .getContent());
+            assertEquals(
+                    "MCP",
+                    audit.getRecentLogs(
+                                    com.zrlog.data.security.AccountAccess.from(
+                                            new com.zrlog.data.repository.UserRepository(
+                                                            db.dataSource())
+                                                    .loadById(1L)))
+                            .get(0)
+                            .getBrowser());
             assertFalse(logs.contains(Level.WARNING, "Record admin audit log failed"));
         }
     }
@@ -284,47 +382,62 @@ public class McpContentServiceTest {
     }
 
     @Test
-    public void reportsAuditWriteWithNoAffectedRowsWithoutLosingSuccessfulPublication() throws Exception {
+    public void reportsAuditWriteWithNoAffectedRowsWithoutLosingSuccessfulPublication()
+            throws Exception {
         assertAuditFailureIsVisible(false);
     }
 
     private void assertAuditFailureIsVisible(boolean throwsException) throws Exception {
         try (InMemoryZrLogDatabase db = open();
-             TestLogCapture logs = TestLogCapture.forClass(AdminAuditService.class)) {
+                TestLogCapture logs = TestLogCapture.forClass(AdminAuditService.class)) {
             applicationConfig = db.config();
             AtomicBoolean failAuditWrite = new AtomicBoolean();
-            WebsiteKvService auditStore = new WebsiteKvService(db.dataSource()) {
-                @Override
-                public boolean putString(String key, String value) throws SQLException {
-                    if (failAuditWrite.get()) {
-                        if (throwsException) throw new SQLException("Audit database unavailable", "08006");
-                        return false;
-                    }
-                    return super.putString(key, value);
-                }
-            };
-            McpContentService tools = tools(
-                    token(db.dataSource()), "en_US",
-                    new ContentToolService(publishing(db.unitCacheService(), db.dataSource(), new AdminAuditService(auditStore)),
-                            request -> {
-                            },
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            () -> new TagRepository(db.dataSource()),
-                            () -> new TypeRepository(db.dataSource())),
-                    null, db.dataSource());
+            WebsiteKvService auditStore =
+                    new WebsiteKvService(db.dataSource()) {
+                        @Override
+                        public boolean putString(String key, String value) throws SQLException {
+                            if (failAuditWrite.get()) {
+                                if (throwsException)
+                                    throw new SQLException("Audit database unavailable", "08006");
+                                return false;
+                            }
+                            return super.putString(key, value);
+                        }
+                    };
+            McpContentService tools =
+                    tools(
+                            token(db.dataSource()),
+                            "en_US",
+                            new ContentToolService(
+                                    publishing(
+                                            db.unitCacheService(),
+                                            db.dataSource(),
+                                            new AdminAuditService(auditStore)),
+                                    request -> {},
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new TagRepository(db.dataSource()),
+                                    () -> new TypeRepository(db.dataSource())),
+                            null,
+                            db.dataSource());
             SavedArticle draft = (SavedArticle) tools.call("create_article", args(CREATE));
             String previousAudit = auditStore.getString("admin_audit_log");
             assertFalse(logs.contains(Level.WARNING, "Record admin audit log failed"));
 
             failAuditWrite.set(true);
-            SavedArticle published = (SavedArticle) tools.call("publish_article",
-                    args("{\"id\":" + draft.id + ",\"version\":0}"));
+            SavedArticle published =
+                    (SavedArticle)
+                            tools.call(
+                                    "publish_article",
+                                    args("{\"id\":" + draft.id + ",\"version\":0}"));
 
             assertEquals("published", published.status);
             assertEquals(1, published.version);
-            assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=?", draft.id)));
+            assertFalse(
+                    AccountAccess.truth(
+                            db.scalar("select rubbish from log where logId=?", draft.id)));
             assertEquals(previousAudit, auditStore.getString("admin_audit_log"));
-            assertTrue("A missing audit entry must produce a diagnostic warning",
+            assertTrue(
+                    "A missing audit entry must produce a diagnostic warning",
                     logs.contains(Level.WARNING, "Record admin audit log failed"));
             assertTrue(logs.contains(Level.WARNING, "action=PUBLISH_ARTICLE"));
             assertTrue(logs.contains(Level.WARNING, "uri=/mcp"));
@@ -340,50 +453,92 @@ public class McpContentServiceTest {
                     tools(
                             token(db.dataSource()),
                             "en_US",
-                            new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService(), db.dataSource()),
+                            new ContentToolService(
+                                    publishing(
+                                            new InMemoryZrLogDatabase.TestCacheService(),
+                                            db.dataSource()),
                                     request -> refreshes.incrementAndGet(),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     () -> new TagRepository(db.dataSource()),
                                     () -> new TypeRepository(db.dataSource())),
-                            null, db.dataSource());
+                            null,
+                            db.dataSource());
             var browser = AdminTokenThreadLocal.getUser();
             SavedArticle saved = (SavedArticle) tools.call("create_article", args(CREATE));
             assertEquals("draft", saved.status);
             assertEquals(0, saved.version);
             assertEquals(0, refreshes.get());
-            ArticleDetails detail = (ArticleDetails) tools.call("get_article", args("{\"id\":" + saved.id + "}"));
+            ArticleDetails detail =
+                    (ArticleDetails) tools.call("get_article", args("{\"id\":" + saved.id + "}"));
             assertEquals("Original", detail.title);
             assertEquals(0, detail.version);
             assertEquals(1, detail.typeId);
-            SavedArticle patched = (SavedArticle) tools.call("update_article", args("{\"id\":" + saved.id + ",\"version\":0,\"title\":\"Revised\"}"));
+            SavedArticle patched =
+                    (SavedArticle)
+                            tools.call(
+                                    "update_article",
+                                    args(
+                                            "{\"id\":"
+                                                    + saved.id
+                                                    + ",\"version\":0,\"title\":\"Revised\"}"));
             assertEquals(1, patched.version);
             Map<String, Object> row = db.queryOne("select * from log where logId=?", saved.id);
             assertEquals("Original body", row.get("markdown"));
             assertEquals("<p>Original body</p>", row.get("content"));
             assertEquals("real,notes", row.get("keywords"));
             assertEquals("Original summary", row.get("digest"));
-            JsonArray draftAudit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
+            JsonArray draftAudit =
+                    JsonParser.parseString(
+                                    String.valueOf(
+                                            db.scalar(
+                                                    "select value from website where name='admin_audit_log'")))
+                            .getAsJsonArray();
             assertEquals(1, draftAudit.size());
-            assertEquals("CREATE_ARTICLE", draftAudit.get(0).getAsJsonObject().get("action").getAsString());
-            assertEquals("Original", draftAudit.get(0).getAsJsonObject().get("content").getAsString());
-            SavedArticle published = (SavedArticle) tools.call("publish_article", args("{\"id\":" + saved.id + ",\"version\":1}"));
+            assertEquals(
+                    "CREATE_ARTICLE",
+                    draftAudit.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "Original", draftAudit.get(0).getAsJsonObject().get("content").getAsString());
+            SavedArticle published =
+                    (SavedArticle)
+                            tools.call(
+                                    "publish_article",
+                                    args("{\"id\":" + saved.id + ",\"version\":1}"));
             assertEquals("published", published.status);
             assertEquals(2, published.version);
             assertEquals("updated", published.refreshStatus);
             assertEquals(1, refreshes.get());
-            assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=?", saved.id)));
-            String audit = String.valueOf(db.scalar("select value from website where name='admin_audit_log'"));
+            assertFalse(
+                    AccountAccess.truth(
+                            db.scalar("select rubbish from log where logId=?", saved.id)));
+            String audit =
+                    String.valueOf(
+                            db.scalar("select value from website where name='admin_audit_log'"));
             assertEquals(2, JsonParser.parseString(audit).getAsJsonArray().size());
             assertTrue(audit.contains("CREATE_ARTICLE"));
             assertTrue(audit.contains("PUBLISH_ARTICLE"));
             assertEquals(
                     "MCP",
                     new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
-                            .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L)))
+                            .getRecentLogs(
+                                    com.zrlog.data.security.AccountAccess.from(
+                                            new com.zrlog.data.repository.UserRepository(
+                                                            db.dataSource())
+                                                    .loadById(1L)))
                             .get(0)
                             .getBrowser());
-            for (int version : new int[]{0, 1, 99})
-                assertThrows(UpdateArticleExpireException.class, () -> tools.call("update_article", args("{\"id\":" + saved.id + ",\"version\":" + version + ",\"title\":\"Stale\"}")));
+            for (int version : new int[] {0, 1, 99})
+                assertThrows(
+                        UpdateArticleExpireException.class,
+                        () ->
+                                tools.call(
+                                        "update_article",
+                                        args(
+                                                "{\"id\":"
+                                                        + saved.id
+                                                        + ",\"version\":"
+                                                        + version
+                                                        + ",\"title\":\"Stale\"}")));
             JsonObject conflict =
                     new McpService(ApplicationServicesFixture.siteTitle(db.config()), "en_US")
                             .handle(
@@ -394,29 +549,37 @@ public class McpContentServiceTest {
                             .body
                             .getAsJsonObject("result");
             assertTrue(conflict.get("isError").getAsBoolean());
-            assertEquals("ADMIN_ARTICLE_UPDATE_EXPIRED", conflict.getAsJsonObject("structuredContent").get("code").getAsString());
+            assertEquals(
+                    "ADMIN_ARTICLE_UPDATE_EXPIRED",
+                    conflict.getAsJsonObject("structuredContent").get("code").getAsString());
             assertEquals("Revised", db.scalar("select title from log where logId=?", saved.id));
-            assertEquals(audit, db.scalar("select value from website where name='admin_audit_log'"));
+            assertEquals(
+                    audit, db.scalar("select value from website where name='admin_audit_log'"));
             assertSame(browser, AdminTokenThreadLocal.getUser());
         }
     }
 
     @Test
-    public void keepsSuccessfulSaveWhenStaticRefreshFailsAndAllowsExplicitDirectPublication() throws Exception {
+    public void keepsSuccessfulSaveWhenStaticRefreshFailsAndAllowsExplicitDirectPublication()
+            throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
             McpContentService tools =
                     tools(
                             token(db.dataSource()),
                             "zh_CN",
-                            new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService(), db.dataSource()),
+                            new ContentToolService(
+                                    publishing(
+                                            new InMemoryZrLogDatabase.TestCacheService(),
+                                            db.dataSource()),
                                     request -> {
                                         throw new IllegalStateException("internal detail");
                                     },
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     () -> new TagRepository(db.dataSource()),
                                     () -> new TypeRepository(db.dataSource())),
-                            null, db.dataSource());
+                            null,
+                            db.dataSource());
             JsonObject input = args(CREATE);
             input.addProperty("status", "published");
             JsonObject rpc = new JsonObject();
@@ -438,10 +601,17 @@ public class McpContentServiceTest {
             assertTrue(saved.get("warning").getAsString().contains("文章已保存"));
             assertFalse(saved.toString().contains("internal detail"));
             assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
-            JsonArray audit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
+            JsonArray audit =
+                    JsonParser.parseString(
+                                    String.valueOf(
+                                            db.scalar(
+                                                    "select value from website where name='admin_audit_log'")))
+                            .getAsJsonArray();
             assertEquals(2, audit.size());
-            assertEquals("PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
-            assertEquals("CREATE_ARTICLE", audit.get(1).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "CREATE_ARTICLE", audit.get(1).getAsJsonObject().get("action").getAsString());
         }
     }
 
@@ -451,17 +621,29 @@ public class McpContentServiceTest {
             applicationConfig = db.config();
             McpContentService tools = tools(token(db.dataSource()), db.dataSource());
             SavedArticle saved = (SavedArticle) tools.call("create_article", args(CREATE));
-            tools.call("update_article", args("{\"id\":" + saved.id + ",\"version\":0,\"content\":\"<p>HTML replacement</p>\"}"));
+            tools.call(
+                    "update_article",
+                    args(
+                            "{\"id\":"
+                                    + saved.id
+                                    + ",\"version\":0,\"content\":\"<p>HTML replacement</p>\"}"));
             Map<String, Object> row = db.queryOne("select * from log where logId=?", saved.id);
             assertEquals("", row.get("markdown"));
             assertEquals("html", row.get("editor_type"));
             assertEquals("<p>HTML replacement</p>", row.get("content"));
-            tools.call("update_article", args("{\"id\":" + saved.id + ",\"version\":1,\"markdown\":\"Markdown replacement\",\"content\":\"<p>Markdown replacement</p>\"}"));
+            tools.call(
+                    "update_article",
+                    args(
+                            "{\"id\":"
+                                    + saved.id
+                                    + ",\"version\":1,\"markdown\":\"Markdown replacement\",\"content\":\"<p>Markdown replacement</p>\"}"));
             row = db.queryOne("select * from log where logId=?", saved.id);
             assertEquals("Markdown replacement", row.get("markdown"));
             assertEquals("markdown", row.get("editor_type"));
             assertEquals("<p>Markdown replacement</p>", row.get("content"));
-            tools.call("update_article", args("{\"id\":" + saved.id + ",\"version\":2,\"markdown\":\"\"}"));
+            tools.call(
+                    "update_article",
+                    args("{\"id\":" + saved.id + ",\"version\":2,\"markdown\":\"\"}"));
             row = db.queryOne("select * from log where logId=?", saved.id);
             assertEquals("", row.get("markdown"));
             assertEquals("", row.get("content"));
@@ -474,50 +656,87 @@ public class McpContentServiceTest {
             applicationConfig = db.config();
             String writer = token(db.dataSource(), "article.create", "article.update");
             McpContentService tools = tools(writer, db.dataSource());
-            Object auditBefore = db.scalar("select value from website where name='admin_audit_log'");
+            Object auditBefore =
+                    db.scalar("select value from website where name='admin_audit_log'");
             assertEquals(Set.of("create_article", "update_article"), names(tools));
             JsonObject published = args(CREATE);
             published.addProperty("status", "published");
-            assertThrows(PermissionErrorException.class, () -> tools.call("create_article", published));
-            assertThrows(PermissionErrorException.class, () -> tools.call("publish_article", args("{\"id\":1,\"version\":0}")));
-            assertThrows(PermissionErrorException.class, () -> tools.call("list_categories", new JsonObject()));
-            assertEquals(auditBefore, db.scalar("select value from website where name='admin_audit_log'"));
-            assertEquals("draft", ((SavedArticle) tools.call("create_article", args(CREATE))).status);
+            assertThrows(
+                    PermissionErrorException.class, () -> tools.call("create_article", published));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> tools.call("publish_article", args("{\"id\":1,\"version\":0}")));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> tools.call("list_categories", new JsonObject()));
+            assertEquals(
+                    auditBefore,
+                    db.scalar("select value from website where name='admin_audit_log'"));
+            assertEquals(
+                    "draft", ((SavedArticle) tools.call("create_article", args(CREATE))).status);
             PersonalTokenModels.Create legacy = new PersonalTokenModels.Create();
             legacy.name = "old";
             legacy.scopes = List.of("articles:read");
             String old =
                     new PersonalAccessTokenService(
-                            new OAuthService(
-                                    ApplicationServicesFixture.backend(db.config())
-                                            ::configured,
-                                    ApplicationServicesFixture.available(
-                                            db.config(), McpWebSetup.class),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .permissions(), AccountServicesFixture.component(db.dataSource())
-                                    .identities(),
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    tokenResource ->
-                                            new PersonalAccessTokenService(
-                                                    tokenResource,
-                                                    AccountServicesFixture
-                                                            .component(db.dataSource())
-                                                            .identities(), AccountServicesFixture
-                                                    .component(db.dataSource())
-                                                    .permissions(),
-                                                    AccountServicesFixture
-                                                            .component(db.dataSource())
-                                                            .security()),
-                                    AccountServicesFixture.component(db.dataSource()).backend())
-                                    .mcpResource(),
-                            AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).security())
-                            .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), legacy)
+                                    new OAuthService(
+                                                    ApplicationServicesFixture.backend(db.config())
+                                                            ::configured,
+                                                    ApplicationServicesFixture.available(
+                                                            db.config(), McpWebSetup.class),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .permissions(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .identities(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .security(),
+                                                    tokenResource ->
+                                                            new PersonalAccessTokenService(
+                                                                    tokenResource,
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .identities(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .security()),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .backend())
+                                            .mcpResource(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security())
+                            .create(
+                                    new GrantAuthority(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity()
+                                                    .current(),
+                                            !com.zrlog.admin.business.security.DelegatedAccess
+                                                    .restricted()),
+                                    legacy)
                             .token;
-            assertEquals(Set.of("search_articles", "read_article", "get_article"), names(tools(old, db.dataSource())));
-            assertThrows(PermissionErrorException.class, () -> tools(old, db.dataSource()).call("create_article", args(CREATE)));
-            assertEquals(Set.of("list_categories", "list_tags"), names(tools(token(db.dataSource(), "taxonomy.read"), db.dataSource())));
-            db.execute("update user_access_token set revoked=? where tokenHash=?", true, OAuthService.hash(writer));
+            assertEquals(
+                    Set.of("search_articles", "read_article", "get_article"),
+                    names(tools(old, db.dataSource())));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> tools(old, db.dataSource()).call("create_article", args(CREATE)));
+            assertEquals(
+                    Set.of("list_categories", "list_tags"),
+                    names(tools(token(db.dataSource(), "taxonomy.read"), db.dataSource())));
+            db.execute(
+                    "update user_access_token set revoked=? where tokenHash=?",
+                    true,
+                    OAuthService.hash(writer));
             assertThrows(OAuthException.class, () -> tools.call("create_article", args(CREATE)));
         }
     }
@@ -527,24 +746,45 @@ public class McpContentServiceTest {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
             db.execute("insert into user(userId,userName,role) values(2,'other','author')");
-            db.execute("insert into log(logId,userId,typeId,title,markdown,content,rubbish,privacy,version) values(10,2,1,'Other','Text','<p>Text</p>',true,false,0)");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,content,rubbish,privacy,version) values(10,2,1,'Other','Text','<p>Text</p>',true,false,0)");
             db.execute("update user set role='author' where userId=1");
             McpContentService author = tools(token(db.dataSource()), db.dataSource());
-            assertThrows(PermissionErrorException.class, () -> author.call("update_article", args("{\"id\":10,\"version\":0,\"title\":\"Changed\"}")));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            author.call(
+                                    "update_article",
+                                    args("{\"id\":10,\"version\":0,\"title\":\"Changed\"}")));
             db.execute("update user set role='editor' where userId=1");
             McpContentService editor = tools(token(db.dataSource()), db.dataSource());
-            assertEquals(1, ((SavedArticle) editor.call("update_article", args("{\"id\":10,\"version\":0,\"title\":\"Changed\"}"))).version);
+            assertEquals(
+                    1,
+                    ((SavedArticle)
+                                    editor.call(
+                                            "update_article",
+                                            args(
+                                                    "{\"id\":10,\"version\":0,\"title\":\"Changed\"}")))
+                            .version);
             db.execute("update log set privacy=true where logId=10");
-            assertThrows(PermissionErrorException.class, () -> editor.call("get_article", args("{\"id\":10}")));
-            assertThrows(PermissionErrorException.class, () -> editor.call("publish_article", args("{\"id\":10,\"version\":1}")));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> editor.call("get_article", args("{\"id\":10}")));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> editor.call("publish_article", args("{\"id\":10,\"version\":1}")));
             db.execute("update user set role='contributor' where userId=1");
             McpContentService contributor = tools(token(db.dataSource()), db.dataSource());
             assertFalse(names(contributor).contains("publish_article"));
-            assertEquals("draft", ((SavedArticle) contributor.call("create_article", args(CREATE))).status);
+            assertEquals(
+                    "draft",
+                    ((SavedArticle) contributor.call("create_article", args(CREATE))).status);
             for (String status : List.of("private", "published")) {
                 JsonObject input = args(CREATE);
                 input.addProperty("status", status);
-                assertThrows(PermissionErrorException.class, () -> contributor.call("create_article", input));
+                assertThrows(
+                        PermissionErrorException.class,
+                        () -> contributor.call("create_article", input));
             }
             db.execute("update user set enabled=false where userId=1");
             assertThrows(OAuthException.class, () -> contributor.definitions("en_US"));
@@ -552,23 +792,39 @@ public class McpContentServiceTest {
     }
 
     @Test
-    public void validatesFieldsBeforeWritingAndPaginatesTaxonomyWithoutArticleCounts() throws Exception {
+    public void validatesFieldsBeforeWritingAndPaginatesTaxonomyWithoutArticleCounts()
+            throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
             McpContentService tools = tools(token(db.dataSource()), db.dataSource());
-            for (String invalid : List.of("{\"title\":\"A\",\"typeId\":1}", "{\"title\":\"A\",\"typeId\":1.5,\"status\":\"draft\"}",
-                    "{\"title\":\"A\",\"typeId\":1,\"status\":\"draft\",\"userId\":2}", "{\"id\":1,\"version\":0}")) {
-                assertThrows(IllegalArgumentException.class, () -> tools.call(invalid.contains("version") ? "update_article" : "create_article", args(invalid)));
+            for (String invalid :
+                    List.of(
+                            "{\"title\":\"A\",\"typeId\":1}",
+                            "{\"title\":\"A\",\"typeId\":1.5,\"status\":\"draft\"}",
+                            "{\"title\":\"A\",\"typeId\":1,\"status\":\"draft\",\"userId\":2}",
+                            "{\"id\":1,\"version\":0}")) {
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                tools.call(
+                                        invalid.contains("version")
+                                                ? "update_article"
+                                                : "create_article",
+                                        args(invalid)));
             }
             JsonObject missing = args(CREATE);
             missing.addProperty("typeId", 999);
-            assertThrows(IllegalArgumentException.class, () -> tools.call("create_article", missing));
+            assertThrows(
+                    IllegalArgumentException.class, () -> tools.call("create_article", missing));
             assertEquals(0, ((Number) db.scalar("select count(*) from log")).intValue());
             db.execute("insert into type(typeId,typeName,alias) values(2,'Second','second')");
-            TaxonomyList first = (TaxonomyList) tools.call("list_categories", args("{\"limit\":1}"));
+            TaxonomyList first =
+                    (TaxonomyList) tools.call("list_categories", args("{\"limit\":1}"));
             assertEquals(1, first.items.size());
             assertEquals(Integer.valueOf(1), first.nextOffset);
-            TaxonomyList second = (TaxonomyList) tools.call("list_categories", args("{\"offset\":1,\"limit\":1}"));
+            TaxonomyList second =
+                    (TaxonomyList)
+                            tools.call("list_categories", args("{\"offset\":1,\"limit\":1}"));
             assertEquals("Second", second.items.get(0).name);
             assertNull(second.nextOffset);
             db.execute("insert into tag(tagId,text,count) values(1,'java',20)");
@@ -583,73 +839,87 @@ public class McpContentServiceTest {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
             List<byte[]> uploaded = new ArrayList<>();
-            AttachmentStorage storage = new AttachmentStorage() {
-                public void setup() {
-                }
+            AttachmentStorage storage =
+                    new AttachmentStorage() {
+                        public void setup() {}
 
-                public String saveAttachment(com.zrlog.data.security.AccountAccess actor, byte[] bytes, String filename, HttpRequest request,
-                                             com.zrlog.common.vo.AdminTokenVO credential) {
-                    assertNull(AdminTokenThreadLocal.getUser());
-                    assertFalse(com.zrlog.admin.business.security.DelegatedAccess.active());
-                    assertEquals(1, actor.getUserId());
-                    assertEquals(actor.getUserId(), credential.getUserId());
-                    assertEquals(actor.getAuthVersion(), credential.getAuthVersion());
-                    uploaded.add(bytes);
-                    return request.getContextPath() + "/attached/users/1/file.png";
-                }
-            };
+                        public String saveAttachment(
+                                com.zrlog.data.security.AccountAccess actor,
+                                byte[] bytes,
+                                String filename,
+                                HttpRequest request,
+                                com.zrlog.common.vo.AdminTokenVO credential) {
+                            assertNull(AdminTokenThreadLocal.getUser());
+                            assertFalse(com.zrlog.admin.business.security.DelegatedAccess.active());
+                            assertEquals(1, actor.getUserId());
+                            assertEquals(actor.getUserId(), credential.getUserId());
+                            assertEquals(actor.getAuthVersion(), credential.getAuthVersion());
+                            uploaded.add(bytes);
+                            return request.getContextPath() + "/attached/users/1/file.png";
+                        }
+                    };
             String token = token(db.dataSource(), "asset.upload");
             McpContentService tools =
                     tools(
                             token,
                             "en_US",
-                            new ContentToolService(new ArticlePublishingService(
-                                    new AdminArticleService(ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
-                                            AccountServicesFixture.component(
-                                                            db.dataSource())
-                                                    .permissions(),
-                                            AccountServicesFixture.component(
-                                                            db.dataSource())
-                                                    .identities(),
-                                            AccountServicesFixture.component(
-                                                            db.dataSource())
-                                                    .preferences(),
-                                            new ArticleVersionService(AccountServicesFixture.component(
-                                                            db.dataSource())
-                                                    .permissions(),
-                                                    () -> new AdminLogRepository(db.dataSource()),
-                                                    () -> new LogVersionRepository(db.dataSource())),
-                                            new ArticlePinningService(
+                            new ContentToolService(
+                                    new ArticlePublishingService(
+                                            new AdminArticleService(
+                                                    ApplicationServicesFixture.capability(
+                                                            db.config(), ArticleAssistant.class),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .permissions(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .identities(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .preferences(),
+                                                    new ArticleVersionService(
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .permissions(),
+                                                            () ->
+                                                                    new AdminLogRepository(
+                                                                            db.dataSource()),
+                                                            () ->
+                                                                    new LogVersionRepository(
+                                                                            db.dataSource())),
+                                                    new ArticlePinningService(
+                                                            () ->
+                                                                    new AdminLogRepository(
+                                                                            db.dataSource()),
+                                                            ApplicationServicesFixture.locks(
+                                                                    db.dataSource())),
                                                     () -> new AdminLogRepository(db.dataSource()),
                                                     ApplicationServicesFixture.locks(
                                                             db.dataSource())),
-                                            () -> new AdminLogRepository(db.dataSource()),
-                                            ApplicationServicesFixture.locks(
-                                                    db.dataSource())),
-                                    new com.zrlog.admin.business.service
-                                            .ArticleQueryService(db.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
-                                                    db.config(), ArticleAssistant.class),
-                                            new AdminPageDataFactory(
-                                                    ApplicationServicesFixture.site(
-                                                            db.config()),
-                                                    ApplicationServicesFixture.buildId(
-                                                            db.resources()),
-                                                    ApplicationServicesFixture.messages(
-                                                            db.dataSource())),
-                                            AccountServicesFixture.component(
-                                                            db.dataSource())
-                                                    .permissions(),
-                                            AccountServicesFixture.component(
-                                                            db.dataSource())
-                                                    .preferences(),
-                                            () -> new AdminLogRepository(db.dataSource())),
-                                    ApplicationServicesFixture.cacheRefresh(
-                                            db.unitCacheService(), db.config()),
-                                    markdown -> null,
-                                    ApplicationServicesFixture.audit(db.dataSource()),
-                                    ApplicationServicesFixture.operations(db.dataSource())),
+                                            new com.zrlog.admin.business.service
+                                                    .ArticleQueryService(
+                                                    db.unitCacheService(),
+                                                    ApplicationServicesFixture.capability(
+                                                            db.config(), ArticleAssistant.class),
+                                                    new AdminPageDataFactory(
+                                                            ApplicationServicesFixture.site(
+                                                                    db.config()),
+                                                            ApplicationServicesFixture.buildId(
+                                                                    db.resources()),
+                                                            ApplicationServicesFixture.messages(
+                                                                    db.dataSource())),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .permissions(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .preferences(),
+                                                    () -> new AdminLogRepository(db.dataSource())),
+                                            ApplicationServicesFixture.cacheRefresh(
+                                                    db.unitCacheService(), db.config()),
+                                            markdown -> null,
+                                            ApplicationServicesFixture.audit(db.dataSource()),
+                                            ApplicationServicesFixture.operations(db.dataSource())),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     () -> new TagRepository(db.dataSource()),
                                     () -> new TypeRepository(db.dataSource())),
@@ -657,25 +927,55 @@ public class McpContentServiceTest {
                             db.dataSource());
             AdminTokenThreadLocal.remove();
             assertEquals(Set.of("upload_attachment"), names(tools));
-            Attachment result = (Attachment) tools.call("upload_attachment", args("{\"filename\":\"cover.png\",\"data\":\"aGVsbG8=\"}"));
+            Attachment result =
+                    (Attachment)
+                            tools.call(
+                                    "upload_attachment",
+                                    args("{\"filename\":\"cover.png\",\"data\":\"aGVsbG8=\"}"));
             assertEquals("/sub/attached/users/1/file.png", result.url);
             assertEquals(5, result.size);
             assertArrayEquals("hello".getBytes(), uploaded.get(0));
-            for (String filename : List.of("../cover.png", "/tmp/cover.png", "dir\\cover.png", "cover", "a.png?x", "a.png#x")) {
+            for (String filename :
+                    List.of(
+                            "../cover.png",
+                            "/tmp/cover.png",
+                            "dir\\cover.png",
+                            "cover",
+                            "a.png?x",
+                            "a.png#x")) {
                 JsonObject input = new JsonObject();
                 input.addProperty("filename", filename);
                 input.addProperty("data", "aA==");
-                assertThrows(IllegalArgumentException.class, () -> tools.call("upload_attachment", input));
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> tools.call("upload_attachment", input));
             }
-            for (String data : List.of("%%%", "", "data:image/png;base64,aA==", Base64.getEncoder().encodeToString(new byte[ContentToolCatalog.MAX_ATTACHMENT_BYTES + 1]))) {
+            for (String data :
+                    List.of(
+                            "%%%",
+                            "",
+                            "data:image/png;base64,aA==",
+                            Base64.getEncoder()
+                                    .encodeToString(
+                                            new byte
+                                                    [ContentToolCatalog.MAX_ATTACHMENT_BYTES
+                                                            + 1]))) {
                 JsonObject input = new JsonObject();
                 input.addProperty("filename", "a.png");
                 input.addProperty("data", data);
-                assertThrows(IllegalArgumentException.class, () -> tools.call("upload_attachment", input));
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> tools.call("upload_attachment", input));
             }
             assertEquals(1, uploaded.size());
             assertTrue(names(tools(token, db.dataSource())).isEmpty());
-            assertThrows(PermissionErrorException.class, () -> tools(token, db.dataSource()).call("upload_attachment", args("{\"filename\":\"a.png\",\"data\":\"aA==\"}")));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            tools(token, db.dataSource())
+                                    .call(
+                                            "upload_attachment",
+                                            args("{\"filename\":\"a.png\",\"data\":\"aA==\"}")));
         }
     }
 
@@ -688,10 +988,13 @@ public class McpContentServiceTest {
             AdminTokenThreadLocal.remove();
             assertTrue(names(tools).contains("get_article"));
             assertFalse(names(tools).contains("create_article"));
-            assertThrows(PermissionErrorException.class, () -> tools.call("create_article", args(CREATE)));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> tools.call("create_article", args(CREATE)));
             db.execute("update user_access_token set revoked=true");
             assertThrows(OAuthException.class, () -> names(tools));
-            assertThrows(OAuthException.class, () -> tools.call("search_articles", new JsonObject()));
+            assertThrows(
+                    OAuthException.class, () -> tools.call("search_articles", new JsonObject()));
             assertNull(AdminTokenThreadLocal.getUser());
             assertFalse(com.zrlog.admin.business.security.DelegatedAccess.active());
         }
@@ -699,69 +1002,91 @@ public class McpContentServiceTest {
 
     @Test
     public void localizesEveryNewDefinitionAndErrorWithoutLeakingThreadLanguage() throws Exception {
-        try (InMemoryZrLogDatabase db = open(); var ignored = AdminLanguageContext.open("en_US")) {
+        try (InMemoryZrLogDatabase db = open();
+                var ignored = AdminLanguageContext.open("en_US")) {
             applicationConfig = db.config();
             for (String language : List.of("zh_CN", "en_US")) {
                 for (var tool : ContentToolCatalog.tools(language)) {
-                    assertEquals(language.equals("zh_CN"), tool.description.codePoints().anyMatch(c -> c >= 0x4e00 && c <= 0x9fff));
+                    assertEquals(
+                            language.equals("zh_CN"),
+                            tool.description
+                                    .codePoints()
+                                    .anyMatch(c -> c >= 0x4e00 && c <= 0x9fff));
                     for (var property : tool.inputSchema.getAsJsonObject("properties").entrySet())
-                        assertFalse(property.getValue().getAsJsonObject().get("description").getAsString().isBlank());
+                        assertFalse(
+                                property.getValue()
+                                        .getAsJsonObject()
+                                        .get("description")
+                                        .getAsString()
+                                        .isBlank());
                 }
                 McpContentService tools =
                         tools(
                                 token(db.dataSource(), "article.read"),
                                 language,
-                                new ContentToolService(new ArticlePublishingService(
-                                        new AdminArticleService(ApplicationServicesFixture.capability(
-                                                applicationConfig,
-                                                ArticleAssistant.class),
-                                                AccountServicesFixture.component(
-                                                                db.dataSource())
-                                                        .permissions(),
-                                                AccountServicesFixture.component(
-                                                                db.dataSource())
-                                                        .identities(),
-                                                AccountServicesFixture.component(
-                                                                db.dataSource())
-                                                        .preferences(),
-                                                new ArticleVersionService(AccountServicesFixture.component(
-                                                                db.dataSource())
-                                                        .permissions(),
-                                                        () -> new AdminLogRepository(db.dataSource()),
-                                                        () ->
-                                                                new LogVersionRepository(
+                                new ContentToolService(
+                                        new ArticlePublishingService(
+                                                new AdminArticleService(
+                                                        ApplicationServicesFixture.capability(
+                                                                applicationConfig,
+                                                                ArticleAssistant.class),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .permissions(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .identities(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .preferences(),
+                                                        new ArticleVersionService(
+                                                                AccountServicesFixture.component(
+                                                                                db.dataSource())
+                                                                        .permissions(),
+                                                                () ->
+                                                                        new AdminLogRepository(
+                                                                                db.dataSource()),
+                                                                () ->
+                                                                        new LogVersionRepository(
+                                                                                db.dataSource())),
+                                                        new ArticlePinningService(
+                                                                () ->
+                                                                        new AdminLogRepository(
+                                                                                db.dataSource()),
+                                                                ApplicationServicesFixture.locks(
                                                                         db.dataSource())),
-                                                new ArticlePinningService(
-                                                        () -> new AdminLogRepository(db.dataSource()),
+                                                        () ->
+                                                                new AdminLogRepository(
+                                                                        db.dataSource()),
                                                         ApplicationServicesFixture.locks(
                                                                 db.dataSource())),
-                                                () -> new AdminLogRepository(db.dataSource()),
-                                                ApplicationServicesFixture.locks(
+                                                new com.zrlog.admin.business.service
+                                                        .ArticleQueryService(
+                                                        db.unitCacheService(),
+                                                        ApplicationServicesFixture.capability(
+                                                                applicationConfig,
+                                                                ArticleAssistant.class),
+                                                        new AdminPageDataFactory(
+                                                                ApplicationServicesFixture.site(
+                                                                        applicationConfig),
+                                                                () -> "test",
+                                                                ApplicationServicesFixture.messages(
+                                                                        db.dataSource())),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .permissions(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .preferences(),
+                                                        () ->
+                                                                new AdminLogRepository(
+                                                                        db.dataSource())),
+                                                ApplicationServicesFixture.cacheRefresh(
+                                                        db.unitCacheService(), applicationConfig),
+                                                markdown -> null,
+                                                ApplicationServicesFixture.audit(db.dataSource()),
+                                                ApplicationServicesFixture.operations(
                                                         db.dataSource())),
-                                        new com.zrlog.admin.business.service
-                                                .ArticleQueryService(db.unitCacheService(),
-                                                ApplicationServicesFixture.capability(
-                                                        applicationConfig,
-                                                        ArticleAssistant.class),
-                                                new AdminPageDataFactory(
-                                                        ApplicationServicesFixture.site(
-                                                                applicationConfig),
-                                                        () -> "test",
-                                                        ApplicationServicesFixture.messages(
-                                                                db.dataSource())),
-                                                AccountServicesFixture.component(
-                                                                db.dataSource())
-                                                        .permissions(),
-                                                AccountServicesFixture.component(
-                                                                db.dataSource())
-                                                        .preferences(),
-                                                () -> new AdminLogRepository(db.dataSource())),
-                                        ApplicationServicesFixture.cacheRefresh(
-                                                db.unitCacheService(), applicationConfig),
-                                        markdown -> null,
-                                        ApplicationServicesFixture.audit(db.dataSource()),
-                                        ApplicationServicesFixture.operations(
-                                                db.dataSource())),
                                         AccountServicesFixture.component(db.dataSource())
                                                 .permissions(),
                                         () -> new TagRepository(db.dataSource()),
@@ -770,16 +1095,24 @@ public class McpContentServiceTest {
                                 db.dataSource());
                 JsonObject result =
                         new McpService(
-                                ApplicationServicesFixture.siteTitle(applicationConfig),
-                                language)
+                                        ApplicationServicesFixture.siteTitle(applicationConfig),
+                                        language)
                                 .handle(
                                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":1,\"version\":0}}}",
                                         tools)
                                 .body
                                 .getAsJsonObject("result");
                 assertTrue(result.get("isError").getAsBoolean());
-                assertEquals("ADMIN_PERMISSION_DENIED", result.getAsJsonObject("structuredContent").get("code").getAsString());
-                assertEquals(language.equals("zh_CN"), result.getAsJsonObject("structuredContent").get("error").getAsString().codePoints().anyMatch(c -> c >= 0x4e00 && c <= 0x9fff));
+                assertEquals(
+                        "ADMIN_PERMISSION_DENIED",
+                        result.getAsJsonObject("structuredContent").get("code").getAsString());
+                assertEquals(
+                        language.equals("zh_CN"),
+                        result.getAsJsonObject("structuredContent")
+                                .get("error")
+                                .getAsString()
+                                .codePoints()
+                                .anyMatch(c -> c >= 0x4e00 && c <= 0x9fff));
                 assertEquals("en_US", I18nUtil.getCurrentLocale());
             }
         }

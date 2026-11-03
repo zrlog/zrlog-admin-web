@@ -13,31 +13,30 @@ import com.zrlog.business.service.*;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.PublicWebSiteInfo;
-import com.zrlog.data.service.DistributedLock;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.service.DistributedLock;
 import com.zrlog.web.WebSiteInfoProvider;
-
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/**
- * Assembles explicit dependencies from a test's application, without a global resolver.
- */
+/** Assembles explicit dependencies from a test's application, without a global resolver. */
 public final class ApplicationServicesFixture {
-    private ApplicationServicesFixture() {
-    }
+    private ApplicationServicesFixture() {}
 
     private static DataSourceWrapper database(ZrLogConfig config) {
         return config == null ? null : (DataSourceWrapper) config.getDataSource();
     }
 
-    public static Function<com.hibegin.http.server.api.HttpRequest, String> staticResourceUrl(DataSourceWrapper source) {
+    public static Function<com.hibegin.http.server.api.HttpRequest, String> staticResourceUrl(
+            DataSourceWrapper source) {
         return request ->
                 AdminWebTools.getAdminStaticResourceBaseUrl(
                         request,
-                        () -> new WebSiteRepository(source).getStringValueByName("admin_static_resource_base_url"));
+                        () ->
+                                new WebSiteRepository(source)
+                                        .getStringValueByName("admin_static_resource_base_url"));
     }
 
     public static Supplier<String> siteHost(ZrLogConfig config) {
@@ -92,25 +91,48 @@ public final class ApplicationServicesFixture {
     }
 
     public static UpgradeService upgrades(ZrLogConfig config) {
-        return new UpgradeService(() -> config == null ? null : config.getUpdater(), upgradeNotices(config), new BackupProtectionService(websiteKv(database(config))), websiteKv(database(config)));
+        return new UpgradeService(
+                () -> config == null ? null : config.getUpdater(),
+                upgradeNotices(config),
+                new BackupProtectionService(websiteKv(database(config))),
+                websiteKv(database(config)));
     }
 
     public static CacheRefreshService cacheRefresh(CacheService cache, ZrLogConfig config) {
-        CacheService source = cache == null ? new InMemoryZrLogDatabase.TestCacheService() {
-            @Override
-            public PublicWebSiteInfo getPublicWebSiteInfo() {
-                WebSiteInfoProvider provider = config == null ? null : config.getWebSetup(WebSiteInfoProvider.class);
-                return provider == null ? super.getPublicWebSiteInfo() : provider.getPublicWebSiteInfo();
-            }
-        } : cache;
-        return new CacheRefreshService(source, () -> config == null ? null : config.getPlugin(PluginCorePlugin.class),
-                () -> config == null ? Collections.emptyList() : config.getPluginsByClazz(StaticSitePlugin.class), () -> new WebSiteRepository(database(config)));
+        CacheService source =
+                cache == null
+                        ? new InMemoryZrLogDatabase.TestCacheService() {
+                            @Override
+                            public PublicWebSiteInfo getPublicWebSiteInfo() {
+                                WebSiteInfoProvider provider =
+                                        config == null
+                                                ? null
+                                                : config.getWebSetup(WebSiteInfoProvider.class);
+                                return provider == null
+                                        ? super.getPublicWebSiteInfo()
+                                        : provider.getPublicWebSiteInfo();
+                            }
+                        }
+                        : cache;
+        return new CacheRefreshService(
+                source,
+                () -> config == null ? null : config.getPlugin(PluginCorePlugin.class),
+                () ->
+                        config == null
+                                ? Collections.emptyList()
+                                : config.getPluginsByClazz(StaticSitePlugin.class),
+                () -> new WebSiteRepository(database(config)));
     }
 
     public static AdminStaticSiteSsePublisher publisher(CacheService cache, ZrLogConfig config) {
         CacheRefreshService refresh = cacheRefresh(cache, config);
-        return new AdminStaticSiteSsePublisher(refresh::isStaticSiteDisabled, new AdminStaticSiteProgress(
-                () -> config == null ? Collections.emptyList() : config.getPluginsByClazz(StaticSitePlugin.class)));
+        return new AdminStaticSiteSsePublisher(
+                refresh::isStaticSiteDisabled,
+                new AdminStaticSiteProgress(
+                        () ->
+                                config == null
+                                        ? Collections.emptyList()
+                                        : config.getPluginsByClazz(StaticSitePlugin.class)));
     }
 
     public static AdminActionDispatcher dispatcher(CacheService cache, ZrLogConfig config) {
@@ -137,7 +159,8 @@ public final class ApplicationServicesFixture {
     }
 
     public static MessageCenterStateService messages(DataSourceWrapper source) {
-        return new MessageCenterStateService(websiteCache(source), () -> new WebSiteRepository(source));
+        return new MessageCenterStateService(
+                websiteCache(source), () -> new WebSiteRepository(source));
     }
 
     public static MessageCenterOperationService operations(DataSourceWrapper source) {

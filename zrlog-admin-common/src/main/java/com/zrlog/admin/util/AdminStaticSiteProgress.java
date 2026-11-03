@@ -3,7 +3,6 @@ package com.zrlog.admin.util;
 import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -16,9 +15,15 @@ public class AdminStaticSiteProgress {
         this.staticSites = Objects.requireNonNull(staticSites);
     }
 
-    static StaticSiteProgressResponse response(int total, int handled, int handing, int pending, int retrying,
-                                               List<String> siteTypes) {
-        return new StaticSiteProgressResponse(total, handled, handing, pending, retrying, siteTypes);
+    static StaticSiteProgressResponse response(
+            int total,
+            int handled,
+            int handing,
+            int pending,
+            int retrying,
+            List<String> siteTypes) {
+        return new StaticSiteProgressResponse(
+                total, handled, handing, pending, retrying, siteTypes);
     }
 
     public StaticSiteProgressResponse snapshot(List<StaticSiteType> siteTypes) {
@@ -35,7 +40,12 @@ public class AdminStaticSiteProgress {
             pending += snapshot.getPending();
             retrying += snapshot.getRetrying();
         }
-        return response(total, handled, handing, pending, retrying,
+        return response(
+                total,
+                handled,
+                handing,
+                pending,
+                retrying,
                 siteTypes.stream().map(Enum::name).collect(Collectors.toList()));
     }
 

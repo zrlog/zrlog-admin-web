@@ -8,5 +8,4 @@ public class UnsupportedAIToolException extends AbstractAdminBusinessException {
     public UnsupportedAIToolException(String detail) {
         super(AdminErrorCode.AI_TOOL_UNSUPPORTED, detail);
     }
-
 }

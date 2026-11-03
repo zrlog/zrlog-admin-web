@@ -7,12 +7,9 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.util.Set;
 
-/**
- * Binds an explicit account and source to an individual AI or MCP operation.
- */
+/** Binds an explicit account and source to an individual AI or MCP operation. */
 @Singleton
 public final class ContentToolFactory {
     private final ContentToolProvider.Factory tools;
@@ -29,10 +26,22 @@ public final class ContentToolFactory {
         this.identities = identities;
     }
 
-    public ContentToolProvider create(AccountAccess actor, Set<String> scopes, HttpRequest request,
-                                      String language, AdminAuditContext audit, AdminTokenVO credential) {
+    public ContentToolProvider create(
+            AccountAccess actor,
+            Set<String> scopes,
+            HttpRequest request,
+            String language,
+            AdminAuditContext audit,
+            AdminTokenVO credential) {
         identities.revalidate(actor);
-        return tools.create(actor, scopes, request, language, audit, credential, knowledge(actor, scopes, language));
+        return tools.create(
+                actor,
+                scopes,
+                request,
+                language,
+                audit,
+                credential,
+                knowledge(actor, scopes, language));
     }
 
     public KnowledgeService knowledge(AccountAccess actor, Set<String> scopes, String language) {

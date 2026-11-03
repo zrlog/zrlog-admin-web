@@ -12,7 +12,6 @@ import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.theme.spi.BundledThemes;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -21,8 +20,7 @@ import java.util.stream.Collectors;
 /** Discovers installed themes without downloading or extracting packages. */
 public final class TemplateCatalog {
     @Inject
-    public TemplateCatalog() {
-    }
+    public TemplateCatalog() {}
 
     List<File> files() {
         List<File> list = new ArrayList<>();
@@ -31,7 +29,9 @@ public final class TemplateCatalog {
             list.addAll(Arrays.asList(templatesFile));
         }
         if (EnvKit.isFaaSMode()) {
-            File file = PathUtil.safeAppendFilePath(ZrLogUtil.getFaaSRoot() + "/static/", Constants.TEMPLATE_BASE_PATH);
+            File file =
+                    PathUtil.safeAppendFilePath(
+                            ZrLogUtil.getFaaSRoot() + "/static/", Constants.TEMPLATE_BASE_PATH);
             if (file.exists()) {
                 File[] files = file.listFiles();
                 if (Objects.nonNull(files)) {
@@ -42,8 +42,10 @@ public final class TemplateCatalog {
         return list;
     }
 
-    public List<TemplateEntryResponse> list(String currentTemplate, String previewTemplate) throws IOException {
-        List<BaseTemplateVO> templates = new ArrayList<>(TemplateInfoHelper.getClassPathTemplates());
+    public List<TemplateEntryResponse> list(String currentTemplate, String previewTemplate)
+            throws IOException {
+        List<BaseTemplateVO> templates =
+                new ArrayList<>(TemplateInfoHelper.getClassPathTemplates());
         for (File file : files()) {
             if (file.isDirectory() && !file.isHidden()) {
                 TemplateVO templateVO = TemplateInfoHelper.getTemplateVO(file);
@@ -57,10 +59,11 @@ public final class TemplateCatalog {
         }
         for (BaseTemplateVO templateVO : templates) {
             if (templateVO.getTemplateType() == TemplateType.NODE_JS) {
-                templateVO.setTags(Arrays.asList("polyglot", templateVO.getViewType().substring(1)));
+                templateVO.setTags(
+                        Arrays.asList("polyglot", templateVO.getViewType().substring(1)));
             }
 
-            //同时存在以使用为主
+            // 同时存在以使用为主
             if (templateVO.getTemplate().equals(currentTemplate)) {
                 templateVO.setUse(true);
                 templateVO.setDeleteAble(false);
@@ -71,12 +74,17 @@ public final class TemplateCatalog {
                 templateVO.setPreview(true);
             }
         }
-        return templates.stream().map(template -> {
-            TemplateEntryResponse entry = BeanUtil.convert(template, TemplateEntryResponse.class);
-            // The SPI registry defines built-in themes independently of their loading mechanism.
-            entry.setBuiltIn(BundledThemes.getInstance().contains(template.getTemplate()));
-            return entry;
-        }).collect(Collectors.toList());
+        return templates.stream()
+                .map(
+                        template -> {
+                            TemplateEntryResponse entry =
+                                    BeanUtil.convert(template, TemplateEntryResponse.class);
+                            // The SPI registry defines built-in themes independently of their
+                            // loading mechanism.
+                            entry.setBuiltIn(
+                                    BundledThemes.getInstance().contains(template.getTemplate()));
+                            return entry;
+                        })
+                .collect(Collectors.toList());
     }
-
 }

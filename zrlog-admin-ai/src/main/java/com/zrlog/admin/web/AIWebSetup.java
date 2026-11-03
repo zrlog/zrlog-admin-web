@@ -32,7 +32,6 @@ import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
-
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -90,9 +89,15 @@ public class AIWebSetup implements ArticleAssistant {
     @Override
     public void articleCreated(long articleId, int userId) {
         try {
-            components().conversations().captureAccount(userId).migrateDraftAIMessageToArticle(articleId, -(long) userId);
+            components()
+                    .conversations()
+                    .captureAccount(userId)
+                    .migrateDraftAIMessageToArticle(articleId, -(long) userId);
         } catch (Exception e) {
-            LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e);
+            LOGGER.log(
+                    Level.FINE,
+                    "Migrate draft article AI messages failed, articleId=" + articleId,
+                    e);
         }
     }
 
@@ -106,23 +111,38 @@ public class AIWebSetup implements ArticleAssistant {
     }
 
     @Override
-    public ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId, int userId) {
+    public ArticleGlobalResponse enrichEditor(
+            ArticleGlobalResponse article, long articleId, int userId) {
         AIWebSiteInfoWithAIMessages ai =
-                components().conversations().captureAccount(userId).getAiMessageInfoByArticleId(articleId);
+                components()
+                        .conversations()
+                        .captureAccount(userId)
+                        .getAiMessageInfoByArticleId(articleId);
         AIArticleGlobalResponse response = new AIArticleGlobalResponse(article);
         response.setAiProvider(ai.getAi_provider());
         response.setAiModel(ai.getAi_model());
         response.setAiFileInput(AIFileService.capabilities(ai));
-        response.setAiConfigured(ai.getAi_provider() != null && StringUtils.isNotEmpty(ai.getAi_model())
-                && (StringUtils.isNotEmpty(ai.getAi_api_key()) || StringUtils.isNotEmpty(ai.getAi_base_url())));
-        response.setAiMessages(ai.getAiMessages().stream().filter(e -> !Objects.equals(e.getRole(), "system")).collect(Collectors.toList()));
+        response.setAiConfigured(
+                ai.getAi_provider() != null
+                        && StringUtils.isNotEmpty(ai.getAi_model())
+                        && (StringUtils.isNotEmpty(ai.getAi_api_key())
+                                || StringUtils.isNotEmpty(ai.getAi_base_url())));
+        response.setAiMessages(
+                ai.getAiMessages().stream()
+                        .filter(e -> !Objects.equals(e.getRole(), "system"))
+                        .collect(Collectors.toList()));
         return response;
     }
 
     @Override
-    public PublishProgress beginPublishCheck(AccountAccess actor, ArticleGlobalResponse article, CreateArticleRequest request,
-                                             AdminSseEmitter emitter) throws Exception {
-        PublishCheckTask task = components().publishing().startPublishCheck(actor, article, request);
+    public PublishProgress beginPublishCheck(
+            AccountAccess actor,
+            ArticleGlobalResponse article,
+            CreateArticleRequest request,
+            AdminSseEmitter emitter)
+            throws Exception {
+        PublishCheckTask task =
+                components().publishing().startPublishCheck(actor, article, request);
         if (task == null) return PublishProgress.NONE;
         emitter.send("publish-check-start", AdminSsePayloads.tool("publishCheck"));
         return new PublishProgress() {
@@ -140,16 +160,27 @@ public class AIWebSetup implements ArticleAssistant {
         };
     }
 
-    private void sendPublishCheckIfReady(PublishCheckTask publishCheckTask,
-                                         AtomicBoolean publishCheckSent, AdminSseEmitter emitter, boolean wait)
+    private void sendPublishCheckIfReady(
+            PublishCheckTask publishCheckTask,
+            AtomicBoolean publishCheckSent,
+            AdminSseEmitter emitter,
+            boolean wait)
             throws Exception {
-        sendPublishCheckIfReady(publishCheckTask, publishCheckSent, emitter, wait,
+        sendPublishCheckIfReady(
+                publishCheckTask,
+                publishCheckSent,
+                emitter,
+                wait,
                 PUBLISH_CHECK_WAIT_TIMEOUT_MILLIS);
     }
 
-    private void sendPublishCheckIfReady(PublishCheckTask publishCheckTask,
-                                         AtomicBoolean publishCheckSent, AdminSseEmitter emitter, boolean wait,
-                                         long timeoutMillis) throws Exception {
+    private void sendPublishCheckIfReady(
+            PublishCheckTask publishCheckTask,
+            AtomicBoolean publishCheckSent,
+            AdminSseEmitter emitter,
+            boolean wait,
+            long timeoutMillis)
+            throws Exception {
         if (publishCheckTask == null || (!wait && !publishCheckTask.getFuture().isDone())) {
             return;
         }
@@ -157,9 +188,10 @@ public class AIWebSetup implements ArticleAssistant {
             return;
         }
         try {
-            PublishCheckResponse result = wait
-                    ? publishCheckTask.getFuture().get(timeoutMillis, TimeUnit.MILLISECONDS)
-                    : publishCheckTask.getFuture().join();
+            PublishCheckResponse result =
+                    wait
+                            ? publishCheckTask.getFuture().get(timeoutMillis, TimeUnit.MILLISECONDS)
+                            : publishCheckTask.getFuture().join();
             emitter.send("publish-check-complete", result);
         } catch (CompletionException | ExecutionException e) {
             Throwable cause = Objects.requireNonNullElse(e.getCause(), e);
@@ -178,21 +210,23 @@ public class AIWebSetup implements ArticleAssistant {
             }
             emitter.send("publish-check-error", AdminSsePayloads.message(message));
         } catch (CancellationException e) {
-            sendCancelledPublishCheck(publishCheckTask, emitter,
-                    "admin.article.publishCheck.error.cancelled");
+            sendCancelledPublishCheck(
+                    publishCheckTask, emitter, "admin.article.publishCheck.error.cancelled");
         } catch (TimeoutException e) {
-            sendCancelledPublishCheck(publishCheckTask, emitter,
-                    "admin.article.publishCheck.error.timeout");
+            sendCancelledPublishCheck(
+                    publishCheckTask, emitter, "admin.article.publishCheck.error.timeout");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            sendCancelledPublishCheck(publishCheckTask, emitter,
-                    "admin.article.publishCheck.error.interrupted");
+            sendCancelledPublishCheck(
+                    publishCheckTask, emitter, "admin.article.publishCheck.error.interrupted");
         }
     }
 
-    private void sendCancelledPublishCheck(PublishCheckTask publishCheckTask, AdminSseEmitter emitter,
-                                           String messageKey) throws IOException {
-        PublishCheckResponse committedResponse = publishCheckTask.getPersistenceGuard().cancelOrGetCommitted();
+    private void sendCancelledPublishCheck(
+            PublishCheckTask publishCheckTask, AdminSseEmitter emitter, String messageKey)
+            throws IOException {
+        PublishCheckResponse committedResponse =
+                publishCheckTask.getPersistenceGuard().cancelOrGetCommitted();
         if (committedResponse != null) {
             emitter.send("publish-check-complete", committedResponse);
             return;
@@ -213,24 +247,55 @@ public class AIWebSetup implements ArticleAssistant {
     private void registerRoutes(Router router) {
         router.addMapper(
                 "/api/admin/internal/ai/comment/analyze", AICommentController.class, "analyze");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/cover/apply", AIArticleController.class, "applyCover");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/message", AIArticleController.class, "updateAiMessage");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/clear", AIArticleController.class, "clearAiMessages");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/export", AIArticleController.class, "exportAiMessages");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/description/optimize", AIWebSiteController.class, "optimizeDescription");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/ai/prompt/optimize", AIWebSiteController.class, "optimizeAiPrompt");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/cover/apply",
+                AIArticleController.class,
+                "applyCover");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/message",
+                AIArticleController.class,
+                "updateAiMessage");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/clear",
+                AIArticleController.class,
+                "clearAiMessages");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/export",
+                AIArticleController.class,
+                "exportAiMessages");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/description/optimize",
+                AIWebSiteController.class,
+                "optimizeDescription");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/ai/prompt/optimize",
+                AIWebSiteController.class,
+                "optimizeAiPrompt");
         router.addMapper("/api/admin/article/ai", AIArticleController.class, "ai");
-        router.addMapper("/api/admin/article/ai/approval", AIArticleController.class, "approveAiOperation");
+        router.addMapper(
+                "/api/admin/article/ai/approval", AIArticleController.class, "approveAiOperation");
         router.addMapper("/api/admin/article/ai/input", AIArticleController.class, "submitAiInput");
         router.addMapper("/api/admin/article/ai/run", AIArticleController.class, "aiRun");
         router.addMapper("/api/admin/article/ai/file", AIArticleController.class, "aiFile");
-        router.addMapper("/api/admin/article/ai/references", AIArticleController.class, "aiReferences");
+        router.addMapper(
+                "/api/admin/article/ai/references", AIArticleController.class, "aiReferences");
         router.addMapper("/api/admin/article/applyCover", AIArticleController.class, "applyCover");
-        router.addMapper("/api/admin/article/updateAiMessage", AIArticleController.class, "updateAiMessage");
-        router.addMapper("/api/admin/article/clearAiMessages", AIArticleController.class, "clearAiMessages");
-        router.addMapper("/api/admin/article/exportAiMessages", AIArticleController.class, "exportAiMessages");
+        router.addMapper(
+                "/api/admin/article/updateAiMessage", AIArticleController.class, "updateAiMessage");
+        router.addMapper(
+                "/api/admin/article/clearAiMessages", AIArticleController.class, "clearAiMessages");
+        router.addMapper(
+                "/api/admin/article/exportAiMessages",
+                AIArticleController.class,
+                "exportAiMessages");
         router.addMapper("/api/admin/website/ai", AIWebSiteController.class, "ai");
-        router.addMapper("/api/admin/website/optimizeDescription", AIWebSiteController.class, "optimizeDescription");
-        router.addMapper("/api/admin/website/optimizeAiPrompt", AIWebSiteController.class, "optimizeAiPrompt");
+        router.addMapper(
+                "/api/admin/website/optimizeDescription",
+                AIWebSiteController.class,
+                "optimizeDescription");
+        router.addMapper(
+                "/api/admin/website/optimizeAiPrompt",
+                AIWebSiteController.class,
+                "optimizeAiPrompt");
     }
 }

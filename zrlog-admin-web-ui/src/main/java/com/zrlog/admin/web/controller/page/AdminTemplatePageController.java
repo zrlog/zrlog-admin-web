@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.page;
 
+import static com.zrlog.util.CrossUtils.cross;
+
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.server.util.MimeTypeUtil;
@@ -15,13 +17,10 @@ import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
-
-import static com.zrlog.util.CrossUtils.cross;
 
 public class AdminTemplatePageController extends BaseController {
     private final TemplateService templateService;
@@ -34,7 +33,6 @@ public class AdminTemplatePageController extends BaseController {
         this.staticHtml = Objects.requireNonNull(staticHtml);
         this.templateService = templateService;
     }
-
 
     @RequestMethod
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.download")
@@ -59,13 +57,15 @@ public class AdminTemplatePageController extends BaseController {
             return;
         }
         ZrLogUtil.putLongTimeCache(response);
-        response.addHeader("Content-Type", MimeTypeUtil.getMimeStrByExt(FileUtils.getFileExt(templateVO.getPreviewImage())));
+        response.addHeader(
+                "Content-Type",
+                MimeTypeUtil.getMimeStrByExt(FileUtils.getFileExt(templateVO.getPreviewImage())));
         if (TemplateInfoHelper.isDefaultTemplate(templateVO.getTemplate())) {
-            response.write(AdminTemplatePageController.class.getResourceAsStream(templateVO.getPreviewImage()));
+            response.write(
+                    AdminTemplatePageController.class.getResourceAsStream(
+                            templateVO.getPreviewImage()));
             return;
         }
         response.writeFile(PathUtil.getStaticFile(templateVO.getPreviewImage()));
     }
-
-
 }

@@ -12,13 +12,10 @@ import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
-/**
- * Aggregates the existing website settings and the private updater protocol.
- */
+/** Aggregates the existing website settings and the private updater protocol. */
 @Singleton
 public class UpgradeSettingsService {
     private final WebSiteService webSiteService;
@@ -45,7 +42,8 @@ public class UpgradeSettingsService {
         this.settingsService = settingsService;
     }
 
-    public UpgradeSettingsResponse read(AccountAccess actor, String requestedChannel) throws SQLException {
+    public UpgradeSettingsResponse read(AccountAccess actor, String requestedChannel)
+            throws SQLException {
         actor = authorize(actor);
         UpgradeSettingsResponse response =
                 new UpgradeSettingsResponse(
@@ -55,7 +53,8 @@ public class UpgradeSettingsService {
             return response;
         }
         requireDockerPermission(actor);
-        String channel = requestedChannel == null ? channel(response.getUpgradePreview()) : requestedChannel;
+        String channel =
+                requestedChannel == null ? channel(response.getUpgradePreview()) : requestedChannel;
         if (!"preview".equals(channel) && !"release".equals(channel)) {
             throw new ArgsException("channel");
         }
@@ -69,11 +68,14 @@ public class UpgradeSettingsService {
         return response;
     }
 
-    public void save(AccountAccess actor, UpgradeSettingsRequest input, AdminAuditContext audit) throws SQLException {
+    public void save(AccountAccess actor, UpgradeSettingsRequest input, AdminAuditContext audit)
+            throws SQLException {
         actor = authorize(actor);
         input.doValid();
-        if (settingsService.isUpgradeScheduleManaged() && !java.util.Objects.equals(input.getAutoUpgradeVersion(),
-                webSiteService.upgradeWebSiteInfo().getAutoUpgradeVersion())) {
+        if (settingsService.isUpgradeScheduleManaged()
+                && !java.util.Objects.equals(
+                        input.getAutoUpgradeVersion(),
+                        webSiteService.upgradeWebSiteInfo().getAutoUpgradeVersion())) {
             throw new ArgsException("autoUpgradeVersion");
         }
         boolean docker = isDockerMode();
@@ -83,7 +85,8 @@ public class UpgradeSettingsService {
         if (!docker && input.getDockerRepository() != null) {
             throw new ArgsException("dockerRepository");
         }
-        // Persist only the website fields. Never pass response/runtime fields to the generic KV writer.
+        // Persist only the website fields. Never pass response/runtime fields to the generic KV
+        // writer.
         UpgradeWebSiteInfo settings = new UpgradeWebSiteInfo();
         settings.setAutoUpgradeVersion(input.getAutoUpgradeVersion());
         settings.setUpgradePreview(input.getUpgradePreview());
@@ -98,7 +101,9 @@ public class UpgradeSettingsService {
         String channel = channel(input.getUpgradePreview());
         DockerUpdaterProtocol.SettingsResponse previous = client.settings(channel);
         String repository = input.getDockerRepository();
-        if (!repository.isEmpty() && previous.images.stream().noneMatch(image -> repository.equals(image.repository))) {
+        if (!repository.isEmpty()
+                && previous.images.stream()
+                        .noneMatch(image -> repository.equals(image.repository))) {
             throw new ArgsException("dockerRepository");
         }
         identities.revalidate(actor);

@@ -5,8 +5,7 @@ public class FirstUseChecklistResponse {
     private int version;
     private String status;
 
-    public FirstUseChecklistResponse() {
-    }
+    public FirstUseChecklistResponse() {}
 
     public FirstUseChecklistResponse(int version, String status) {
         this.version = version;

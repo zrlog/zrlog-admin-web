@@ -9,7 +9,6 @@ import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.OAuthService;
 import jakarta.inject.Inject;
-
 import java.io.ByteArrayInputStream;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -17,7 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
- * Public OAuth protocol endpoints intentionally use standard OAuth HTTP errors, without admin envelopes.
+ * Public OAuth protocol endpoints intentionally use standard OAuth HTTP errors, without admin
+ * envelopes.
  */
 public class OAuthInterceptor implements HandleAbleInterceptor {
     private final OAuthService service;
@@ -35,8 +35,10 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
                 if (part.isEmpty()) continue;
                 String[] pair = part.split("=", 2);
                 String key = URLDecoder.decode(pair[0], StandardCharsets.UTF_8);
-                String value = pair.length == 2 ? URLDecoder.decode(pair[1], StandardCharsets.UTF_8) : "";
-                if (result.putIfAbsent(key, value) != null) throw new OAuthException("invalid_request");
+                String value =
+                        pair.length == 2 ? URLDecoder.decode(pair[1], StandardCharsets.UTF_8) : "";
+                if (result.putIfAbsent(key, value) != null)
+                    throw new OAuthException("invalid_request");
             }
         } catch (IllegalArgumentException e) {
             throw new OAuthException("invalid_request");
@@ -46,13 +48,17 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
 
     private static void json(HttpResponse response, Object data, int status) {
         response.setContentType("application/json;charset=UTF-8");
-        response.write(new ByteArrayInputStream(new Gson().toJson(data).getBytes(StandardCharsets.UTF_8)), status);
+        response.write(
+                new ByteArrayInputStream(new Gson().toJson(data).getBytes(StandardCharsets.UTF_8)),
+                status);
     }
 
     @Override
     public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
-        return path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-") || path.equals("/api/oauth/me");
+        return path.startsWith("/oauth/")
+                || path.startsWith("/.well-known/oauth-")
+                || path.equals("/api/oauth/me");
     }
 
     @Override
@@ -69,11 +75,17 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
         }
         try {
             String path = request.getUri();
-            if (path.equals("/.well-known/oauth-authorization-server" + java.net.URI.create(service.issuer()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
+            if (path.equals(
+                            "/.well-known/oauth-authorization-server"
+                                    + java.net.URI.create(service.issuer()).getRawPath())
+                    && request.getMethod() == HttpMethod.GET) {
                 json(response, service.metadata(), 200);
-            } else if (path.equals(java.net.URI.create(service.resourceMetadataUrl()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
+            } else if (path.equals(java.net.URI.create(service.resourceMetadataUrl()).getRawPath())
+                    && request.getMethod() == HttpMethod.GET) {
                 json(response, service.resourceMetadata(), 200);
-            } else if (path.equals(java.net.URI.create(service.mcpResourceMetadataUrl()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
+            } else if (path.equals(
+                            java.net.URI.create(service.mcpResourceMetadataUrl()).getRawPath())
+                    && request.getMethod() == HttpMethod.GET) {
                 if (service.isMcpEnabled()) json(response, service.mcpResourceMetadata(), 200);
                 else response.renderCode(404);
             } else if (path.equals("/oauth/authorize") && request.getMethod() == HttpMethod.GET) {
@@ -88,14 +100,24 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
                 a.code_challenge_method = p.get("code_challenge_method");
                 a.resource = p.get("resource");
                 response.redirect(service.authorize(a));
-            } else if ((path.equals("/oauth/token") || path.equals("/oauth/revoke")) && request.getMethod() == HttpMethod.POST) {
+            } else if ((path.equals("/oauth/token") || path.equals("/oauth/revoke"))
+                    && request.getMethod() == HttpMethod.POST) {
                 String contentType = Objects.toString(request.getHeader("Content-Type"), "");
-                if (!contentType.toLowerCase(Locale.ROOT).startsWith("application/x-www-form-urlencoded") || !Objects.toString(request.getQueryStr(), "").isEmpty())
+                if (!contentType
+                                .toLowerCase(Locale.ROOT)
+                                .startsWith("application/x-www-form-urlencoded")
+                        || !Objects.toString(request.getQueryStr(), "").isEmpty())
                     throw new OAuthException("invalid_request");
                 ByteBuffer buffer = request.getRequestBodyByteBuffer();
-                if (buffer == null || buffer.remaining() > 16384) throw new OAuthException("invalid_request");
-                Map<String, String> p = parameters(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString());
-                if (request.getHeader("Authorization") != null) throw new OAuthException("invalid_client", 401);
+                if (buffer == null || buffer.remaining() > 16384)
+                    throw new OAuthException("invalid_request");
+                Map<String, String> p =
+                        parameters(
+                                StandardCharsets.UTF_8
+                                        .decode(buffer.asReadOnlyBuffer())
+                                        .toString());
+                if (request.getHeader("Authorization") != null)
+                    throw new OAuthException("invalid_client", 401);
                 if (path.equals("/oauth/revoke")) {
                     service.revoke(p.get("token"), p.get("client_id"));
                     json(response, new Object(), 200);
@@ -115,13 +137,23 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
                 String auth = request.getHeader("Authorization");
                 if (auth == null || !auth.regionMatches(true, 0, "Bearer ", 0, 7))
                     throw new OAuthException("invalid_token", 401);
-                json(response, service.authenticate(auth.substring(7), service.resource(), Set.of("articles:read")), 200);
+                json(
+                        response,
+                        service.authenticate(
+                                auth.substring(7), service.resource(), Set.of("articles:read")),
+                        200);
             } else {
                 response.renderCode(405);
             }
         } catch (OAuthException e) {
             if (e.getStatus() == 401 || e.getStatus() == 403)
-                response.addHeader("WWW-Authenticate", "Bearer error=\"" + e.getOAuthError() + "\", resource_metadata=\"" + service.resourceMetadataUrl() + "\", scope=\"articles:read\"");
+                response.addHeader(
+                        "WWW-Authenticate",
+                        "Bearer error=\""
+                                + e.getOAuthError()
+                                + "\", resource_metadata=\""
+                                + service.resourceMetadataUrl()
+                                + "\", scope=\"articles:read\"");
             json(response, new OAuthModels.Error(e.getOAuthError()), e.getStatus());
         }
         return false;

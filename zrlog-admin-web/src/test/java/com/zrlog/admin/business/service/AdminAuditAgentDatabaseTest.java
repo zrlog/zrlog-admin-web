@@ -1,5 +1,8 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import com.google.gson.JsonParser;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.type.AdminAuditAction;
@@ -7,44 +10,56 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import org.junit.Test;
-
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import org.junit.Test;
 
 public class AdminAuditAgentDatabaseTest {
     private static HttpRequest request(String userAgent) {
-        return request(Map.of("User-Agent", userAgent, "uri", "/api/admin/cache", "ip", "127.0.0.1"));
+        return request(
+                Map.of("User-Agent", userAgent, "uri", "/api/admin/cache", "ip", "127.0.0.1"));
     }
 
     private static HttpRequest request(Map<String, String> source) {
-        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(), new Class<?>[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("getHeader")) return source.get(args[0]);
-                    if (method.getName().equals("getUri")) return source.get("uri");
-                    if (method.getName().equals("getRemoteHost")) return source.get("ip");
-                    if (method.getReturnType().equals(boolean.class)) return false;
-                    if (method.getReturnType().equals(int.class)) return 0;
-                    if (method.getReturnType().equals(long.class)) return 0L;
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        HttpRequest.class.getClassLoader(),
+                        new Class<?>[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if (method.getName().equals("getHeader")) return source.get(args[0]);
+                            if (method.getName().equals("getUri")) return source.get("uri");
+                            if (method.getName().equals("getRemoteHost")) return source.get("ip");
+                            if (method.getReturnType().equals(boolean.class)) return false;
+                            if (method.getReturnType().equals(int.class)) return 0;
+                            if (method.getReturnType().equals(long.class)) return 0L;
+                            return null;
+                        });
     }
 
     @Test
     public void assistantUsesTheExistingOperationLogAndKeepsTheExecutionAccount() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
-            var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
-            var actor = com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L));
-            var execution = new com.zrlog.admin.business.automation.TaskExecutionContext(
-                    "test-run", actor, System.currentTimeMillis() + 1000, System::currentTimeMillis, () -> { });
+            var service =
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
+            var actor =
+                    com.zrlog.data.security.AccountAccess.from(
+                            new com.zrlog.data.repository.UserRepository(db.dataSource())
+                                    .loadById(1L));
+            var execution =
+                    new com.zrlog.admin.business.automation.TaskExecutionContext(
+                            "test-run",
+                            actor,
+                            System.currentTimeMillis() + 1000,
+                            System::currentTimeMillis,
+                            () -> {});
             service.record(execution.audit(), AdminAuditAction.CREATE_ARTICLE, "Scheduled draft");
-            service.record(AdminAuditContexts.from(request("browser"), 2), AdminAuditAction.ROTATE_ASSISTANT_TOKEN, "secret-token");
+            service.record(
+                    AdminAuditContexts.from(request("browser"), 2),
+                    AdminAuditAction.ROTATE_ASSISTANT_TOKEN,
+                    "secret-token");
             var logs = service.getRecentLogs();
             assertEquals(2, logs.size());
             assertEquals(Integer.valueOf(2), logs.get(0).getActorUserId());
@@ -54,55 +69,85 @@ public class AdminAuditAgentDatabaseTest {
             assertNull(logs.get(1).getBrowser());
             assertNull(logs.get(1).getAgentName());
             assertEquals("Scheduled draft", logs.get(1).getContent());
-            var stored = db.scalar("select value from website where name='admin_audit_log'").toString();
+            var stored =
+                    db.scalar("select value from website where name='admin_audit_log'").toString();
             org.junit.Assert.assertFalse(stored.contains("secret-token"));
         }
     }
 
     @Test
-    public void storesSourceCodesAndResolvesLabelsForEachReaderWithoutChangingHistory() throws Exception {
+    public void storesSourceCodesAndResolvesLabelsForEachReaderWithoutChangingHistory()
+            throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
-            var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
-            var context = new com.zrlog.admin.business.audit.AdminAuditContext(1, "", "/assistant/run/localized", null);
+            var service =
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
+            var context =
+                    new com.zrlog.admin.business.audit.AdminAuditContext(
+                            1, "", "/assistant/run/localized", null);
             try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
                 service.record(context, AdminAuditAction.EXECUTE_UPGRADE, "4.0.2-SNAPSHOT");
-                service.record(AdminAuditContexts.from(request("client/"), 1), AdminAuditAction.REFRESH_CACHE);
+                service.record(
+                        AdminAuditContexts.from(request("client/"), 1),
+                        AdminAuditAction.REFRESH_CACHE);
             }
-            String stored = db.scalar("select value from website where name='admin_audit_log'").toString();
+            String stored =
+                    db.scalar("select value from website where name='admin_audit_log'").toString();
             var entries = JsonParser.parseString(stored).getAsJsonArray();
             assertEquals("unknown", entries.get(0).getAsJsonObject().get("source").getAsString());
             assertEquals("assistant", entries.get(1).getAsJsonObject().get("source").getAsString());
-            assertEquals("EXECUTE_UPGRADE", entries.get(1).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "EXECUTE_UPGRADE",
+                    entries.get(1).getAsJsonObject().get("action").getAsString());
             org.junit.Assert.assertFalse(stored.contains("sourceLabel"));
             org.junit.Assert.assertFalse(stored.contains("Unknown"));
             org.junit.Assert.assertFalse(stored.contains("ZrLog Assistant"));
-            for (String language : new String[]{"zh_CN", "en_US", "zh_CN"}) {
+            for (String language : new String[] {"zh_CN", "en_US", "zh_CN"}) {
                 try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
                     var logs = service.getRecentLogs();
                     assertEquals("unknown", logs.get(0).getSource());
-                    assertEquals("zh_CN".equals(language) ? "未知来源" : "Unknown source", logs.get(0).getSourceLabel());
+                    assertEquals(
+                            "zh_CN".equals(language) ? "未知来源" : "Unknown source",
+                            logs.get(0).getSourceLabel());
                     assertEquals("assistant", logs.get(1).getSource());
-                    assertEquals("zh_CN".equals(language) ? "助手执行" : "Run by assistant", logs.get(1).getSourceLabel());
-                    assertEquals("zh_CN".equals(language) ? "执行系统更新" : "Executed system update", logs.get(1).getAction());
+                    assertEquals(
+                            "zh_CN".equals(language) ? "助手执行" : "Run by assistant",
+                            logs.get(1).getSourceLabel());
+                    assertEquals(
+                            "zh_CN".equals(language) ? "执行系统更新" : "Executed system update",
+                            logs.get(1).getAction());
                     assertNull(logs.get(0).getOs());
                     assertNull(logs.get(0).getBrowser());
                 }
-                assertEquals(stored, db.scalar("select value from website where name='admin_audit_log'").toString());
+                assertEquals(
+                        stored,
+                        db.scalar("select value from website where name='admin_audit_log'")
+                                .toString());
             }
             service.record(context, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
-            org.junit.Assert.assertFalse(db.scalar("select value from website where name='admin_audit_log'").toString().contains("sourceLabel"));
+            org.junit.Assert.assertFalse(
+                    db.scalar("select value from website where name='admin_audit_log'")
+                            .toString()
+                            .contains("sourceLabel"));
         }
     }
 
     @Test
     public void capturedAuditSourceSurvivesRequestChangesAndWorkerDispatch() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            var service = new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
-            Map<String, String> source = new HashMap<>(Map.of(
-                    "User-Agent", "zrlogctl/0.1.42 dot/1.2-beta.1",
-                    "uri", "/mcp", "ip", "192.0.2.10"));
+            var service =
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
+            Map<String, String> source =
+                    new HashMap<>(
+                            Map.of(
+                                    "User-Agent",
+                                    "zrlogctl/0.1.42 dot/1.2-beta.1",
+                                    "uri",
+                                    "/mcp",
+                                    "ip",
+                                    "192.0.2.10"));
             var captured = AdminAuditContexts.from(request(source), 2);
-            // A later session and a reused request cannot change the completed action's attribution.
+            // A later session and a reused request cannot change the completed action's
+            // attribution.
             assertEquals(1, AdminTokenThreadLocal.getUserId());
             source.put("User-Agent", "another-client/9");
             source.put("uri", "/api/admin/cache");
@@ -110,10 +155,15 @@ public class AdminAuditAgentDatabaseTest {
             service.record(captured, AdminAuditAction.CREATE_ARTICLE, "captured article");
             var worker = Executors.newSingleThreadExecutor();
             try {
-                worker.submit(() -> {
-                    assertNull(AdminTokenThreadLocal.getUser());
-                    service.record(captured, AdminAuditAction.UPDATE_PASSWORD, "secret must be removed");
-                }).get(10, TimeUnit.SECONDS);
+                worker.submit(
+                                () -> {
+                                    assertNull(AdminTokenThreadLocal.getUser());
+                                    service.record(
+                                            captured,
+                                            AdminAuditAction.UPDATE_PASSWORD,
+                                            "secret must be removed");
+                                })
+                        .get(10, TimeUnit.SECONDS);
             } finally {
                 worker.shutdownNow();
             }
@@ -136,13 +186,26 @@ public class AdminAuditAgentDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminAuditService service =
                     new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
-            service.record(AdminAuditContexts.from(request("zrlogctl/0.1.42 dot/1.2-beta.1"), 1), AdminAuditAction.REFRESH_CACHE);
-            service.record(AdminAuditContexts.from(request("zrlogctl/0.1.42 muse"), 1), AdminAuditAction.REFRESH_CACHE);
-            service.record(AdminAuditContexts.from(request("zrlogctl/0.1.42"), 1), AdminAuditAction.REFRESH_CACHE);
-            var stored = JsonParser.parseString(db.scalar("select value from website where name='admin_audit_log'").toString()).getAsJsonArray();
+            service.record(
+                    AdminAuditContexts.from(request("zrlogctl/0.1.42 dot/1.2-beta.1"), 1),
+                    AdminAuditAction.REFRESH_CACHE);
+            service.record(
+                    AdminAuditContexts.from(request("zrlogctl/0.1.42 muse"), 1),
+                    AdminAuditAction.REFRESH_CACHE);
+            service.record(
+                    AdminAuditContexts.from(request("zrlogctl/0.1.42"), 1),
+                    AdminAuditAction.REFRESH_CACHE);
+            var stored =
+                    JsonParser.parseString(
+                                    db.scalar(
+                                                    "select value from website where name='admin_audit_log'")
+                                            .toString())
+                            .getAsJsonArray();
             assertEquals(3, stored.size());
             assertEquals("dot", stored.get(2).getAsJsonObject().get("agentName").getAsString());
-            assertEquals("1.2-beta.1", stored.get(2).getAsJsonObject().get("agentVersion").getAsString());
+            assertEquals(
+                    "1.2-beta.1",
+                    stored.get(2).getAsJsonObject().get("agentVersion").getAsString());
             var logs = service.getRecentLogs();
             assertNull(logs.get(0).getAgentName());
             assertEquals("muse", logs.get(1).getAgentName());

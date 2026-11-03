@@ -24,7 +24,6 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -35,7 +34,6 @@ public class AdminUserController extends BaseController {
     private final AdminAuditService adminAuditService;
 
     private final AdminPageDataFactory pages;
-
 
     private final UserService userService;
     private final AccountProfileService profiles;
@@ -77,7 +75,11 @@ public class AdminUserController extends BaseController {
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return pages.response(requestIdentity.optional(), profiles.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                profiles.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
@@ -85,16 +87,21 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.preferences")
     public AdminPageDataResponse<UserPreferencesResponse> preferences() throws SQLException {
         var actor = requestIdentity.current();
-        return pages.response(actor, this.userPreferenceService.current(actor), "", request.getUri());
+        return pages.response(
+                actor, this.userPreferenceService.current(actor), "", request.getUri());
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updatePreferences")
+    @RequiresAction(
+            value = AccountAction.ACCOUNT_SELF,
+            descriptionKey = "account.updatePreferences")
     public ApiStandardResponse<UserPreferencesResponse> updatePreferences() throws SQLException {
         java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
         String contentType = request.getHeader("Content-Type");
-        if (body == null || body.remaining() > 8192 || contentType == null
+        if (body == null
+                || body.remaining() > 8192
+                || contentType == null
                 || !contentType.split(";")[0].trim().equalsIgnoreCase("application/json")) {
             throw new ArgsException("preferences");
         }
@@ -117,7 +124,12 @@ public class AdminUserController extends BaseController {
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return pages.response(requestIdentity.optional(), userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId(), cacheService), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                userService.getUserInfoWithCache(
+                        adminTokenVO.getUserId(), adminTokenVO.getSessionId(), cacheService),
+                "",
+                request.getUri());
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -125,12 +137,21 @@ public class AdminUserController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updateProfile")
     public UpdateRecordResponse update() throws SQLException {
-        UpdateAdminRequest updateAdminRequest = getRequestBodyWithNullCheck(UpdateAdminRequest.class);
+        UpdateAdminRequest updateAdminRequest =
+                getRequestBodyWithNullCheck(UpdateAdminRequest.class);
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        profiles.update(token.getUserId(), token.getSessionId(), updateAdminRequest, getRequest(), avatarStorage.get());
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_PROFILE);
+        profiles.update(
+                token.getUserId(),
+                token.getSessionId(),
+                updateAdminRequest,
+                getRequest(),
+                avatarStorage.get());
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.UPDATE_PROFILE);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse(true);
-        updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.update.success"));
+        updateRecordResponse.setMessage(
+                I18nUtil.getAdminBackendStringFromRes("admin.user.update.success"));
         return updateRecordResponse;
     }
 
@@ -138,24 +159,39 @@ public class AdminUserController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updatePassword")
     public UpdateRecordResponse updatePassword() throws SQLException {
-        UpdateRecordResponse response = userService.updatePassword(AdminTokenThreadLocal.getUserId(),
-                getRequestBodyWithNullCheck(UpdatePasswordRequest.class));
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_PASSWORD);
+        UpdateRecordResponse response =
+                userService.updatePassword(
+                        AdminTokenThreadLocal.getUserId(),
+                        getRequestBodyWithNullCheck(UpdatePasswordRequest.class));
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.UPDATE_PASSWORD);
         return response;
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.mfa")
     public AdminPageDataResponse<MfaStatusResponse> mfa() throws SQLException {
-        return pages.response(requestIdentity.optional(), mfaService.getMfaStatus(AdminTokenThreadLocal.getUserId(), cacheService.getPublicWebSiteInfo().getTitle()), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                mfaService.getMfaStatus(
+                        AdminTokenThreadLocal.getUserId(),
+                        cacheService.getPublicWebSiteInfo().getTitle()),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.enableMfa")
     public UpdateRecordResponse enableMfa() throws SQLException {
-        UpdateRecordResponse response = mfaService.enableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.ENABLE_MFA);
+        UpdateRecordResponse response =
+                mfaService.enableMfa(
+                        AdminTokenThreadLocal.getUserId(),
+                        getRequestBodyWithNullCheck(UpdateMfaRequest.class));
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.ENABLE_MFA);
         return response;
     }
 
@@ -163,8 +199,13 @@ public class AdminUserController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.disableMfa")
     public UpdateRecordResponse disableMfa() throws SQLException {
-        UpdateRecordResponse response = mfaService.disableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.DISABLE_MFA);
+        UpdateRecordResponse response =
+                mfaService.disableMfa(
+                        AdminTokenThreadLocal.getUserId(),
+                        getRequestBodyWithNullCheck(UpdateMfaRequest.class));
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.DISABLE_MFA);
         return response;
     }
 
@@ -172,18 +213,24 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.passkeys")
     public ApiStandardResponse<java.util.List<PasskeySummaryResponse>> passkeys()
             throws SQLException {
-        return new ApiStandardResponse<>(
-                passkeyService.list(AdminTokenThreadLocal.getUserId()));
+        return new ApiStandardResponse<>(passkeyService.list(AdminTokenThreadLocal.getUserId()));
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.passkeyRegistration")
+    @RequiresAction(
+            value = AccountAction.ACCOUNT_SELF,
+            descriptionKey = "account.passkeyRegistration")
     public ApiStandardResponse<PasskeyOptionsResponse<PasskeyRegistrationOptionsResponse>>
-    passkeyRegistrationOptions() throws SQLException {
-        PasskeyRegistrationOptionsRequest body = getRequestBodyWithNullCheck(PasskeyRegistrationOptionsRequest.class);
+            passkeyRegistrationOptions() throws SQLException {
+        PasskeyRegistrationOptionsRequest body =
+                getRequestBodyWithNullCheck(PasskeyRegistrationOptionsRequest.class);
         return new ApiStandardResponse<>(
-                passkeyService.startRegistration(AdminTokenThreadLocal.getUserId(), body, getRequest(), cacheService.getPublicWebSiteInfo().getTitle()));
+                passkeyService.startRegistration(
+                        AdminTokenThreadLocal.getUserId(),
+                        body,
+                        getRequest(),
+                        cacheService.getPublicWebSiteInfo().getTitle()));
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)
@@ -192,11 +239,17 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.addPasskey")
     public ApiStandardResponse<PasskeySummaryResponse> passkeyRegistrationVerify()
             throws SQLException {
-        PasskeySummaryResponse summary = passkeyService.finishRegistration(AdminTokenThreadLocal.getUserId(),
-                getRequestBodyWithNullCheck(PasskeyRegistrationVerifyRequest.class), getRequest());
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.REGISTER_PASSKEY, summary.getName());
-        return new ApiStandardResponse<>(summary,
-                I18nUtil.getAdminBackendStringFromRes("admin.passkey.register.success"));
+        PasskeySummaryResponse summary =
+                passkeyService.finishRegistration(
+                        AdminTokenThreadLocal.getUserId(),
+                        getRequestBodyWithNullCheck(PasskeyRegistrationVerifyRequest.class),
+                        getRequest());
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.REGISTER_PASSKEY,
+                summary.getName());
+        return new ApiStandardResponse<>(
+                summary, I18nUtil.getAdminBackendStringFromRes("admin.passkey.register.success"));
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)
@@ -206,8 +259,11 @@ public class AdminUserController extends BaseController {
     public ApiStandardResponse<Boolean> passkeyRemove() throws SQLException {
         PasskeyRemoveRequest body = getRequestBodyWithNullCheck(PasskeyRemoveRequest.class);
         passkeyService.remove(AdminTokenThreadLocal.getUserId(), body);
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.REMOVE_PASSKEY, String.valueOf(body.getId()));
-        return new ApiStandardResponse<>(true,
-                I18nUtil.getAdminBackendStringFromRes("admin.passkey.remove.success"));
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.REMOVE_PASSKEY,
+                String.valueOf(body.getId()));
+        return new ApiStandardResponse<>(
+                true, I18nUtil.getAdminBackendStringFromRes("admin.passkey.remove.success"));
     }
 }

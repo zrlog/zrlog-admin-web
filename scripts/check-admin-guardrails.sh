@@ -93,7 +93,8 @@ NATIVE_JSON_FILES=(zrlog-admin-*/src/main/java/com/zrlog/admin/util/*NativeImage
 NATIVE_JSON_STATUS=0
 check_native_json_class() {
     local class_name="$1"
-    if ! rg -q -F "${class_name}.class" "${NATIVE_JSON_FILES[@]}"; then
+    local class_pattern="${class_name//./[[:space:]]*\\.[[:space:]]*}"
+    if ! rg -q -U "\\b${class_pattern}[[:space:]]*\\.[[:space:]]*class\\b" "${NATIVE_JSON_FILES[@]}"; then
         printf 'Native registrations missing %s.class\n' "$class_name"
         NATIVE_JSON_STATUS=1
     fi
@@ -125,7 +126,7 @@ done
 for file in zrlog-admin-*/src/main/java/com/zrlog/admin/business/rest/response/*.java; do
     while IFS= read -r line; do
         class_name="$(printf '%s' "$line" | sed -E 's/.*class ([A-Za-z0-9_]+).*/\1/')"
-        if ! rg -q -F ".${class_name}.class" "${NATIVE_JSON_FILES[@]}"; then
+        if ! rg -q -U "\\.[[:space:]]*${class_name}[[:space:]]*\\.[[:space:]]*class\\b" "${NATIVE_JSON_FILES[@]}"; then
             printf 'Native registrations missing nested %s.class\n' "$class_name"
             NATIVE_JSON_STATUS=1
         fi

@@ -11,13 +11,10 @@ import com.zrlog.data.util.WebSiteUtils;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/**
- * Assembles page metadata from the owning application at response time.
- */
+/** Assembles page metadata from the owning application at response time. */
 @Singleton
 public final class AdminPageDataFactory {
     private final Supplier<PublicWebSiteInfo> site;
@@ -36,7 +33,8 @@ public final class AdminPageDataFactory {
     }
 
     private PublicWebSiteInfo siteInfo() {
-        return Objects.requireNonNullElseGet(site.get(), () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
+        return Objects.requireNonNullElseGet(
+                site.get(), () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
     }
 
     public String title(String uri) {
@@ -53,16 +51,21 @@ public final class AdminPageDataFactory {
                 actor != null && AccountAction.DASHBOARD_READ.allowed(actor)
                         ? messages.current()
                         : new MessageCenterStatusResponse();
-        return new AdminPageMetadata(Objects.requireNonNullElse(buildId.get(), ""),
-                StringUtils.isNotEmpty(uri) ? AdminConstants.getAdminDocumentTitleByUri(uri, info) : null,
-                notification, status);
+        return new AdminPageMetadata(
+                Objects.requireNonNullElse(buildId.get(), ""),
+                StringUtils.isNotEmpty(uri)
+                        ? AdminConstants.getAdminDocumentTitleByUri(uri, info)
+                        : null,
+                notification,
+                status);
     }
 
     public <T> AdminPageDataResponse<T> response(AccountAccess actor, T data) {
         return new AdminPageDataResponse<>(data, "", metadata(actor, null));
     }
 
-    public <T> AdminPageDataResponse<T> response(AccountAccess actor, T data, String message, String uri) {
+    public <T> AdminPageDataResponse<T> response(
+            AccountAccess actor, T data, String message, String uri) {
         return new AdminPageDataResponse<>(data, message, metadata(actor, uri));
     }
 }

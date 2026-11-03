@@ -9,8 +9,14 @@ public class AdminAuditLogEntryResponse {
     private String content;
     private String contentKey;
 
-    public String getContentKey() { return contentKey; }
-    public void setContentKey(String contentKey) { this.contentKey = contentKey; }
+    public String getContentKey() {
+        return contentKey;
+    }
+
+    public void setContentKey(String contentKey) {
+        this.contentKey = contentKey;
+    }
+
     private String os;
     private String browser;
     private Boolean crawler;
@@ -20,10 +26,21 @@ public class AdminAuditLogEntryResponse {
     private String source;
     private String sourceLabel;
 
-    public String getSource() { return source; }
-    public void setSource(String source) { this.source = source; }
-    public String getSourceLabel() { return sourceLabel; }
-    public void setSourceLabel(String sourceLabel) { this.sourceLabel = sourceLabel; }
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getSourceLabel() {
+        return sourceLabel;
+    }
+
+    public void setSourceLabel(String sourceLabel) {
+        this.sourceLabel = sourceLabel;
+    }
 
     public String getAssistantRunId() {
         return assistantRunId;

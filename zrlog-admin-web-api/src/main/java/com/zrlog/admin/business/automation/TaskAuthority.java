@@ -2,13 +2,12 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.repository.UserRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -27,19 +26,25 @@ public final class TaskAuthority {
     }
 
     public AccountAccess current(AccountAccess actor) {
-        // Entry points declare their access action; business operations check the task's own actions.
+        // Entry points declare their access action; business operations check the task's own
+        // actions.
         return identities.revalidate(actor);
     }
 
     public AccountAccess restore(StoredTask task) throws SQLException {
         // Site configuration is independent of its editor. Use the current real owner account,
         // so all existing data-layer permission and conditional-write checks still apply.
-        AccountAccess actor = task.ownerId == 0 ? siteActor() : AccountAccess.from(users.get().loadById((long) task.ownerId));
+        AccountAccess actor =
+                task.ownerId == 0
+                        ? siteActor()
+                        : AccountAccess.from(users.get().loadById((long) task.ownerId));
         if (!actor.isEnabled()) throw new PermissionErrorException();
         return actor.restrictActions(task.executionActions);
     }
 
-    public void revalidateExecution(AccountAccess actor) { identities.revalidate(actor); }
+    public void revalidateExecution(AccountAccess actor) {
+        identities.revalidate(actor);
+    }
 
     void revalidateExecution(AccountAccess actor, AccountAccess current) {
         AccountIdentityService.requireUnchanged(actor, current);
@@ -57,14 +62,17 @@ public final class TaskAuthority {
         Set<String> actions = new LinkedHashSet<>(definition.requiredActions);
         for (String action : definition.optionalActions) {
             for (AccountAction candidate : AccountAction.values()) {
-                if (candidate.getId().equals(action) && candidate.allowed(actor)) actions.add(action);
+                if (candidate.getId().equals(action) && candidate.allowed(actor))
+                    actions.add(action);
             }
         }
         return new ArrayList<>(actions);
     }
 
-    public void access(AccountAccess actor, StoredTask task, AutomationModels.Definition definition) {
-        if (task.ownerId != 0 && task.ownerId != actor.getUserId()) throw new PermissionErrorException();
+    public void access(
+            AccountAccess actor, StoredTask task, AutomationModels.Definition definition) {
+        if (task.ownerId != 0 && task.ownerId != actor.getUserId())
+            throw new PermissionErrorException();
         definition.requiredActions.forEach(action -> require(actor, action));
     }
 

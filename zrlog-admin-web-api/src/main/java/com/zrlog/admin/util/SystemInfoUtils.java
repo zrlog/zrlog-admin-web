@@ -6,8 +6,6 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.util.ZrLogUtil;
-
-import javax.sql.DataSource;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -18,6 +16,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.sql.DataSource;
 
 public class SystemInfoUtils {
 
@@ -27,8 +26,11 @@ public class SystemInfoUtils {
     private final Supplier<File> executable;
     private final Supplier<String> uptime;
 
-    public SystemInfoUtils(BooleanSupplier installed, Supplier<DataSource> dataSource,
-                           Supplier<File> executable, Supplier<String> uptime) {
+    public SystemInfoUtils(
+            BooleanSupplier installed,
+            Supplier<DataSource> dataSource,
+            Supplier<File> executable,
+            Supplier<String> uptime) {
         this.installed = Objects.requireNonNull(installed);
         this.dataSource = Objects.requireNonNull(dataSource);
         this.executable = Objects.requireNonNull(executable);
@@ -68,7 +70,9 @@ public class SystemInfoUtils {
         Properties systemProp = new Properties();
         systemProp.putAll(System.getProperties());
         systemProp.setProperty("zrlog.runtime.path", PathUtil.getRootPath());
-        systemProp.setProperty("server.info", "SimpleWebServer/" + com.hibegin.http.server.util.ServerInfo.getVersion());
+        systemProp.setProperty(
+                "server.info",
+                "SimpleWebServer/" + com.hibegin.http.server.util.ServerInfo.getVersion());
         if (StringUtils.isNotEmpty(systemProp.getProperty("os.name"))) {
             if (systemProp.get("os.name").toString().startsWith("Mac")) {
                 systemProp.put("os.type", "apple");
@@ -88,10 +92,17 @@ public class SystemInfoUtils {
         ServerInfoSnapshot snapshot = ServerInfoSnapshot.fromProperties(getSystemProp());
         String applicationName = httpRequest.getServerConfig().getApplicationName();
         if (applicationName.startsWith("zrlog")) {
-            snapshot = snapshot.withWebServer(com.hibegin.http.server.util.ServerInfo.getName()
-                    + "/" + com.hibegin.http.server.util.ServerInfo.getVersion());
+            snapshot =
+                    snapshot.withWebServer(
+                            com.hibegin.http.server.util.ServerInfo.getName()
+                                    + "/"
+                                    + com.hibegin.http.server.util.ServerInfo.getVersion());
         } else {
-            snapshot = snapshot.withWebServer(applicationName + "/" + httpRequest.getServerConfig().getApplicationVersion());
+            snapshot =
+                    snapshot.withWebServer(
+                            applicationName
+                                    + "/"
+                                    + httpRequest.getServerConfig().getApplicationVersion());
         }
         return ServerInfoUtils.convertToServerInfos(snapshot);
     }

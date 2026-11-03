@@ -4,7 +4,6 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.webauthn4j.data.client.Origin;
 import com.zrlog.admin.business.exception.PasskeyVerificationException;
-
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Locale;
@@ -26,24 +25,38 @@ public class PasskeyRequestContext {
         try {
             String originHeader = request.getHeader("Origin");
             String hostHeader = request.getHeader("Host");
-            String requestScheme = Objects.toString(request.getScheme(), "").split(",", 2)[0].trim()
-                    .toLowerCase(Locale.ROOT);
-            if (StringUtils.isEmpty(originHeader) || StringUtils.isEmpty(hostHeader)
-                    || hostHeader.contains(",") || hostHeader.contains("/") || hostHeader.contains("\\")
-                    || hostHeader.contains("@") || hostHeader.contains("?") || hostHeader.contains("#")) {
+            String requestScheme =
+                    Objects.toString(request.getScheme(), "")
+                            .split(",", 2)[0]
+                            .trim()
+                            .toLowerCase(Locale.ROOT);
+            if (StringUtils.isEmpty(originHeader)
+                    || StringUtils.isEmpty(hostHeader)
+                    || hostHeader.contains(",")
+                    || hostHeader.contains("/")
+                    || hostHeader.contains("\\")
+                    || hostHeader.contains("@")
+                    || hostHeader.contains("?")
+                    || hostHeader.contains("#")) {
                 throw new PasskeyVerificationException();
             }
             URI originUri = URI.create(originHeader);
-            if (StringUtils.isEmpty(originUri.getScheme()) || StringUtils.isEmpty(originUri.getHost())
-                    || originUri.getUserInfo() != null || originUri.getQuery() != null || originUri.getFragment() != null
-                    || (StringUtils.isNotEmpty(originUri.getPath()) && !"/".equals(originUri.getPath()))) {
+            if (StringUtils.isEmpty(originUri.getScheme())
+                    || StringUtils.isEmpty(originUri.getHost())
+                    || originUri.getUserInfo() != null
+                    || originUri.getQuery() != null
+                    || originUri.getFragment() != null
+                    || (StringUtils.isNotEmpty(originUri.getPath())
+                            && !"/".equals(originUri.getPath()))) {
                 throw new PasskeyVerificationException();
             }
             Origin suppliedOrigin = new Origin(originHeader);
             String normalizedOrigin = suppliedOrigin.toString();
             String host = suppliedOrigin.getHost();
-            if (StringUtils.isEmpty(host) || host.length() > MAX_RP_ID_LENGTH
-                    || normalizedOrigin.length() > MAX_ORIGIN_LENGTH || isIpLiteral(host)
+            if (StringUtils.isEmpty(host)
+                    || host.length() > MAX_RP_ID_LENGTH
+                    || normalizedOrigin.length() > MAX_ORIGIN_LENGTH
+                    || isIpLiteral(host)
                     || !isValidPort(suppliedOrigin)) {
                 throw new PasskeyVerificationException();
             }
@@ -52,9 +65,12 @@ public class PasskeyRequestContext {
                 throw new PasskeyVerificationException();
             }
             boolean sameOrigin = suppliedOrigin.equals(requestOrigin);
-            boolean proxiedSameOrigin = !sameOrigin && isProxiedSameOriginBrowserRequest(request, suppliedOrigin);
-            if (!sameOrigin && !proxiedSameOrigin
-                    && (!isConfiguredSiteOrigin(suppliedOrigin) || !isSecureApiOrigin(requestOrigin))) {
+            boolean proxiedSameOrigin =
+                    !sameOrigin && isProxiedSameOriginBrowserRequest(request, suppliedOrigin);
+            if (!sameOrigin
+                    && !proxiedSameOrigin
+                    && (!isConfiguredSiteOrigin(suppliedOrigin)
+                            || !isSecureApiOrigin(requestOrigin))) {
                 throw new PasskeyVerificationException();
             }
             if (!"https".equals(suppliedOrigin.getScheme())
@@ -70,20 +86,26 @@ public class PasskeyRequestContext {
     }
 
     private boolean isProxiedSameOriginBrowserRequest(HttpRequest request, Origin suppliedOrigin) {
-        String fetchSite = Objects.toString(request.getHeader("Sec-Fetch-Site"), "").trim()
-                .toLowerCase(Locale.ROOT);
+        String fetchSite =
+                Objects.toString(request.getHeader("Sec-Fetch-Site"), "")
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
         String refererHeader = Objects.toString(request.getHeader("Referer"), "").trim();
-        if (!"same-origin".equals(fetchSite) || refererHeader.isEmpty()
+        if (!"same-origin".equals(fetchSite)
+                || refererHeader.isEmpty()
                 || refererHeader.length() > MAX_REFERER_LENGTH) {
             return false;
         }
         try {
             URI referer = URI.create(refererHeader);
-            if (StringUtils.isEmpty(referer.getScheme()) || StringUtils.isEmpty(referer.getHost())
-                    || referer.getUserInfo() != null || referer.getFragment() != null) {
+            if (StringUtils.isEmpty(referer.getScheme())
+                    || StringUtils.isEmpty(referer.getHost())
+                    || referer.getUserInfo() != null
+                    || referer.getFragment() != null) {
                 return false;
             }
-            Origin refererOrigin = new Origin(referer.getScheme() + "://" + referer.getRawAuthority());
+            Origin refererOrigin =
+                    new Origin(referer.getScheme() + "://" + referer.getRawAuthority());
             return isValidPort(refererOrigin) && suppliedOrigin.equals(refererOrigin);
         } catch (RuntimeException e) {
             return false;
@@ -97,7 +119,8 @@ public class PasskeyRequestContext {
         }
         String lowerCaseConfiguredHost = configuredHost.toLowerCase(Locale.ROOT);
         String configuredUrl;
-        if (lowerCaseConfiguredHost.startsWith("https://") || lowerCaseConfiguredHost.startsWith("http://")) {
+        if (lowerCaseConfiguredHost.startsWith("https://")
+                || lowerCaseConfiguredHost.startsWith("http://")) {
             configuredUrl = configuredHost;
         } else {
             if (configuredHost.contains("://")) {
@@ -106,10 +129,13 @@ public class PasskeyRequestContext {
             configuredUrl = suppliedOrigin.getScheme() + "://" + configuredHost;
         }
         URI configuredUri = URI.create(configuredUrl);
-        if (StringUtils.isEmpty(configuredUri.getScheme()) || StringUtils.isEmpty(configuredUri.getHost())
-                || configuredUri.getUserInfo() != null || configuredUri.getQuery() != null
+        if (StringUtils.isEmpty(configuredUri.getScheme())
+                || StringUtils.isEmpty(configuredUri.getHost())
+                || configuredUri.getUserInfo() != null
+                || configuredUri.getQuery() != null
                 || configuredUri.getFragment() != null
-                || (StringUtils.isNotEmpty(configuredUri.getPath()) && !"/".equals(configuredUri.getPath()))) {
+                || (StringUtils.isNotEmpty(configuredUri.getPath())
+                        && !"/".equals(configuredUri.getPath()))) {
             return false;
         }
         Origin configuredOrigin = new Origin(configuredUrl);
@@ -118,7 +144,8 @@ public class PasskeyRequestContext {
 
     private boolean isSecureApiOrigin(Origin requestOrigin) {
         return "https".equals(requestOrigin.getScheme())
-                || ("http".equals(requestOrigin.getScheme()) && isLocalHost(requestOrigin.getHost()));
+                || ("http".equals(requestOrigin.getScheme())
+                        && isLocalHost(requestOrigin.getHost()));
     }
 
     private boolean isValidPort(Origin origin) {
@@ -134,8 +161,10 @@ public class PasskeyRequestContext {
     }
 
     private boolean isIpLiteral(String host) {
-        String normalizedHost = host.startsWith("[") && host.endsWith("]")
-                ? host.substring(1, host.length() - 1) : host;
+        String normalizedHost =
+                host.startsWith("[") && host.endsWith("]")
+                        ? host.substring(1, host.length() - 1)
+                        : host;
         if (normalizedHost.indexOf(':') >= 0 || normalizedHost.endsWith(".")) {
             return true;
         }

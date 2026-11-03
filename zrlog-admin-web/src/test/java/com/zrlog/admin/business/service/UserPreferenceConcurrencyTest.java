@@ -1,19 +1,18 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.data.repository.UserRepository;
-import org.junit.Test;
-
+import com.zrlog.data.service.UserPreferenceStore;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class UserPreferenceConcurrencyTest {
     private static JsonObject stored(InMemoryZrLogDatabase db) throws SQLException {
@@ -49,13 +48,20 @@ public class UserPreferenceConcurrencyTest {
     public void pageSavePreservesConcurrentSessionAndAppearanceUpdates() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competing = new AtomicInteger();
-            db.beforeWebApiUpdate((sql, args) -> {
-                if (!isPreferenceUpdate(sql) || competing.getAndIncrement() != 0) return;
-                db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
-            });
-            new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                    new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
-                    .updateBody(actor(db), "{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}",
+            db.beforeWebApiUpdate(
+                    (sql, args) -> {
+                        if (!isPreferenceUpdate(sql) || competing.getAndIncrement() != 0) return;
+                        db.execute(
+                                "update user set updatedAt=?,version=version+1,preferences=? where userId=1",
+                                new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                                "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
+                    });
+            new UserPreferenceService(
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
+                    .updateBody(
+                            actor(db),
+                            "{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}",
                             "writing");
             JsonObject saved = stored(db);
             assertEquals(60, saved.getAsJsonObject("session").get("timeoutMinutes").getAsInt());
@@ -67,18 +73,26 @@ public class UserPreferenceConcurrencyTest {
     private void savesAfterCompetingWrites(boolean personal) throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competingWrites = new AtomicInteger();
-            db.beforeWebApiUpdate((sql, args) -> {
-                if (!isPreferenceUpdate(sql) || competingWrites.get() >= 12) return;
-                int revision = competingWrites.incrementAndGet();
-                // Commit another instance's change between our read and conditional write.
-                JsonObject latest = stored(db);
-                latest.add("future", json("{\"key\":1}"));
-                if (personal) latest.add("dashboard", json("{\"autoRefreshIntervalSeconds\":" + revision * 10 + "}"));
-                else latest.addProperty("articlePageSize", revision);
-                db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(), latest.toString());
-            });
+            db.beforeWebApiUpdate(
+                    (sql, args) -> {
+                        if (!isPreferenceUpdate(sql) || competingWrites.get() >= 12) return;
+                        int revision = competingWrites.incrementAndGet();
+                        // Commit another instance's change between our read and conditional write.
+                        JsonObject latest = stored(db);
+                        latest.add("future", json("{\"key\":1}"));
+                        if (personal)
+                            latest.add(
+                                    "dashboard",
+                                    json("{\"autoRefreshIntervalSeconds\":" + revision * 10 + "}"));
+                        else latest.addProperty("articlePageSize", revision);
+                        db.execute(
+                                "update user set updatedAt=?,version=version+1,preferences=? where userId=1",
+                                new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                                latest.toString());
+                    });
             UserPreferenceService service =
-                    new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(db.dataSource()),
                             new UserPreferenceStore(() -> new UserRepository(db.dataSource())));
             if (personal) service.update(actor(db), json("{\"articlePageSize\":50}"));
             else {
@@ -89,7 +103,11 @@ public class UserPreferenceConcurrencyTest {
             JsonObject saved = stored(db);
             assertEquals(12, competingWrites.get());
             assertEquals(personal ? 50 : 12, saved.get("articlePageSize").getAsInt());
-            assertEquals(personal ? 120 : 90, saved.getAsJsonObject("dashboard").get("autoRefreshIntervalSeconds").getAsInt());
+            assertEquals(
+                    personal ? 120 : 90,
+                    saved.getAsJsonObject("dashboard")
+                            .get("autoRefreshIntervalSeconds")
+                            .getAsInt());
             assertEquals(1, saved.getAsJsonObject("future").get("key").getAsInt());
         }
     }
@@ -98,43 +116,66 @@ public class UserPreferenceConcurrencyTest {
     public void sustainedContentionStopsWithoutOverwritingCompetingUpdates() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competingWrites = new AtomicInteger();
-            db.beforeWebApiUpdate((sql, args) -> {
-                if (isPreferenceUpdate(sql)) {
-                    db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                            "{\"future\":{\"revision\":" + competingWrites.incrementAndGet() + "}}");
-                }
-            });
+            db.beforeWebApiUpdate(
+                    (sql, args) -> {
+                        if (isPreferenceUpdate(sql)) {
+                            db.execute(
+                                    "update user set updatedAt=?,version=version+1,preferences=? where userId=1",
+                                    new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                                    "{\"future\":{\"revision\":"
+                                            + competingWrites.incrementAndGet()
+                                            + "}}");
+                        }
+                    });
             SQLException error =
                     assertThrows(
                             SQLException.class,
                             () ->
-                                    new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
+                                    new UserPreferenceService(
+                                                    ApplicationServicesFixture.settings(
+                                                            db.dataSource()),
+                                                    new UserPreferenceStore(
+                                                            () ->
+                                                                    new UserRepository(
+                                                                            db.dataSource())))
                                             .update(actor(db), json("{\"articlePageSize\":50}")));
             assertTrue(error.getMessage().contains("Concurrent account preference update"));
             JsonObject saved = stored(db);
             assertFalse(saved.has("articlePageSize"));
-            assertEquals(competingWrites.get(), saved.getAsJsonObject("future").get("revision").getAsInt());
+            assertEquals(
+                    competingWrites.get(),
+                    saved.getAsJsonObject("future").get("revision").getAsInt());
         }
     }
 
     @Test
     public void interruptedRetryPreservesInterruptAndCompetingUpdate() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            db.beforeWebApiUpdate((sql, args) -> {
-                if (isPreferenceUpdate(sql)) {
-                    db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "{\"future\":{\"key\":1}}");
-                    Thread.currentThread().interrupt();
-                }
-            });
+            db.beforeWebApiUpdate(
+                    (sql, args) -> {
+                        if (isPreferenceUpdate(sql)) {
+                            db.execute(
+                                    "update user set updatedAt=?,version=version+1,preferences=? where userId=1",
+                                    new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                                    "{\"future\":{\"key\":1}}");
+                            Thread.currentThread().interrupt();
+                        }
+                    });
             try {
                 SQLException error =
                         assertThrows(
                                 SQLException.class,
                                 () ->
-                                        new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                                                new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
-                                                .update(actor(db), json("{\"articlePageSize\":50}")));
+                                        new UserPreferenceService(
+                                                        ApplicationServicesFixture.settings(
+                                                                db.dataSource()),
+                                                        new UserPreferenceStore(
+                                                                () ->
+                                                                        new UserRepository(
+                                                                                db.dataSource())))
+                                                .update(
+                                                        actor(db),
+                                                        json("{\"articlePageSize\":50}")));
                 assertTrue(error.getCause() instanceof InterruptedException);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally {
@@ -149,23 +190,28 @@ public class UserPreferenceConcurrencyTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger writes = new AtomicInteger();
             SQLException unavailable = new SQLException("Database unavailable");
-            db.beforeWebApiUpdate((sql, args) -> {
-                if (isPreferenceUpdate(sql)) {
-                    writes.incrementAndGet();
-                    throw unavailable;
-                }
-            });
+            db.beforeWebApiUpdate(
+                    (sql, args) -> {
+                        if (isPreferenceUpdate(sql)) {
+                            writes.incrementAndGet();
+                            throw unavailable;
+                        }
+                    });
             assertSame(
                     unavailable,
                     assertThrows(
                             SQLException.class,
                             () ->
-                                    new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
+                                    new UserPreferenceService(
+                                                    ApplicationServicesFixture.settings(
+                                                            db.dataSource()),
+                                                    new UserPreferenceStore(
+                                                            () ->
+                                                                    new UserRepository(
+                                                                            db.dataSource())))
                                             .update(actor(db), json("{\"articlePageSize\":50}"))));
             assertEquals(1, writes.get());
             assertEquals(new JsonObject(), stored(db));
         }
     }
-
 }

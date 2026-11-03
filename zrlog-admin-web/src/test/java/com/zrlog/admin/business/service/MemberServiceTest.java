@@ -1,26 +1,24 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.data.repository.AdminUserRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import java.io.InputStream;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class MemberServiceTest {
-    @Parameterized.Parameter
-    public String backend;
+    @Parameterized.Parameter public String backend;
 
     @Parameterized.Parameters(name = "{0}")
     public static List<String> backends() {
@@ -29,8 +27,12 @@ public class MemberServiceTest {
 
     @Test
     public void createsMemberWithDefaultAvatarWhenExistingSchemaRequiresHeader() throws Exception {
-        try (InMemoryZrLogDatabase db = "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi()
-                : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open()) {
+        try (InMemoryZrLogDatabase db =
+                "webapi".equals(backend)
+                        ? InMemoryZrLogDatabase.openWebApi()
+                        : "sqlite".equals(backend)
+                                ? InMemoryZrLogDatabase.openSqlite()
+                                : InMemoryZrLogDatabase.open()) {
             requireHeader(db);
             AccountAuthorizationTest.login(db, 1, "owner");
 
@@ -40,17 +42,23 @@ public class MemberServiceTest {
             create.role = "author";
             MemberModels.Member member =
                     new MemberService(
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            AccountServicesFixture.component(db.dataSource()).users(),
-                            AccountServicesFixture.component(db.dataSource()).permissions())
-                            .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create);
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    AccountServicesFixture.component(db.dataSource()).users(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions())
+                            .create(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    create);
 
             assertTrue(member.userId > 1);
             assertEquals("newwriter", member.userName);
             assertEquals("", member.email);
             assertEquals("author", member.role);
             assertTrue(member.enabled);
-            Map<String, Object> row = db.queryOne("select header,authVersion from user where userId=?", member.userId);
+            Map<String, Object> row =
+                    db.queryOne(
+                            "select header,authVersion from user where userId=?", member.userId);
             assertEquals("", row.get("header"));
             assertEquals(0, ((Number) row.get("authVersion")).intValue());
 
@@ -63,9 +71,13 @@ public class MemberServiceTest {
             String avatar = users.getBasicUserInfo(member.userId, "new-member-session").getHeader();
             String dataUriPrefix = "data:image/gif;base64,";
             assertTrue(avatar.startsWith(dataUriPrefix));
-            try (InputStream image = UserService.class.getResourceAsStream("/assets/admin/images/default-portrait.gif")) {
+            try (InputStream image =
+                    UserService.class.getResourceAsStream(
+                            "/assets/admin/images/default-portrait.gif")) {
                 assertNotNull(image);
-                assertArrayEquals(image.readAllBytes(), Base64.getDecoder().decode(avatar.substring(dataUriPrefix.length())));
+                assertArrayEquals(
+                        image.readAllBytes(),
+                        Base64.getDecoder().decode(avatar.substring(dataUriPrefix.length())));
             }
             LoginRequest login = new LoginRequest();
             login.setUserName(create.userName);
@@ -82,14 +94,22 @@ public class MemberServiceTest {
         }
         // Existing installations can have a stricter user table than the current install schema.
         // SQLite requires rebuilding the table to change a column's nullability.
-        String schema = (String) db.scalar("select sql from sqlite_master where type='table' and name='user'");
-        String strictSchema = schema.replaceFirst("(?i)[`\"]?header[`\"]?\\s+[^,]+", "header varchar(255) not null");
+        String schema =
+                (String)
+                        db.scalar(
+                                "select sql from sqlite_master where type='table' and name='user'");
+        String strictSchema =
+                schema.replaceFirst(
+                        "(?i)[`\"]?header[`\"]?\\s+[^,]+", "header varchar(255) not null");
         assertNotEquals(schema, strictSchema);
         db.execute("alter table user rename to user_nullable_header");
         db.execute(strictSchema);
         db.execute("insert into user select * from user_nullable_header");
-        Map<String, Object> header = db.queryList("pragma table_info(user)").stream()
-                .filter(column -> "header".equals(column.get("name"))).findFirst().orElseThrow();
+        Map<String, Object> header =
+                db.queryList("pragma table_info(user)").stream()
+                        .filter(column -> "header".equals(column.get("name")))
+                        .findFirst()
+                        .orElseThrow();
         assertEquals(1, ((Number) header.get("notnull")).intValue());
         assertNull(header.get("dflt_value"));
     }

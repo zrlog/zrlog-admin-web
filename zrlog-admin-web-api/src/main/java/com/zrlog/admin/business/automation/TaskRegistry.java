@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/** Providers are explicitly assembled by the host; task payloads never select a Java class or URL. */
+/**
+ * Providers are explicitly assembled by the host; task payloads never select a Java class or URL.
+ */
 public final class TaskRegistry {
     private final Supplier<List<ScheduledTaskProvider>> providers;
 
@@ -18,7 +20,9 @@ public final class TaskRegistry {
 
     public Collection<Entry> entries() {
         Lookup lookup = lookup();
-        return lookup.providers.keySet().stream().map(lookup::require).collect(java.util.stream.Collectors.toList());
+        return lookup.providers.keySet().stream()
+                .map(lookup::require)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     public List<AutomationModels.Definition> definitions() {
@@ -31,21 +35,29 @@ public final class TaskRegistry {
         return lookup().require(type);
     }
 
-    public ScheduledTaskProvider provider(String type) { return lookup().provider(type); }
+    public ScheduledTaskProvider provider(String type) {
+        return lookup().provider(type);
+    }
 
-    /** Explicit operation lifetime: runtime configuration is never cached across ticks or requests. */
-    public Lookup lookup() { return new Lookup(providers.get()); }
+    /**
+     * Explicit operation lifetime: runtime configuration is never cached across ticks or requests.
+     */
+    public Lookup lookup() {
+        return new Lookup(providers.get());
+    }
 
     public static final class Lookup {
         private final Map<String, ScheduledTaskProvider> providers = new LinkedHashMap<>();
         private final Map<String, Entry> loaded = new LinkedHashMap<>();
 
         private Lookup(List<ScheduledTaskProvider> supplied) {
-            for (var provider : supplied) for (String type : provider.types()) {
-                if (type == null || !type.matches("[a-z][a-z0-9._-]{1,79}")
-                        || providers.putIfAbsent(type, provider) != null)
-                    throw new IllegalStateException("automation.invalidDefinition");
-            }
+            for (var provider : supplied)
+                for (String type : provider.types()) {
+                    if (type == null
+                            || !type.matches("[a-z][a-z0-9._-]{1,79}")
+                            || providers.putIfAbsent(type, provider) != null)
+                        throw new IllegalStateException("automation.invalidDefinition");
+                }
         }
 
         public ScheduledTaskProvider provider(String type) {
@@ -59,13 +71,16 @@ public final class TaskRegistry {
             var provider = provider(type);
             Map<String, Entry> definitions = new LinkedHashMap<>();
             for (var definition : provider.definitions()) {
-                if (providers.get(definition.type) != provider || definition.timeoutSeconds < 1
+                if (providers.get(definition.type) != provider
+                        || definition.timeoutSeconds < 1
                         || definition.timeoutSeconds > 650
-                        || definitions.putIfAbsent(definition.type, new Entry(provider, definition)) != null)
+                        || definitions.putIfAbsent(definition.type, new Entry(provider, definition))
+                                != null)
                     throw new IllegalStateException("automation.invalidDefinition");
             }
             for (var registration : providers.entrySet()) {
-                if (registration.getValue() == provider && !definitions.containsKey(registration.getKey()))
+                if (registration.getValue() == provider
+                        && !definitions.containsKey(registration.getKey()))
                     throw new IllegalStateException("automation.invalidDefinition");
             }
             loaded.putAll(definitions);

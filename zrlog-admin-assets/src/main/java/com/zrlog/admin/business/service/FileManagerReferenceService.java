@@ -10,13 +10,12 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
-import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
-
 import java.io.File;
 import java.sql.SQLException;
-import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -62,11 +61,13 @@ public class FileManagerReferenceService {
         }
     }
 
-    public List<FileEntryVO> getExternalResources(String path, boolean referenceEnabled,
-                                                  Function<FileEntryVO, FileEntryVO> entryDecorator)
+    public List<FileEntryVO> getExternalResources(
+            String path,
+            boolean referenceEnabled,
+            Function<FileEntryVO, FileEntryVO> entryDecorator)
             throws SQLException {
-        Map<String, List<FileReferenceVO>> referenceMap = referenceEnabled ? buildExternalReferenceMap()
-                : Collections.emptyMap();
+        Map<String, List<FileReferenceVO>> referenceMap =
+                referenceEnabled ? buildExternalReferenceMap() : Collections.emptyMap();
 
         if (path.equals(FileManagerService.EXTERNAL_ROOT)) {
             if (!referenceEnabled) {
@@ -74,53 +75,85 @@ public class FileManagerReferenceService {
             }
             Map<String, Map<Integer, FileReferenceVO>> domainReferenceMap = new LinkedHashMap<>();
             for (Map.Entry<String, List<FileReferenceVO>> entry : referenceMap.entrySet()) {
-                mergeReferenceList(domainReferenceMap.computeIfAbsent(getDomain(entry.getKey()),
-                        ignored -> new LinkedHashMap<>()), entry.getValue());
+                mergeReferenceList(
+                        domainReferenceMap.computeIfAbsent(
+                                getDomain(entry.getKey()), ignored -> new LinkedHashMap<>()),
+                        entry.getValue());
             }
-            return domainReferenceMap.entrySet().stream().map(entry -> {
-                FileEntryVO vo = entryDecorator.apply(new FileEntryVO(entry.getKey(),
-                        FileManagerService.EXTERNAL_ROOT + "/" + entry.getKey(), "directory", 0, "", 0));
-                setReferences(vo, new ArrayList<>(entry.getValue().values()));
-                return vo;
-            }).collect(Collectors.toList());
+            return domainReferenceMap.entrySet().stream()
+                    .map(
+                            entry -> {
+                                FileEntryVO vo =
+                                        entryDecorator.apply(
+                                                new FileEntryVO(
+                                                        entry.getKey(),
+                                                        FileManagerService.EXTERNAL_ROOT
+                                                                + "/"
+                                                                + entry.getKey(),
+                                                        "directory",
+                                                        0,
+                                                        "",
+                                                        0));
+                                setReferences(vo, new ArrayList<>(entry.getValue().values()));
+                                return vo;
+                            })
+                    .collect(Collectors.toList());
         }
 
         String targetDomain = path.substring(FileManagerService.EXTERNAL_ROOT.length() + 1);
         return referenceMap.entrySet().stream()
                 .filter(entry -> getDomain(entry.getKey()).equals(targetDomain))
-                .map(entry -> {
-                    FileEntryVO vo = entryDecorator.apply(new FileEntryVO(entry.getKey(), entry.getKey(), "file",
-                            0, FileEntryUtils.toMimeType(entry.getKey()), 0));
-                    setReferences(vo, entry.getValue());
-                    return vo;
-                })
+                .map(
+                        entry -> {
+                            FileEntryVO vo =
+                                    entryDecorator.apply(
+                                            new FileEntryVO(
+                                                    entry.getKey(),
+                                                    entry.getKey(),
+                                                    "file",
+                                                    0,
+                                                    FileEntryUtils.toMimeType(entry.getKey()),
+                                                    0));
+                            setReferences(vo, entry.getValue());
+                            return vo;
+                        })
                 .collect(Collectors.toList());
     }
 
-    public List<FileEntryVO> applyReferenceInfo(List<FileEntryVO> entries,
-                                                Map<String, List<FileReferenceVO>> localReferenceMap) {
+    public List<FileEntryVO> applyReferenceInfo(
+            List<FileEntryVO> entries, Map<String, List<FileReferenceVO>> localReferenceMap) {
         for (FileEntryVO entry : entries) {
             if (!"file".equals(entry.getType())) {
                 setReferences(entry, getDirectoryReferences(entry, localReferenceMap));
                 continue;
             }
-            setReferences(entry, localReferenceMap.getOrDefault(normalizePath(entry.getPath()), Collections.emptyList()));
+            setReferences(
+                    entry,
+                    localReferenceMap.getOrDefault(
+                            normalizePath(entry.getPath()), Collections.emptyList()));
         }
         return entries;
     }
 
-    public List<FileEntryVO> getMissingLocalResources(Function<FileEntryVO, FileEntryVO> entryDecorator)
-            throws SQLException {
+    public List<FileEntryVO> getMissingLocalResources(
+            Function<FileEntryVO, FileEntryVO> entryDecorator) throws SQLException {
         Map<String, List<FileReferenceVO>> localReferenceMap = buildLocalReferenceMap();
         List<String> paths = new ArrayList<>(localReferenceMap.keySet());
         Collections.sort(paths);
         List<FileEntryVO> entries = new ArrayList<>();
         for (String path : paths) {
-            if (!path.startsWith(FileManagerService.ATTACHED_ROOT + "/") || localResourceExists(path)) {
+            if (!path.startsWith(FileManagerService.ATTACHED_ROOT + "/")
+                    || localResourceExists(path)) {
                 continue;
             }
-            FileEntryVO entry = new FileEntryVO(getResourceName(path), path, "file", -1,
-                    FileEntryUtils.toMimeType(path), 0);
+            FileEntryVO entry =
+                    new FileEntryVO(
+                            getResourceName(path),
+                            path,
+                            "file",
+                            -1,
+                            FileEntryUtils.toMimeType(path),
+                            0);
             entry.setVirtual(true);
             entry.setMissing(true);
             entry.setMissingReason("targetMissing");
@@ -131,16 +164,17 @@ public class FileManagerReferenceService {
         return entries;
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(AccountAccess actor,
-                                                                       ReplaceArticleResourceUrlRequest request)
-            throws SQLException {
-        return replaceArticleResourceReferences(actor, request.getFromUrl(), request.getToUrl(),
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(
+            AccountAccess actor, ReplaceArticleResourceUrlRequest request) throws SQLException {
+        return replaceArticleResourceReferences(
+                actor,
+                request.getFromUrl(),
+                request.getToUrl(),
                 !FileEntryUtils.isExternalUrl(request.getFromUrl()));
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceReferences(AccountAccess actor, String fromUrl,
-                                                                              String toUrl, boolean prefix)
-            throws SQLException {
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceReferences(
+            AccountAccess actor, String fromUrl, String toUrl, boolean prefix) throws SQLException {
         ReplaceArticleResourceUrlResponse response =
                 articles.get().replaceReferences(actor, fromUrl, toUrl, prefix, references);
         if (response.getUpdatedArticles() > 0) {
@@ -172,8 +206,11 @@ public class FileManagerReferenceService {
     }
 
     private FileReferenceIndexCacheVO readReferenceIndexCache() {
-        FileReferenceIndexCacheVO cached = cacheService.getJson(REFERENCE_INDEX_CACHE_KEY, FileReferenceIndexCacheVO.class);
-        if (cached == null || cached.getLocalReferences() == null || cached.getExternalReferences() == null) {
+        FileReferenceIndexCacheVO cached =
+                cacheService.getJson(REFERENCE_INDEX_CACHE_KEY, FileReferenceIndexCacheVO.class);
+        if (cached == null
+                || cached.getLocalReferences() == null
+                || cached.getExternalReferences() == null) {
             return null;
         }
         return cached;
@@ -182,7 +219,9 @@ public class FileManagerReferenceService {
     boolean writeReferenceIndexCache(FileReferenceIndexCacheVO referenceIndex) {
         boolean saved = cacheService.putJson(REFERENCE_INDEX_CACHE_KEY, referenceIndex);
         if (!saved) {
-            LOGGER.log(Level.WARNING, "Write file-manager reference index cache failed; using request-scoped index");
+            LOGGER.log(
+                    Level.WARNING,
+                    "Write file-manager reference index cache failed; using request-scoped index");
         }
         return saved;
     }
@@ -217,15 +256,16 @@ public class FileManagerReferenceService {
         return path.substring(index + 1);
     }
 
-    private List<FileReferenceVO> getDirectoryReferences(FileEntryVO entry,
-                                                         Map<String, List<FileReferenceVO>> localReferenceMap) {
+    private List<FileReferenceVO> getDirectoryReferences(
+            FileEntryVO entry, Map<String, List<FileReferenceVO>> localReferenceMap) {
         String path = entry.getPath();
         if (StringUtils.isEmpty(path) || !path.startsWith(FileManagerService.ATTACHED_ROOT + "/")) {
             return Collections.emptyList();
         }
         String prefix = normalizePath(path);
         Map<Integer, FileReferenceVO> referenceMap = new LinkedHashMap<>();
-        for (Map.Entry<String, List<FileReferenceVO>> localReferenceEntry : localReferenceMap.entrySet()) {
+        for (Map.Entry<String, List<FileReferenceVO>> localReferenceEntry :
+                localReferenceMap.entrySet()) {
             if (!localReferenceEntry.getKey().startsWith(prefix + "/")) {
                 continue;
             }
@@ -242,53 +282,72 @@ public class FileManagerReferenceService {
     }
 
     private String buildArticleReferenceSignature() throws SQLException {
-        ReferenceSignature row = logProvider.get().queryOne(
-                "select count(*) as articleCount,max(logId) as maxLogId,max(version) as maxVersion,max(last_update_date) as updatedAt from log",
-                ReferenceSignature.class);
+        ReferenceSignature row =
+                logProvider
+                        .get()
+                        .queryOne(
+                                "select count(*) as articleCount,max(logId) as maxLogId,max(version) as maxVersion,max(last_update_date) as updatedAt from log",
+                                ReferenceSignature.class);
         if (row == null) return "empty";
-        return row.articleCount + ":" + Objects.toString(row.maxLogId, "0")
-                + ":" + Objects.toString(row.maxVersion, "0") + ":" + Objects.toString(row.updatedAt, "");
+        return row.articleCount
+                + ":"
+                + Objects.toString(row.maxLogId, "0")
+                + ":"
+                + Objects.toString(row.maxVersion, "0")
+                + ":"
+                + Objects.toString(row.updatedAt, "");
     }
 
     private FileReferenceIndexCacheVO rebuildReferenceIndex(String signature) throws SQLException {
         List<ArticleBasicDTO> articles =
                 this.logProvider
                         .get()
-                        .queryList("select logId,title,alias,thumbnail,content,markdown from log", ArticleBasicDTO.class);
+                        .queryList(
+                                "select logId,title,alias,thumbnail,content,markdown from log",
+                                ArticleBasicDTO.class);
         Map<String, Map<Integer, FileReferenceVO>> localReferenceMap = new HashMap<>();
         Map<String, Map<Integer, FileReferenceVO>> externalReferenceMap = new LinkedHashMap<>();
         for (ArticleBasicDTO article : articles) {
             int logId = toInt(article.getLogId());
-            FileReferenceVO articleReference = new FileReferenceVO(logId, Objects.toString(article.getTitle(), ""),
-                    Objects.toString(article.getAlias(), ""));
+            FileReferenceVO articleReference =
+                    new FileReferenceVO(
+                            logId,
+                            Objects.toString(article.getTitle(), ""),
+                            Objects.toString(article.getAlias(), ""));
             String thumbnail = (String) article.getThumbnail();
             String normalizedThumbnail = normalizeLocalResourcePath(thumbnail);
             if (normalizedThumbnail != null) {
-                FileReferenceVO reference = addReference(localReferenceMap, normalizedThumbnail, articleReference);
+                FileReferenceVO reference =
+                        addReference(localReferenceMap, normalizedThumbnail, articleReference);
                 reference.setThumbnail(true);
             } else if (FileEntryUtils.isExternalUrl(thumbnail)) {
-                FileReferenceVO reference = addReference(externalReferenceMap, thumbnail.trim(), articleReference);
+                FileReferenceVO reference =
+                        addReference(externalReferenceMap, thumbnail.trim(), articleReference);
                 reference.setThumbnail(true);
             }
             String content = (String) article.getContent();
             if (StringUtils.isNotEmpty(content)) {
                 for (String path : references.extractLocalResourcePaths(content)) {
-                    FileReferenceVO reference = addReference(localReferenceMap, path, articleReference);
+                    FileReferenceVO reference =
+                            addReference(localReferenceMap, path, articleReference);
                     reference.setContent(true);
                 }
                 for (String url : FileEntryUtils.extractExternalResourceUrls(content)) {
-                    FileReferenceVO reference = addReference(externalReferenceMap, url, articleReference);
+                    FileReferenceVO reference =
+                            addReference(externalReferenceMap, url, articleReference);
                     reference.setContent(true);
                 }
             }
             String markdown = (String) article.getMarkdown();
             if (StringUtils.isNotEmpty(markdown)) {
                 for (String path : references.extractLocalMarkdownResourcePaths(markdown)) {
-                    FileReferenceVO reference = addReference(localReferenceMap, path, articleReference);
+                    FileReferenceVO reference =
+                            addReference(localReferenceMap, path, articleReference);
                     reference.setContent(true);
                 }
                 for (String url : references.extractExternalMarkdownResourceUrls(markdown)) {
-                    FileReferenceVO reference = addReference(externalReferenceMap, url, articleReference);
+                    FileReferenceVO reference =
+                            addReference(externalReferenceMap, url, articleReference);
                     reference.setContent(true);
                 }
             }
@@ -300,24 +359,39 @@ public class FileManagerReferenceService {
         return cache;
     }
 
-    private FileReferenceVO addReference(Map<String, Map<Integer, FileReferenceVO>> referenceMap, String resourcePath,
-                                         FileReferenceVO articleReference) {
+    private FileReferenceVO addReference(
+            Map<String, Map<Integer, FileReferenceVO>> referenceMap,
+            String resourcePath,
+            FileReferenceVO articleReference) {
         return referenceMap
                 .computeIfAbsent(resourcePath, ignored -> new LinkedHashMap<>())
-                .computeIfAbsent(articleReference.getLogId(), ignored ->
-                        new FileReferenceVO(articleReference.getLogId(), articleReference.getTitle(), articleReference.getAlias()));
+                .computeIfAbsent(
+                        articleReference.getLogId(),
+                        ignored ->
+                                new FileReferenceVO(
+                                        articleReference.getLogId(),
+                                        articleReference.getTitle(),
+                                        articleReference.getAlias()));
     }
 
-    private void mergeReferenceList(Map<Integer, FileReferenceVO> target, List<FileReferenceVO> references) {
+    private void mergeReferenceList(
+            Map<Integer, FileReferenceVO> target, List<FileReferenceVO> references) {
         for (FileReferenceVO reference : references) {
-            FileReferenceVO merged = target.computeIfAbsent(reference.getLogId(), ignored ->
-                    new FileReferenceVO(reference.getLogId(), reference.getTitle(), reference.getAlias()));
+            FileReferenceVO merged =
+                    target.computeIfAbsent(
+                            reference.getLogId(),
+                            ignored ->
+                                    new FileReferenceVO(
+                                            reference.getLogId(),
+                                            reference.getTitle(),
+                                            reference.getAlias()));
             merged.setThumbnail(merged.isThumbnail() || reference.isThumbnail());
             merged.setContent(merged.isContent() || reference.isContent());
         }
     }
 
-    private Map<String, List<FileReferenceVO>> toReferenceListMap(Map<String, Map<Integer, FileReferenceVO>> referenceMap) {
+    private Map<String, List<FileReferenceVO>> toReferenceListMap(
+            Map<String, Map<Integer, FileReferenceVO>> referenceMap) {
         Map<String, List<FileReferenceVO>> result = new LinkedHashMap<>();
         for (Map.Entry<String, Map<Integer, FileReferenceVO>> entry : referenceMap.entrySet()) {
             result.put(entry.getKey(), new ArrayList<>(entry.getValue().values()));
@@ -348,5 +422,4 @@ public class FileManagerReferenceService {
             return "unknown";
         }
     }
-
 }

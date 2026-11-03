@@ -2,10 +2,15 @@ package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.common.rest.response.ApiStandardResponse;
 
-public class UploadTemplateResponse extends ApiStandardResponse<UploadTemplateResponse.UploadTemplateData> {
+public class UploadTemplateResponse
+        extends ApiStandardResponse<UploadTemplateResponse.UploadTemplateData> {
 
-    public static UploadTemplateResponse success(String shortTemplate, String name, String version,
-                                                 boolean overwritten, String message) {
+    public static UploadTemplateResponse success(
+            String shortTemplate,
+            String name,
+            String version,
+            boolean overwritten,
+            String message) {
         UploadTemplateResponse response = new UploadTemplateResponse();
         response.setData(new UploadTemplateData(shortTemplate, name, version, overwritten));
         response.setMessage(message);
@@ -26,7 +31,8 @@ public class UploadTemplateResponse extends ApiStandardResponse<UploadTemplateRe
         private final String version;
         private final boolean overwritten;
 
-        public UploadTemplateData(String shortTemplate, String name, String version, boolean overwritten) {
+        public UploadTemplateData(
+                String shortTemplate, String name, String version, boolean overwritten) {
             this.shortTemplate = shortTemplate;
             this.name = name;
             this.version = version;

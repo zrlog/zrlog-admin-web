@@ -1,18 +1,14 @@
 package com.zrlog.admin.data.repository;
 
-import com.zrlog.model.UserPasskey;
-import com.zrlog.data.repository.BaseRepository;
-
-import com.zrlog.data.repository.*;
-
-
 import com.hibegin.common.dao.DataSourceWrapper;
+import com.hibegin.common.dao.entity.OptimisticLockException;
+import com.zrlog.data.repository.*;
+import com.zrlog.data.repository.BaseRepository;
+import com.zrlog.model.UserPasskey;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import com.hibegin.common.dao.entity.OptimisticLockException;
 
 public class UserPasskeyRepository extends BaseRepository<UserPasskey, Long> {
 
@@ -31,21 +27,37 @@ public class UserPasskeyRepository extends BaseRepository<UserPasskey, Long> {
     }
 
     public UserPasskey findByCredentialIdHash(String credentialIdHash) throws SQLException {
-        return findMatching(Map.of("credentialIdHash", credentialIdHash), 1).stream().findFirst().orElse(null);
+        return findMatching(Map.of("credentialIdHash", credentialIdHash), 1).stream()
+                .findFirst()
+                .orElse(null);
     }
 
     public long countByUserId(int userId) throws SQLException {
-        return ((Number) queryFirstObj("select count(1) from " + tableName + " where userId=?", userId)).longValue();
+        return ((Number)
+                        queryFirstObj(
+                                "select count(1) from " + tableName + " where userId=?", userId))
+                .longValue();
     }
 
     public boolean hasAny() throws SQLException {
         return queryFirstObj("select 1 from " + tableName + " limit 1") != null;
     }
 
-    public boolean save(int userId, String credentialIdHash, String credentialId, String publicKeyCose,
-                        long signatureCount, String transports, String name, String aaguid,
-                        boolean backupEligible, boolean backupState, String origin, String rpId,
-                        long createdAt) throws SQLException {
+    public boolean save(
+            int userId,
+            String credentialIdHash,
+            String credentialId,
+            String publicKeyCose,
+            long signatureCount,
+            String transports,
+            String name,
+            String aaguid,
+            boolean backupEligible,
+            boolean backupState,
+            String origin,
+            String rpId,
+            long createdAt)
+            throws SQLException {
         UserPasskey passkey = new UserPasskey();
         passkey.setUserId(userId);
         passkey.setCredentialIdHash(credentialIdHash);
@@ -59,12 +71,18 @@ public class UserPasskeyRepository extends BaseRepository<UserPasskey, Long> {
         passkey.setBackupState(backupState);
         passkey.setOrigin(origin);
         passkey.setRpId(rpId);
-        new com.hibegin.common.dao.entity.EntityRepository<>(UserPasskey.class, database,
-                java.time.Clock.fixed(java.time.Instant.ofEpochMilli(createdAt), java.time.ZoneOffset.UTC)).insert(passkey);
+        new com.hibegin.common.dao.entity.EntityRepository<>(
+                        UserPasskey.class,
+                        database,
+                        java.time.Clock.fixed(
+                                java.time.Instant.ofEpochMilli(createdAt),
+                                java.time.ZoneOffset.UTC))
+                .insert(passkey);
         return true;
     }
 
-    public boolean updateAfterAuthentication(UserPasskey passkey, long signatureCount, boolean backupState, long lastUsedAt)
+    public boolean updateAfterAuthentication(
+            UserPasskey passkey, long signatureCount, boolean backupState, long lastUsedAt)
             throws SQLException {
         long previous = passkey.getSignatureCount();
         if (!(previous == 0 && signatureCount == 0) && signatureCount <= previous) return false;

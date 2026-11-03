@@ -2,7 +2,6 @@ package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.common.cache.dto.TagDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
-
 import java.util.List;
 
 public class StatisticsInfoResponse {

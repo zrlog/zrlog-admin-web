@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -13,51 +15,51 @@ import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.ZrLogConfig;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Before;
+import org.junit.Test;
 
 public class AdminCorsAndTemporaryResourceInterceptorTest {
 
     private ZrLogConfig applicationConfig;
 
-    private static HttpRequest request(HttpMethod httpMethod, String uri, Map<String, String> headers) {
+    private static HttpRequest request(
+            HttpMethod httpMethod, String uri, Map<String, String> headers) {
         return request(httpMethod, uri, headers, null);
     }
 
-    private static HttpRequest request(HttpMethod httpMethod, String uri, Map<String, String> headers, String scheme) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminCorsAndTemporaryResourceInterceptorTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getMethod":
-                            return httpMethod;
-                        case "getUri":
-                            return uri;
-                        case "getHeader":
-                            return headers.get(args[0].toString());
-                        case "getScheme":
-                            return scheme;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
+    private static HttpRequest request(
+            HttpMethod httpMethod, String uri, Map<String, String> headers, String scheme) {
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminCorsAndTemporaryResourceInterceptorTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getMethod":
+                                    return httpMethod;
+                                case "getUri":
+                                    return uri;
+                                case "getHeader":
+                                    return headers.get(args[0].toString());
+                                case "getScheme":
+                                    return scheme;
+                                case "getHeaderMap":
+                                    return Map.of("X-Real-IP", "127.0.0.1");
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     @Before
@@ -71,8 +73,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(HttpMethod.GET, "/api/admin", Map.of()),
                                 response.response());
@@ -87,8 +89,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.GET,
@@ -97,10 +99,13 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
                                 response.response());
 
         assertTrue(proceed);
-        assertEquals("https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
+        assertEquals(
+                "https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
         assertEquals("true", response.headers.get("Access-Control-Allow-Credentials"));
-        assertTrue(response.headers.get("Access-Control-Allow-Headers")
-                .contains(AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER));
+        assertTrue(
+                response.headers
+                        .get("Access-Control-Allow-Headers")
+                        .contains(AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER));
     }
 
     @Test
@@ -109,8 +114,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.GET,
@@ -128,8 +133,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.OPTIONS,
@@ -139,7 +144,9 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         assertFalse(proceed);
         assertEquals(Integer.valueOf(200), response.writeStatus);
-        assertEquals("POST, GET, OPTIONS, DELETE, PUT", response.headers.get("Access-Control-Allow-Methods"));
+        assertEquals(
+                "POST, GET, OPTIONS, DELETE, PUT",
+                response.headers.get("Access-Control-Allow-Methods"));
     }
 
     @Test
@@ -148,8 +155,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.POST,
@@ -163,7 +170,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
                                 response.response());
 
         assertTrue(proceed);
-        assertEquals("https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
+        assertEquals(
+                "https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
         assertEquals("true", response.headers.get("Access-Control-Allow-Credentials"));
         assertEquals("Origin", response.headers.get("Vary"));
     }
@@ -177,8 +185,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
             boolean proceed =
                     new AdminCrossOriginInterceptor(
-                            new PasskeyRequestContext(
-                                    ApplicationServicesFixture.siteHost(db.config())))
+                                    new PasskeyRequestContext(
+                                            ApplicationServicesFixture.siteHost(db.config())))
                             .doInterceptor(
                                     request(
                                             HttpMethod.POST,
@@ -192,7 +200,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
                                     response.response());
 
             assertTrue(proceed);
-            assertEquals("https://demo.zrlog.com", response.headers.get("Access-Control-Allow-Origin"));
+            assertEquals(
+                    "https://demo.zrlog.com", response.headers.get("Access-Control-Allow-Origin"));
             assertEquals("true", response.headers.get("Access-Control-Allow-Credentials"));
             assertEquals("Origin", response.headers.get("Vary"));
         }
@@ -204,8 +213,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.POST,
@@ -223,7 +232,9 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
                                 response.response());
 
         assertTrue(proceed);
-        assertEquals("https://blog-admin.zrlog.com", response.headers.get("Access-Control-Allow-Origin"));
+        assertEquals(
+                "https://blog-admin.zrlog.com",
+                response.headers.get("Access-Control-Allow-Origin"));
         assertEquals("true", response.headers.get("Access-Control-Allow-Credentials"));
         assertEquals("Origin", response.headers.get("Vary"));
     }
@@ -234,8 +245,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.POST,
@@ -260,8 +271,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.OPTIONS,
@@ -287,8 +298,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.OPTIONS,
@@ -313,8 +324,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminCrossOriginInterceptor(
-                        new PasskeyRequestContext(
-                                ApplicationServicesFixture.siteHost(applicationConfig)))
+                                new PasskeyRequestContext(
+                                        ApplicationServicesFixture.siteHost(applicationConfig)))
                         .doInterceptor(
                                 request(
                                         HttpMethod.OPTIONS,
@@ -329,8 +340,11 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         assertFalse(proceed);
         assertEquals(Integer.valueOf(200), response.writeStatus);
-        assertEquals("https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
-        assertEquals("POST, GET, OPTIONS, DELETE, PUT", response.headers.get("Access-Control-Allow-Methods"));
+        assertEquals(
+                "https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
+        assertEquals(
+                "POST, GET, OPTIONS, DELETE, PUT",
+                response.headers.get("Access-Control-Allow-Methods"));
         assertEquals("Origin", response.headers.get("Vary"));
     }
 
@@ -340,13 +354,14 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         boolean proceed =
                 new AdminTemporaryResourceInterceptor(
-                        () -> applicationConfig.getTokenService(),
-                        () -> false,
-                        AccountServicesFixture.component(null).requestIdentity(),
-                        new DbFileService(
-                                () -> {
-                            throw new IllegalStateException("Database is unavailable in this test");
-                        }))
+                                () -> applicationConfig.getTokenService(),
+                                () -> false,
+                                AccountServicesFixture.component(null).requestIdentity(),
+                                new DbFileService(
+                                        () -> {
+                                            throw new IllegalStateException(
+                                                    "Database is unavailable in this test");
+                                        }))
                         .doInterceptor(
                                 request(
                                         HttpMethod.GET,
@@ -356,7 +371,8 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
 
         assertFalse(proceed);
         assertEquals(Integer.valueOf(403), response.renderedCode);
-        assertEquals("https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
+        assertEquals(
+                "https://admin.example.com", response.headers.get("Access-Control-Allow-Origin"));
     }
 
     private static class ResponseRecorder {
@@ -365,26 +381,27 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
         private Integer writeStatus;
 
         private HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(
-                    AdminCorsAndTemporaryResourceInterceptorTest.class.getClassLoader(),
-                    new Class[]{HttpResponse.class},
-                    (proxy, method, args) -> {
-                        switch (method.getName()) {
-                            case "addHeader":
-                                headers.put(args[0].toString(), args[1].toString());
-                                return null;
-                            case "renderCode":
-                                renderedCode = (Integer) args[0];
-                                return null;
-                            case "write":
-                                if (args.length > 1 && args[0] instanceof InputStream) {
-                                    writeStatus = (Integer) args[1];
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            AdminCorsAndTemporaryResourceInterceptorTest.class.getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                switch (method.getName()) {
+                                    case "addHeader":
+                                        headers.put(args[0].toString(), args[1].toString());
+                                        return null;
+                                    case "renderCode":
+                                        renderedCode = (Integer) args[0];
+                                        return null;
+                                    case "write":
+                                        if (args.length > 1 && args[0] instanceof InputStream) {
+                                            writeStatus = (Integer) args[1];
+                                        }
+                                        return null;
+                                    default:
+                                        return null;
                                 }
-                                return null;
-                            default:
-                                return null;
-                        }
-                    });
+                            });
         }
     }
 }

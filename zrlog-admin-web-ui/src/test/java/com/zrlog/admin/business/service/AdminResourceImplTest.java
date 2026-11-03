@@ -1,25 +1,24 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.util.WebSiteUtils;
-import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-import org.junit.Test;
-
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminResourceImplTest {
 
@@ -35,51 +34,52 @@ public class AdminResourceImplTest {
 
     private static HttpRequest request(String userAgent, String origin, String host) {
         Map<String, Object> attrs = new HashMap<>();
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminResourceImplTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getContextPath":
-                            return "/blog";
-                        case "getUri":
-                            return "/admin/index";
-                        case "getQueryStr":
-                            return "";
-                        case "getHeader":
-                            if ("User-Agent".equals(args[0])) {
-                                return userAgent;
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminResourceImplTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getContextPath":
+                                    return "/blog";
+                                case "getUri":
+                                    return "/admin/index";
+                                case "getQueryStr":
+                                    return "";
+                                case "getHeader":
+                                    if ("User-Agent".equals(args[0])) {
+                                        return userAgent;
+                                    }
+                                    if ("Host".equals(args[0])) {
+                                        return host;
+                                    }
+                                    if ("Origin".equals(args[0])) {
+                                        return origin;
+                                    }
+                                    return null;
+                                case "getHeaderMap":
+                                    Map<String, String> headers = new HashMap<>();
+                                    headers.put("User-Agent", userAgent);
+                                    headers.put("Host", host);
+                                    if (origin != null) {
+                                        headers.put("Origin", origin);
+                                    }
+                                    return headers;
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "getScheme":
+                                    return "https";
+                                case "getAttr":
+                                    return attrs;
+                                case "toString":
+                                    return "AdminResourceRequest";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            if ("Host".equals(args[0])) {
-                                return host;
-                            }
-                            if ("Origin".equals(args[0])) {
-                                return origin;
-                            }
-                            return null;
-                        case "getHeaderMap":
-                            Map<String, String> headers = new HashMap<>();
-                            headers.put("User-Agent", userAgent);
-                            headers.put("Host", host);
-                            if (origin != null) {
-                                headers.put("Origin", origin);
-                            }
-                            return headers;
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getScheme":
-                            return "https";
-                        case "getAttr":
-                            return attrs;
-                        case "toString":
-                            return "AdminResourceRequest";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
+                        });
     }
 
     @Test
@@ -93,25 +93,35 @@ public class AdminResourceImplTest {
                                     () -> true,
                                     new WebhookService(
                                             ApplicationServicesFixture.messages(db.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
+                                            ApplicationServicesFixture.websiteCache(
+                                                    db.dataSource())),
                                     () -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.site(db.config()),
                             () ->
                                     new WebSiteRepository(db.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
                             () -> new UserPasskeyRepository(db.dataSource()));
-            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, resources::staticResourceBaseUrl);
+            AdminResourceImpl resource =
+                    new AdminResourceImpl("/blog", () -> 0L, resources::staticResourceBaseUrl);
 
             Set<String> pageUris = resource.getAdminPageUris();
             Set<String> cacheUris = resource.getAdminStaticCacheUris();
             Set<String> apiUris = resource.getAdminCacheableApiUris();
             String normalServiceWorker = read(resource.renderServiceWorker(request("Browser")));
-            String staticServiceWorker = read(resource.renderServiceWorker(request(BaseStaticSitePlugin.STATIC_USER_AGENT)));
+            String staticServiceWorker =
+                    read(
+                            resource.renderServiceWorker(
+                                    request(BaseStaticSitePlugin.STATIC_USER_AGENT)));
 
             assertFalse(resource.getAdminStaticResourceUris().isEmpty());
             assertTrue(pageUris.stream().allMatch(uri -> uri.startsWith("/blog/admin/")));
             assertTrue(pageUris.contains("/blog/admin/index"));
-            for (String page : java.util.List.of("/admin/system/audit", "/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
+            for (String page :
+                    java.util.List.of(
+                            "/admin/system/audit",
+                            "/admin/system/proxy",
+                            "/admin/dev",
+                            "/admin/dev/ui")) {
                 assertTrue(pageUris.contains("/blog" + page));
                 assertTrue(cacheUris.contains("/blog" + page));
                 assertFalse(apiUris.contains("/api" + page));
@@ -142,8 +152,12 @@ public class AdminResourceImplTest {
             assertFalse(normalServiceWorker.contains("https://cdn.example.com/blog/admin/index?"));
             assertFalse(staticServiceWorker.contains("/blog/admin/index.html?"));
             for (String page : pageUris) {
-                assertFalse("Page must not be precached: " + page, normalServiceWorker.contains(page + "?"));
-                assertFalse("Static page must not be precached: " + page, staticServiceWorker.contains(page + ".html?"));
+                assertFalse(
+                        "Page must not be precached: " + page,
+                        normalServiceWorker.contains(page + "?"));
+                assertFalse(
+                        "Static page must not be precached: " + page,
+                        staticServiceWorker.contains(page + ".html?"));
             }
             assertTrue(normalServiceWorker.contains("https://cdn.example.com/blog/admin/static/"));
             assertTrue(staticServiceWorker.contains("/blog/admin/static/"));
@@ -154,21 +168,24 @@ public class AdminResourceImplTest {
     @Test
     public void shouldBuildAdminResourceInfoFromRealWebsiteAndFeatureTables() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            db.putWebsite("feature_webhook_enabled", true); // Obsolete menu-only flag must not enable receiving.
+            db.putWebsite(
+                    "feature_webhook_enabled",
+                    true); // Obsolete menu-only flag must not enable receiving.
             assertFalse(
                     new FeatureLabService(
-                            () -> true,
-                            new WebhookService(
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    ApplicationServicesFixture.websiteCache(db.dataSource())),
-                            () -> new WebSiteRepository(db.dataSource()))
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(
+                                                    db.dataSource())),
+                                    () -> new WebSiteRepository(db.dataSource()))
                             .featureLab()
                             .getFeature_webhook_enabled());
             var webhook = new WebhookConfigRequest();
             webhook.setEnabled(true);
             new WebhookService(
-                    ApplicationServicesFixture.messages(db.dataSource()),
-                    ApplicationServicesFixture.websiteCache(db.dataSource()))
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            ApplicationServicesFixture.websiteCache(db.dataSource()))
                     .updateConfig(webhook);
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
@@ -179,7 +196,8 @@ public class AdminResourceImplTest {
                                     () -> true,
                                     new WebhookService(
                                             ApplicationServicesFixture.messages(db.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
+                                            ApplicationServicesFixture.websiteCache(
+                                                    db.dataSource())),
                                     () -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.site(db.config()),
                             () ->
@@ -190,22 +208,26 @@ public class AdminResourceImplTest {
             AdminResourceInfoResponse response = resources.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =
                     resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT));
-            AdminResourceInfoResponse trustedCrossOriginResponse = resources.adminResourceInfo(
-                    request("Browser", "https://localhost:18080", "faas.example.com"));
-            AdminResourceInfoResponse untrustedCrossOriginResponse = resources.adminResourceInfo(
-                    request("Browser", "https://evil.example.com", "faas.example.com"));
+            AdminResourceInfoResponse trustedCrossOriginResponse =
+                    resources.adminResourceInfo(
+                            request("Browser", "https://localhost:18080", "faas.example.com"));
+            AdminResourceInfoResponse untrustedCrossOriginResponse =
+                    resources.adminResourceInfo(
+                            request("Browser", "https://evil.example.com", "faas.example.com"));
 
             assertEquals("ZrLog Test", response.getWebsiteTitle());
             assertEquals(false, response.getAdmin_darkMode());
             assertEquals("default", response.getAdmin_theme());
             assertEquals(false, response.getAdmin_compactMode());
-            assertEquals(WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR, response.getAdmin_color_primary());
+            assertEquals(
+                    WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR, response.getAdmin_color_primary());
             assertEquals("//localhost:18080/blog/", response.getHomeUrl());
             assertEquals("", response.getArticleRoute());
             assertEquals(false, response.getStaticPage());
             assertEquals(false, response.getStaticPlugin());
             assertEquals(true, response.getSupportSse());
-            assertEquals("https://cdn.example.com/blog", response.getAdmin_static_resource_base_url());
+            assertEquals(
+                    "https://cdn.example.com/blog", response.getAdmin_static_resource_base_url());
             assertEquals(true, response.getFeature_webhook_enabled());
             assertEquals(true, response.getFeature_personal_data_enabled());
             assertEquals(false, response.getPasskeyLoginEnabled());
@@ -215,32 +237,81 @@ public class AdminResourceImplTest {
             assertEquals(false, untrustedCrossOriginResponse.getPasskeyLoginEnabled());
 
             UserPasskeyRepository passkeys = new UserPasskeyRepository(db.dataSource());
-            assertTrue(passkeys.save(1, "other-credential-hash", "other-credential-id", "public-key",
-                    0, "internal", "Other origin passkey", "aaguid", true, false,
-                    "https://localhost:18080", "localhost", System.currentTimeMillis()));
-            assertEquals(true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
-            assertEquals(true, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
-                    .getPasskeyLoginEnabled());
-            assertEquals(true, resources.adminResourceInfo(
-                            request("Browser", "https://localhost:18080", "faas.example.com"))
-                    .getPasskeyLoginEnabled());
-            assertEquals(true, resources.adminResourceInfo(
-                            request("Browser", "https://evil.example.com", "faas.example.com"))
-                    .getPasskeyLoginEnabled());
-            assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
-                    0, "internal", "Test passkey", "aaguid", true, false,
-                    "https://request.example.com", "request.example.com", System.currentTimeMillis()));
+            assertTrue(
+                    passkeys.save(
+                            1,
+                            "other-credential-hash",
+                            "other-credential-id",
+                            "public-key",
+                            0,
+                            "internal",
+                            "Other origin passkey",
+                            "aaguid",
+                            true,
+                            false,
+                            "https://localhost:18080",
+                            "localhost",
+                            System.currentTimeMillis()));
+            assertEquals(
+                    true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(
+                    true,
+                    resources
+                            .adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
+                            .getPasskeyLoginEnabled());
+            assertEquals(
+                    true,
+                    resources
+                            .adminResourceInfo(
+                                    request(
+                                            "Browser",
+                                            "https://localhost:18080",
+                                            "faas.example.com"))
+                            .getPasskeyLoginEnabled());
+            assertEquals(
+                    true,
+                    resources
+                            .adminResourceInfo(
+                                    request(
+                                            "Browser",
+                                            "https://evil.example.com",
+                                            "faas.example.com"))
+                            .getPasskeyLoginEnabled());
+            assertTrue(
+                    passkeys.save(
+                            1,
+                            "credential-hash",
+                            "credential-id",
+                            "public-key",
+                            0,
+                            "internal",
+                            "Test passkey",
+                            "aaguid",
+                            true,
+                            false,
+                            "https://request.example.com",
+                            "request.example.com",
+                            System.currentTimeMillis()));
 
-            long otherPasskeyId = ((Number) passkeys.findByCredentialIdHash("other-credential-hash").getId())
-                    .longValue();
+            long otherPasskeyId =
+                    ((Number) passkeys.findByCredentialIdHash("other-credential-hash").getId())
+                            .longValue();
             assertTrue(passkeys.deleteByIdAndUserId(otherPasskeyId, 1));
-            assertEquals(true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(
+                    true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
 
-            long passkeyId = ((Number) passkeys.findByCredentialIdHash("credential-hash").getId()).longValue();
+            long passkeyId =
+                    ((Number) passkeys.findByCredentialIdHash("credential-hash").getId())
+                            .longValue();
             assertTrue(passkeys.deleteByIdAndUserId(passkeyId, 1));
-            assertEquals(false, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
-            assertEquals(false, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
-                    .getPasskeyLoginEnabled());
+            assertEquals(
+                    false,
+                    resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(
+                    false,
+                    resources
+                            .adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
+                            .getPasskeyLoginEnabled());
         }
     }
 }

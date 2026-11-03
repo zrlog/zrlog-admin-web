@@ -15,6 +15,5 @@ public class OptimizeAiPromptRequest implements Validator {
     }
 
     @Override
-    public void doValid() {
-    }
+    public void doValid() {}
 }

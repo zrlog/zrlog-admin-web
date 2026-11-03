@@ -5,24 +5,21 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
+import com.zrlog.data.dto.ArticleBasicDTO;
+import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.data.repository.LogRepository;
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 import jakarta.inject.Named;
-import org.jsoup.Jsoup;
-
 import java.sql.SQLException;
-import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
+import org.jsoup.Jsoup;
 
-/**
- * The one read boundary used by the internal assistant and remote MCP transport.
- */
+/** The one read boundary used by the internal assistant and remote MCP transport. */
 public final class KnowledgeService implements ToolProvider {
     private final jakarta.inject.Provider<LogRepository> logProvider;
 
@@ -64,9 +61,16 @@ public final class KnowledgeService implements ToolProvider {
 
     public static List<Tool> tools(String language) {
         KnowledgeMessages messages = new KnowledgeMessages(language);
-        return List.of(tool(messages, "search_articles", "admin.knowledge.tools.searchArticles",
+        return List.of(
+                tool(
+                        messages,
+                        "search_articles",
+                        "admin.knowledge.tools.searchArticles",
                         "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10}},\"additionalProperties\":false}"),
-                tool(messages, "read_article", "admin.knowledge.tools.readArticle",
+                tool(
+                        messages,
+                        "read_article",
+                        "admin.knowledge.tools.readArticle",
                         "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\",\"minimum\":1},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000},\"length\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":12000}},\"required\":[\"id\"],\"additionalProperties\":false}"));
     }
 
@@ -77,8 +81,17 @@ public final class KnowledgeService implements ToolProvider {
         // annotations.title is supported by all three advertised MCP versions.
         t.annotations.title = messages.get(key + ".title");
         t.inputSchema = JsonParser.parseString(schema).getAsJsonObject();
-        t.inputSchema.getAsJsonObject("properties").entrySet().forEach(property ->
-                property.getValue().getAsJsonObject().addProperty("description", messages.get(key + ".parameters." + property.getKey())));
+        t.inputSchema
+                .getAsJsonObject("properties")
+                .entrySet()
+                .forEach(
+                        property ->
+                                property.getValue()
+                                        .getAsJsonObject()
+                                        .addProperty(
+                                                "description",
+                                                messages.get(
+                                                        key + ".parameters." + property.getKey())));
         return t;
     }
 
@@ -93,16 +106,20 @@ public final class KnowledgeService implements ToolProvider {
             keys(args, Set.of("query", "offset", "limit"));
             String query = "";
             if (args.has("query")) {
-                if (!args.get("query").isJsonPrimitive() || !args.getAsJsonPrimitive("query").isString())
-                    throw invalid();
+                if (!args.get("query").isJsonPrimitive()
+                        || !args.getAsJsonPrimitive("query").isString()) throw invalid();
                 query = args.get("query").getAsString().trim();
             }
             if (query.length() > 200) throw invalid();
-            return search(query, integer(args, "offset", 0, 0, 1000), integer(args, "limit", 5, 1, 10));
+            return search(
+                    query, integer(args, "offset", 0, 0, 1000), integer(args, "limit", 5, 1, 10));
         }
         if ("read_article".equals(name)) {
             keys(args, Set.of("id", "offset", "length"));
-            return read(integer(args, "id", -1, 1, Integer.MAX_VALUE), integer(args, "offset", 0, 0, 1000000), integer(args, "length", 8000, 1, 12000));
+            return read(
+                    integer(args, "id", -1, 1, Integer.MAX_VALUE),
+                    integer(args, "offset", 0, 0, 1000000),
+                    integer(args, "length", 8000, 1, 12000));
         }
         throw new IllegalArgumentException(messages.get("admin.knowledge.error.unknownTool"));
     }
@@ -132,8 +149,9 @@ public final class KnowledgeService implements ToolProvider {
 
     private AccountAccess account() {
         AccountAccess account = actor.get();
-        if (!account.isEnabled() || !account.scopes().contains("articles:read") || !scopes.contains("articles:read"))
-            throw new PermissionErrorException();
+        if (!account.isEnabled()
+                || !account.scopes().contains("articles:read")
+                || !scopes.contains("articles:read")) throw new PermissionErrorException();
         return account;
     }
 
@@ -163,10 +181,18 @@ public final class KnowledgeService implements ToolProvider {
         List<Object> params = new ArrayList<>();
         String where = filter(account, params);
         if (!query.isEmpty()) {
-            // Each whitespace-delimited term must match. Escape LIKE metacharacters literally on all supported DBs.
+            // Each whitespace-delimited term must match. Escape LIKE metacharacters literally on
+            // all supported DBs.
             for (String term : query.split("\\s+", 8)) {
-                where += " and (lower(title) like ? escape '!' or lower(digest) like ? escape '!' or lower(keywords) like ? escape '!' or lower(markdown) like ? escape '!' or lower(content) like ? escape '!')";
-                String pattern = "%" + term.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+                where +=
+                        " and (lower(title) like ? escape '!' or lower(digest) like ? escape '!' or lower(keywords) like ? escape '!' or lower(markdown) like ? escape '!' or lower(content) like ? escape '!')";
+                String pattern =
+                        "%"
+                                + term.toLowerCase(Locale.ROOT)
+                                        .replace("!", "!!")
+                                        .replace("%", "!%")
+                                        .replace("_", "!_")
+                                + "%";
                 for (int i = 0; i < 5; i++) params.add(pattern);
             }
         }
@@ -179,7 +205,8 @@ public final class KnowledgeService implements ToolProvider {
                                 "select logId,userId,title,alias,digest,rubbish,privacy,last_update_date from log"
                                         + where
                                         + " order by last_update_date desc,logId desc limit ? offset ?",
-                                ArticleBasicDTO.class, params.toArray());
+                                ArticleBasicDTO.class,
+                                params.toArray());
         SearchResult result = new SearchResult();
         if (rows.size() > limit && offset + limit <= 1000) result.nextOffset = offset + limit;
         for (ArticleBasicDTO row : rows.subList(0, Math.min(rows.size(), limit))) {
@@ -204,9 +231,17 @@ public final class KnowledgeService implements ToolProvider {
                                 "select logId,userId,title,alias,rubbish,privacy,last_update_date,markdown,content from log"
                                         + where
                                         + " and logId=?",
-                                ArticleBasicDTO.class, params.toArray());
-        if (row == null || !ArticleAccess.canRead(account, scopes, ((Number) row.getUserId()).intValue(), AccountAccess.truth(row.getRubbish()), AccountAccess.truth(row.getPrivacy())))
-            throw new IllegalArgumentException(messages.get("admin.knowledge.error.articleUnavailable"));
+                                ArticleBasicDTO.class,
+                                params.toArray());
+        if (row == null
+                || !ArticleAccess.canRead(
+                        account,
+                        scopes,
+                        ((Number) row.getUserId()).intValue(),
+                        AccountAccess.truth(row.getRubbish()),
+                        AccountAccess.truth(row.getPrivacy())))
+            throw new IllegalArgumentException(
+                    messages.get("admin.knowledge.error.articleUnavailable"));
         String content = Objects.toString(row.getMarkdown(), "");
         ArticleResult result = new ArticleResult();
         result.source = new Source();
@@ -214,11 +249,14 @@ public final class KnowledgeService implements ToolProvider {
         result.format = content.isEmpty() ? "text" : "markdown";
         if (content.isEmpty()) content = Jsoup.parse(Objects.toString(row.getContent(), "")).text();
         if (offset > content.length()) throw invalid();
-        if (offset > 0 && offset < content.length() && Character.isLowSurrogate(content.charAt(offset)) && Character.isHighSurrogate(content.charAt(offset - 1)))
-            throw invalid();
+        if (offset > 0
+                && offset < content.length()
+                && Character.isLowSurrogate(content.charAt(offset))
+                && Character.isHighSurrogate(content.charAt(offset - 1))) throw invalid();
         int end = Math.min(content.length(), offset + length);
-        if (end < content.length() && Character.isHighSurrogate(content.charAt(end - 1)) && Character.isLowSurrogate(content.charAt(end)))
-            end++;
+        if (end < content.length()
+                && Character.isHighSurrogate(content.charAt(end - 1))
+                && Character.isLowSurrogate(content.charAt(end))) end++;
         result.offset = offset;
         result.content = content.substring(offset, end);
         if (end < content.length() && end <= 1000000) result.nextOffset = end;
@@ -232,8 +270,16 @@ public final class KnowledgeService implements ToolProvider {
         source.privateArticle = AccountAccess.truth(row.getPrivacy());
         source.updatedAt = Objects.toString(row.getLast_update_date(), "");
         String alias = Objects.toString(row.getAlias(), "");
-        String key = alias.isBlank() ? Long.toString(source.id) : java.net.URLEncoder.encode(alias, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-        source.url = siteUrl.get() + (source.draft || source.privateArticle ? "/admin/article-edit?previewMode=true&id=" + source.id : "/" + key + (staticHtml.getAsBoolean() ? ".html" : ""));
+        String key =
+                alias.isBlank()
+                        ? Long.toString(source.id)
+                        : java.net.URLEncoder.encode(alias, java.nio.charset.StandardCharsets.UTF_8)
+                                .replace("+", "%20");
+        source.url =
+                siteUrl.get()
+                        + (source.draft || source.privateArticle
+                                ? "/admin/article-edit?previewMode=true&id=" + source.id
+                                : "/" + key + (staticHtml.getAsBoolean() ? ".html" : ""));
     }
 
     @AssistedFactory

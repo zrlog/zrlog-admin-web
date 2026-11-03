@@ -3,8 +3,7 @@ package com.zrlog.admin.business.security;
 import java.util.List;
 
 public final class MemberModels {
-    private MemberModels() {
-    }
+    private MemberModels() {}
 
     public static class Member {
         public int userId;
@@ -37,7 +36,8 @@ public final class MemberModels {
         public String mfaCode;
 
         public void doValid() {
-            if (userId == null || password == null) throw new com.zrlog.common.exception.ArgsException();
+            if (userId == null || password == null)
+                throw new com.zrlog.common.exception.ArgsException();
         }
     }
 
@@ -48,7 +48,8 @@ public final class MemberModels {
         public String password;
 
         public void doValid() {
-            if (userId == null || role == null || enabled == null) throw new com.zrlog.common.exception.ArgsException();
+            if (userId == null || role == null || enabled == null)
+                throw new com.zrlog.common.exception.ArgsException();
         }
     }
 }

@@ -3,7 +3,6 @@ package com.zrlog.admin.business.rest.response;
 import com.zrlog.admin.business.ai.model.AIModelEntry;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
-
 import java.util.List;
 
 public class AIWebSiteInfoResponse extends AIWebSiteInfo {

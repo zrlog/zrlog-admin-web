@@ -21,7 +21,8 @@ public class LinkPreviewController extends Controller {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.preview")
     public ApiStandardResponse<LinkPreviewResponse> index() {
-        return new ApiStandardResponse<>(linkPreviewService.fetch(request.getParaToStr("url", ""),
-                request.getHeader("User-Agent")));
+        return new ApiStandardResponse<>(
+                linkPreviewService.fetch(
+                        request.getParaToStr("url", ""), request.getHeader("User-Agent")));
     }
 }

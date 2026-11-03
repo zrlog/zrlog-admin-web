@@ -1,24 +1,29 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.common.updater.UpgradeProgressEvent;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class DockerUpgradeProgressServiceTest {
-    private final DockerUpgradeProgressService service = new DockerUpgradeProgressService() {
-        @Override
-        protected void awaitNextStatus() {
-        }
-    };
-    private final Map<String, Object> messages = Map.of("admin.upgrade.docker.succeeded", "Updated",
-            "admin.upgrade.docker.failed", "Failed", "admin.upgrade.docker.recovery", "Recovery required");
+    private final DockerUpgradeProgressService service =
+            new DockerUpgradeProgressService() {
+                @Override
+                protected void awaitNextStatus() {}
+            };
+    private final Map<String, Object> messages =
+            Map.of(
+                    "admin.upgrade.docker.succeeded",
+                    "Updated",
+                    "admin.upgrade.docker.failed",
+                    "Failed",
+                    "admin.upgrade.docker.recovery",
+                    "Recovery required");
 
     private static Job job(String phase) {
         Job job = new Job();
@@ -32,14 +37,23 @@ public class DockerUpgradeProgressServiceTest {
 
     @Test
     public void mapsDurableJobPhasesToExistingUpgradeEventsAndCompletion() throws Exception {
-        Client client = new Client(job("pulling"), job("replacing"), job("checking"), job("succeeded"));
+        Client client =
+                new Client(job("pulling"), job("replacing"), job("checking"), job("succeeded"));
         List<UpgradeProgressEvent.Data> events = new ArrayList<>();
-        var response = service.watch(client, job("queued"), (name, data) -> {
-            assertEquals("upgrade-progress", name);
-            events.add((UpgradeProgressEvent.Data) data);
-        }, messages);
-        assertEquals(List.of("download", "download", "restart", "restart", "complete"),
-                events.stream().map(UpgradeProgressEvent.Data::getStage).collect(java.util.stream.Collectors.toList()));
+        var response =
+                service.watch(
+                        client,
+                        job("queued"),
+                        (name, data) -> {
+                            assertEquals("upgrade-progress", name);
+                            events.add((UpgradeProgressEvent.Data) data);
+                        },
+                        messages);
+        assertEquals(
+                List.of("download", "download", "restart", "restart", "complete"),
+                events.stream()
+                        .map(UpgradeProgressEvent.Data::getStage)
+                        .collect(java.util.stream.Collectors.toList()));
         assertEquals("complete", events.get(events.size() - 1).getStatus());
         assertEquals(0, response.getError());
         assertTrue(response.getData().getFinish());
@@ -52,12 +66,17 @@ public class DockerUpgradeProgressServiceTest {
         for (String phase : List.of("failed", "interrupted")) {
             Job job = job(phase);
             job.recoveryRequired = true;
-            var response = service.watch(new Client(), job, (name, data) -> {
-                var event = (UpgradeProgressEvent.Data) data;
-                assertEquals("error", event.getStage());
-                assertEquals("error", event.getStatus());
-                assertEquals("Recovery required", event.getDetail());
-            }, messages);
+            var response =
+                    service.watch(
+                            new Client(),
+                            job,
+                            (name, data) -> {
+                                var event = (UpgradeProgressEvent.Data) data;
+                                assertEquals("error", event.getStage());
+                                assertEquals("error", event.getStatus());
+                                assertEquals("Recovery required", event.getDetail());
+                            },
+                            messages);
             assertNotEquals(0, response.getError());
             assertFalse(response.getData().getFinish());
         }
@@ -66,10 +85,16 @@ public class DockerUpgradeProgressServiceTest {
     @Test
     public void disconnectedSubscriberStopsReadingWithoutResubmitting() {
         Client client = new Client();
-        assertThrows(IOException.class, () -> service.watch(client, job("pulling"),
-                (name, data) -> {
-                    throw new IOException("Client disconnected");
-                }, messages));
+        assertThrows(
+                IOException.class,
+                () ->
+                        service.watch(
+                                client,
+                                job("pulling"),
+                                (name, data) -> {
+                                    throw new IOException("Client disconnected");
+                                },
+                                messages));
         assertEquals(0, client.reads);
     }
 
@@ -92,8 +117,14 @@ public class DockerUpgradeProgressServiceTest {
                     break;
             }
             List<Object> events = new ArrayList<>();
-            assertThrows(IllegalStateException.class, () -> service.watch(new Client(other), job("queued"),
-                    (name, data) -> events.add(data), messages));
+            assertThrows(
+                    IllegalStateException.class,
+                    () ->
+                            service.watch(
+                                    new Client(other),
+                                    job("queued"),
+                                    (name, data) -> events.add(data),
+                                    messages));
             assertEquals(1, events.size());
         }
     }
@@ -101,7 +132,13 @@ public class DockerUpgradeProgressServiceTest {
     @Test
     public void missingTaskProducesAnEmptyResponseWithoutPolling() throws Exception {
         Client client = new Client();
-        assertNull(service.watch(client, null, (name, data) -> fail("No progress for missing job"), messages).getData());
+        assertNull(
+                service.watch(
+                                client,
+                                null,
+                                (name, data) -> fail("No progress for missing job"),
+                                messages)
+                        .getData());
         assertEquals(0, client.reads);
     }
 
@@ -120,7 +157,8 @@ public class DockerUpgradeProgressServiceTest {
         }
 
         @Override
-        public Job submit(com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest request) {
+        public Job submit(
+                com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest request) {
             throw new AssertionError("Progress subscription must never submit a job");
         }
     }

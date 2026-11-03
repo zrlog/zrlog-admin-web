@@ -4,7 +4,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -23,7 +22,11 @@ public final class AutomationSettingsService {
     private final LongSupplier clock;
     private final BooleanSupplier faas;
 
-    public AutomationSettingsService(AutomationStore store, TaskAuthority authority, LongSupplier clock, BooleanSupplier faas) {
+    public AutomationSettingsService(
+            AutomationStore store,
+            TaskAuthority authority,
+            LongSupplier clock,
+            BooleanSupplier faas) {
         this.store = store;
         this.authority = authority;
         this.clock = clock;
@@ -35,17 +38,26 @@ public final class AutomationSettingsService {
         return view(readStored());
     }
 
-    public SettingsView save(AccountAccess actor, long revision, boolean internalEnabled, boolean externalEnabled) throws SQLException {
+    public SettingsView save(
+            AccountAccess actor, long revision, boolean internalEnabled, boolean externalEnabled)
+            throws SQLException {
         return save(actor, revision, internalEnabled, externalEnabled, null);
     }
 
-    public SettingsView save(AccountAccess actor, long revision, boolean internalEnabled, boolean externalEnabled,
-                             Integer externalBudgetSeconds) throws SQLException {
+    public SettingsView save(
+            AccountAccess actor,
+            long revision,
+            boolean internalEnabled,
+            boolean externalEnabled,
+            Integer externalBudgetSeconds)
+            throws SQLException {
         actor = authorize(actor);
         AutomationStore.Snapshot<Settings> row = store.read(KEY, Settings.class);
         Settings settings = row == null ? new Settings() : row.copy(Settings.class);
-        if (settings.revision != revision) throw new IllegalStateException("automation.settingsChanged");
-        if (externalEnabled && settings.tokenHash == null) throw new IllegalArgumentException("automation.tokenRequired");
+        if (settings.revision != revision)
+            throw new IllegalStateException("automation.settingsChanged");
+        if (externalEnabled && settings.tokenHash == null)
+            throw new IllegalArgumentException("automation.tokenRequired");
         if (externalBudgetSeconds != null) {
             if (externalBudgetSeconds < 10 || externalBudgetSeconds > 660) {
                 throw new IllegalArgumentException("automation.invalidBudget");
@@ -55,7 +67,8 @@ public final class AutomationSettingsService {
         settings.revision++;
         settings.internalEnabled = internalEnabled;
         settings.externalEnabled = externalEnabled;
-        if (!store.writeAuthorized(KEY, row, settings, actor)) throw new IllegalStateException("automation.settingsChanged");
+        if (!store.writeAuthorized(KEY, row, settings, actor))
+            throw new IllegalStateException("automation.settingsChanged");
         return view(settings);
     }
 
@@ -63,7 +76,8 @@ public final class AutomationSettingsService {
         actor = authorize(actor);
         AutomationStore.Snapshot<Settings> row = store.read(KEY, Settings.class);
         Settings settings = row == null ? new Settings() : row.copy(Settings.class);
-        if (settings.revision != revision) throw new IllegalStateException("automation.settingsChanged");
+        if (settings.revision != revision)
+            throw new IllegalStateException("automation.settingsChanged");
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
         String secret = "zra_" + Base64.getUrlEncoder().withoutPadding().encodeToString(random);
@@ -72,7 +86,8 @@ public final class AutomationSettingsService {
         settings.tokenId = UUID.randomUUID().toString();
         settings.tokenCreatedAt = clock.getAsLong();
         settings.externalEnabled = true;
-        if (!store.writeAuthorized(KEY, row, settings, actor)) throw new IllegalStateException("automation.settingsChanged");
+        if (!store.writeAuthorized(KEY, row, settings, actor))
+            throw new IllegalStateException("automation.settingsChanged");
         IssuedToken result = new IssuedToken();
         result.token = secret;
         result.settings = view(settings);
@@ -83,13 +98,15 @@ public final class AutomationSettingsService {
         actor = authorize(actor);
         AutomationStore.Snapshot<Settings> row = store.read(KEY, Settings.class);
         Settings settings = row == null ? new Settings() : row.copy(Settings.class);
-        if (settings.revision != revision) throw new IllegalStateException("automation.settingsChanged");
+        if (settings.revision != revision)
+            throw new IllegalStateException("automation.settingsChanged");
         settings.revision++;
         settings.tokenHash = null;
         settings.tokenId = null;
         settings.tokenCreatedAt = null;
         settings.externalEnabled = false;
-        if (!store.writeAuthorized(KEY, row, settings, actor)) throw new IllegalStateException("automation.settingsChanged");
+        if (!store.writeAuthorized(KEY, row, settings, actor))
+            throw new IllegalStateException("automation.settingsChanged");
         return view(settings);
     }
 
@@ -99,13 +116,18 @@ public final class AutomationSettingsService {
 
     /** Authentication and budget must come from the same fresh settings read. */
     public TriggerAuthorization authenticateTrigger(String authorization) throws SQLException {
-        if (authorization == null || authorization.length() > 128) throw new PermissionErrorException();
+        if (authorization == null || authorization.length() > 128)
+            throw new PermissionErrorException();
         String[] parts = authorization.trim().split("\\s+");
-        if (parts.length != 2 || !parts[0].equalsIgnoreCase("Bearer")
+        if (parts.length != 2
+                || !parts[0].equalsIgnoreCase("Bearer")
                 || !parts[1].matches("zra_[A-Za-z0-9_-]{43}")) throw new PermissionErrorException();
         Settings settings = readStored();
-        if (!settings.externalEnabled || settings.tokenHash == null || !MessageDigest.isEqual(
-                settings.tokenHash.getBytes(StandardCharsets.US_ASCII), digest(parts[1]).getBytes(StandardCharsets.US_ASCII))) {
+        if (!settings.externalEnabled
+                || settings.tokenHash == null
+                || !MessageDigest.isEqual(
+                        settings.tokenHash.getBytes(StandardCharsets.US_ASCII),
+                        digest(parts[1]).getBytes(StandardCharsets.US_ASCII))) {
             throw new PermissionErrorException();
         }
         return new TriggerAuthorization(settings.tokenId, settings.externalBudgetSeconds * 1000L);
@@ -120,15 +142,26 @@ public final class AutomationSettingsService {
             this.budgetMillis = budgetMillis;
         }
 
-        public String credentialId() { return credentialId; }
-        public long budgetMillis() { return budgetMillis; }
+        public String credentialId() {
+            return credentialId;
+        }
+
+        public long budgetMillis() {
+            return budgetMillis;
+        }
     }
 
-    public boolean internalEnabled() throws SQLException { return !faas.getAsBoolean() && readStored().internalEnabled; }
+    public boolean internalEnabled() throws SQLException {
+        return !faas.getAsBoolean() && readStored().internalEnabled;
+    }
 
-    public long externalBudgetMillis() throws SQLException { return readStored().externalBudgetSeconds * 1000L; }
+    public long externalBudgetMillis() throws SQLException {
+        return readStored().externalBudgetSeconds * 1000L;
+    }
 
-    public long manualBudgetMillis() throws SQLException { return faas.getAsBoolean() ? externalBudgetMillis() : 660000; }
+    public long manualBudgetMillis() throws SQLException {
+        return faas.getAsBoolean() ? externalBudgetMillis() : 660000;
+    }
 
     private Settings readStored() throws SQLException {
         AutomationStore.Snapshot<Settings> row = store.read(KEY, Settings.class);
@@ -156,8 +189,13 @@ public final class AutomationSettingsService {
 
     private static String digest(String token) {
         try {
-            return Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException error) { throw new IllegalStateException(error); }
+            return Base64.getEncoder()
+                    .encodeToString(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException(error);
+        }
     }
 
     public static class Settings {

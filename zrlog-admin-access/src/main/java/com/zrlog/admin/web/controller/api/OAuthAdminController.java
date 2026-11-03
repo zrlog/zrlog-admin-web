@@ -22,7 +22,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 
 public class OAuthAdminController extends BaseController {
@@ -88,7 +87,9 @@ public class OAuthAdminController extends BaseController {
     public AdminPageDataResponse<Consent> consent() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
         var authority = grantAuthority();
-        return page(authority.actor(), service.consent(authority, sessionId(), getParamWithEmptyCheck("request_id")));
+        return page(
+                authority.actor(),
+                service.consent(authority, sessionId(), getParamWithEmptyCheck("request_id")));
     }
 
     @ResponseBody
@@ -97,7 +98,8 @@ public class OAuthAdminController extends BaseController {
     public ApiStandardResponse<Redirect> decide() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
         var authority = grantAuthority();
-        Redirect result = service.decide(authority, sessionId(), getRequestBodyWithNullCheck(Decision.class));
+        Redirect result =
+                service.decide(authority, sessionId(), getRequestBodyWithNullCheck(Decision.class));
         audit(authority.actor(), AdminAuditAction.AUTHORIZE_APPLICATION);
         return new ApiStandardResponse<>(result);
     }
@@ -138,14 +140,18 @@ public class OAuthAdminController extends BaseController {
         PersonalTokenModels.Created result =
                 personalTokens
                         .create(service.mcpResource())
-                        .create(authority, getRequestBodyWithNullCheck(PersonalTokenModels.Create.class));
+                        .create(
+                                authority,
+                                getRequestBodyWithNullCheck(PersonalTokenModels.Create.class));
         audit(authority.actor(), AdminAuditAction.CREATE_PERSONAL_TOKEN);
         return new ApiStandardResponse<>(result);
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.revokePersonalToken")
+    @RequiresAction(
+            value = AccountAction.OAUTH_GRANT_MANAGE,
+            descriptionKey = "oauth.revokePersonalToken")
     public ApiStandardResponse<Boolean> revokePersonalToken() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
         var actor = requestIdentity.current();
@@ -158,7 +164,9 @@ public class OAuthAdminController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.disableClient")
+    @RequiresAction(
+            value = AccountAction.OAUTH_CLIENT_MANAGE,
+            descriptionKey = "oauth.disableClient")
     public ApiStandardResponse<Boolean> disableClient() throws SQLException {
         service.requireAdminOrigin(request.getHeader("Origin"));
         var actor = requestIdentity.current();

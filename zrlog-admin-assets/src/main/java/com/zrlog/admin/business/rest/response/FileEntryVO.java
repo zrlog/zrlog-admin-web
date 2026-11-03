@@ -3,7 +3,6 @@ package com.zrlog.admin.business.rest.response;
 import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
-
 import java.util.Collections;
 import java.util.List;
 
@@ -30,10 +29,10 @@ public class FileEntryVO {
     private boolean missing;
     private String missingReason;
 
-    public FileEntryVO() {
-    }
+    public FileEntryVO() {}
 
-    public FileEntryVO(String name, String path, String type, long size, String mimeType, long lastModified) {
+    public FileEntryVO(
+            String name, String path, String type, long size, String mimeType, long lastModified) {
         this.name = name;
         this.path = path;
         this.type = type;
@@ -159,7 +158,8 @@ public class FileEntryVO {
     }
 
     public void setDirectoryActions(List<FileDirectoryAction> directoryActions) {
-        this.directoryActions = directoryActions == null ? Collections.emptyList() : directoryActions;
+        this.directoryActions =
+                directoryActions == null ? Collections.emptyList() : directoryActions;
     }
 
     public boolean isReferenced() {

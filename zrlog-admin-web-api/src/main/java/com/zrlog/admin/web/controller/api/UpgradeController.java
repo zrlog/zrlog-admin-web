@@ -1,9 +1,9 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.hibegin.common.util.BeanUtil;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.hibegin.common.util.BeanUtil;
 import com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider;
 import com.zrlog.admin.business.automation.UpgradeExecutionCoordinator;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
@@ -35,7 +35,6 @@ import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Map;
@@ -79,19 +78,26 @@ public class UpgradeController extends BaseController {
         this.executions = executions;
     }
 
-
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeCheck")
     public AdminPageDataResponse<PreCheckVersionResponse> index() throws SQLException {
         // Keep the public check fresh; page rendering and task recovery can use cached metadata.
-        boolean apiCheck = request.getUri().endsWith("/api" + Constants.ADMIN_URI_BASE_PATH + "/upgrade");
+        boolean apiCheck =
+                request.getUri().endsWith("/api" + Constants.ADMIN_URI_BASE_PATH + "/upgrade");
         boolean fetch = "true".equals(request.getParaToStr("fetch", apiCheck ? "true" : "false"));
-        UpgradeCheckResponse preCheckVersionResponse = BeanUtil.convert(
-                upgrades.preUpgradeVersion(fetch, updatePlugin.get()), UpgradeCheckResponse.class);
+        UpgradeCheckResponse preCheckVersionResponse =
+                BeanUtil.convert(
+                        upgrades.preUpgradeVersion(fetch, updatePlugin.get()),
+                        UpgradeCheckResponse.class);
         preCheckVersionResponse.setExecution(executions.view(requestIdentity.current()));
-        return pages.response(requestIdentity.optional(), preCheckVersionResponse,
-                Objects.equals(preCheckVersionResponse.getUpgrade(), true) ? "" : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"), request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                preCheckVersionResponse,
+                Objects.equals(preCheckVersionResponse.getUpgrade(), true)
+                        ? ""
+                        : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"),
+                request.getUri());
     }
 
     @ResponseBody
@@ -100,37 +106,44 @@ public class UpgradeController extends BaseController {
     public ApiStandardResponse<CheckVersionResponse> notice() {
         boolean fetch = Objects.equals("true", request.getParaToStr("fetch", "false"));
         return new ApiStandardResponse<>(
-                upgrades.getCheckVersionResponse(fetch, updatePlugin.get()),
-                ""
-        );
+                upgrades.getCheckVersionResponse(fetch, updatePlugin.get()), "");
     }
-
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
     public void doUpgrade() throws IOException, SQLException {
-        ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
+        ExecuteUpgradeRequest upgradeRequest =
+                getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
         try {
             executeUpgrade(upgradeRequest);
         } catch (UpgradeExecutionCoordinator.Conflict conflict) {
-            // Keep a business rejection distinguishable from a stream interrupted by process replacement.
+            // Keep a business rejection distinguishable from a stream interrupted by process
+            // replacement.
             var result = new ApiStandardResponse<>(conflict.execution);
             result.setError(409);
-            result.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.assistant.upgrade.status.pending"));
+            result.setMessage(
+                    I18nUtil.getAdminBackendStringFromRes(
+                            "admin.assistant.upgrade.status.pending"));
             response.renderJson(result);
         }
     }
 
-    private void executeUpgrade(ExecuteUpgradeRequest upgradeRequest) throws IOException, SQLException {
+    private void executeUpgrade(ExecuteUpgradeRequest upgradeRequest)
+            throws IOException, SQLException {
         if (upgradeRequest.getDocker() != null) {
             DockerControl client = dockerClient();
             var dockerRequest = upgradeRequest.getDocker();
             Version target = new Version();
             target.setVersion(dockerRequest.version);
             target.setBuildId(dockerRequest.buildId);
-            var receipt = executions.claimManual(requestIdentity.current(), target, dockerRequest.requestId,
-                    dockerRequest.channel, upgradeRequest.getReviewedExecutionId());
+            var receipt =
+                    executions.claimManual(
+                            requestIdentity.current(),
+                            target,
+                            dockerRequest.requestId,
+                            dockerRequest.channel,
+                            upgradeRequest.getReviewedExecutionId());
             DockerUpdaterProtocol.Job job;
             boolean submitted = false;
             try {
@@ -155,22 +168,30 @@ public class UpgradeController extends BaseController {
         PreCheckVersionResponse check = upgrades.preUpgradeVersion(true, plugin);
         Version target = Boolean.TRUE.equals(check.getUpgrade()) ? check.getVersion() : null;
         // Manual instructions and no-change responses do not reserve a new upgrade execution.
-        AutomaticUpgradeTaskProvider.Receipt receipt = target != null
-                && Boolean.TRUE.equals(check.getOnlineUpgradable()) && !Boolean.TRUE.equals(check.getDockerMode())
-                ? executions.claimManual(requestIdentity.current(), target, null, target.getChannel(),
-                        upgradeRequest.getReviewedExecutionId()) : null;
+        AutomaticUpgradeTaskProvider.Receipt receipt =
+                target != null
+                                && Boolean.TRUE.equals(check.getOnlineUpgradable())
+                                && !Boolean.TRUE.equals(check.getDockerMode())
+                        ? executions.claimManual(
+                                requestIdentity.current(),
+                                target,
+                                null,
+                                target.getChannel(),
+                                upgradeRequest.getReviewedExecutionId())
+                        : null;
         if (!isSseRequest()) {
             UpgradeProcessResponse upgradeProcessResponse;
             try {
-                upgradeProcessResponse = executeClaimedUpgrade(target, receipt, UpgradeProgressListener.NONE, backend);
+                upgradeProcessResponse =
+                        executeClaimedUpgrade(
+                                target, receipt, UpgradeProgressListener.NONE, backend);
                 this.messageCenterOperationService.recordUpgradeResult(upgradeProcessResponse);
             } catch (RuntimeException e) {
                 this.messageCenterOperationService.recordUpgradeError();
                 throw e;
             }
             recordUpgradeAudit(target);
-            response.renderJson(new ApiStandardResponse<>(
-                    upgradeProcessResponse));
+            response.renderJson(new ApiStandardResponse<>(upgradeProcessResponse));
             return;
         }
         AdminSseEmitter.write(
@@ -180,7 +201,8 @@ public class UpgradeController extends BaseController {
                 emitter -> {
                     UpgradeProcessResponse upgradeProcessResponse;
                     try {
-                        upgradeProcessResponse = executeClaimedUpgrade(target, receipt, emitter::send, backend);
+                        upgradeProcessResponse =
+                                executeClaimedUpgrade(target, receipt, emitter::send, backend);
                         this.messageCenterOperationService.recordUpgradeResult(
                                 upgradeProcessResponse);
                     } catch (Exception e) {
@@ -192,8 +214,11 @@ public class UpgradeController extends BaseController {
                 });
     }
 
-    private UpgradeProcessResponse executeClaimedUpgrade(Version target, AutomaticUpgradeTaskProvider.Receipt receipt,
-                                                          UpgradeProgressListener listener, Map<String, Object> backend)
+    private UpgradeProcessResponse executeClaimedUpgrade(
+            Version target,
+            AutomaticUpgradeTaskProvider.Receipt receipt,
+            UpgradeProgressListener listener,
+            Map<String, Object> backend)
             throws SQLException {
         boolean submitted = false;
         try {
@@ -230,7 +255,8 @@ public class UpgradeController extends BaseController {
         }
     }
 
-    private void streamDockerUpgrade(DockerControl client, DockerUpdaterProtocol.Job job) throws IOException {
+    private void streamDockerUpgrade(DockerControl client, DockerUpdaterProtocol.Job job)
+            throws IOException {
         Map<String, Object> backend = I18nUtil.getBackend();
         AdminSseEmitter.write(
                 response,
@@ -257,9 +283,9 @@ public class UpgradeController extends BaseController {
     }
 
     private void recordUpgradeAudit(Version target) {
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 AdminAuditAction.EXECUTE_UPGRADE,
                 target == null ? "" : target.getVersion());
     }
-
 }

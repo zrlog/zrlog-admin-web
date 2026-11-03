@@ -9,7 +9,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.business.service.TemplateInfoHelper;
 import jakarta.inject.Inject;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -17,9 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * 不检查 pwa 的 json 文件的请求
- */
+/** 不检查 pwa 的 json 文件的请求 */
 public class AdminPwaInterceptor implements HandleAbleInterceptor {
 
     private final AdminResource resources;
@@ -29,11 +26,13 @@ public class AdminPwaInterceptor implements HandleAbleInterceptor {
     public AdminPwaInterceptor(AdminResource resources) {
         this.resources = Objects.requireNonNull(resources);
         resourceUris.add(AdminResource.ADMIN_ASSET_MANIFEST_JSON);
-        TemplateInfoHelper.getClassPathTemplates().forEach(clazz -> {
-            if (Objects.nonNull(clazz)) {
-                resourceUris.add(clazz.getAdminPreviewImage());
-            }
-        });
+        TemplateInfoHelper.getClassPathTemplates()
+                .forEach(
+                        clazz -> {
+                            if (Objects.nonNull(clazz)) {
+                                resourceUris.add(clazz.getAdminPreviewImage());
+                            }
+                        });
         resourceUris.add(AdminConstants.ADMIN_SERVICE_WORKER_JS);
     }
 
@@ -42,30 +41,45 @@ public class AdminPwaInterceptor implements HandleAbleInterceptor {
         if (resourceUris.contains(request.getUri())) {
             return true;
         }
-        return AdminConstants.ADMIN_PWA_MANIFEST_JSON.equals(request.getUri()) || AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH.equals(request.getUri());
+        return AdminConstants.ADMIN_PWA_MANIFEST_JSON.equals(request.getUri())
+                || AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH.equals(request.getUri());
     }
 
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         if (Objects.equals(AdminConstants.ADMIN_SERVICE_WORKER_JS, request.getUri())) {
-            response.addHeader("Content-Type", MimeTypeUtil.getMimeStrByExt(request.getUri().substring(request.getUri().lastIndexOf(".") + 1)));
+            response.addHeader(
+                    "Content-Type",
+                    MimeTypeUtil.getMimeStrByExt(
+                            request.getUri().substring(request.getUri().lastIndexOf(".") + 1)));
             try (InputStream inputStream = resources.renderServiceWorker(request)) {
                 response.write(new ByteArrayInputStream(inputStream.readAllBytes()));
                 return false;
             }
         }
         if (resourceUris.contains(request.getUri())) {
-            response.addHeader("Content-Type", MimeTypeUtil.getMimeStrByExt(request.getUri().substring(request.getUri().lastIndexOf(".") + 1)));
-            try (InputStream inputStream = AdminPwaInterceptor.class.getResourceAsStream(request.getUri())) {
+            response.addHeader(
+                    "Content-Type",
+                    MimeTypeUtil.getMimeStrByExt(
+                            request.getUri().substring(request.getUri().lastIndexOf(".") + 1)));
+            try (InputStream inputStream =
+                    AdminPwaInterceptor.class.getResourceAsStream(request.getUri())) {
                 if (Objects.nonNull(inputStream)) {
                     response.write(new ByteArrayInputStream(inputStream.readAllBytes()));
                     return false;
                 }
             }
         }
-        if (AdminConstants.ADMIN_PWA_MANIFEST_JSON.equals(request.getUri()) || AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH.equals(request.getUri())) {
-            Method method = request.getServerConfig().getRouter().getMethod(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH, request.getMethod());
-            Object responseJson = method.invoke(Controller.buildController(method, request, response));
+        if (AdminConstants.ADMIN_PWA_MANIFEST_JSON.equals(request.getUri())
+                || AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH.equals(request.getUri())) {
+            Method method =
+                    request.getServerConfig()
+                            .getRouter()
+                            .getMethod(
+                                    AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH,
+                                    request.getMethod());
+            Object responseJson =
+                    method.invoke(Controller.buildController(method, request, response));
             if (responseJson != null) {
                 response.renderJson(responseJson);
                 return false;

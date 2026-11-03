@@ -4,8 +4,7 @@ public class ErrorPageResponse {
 
     private String message;
 
-    public ErrorPageResponse() {
-    }
+    public ErrorPageResponse() {}
 
     public ErrorPageResponse(String message) {
         this.message = message;

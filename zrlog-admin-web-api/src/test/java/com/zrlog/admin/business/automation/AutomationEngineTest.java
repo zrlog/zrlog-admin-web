@@ -1,30 +1,30 @@
 package com.zrlog.admin.business.automation;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
+import com.zrlog.data.security.AccountAccess;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.junit.Assert.*;
+import org.junit.*;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class AutomationEngineTest {
     @Parameterized.Parameters(name = "{0}")
     public static Collection<Object[]> databases() {
-        return Arrays.asList(new Object[]{"h2"}, new Object[]{"sqlite"}, new Object[]{"web-api"});
+        return Arrays.asList(
+                new Object[] {"h2"}, new Object[] {"sqlite"}, new Object[] {"web-api"});
     }
 
     private final String backend;
@@ -38,48 +38,88 @@ public class AutomationEngineTest {
     private final AtomicInteger calls = new AtomicInteger();
     private final AutomationModels.Definition definition = new AutomationModels.Definition();
     private AutomationModels.Result executionResult = AutomationModels.Result.success("completed");
-    private TaskExecutionContext.CheckedAction action = () -> { };
+    private TaskExecutionContext.CheckedAction action = () -> {};
     private TaskExecutionContext executionContext;
 
-    public AutomationEngineTest(String backend) { this.backend = backend; }
+    public AutomationEngineTest(String backend) {
+        this.backend = backend;
+    }
 
     @Before
     public void open() throws Exception {
-        db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
-                : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
+        db =
+                backend.equals("sqlite")
+                        ? InMemoryZrLogDatabase.openSqlite()
+                        : backend.equals("web-api")
+                                ? InMemoryZrLogDatabase.openWebApi()
+                                : InMemoryZrLogDatabase.open();
         store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
-        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+        authority =
+                new TaskAuthority(
+                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
+                        () -> new UserRepository(db.dataSource()));
         actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         definition.type = "test.reminder";
         definition.titleKey = "reminder";
         definition.requiredActions = List.of("account.session");
-        registry = new TaskRegistry(() -> List.of(new ScheduledTaskProvider() {
-            public List<AutomationModels.Definition> definitions() { return List.of(definition); }
-            public JsonObject prepare(String type, JsonObject parameters, AccountAccess actor) { return parameters; }
-            public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
-                calls.incrementAndGet();
-                context.checkActive();
-                executionContext = context;
-                action.run();
-                return executionResult;
-            }
-        }));
+        registry =
+                new TaskRegistry(
+                        () ->
+                                List.of(
+                                        new ScheduledTaskProvider() {
+                                            public List<AutomationModels.Definition> definitions() {
+                                                return List.of(definition);
+                                            }
+
+                                            public JsonObject prepare(
+                                                    String type,
+                                                    JsonObject parameters,
+                                                    AccountAccess actor) {
+                                                return parameters;
+                                            }
+
+                                            public AutomationModels.Result execute(
+                                                    String type,
+                                                    JsonObject parameters,
+                                                    TaskExecutionContext context)
+                                                    throws Exception {
+                                                calls.incrementAndGet();
+                                                context.checkActive();
+                                                executionContext = context;
+                                                action.run();
+                                                return executionResult;
+                                            }
+                                        }));
         service = new AutomationService(store, authority, registry, now::get);
     }
 
     @After
-    public void close() throws Exception { if (db != null) db.close(); }
+    public void close() throws Exception {
+        if (db != null) db.close();
+    }
 
-    private AutomationEngine engine() { return new AutomationEngine(store, authority, registry, now::get); }
+    private AutomationEngine engine() {
+        return new AutomationEngine(store, authority, registry, now::get);
+    }
 
     @Test
-    public void recoveryPreservesCompletedStepsAndMarksAnUnfinishedWriteUncertainWithoutReplay() throws Exception {
-        var completed = new AutomationModels.ChildResult(); completed.id = "read"; completed.status = "success";
-        var write = new AutomationModels.ChildResult(); write.id = "save"; write.status = "running";
+    public void recoveryPreservesCompletedStepsAndMarksAnUnfinishedWriteUncertainWithoutReplay()
+            throws Exception {
+        var completed = new AutomationModels.ChildResult();
+        completed.id = "read";
+        completed.status = "success";
+        var write = new AutomationModels.ChildResult();
+        write.id = "save";
+        write.status = "running";
         executionResult.children = List.of(completed, write);
-        action = () -> { executionContext.checkpoint(executionResult); throw new AssertionError("Simulated process loss"); };
+        action =
+                () -> {
+                    executionContext.checkpoint(executionResult);
+                    throw new AssertionError("Simulated process loss");
+                };
         var task = service.save(actor, plan("interval"));
-        assertThrows(AssertionError.class, () -> engine().runNow(actor, task.id, task.revision, 60000));
+        assertThrows(
+                AssertionError.class, () -> engine().runNow(actor, task.id, task.revision, 60000));
         String id = store.task(task.id).value.activeRun.id;
         assertEquals("running", store.run(id).value.status);
         assertEquals("success", store.run(id).value.result.children.get(0).status);
@@ -94,44 +134,63 @@ public class AutomationEngineTest {
 
     @Test
     public void thrownFailureRetainsTheLastDurableChildProgress() throws Exception {
-        var step = new AutomationModels.ChildResult(); step.id = "save"; step.status = "success";
+        var step = new AutomationModels.ChildResult();
+        step.id = "save";
+        step.status = "success";
         step.actionPath = "/article-edit?id=42";
         executionResult.children = List.of(step);
-        action = () -> {
-            step.status = "running";
-            executionContext.checkpoint(executionResult);
-            step.status = "success";
-            executionContext.checkpoint(executionResult);
-            step.status = "failed"; // An unsaved mutation must not change the durable snapshot.
-            throw new IllegalStateException("Lost later response");
-        };
+        action =
+                () -> {
+                    step.status = "running";
+                    executionContext.checkpoint(executionResult);
+                    step.status = "success";
+                    executionContext.checkpoint(executionResult);
+                    step.status =
+                            "failed"; // An unsaved mutation must not change the durable snapshot.
+                    throw new IllegalStateException("Lost later response");
+                };
         var task = service.save(actor, plan("interval"));
         var run = engine().runNow(actor, task.id, task.revision, 60000);
         assertEquals("uncertain", run.status);
-        assertEquals("/article-edit?id=42", store.run(run.id).value.result.children.get(0).actionPath);
+        assertEquals(
+                "/article-edit?id=42", store.run(run.id).value.result.children.get(0).actionPath);
         assertEquals("success", store.run(run.id).value.result.children.get(0).status);
     }
 
     @Test
-    public void uncertainFailureLogsItsCauseAndRunIdentityWithoutExposingItInTheResult() throws Exception {
+    public void uncertainFailureLogsItsCauseAndRunIdentityWithoutExposingItInTheResult()
+            throws Exception {
         var cause = new IllegalStateException("private execution diagnostic");
         var records = new java.util.ArrayList<java.util.logging.LogRecord>();
         var logger = java.util.logging.Logger.getLogger(AutomationEngine.class.getName());
-        var handler = new java.util.logging.Handler() {
-            public void publish(java.util.logging.LogRecord record) { records.add(record); }
-            public void flush() { }
-            public void close() { }
-        };
+        var handler =
+                new java.util.logging.Handler() {
+                    public void publish(java.util.logging.LogRecord record) {
+                        records.add(record);
+                    }
+
+                    public void flush() {}
+
+                    public void close() {}
+                };
         logger.addHandler(handler);
         try {
-            action = () -> { throw cause; };
+            action =
+                    () -> {
+                        throw cause;
+                    };
             var task = service.save(actor, plan("interval"));
             var run = engine().runNow(actor, task.id, task.revision, 60000);
             assertEquals("uncertain", run.status);
             assertEquals("automation.executionUncertain", run.errorCode);
             assertFalse(store.task(task.id).value.enabled);
-            assertTrue(records.stream().anyMatch(record -> record.getThrown() == cause
-                    && record.getMessage().contains(run.id) && record.getMessage().contains(task.type)));
+            assertTrue(
+                    records.stream()
+                            .anyMatch(
+                                    record ->
+                                            record.getThrown() == cause
+                                                    && record.getMessage().contains(run.id)
+                                                    && record.getMessage().contains(task.type)));
             assertFalse(AutomationStore.JSON.toJson(run).contains(cause.getMessage()));
         } finally {
             logger.removeHandler(handler);
@@ -150,14 +209,22 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void ordinaryTaskOwnsNestedStepsWithoutCreatingIndependentTasksOrRuns() throws Exception {
+    public void ordinaryTaskOwnsNestedStepsWithoutCreatingIndependentTasksOrRuns()
+            throws Exception {
         var group = new AutomationModels.ChildResult();
-        group.id = "prepare"; group.name = "Prepare writing plan"; group.status = "success";
+        group.id = "prepare";
+        group.name = "Prepare writing plan";
+        group.status = "success";
         var step = new AutomationModels.ChildResult();
-        step.id = "read-drafts"; step.name = "Read drafts"; step.status = "success"; step.text = "Reviewed three drafts.";
+        step.id = "read-drafts";
+        step.name = "Read drafts";
+        step.status = "success";
+        step.text = "Reviewed three drafts.";
         group.children.add(step);
         var finalStep = new AutomationModels.ChildResult();
-        finalStep.id = "save-outline"; finalStep.name = "Save outline"; finalStep.status = "success";
+        finalStep.id = "save-outline";
+        finalStep.name = "Save outline";
+        finalStep.status = "success";
         executionResult.children = List.of(group, finalStep);
         var saved = service.save(actor, plan("interval"));
         var result = engine().runNow(actor, saved.id, saved.revision, 60000);
@@ -173,12 +240,17 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void retentionPreservesActiveRunsAndOtherAccountsWhileLimitingFinishedHistory() throws Exception {
+    public void retentionPreservesActiveRunsAndOtherAccountsWhileLimitingFinishedHistory()
+            throws Exception {
         long time = now.get();
         String taskId = AutomationStore.ownerPrefix(1) + java.util.UUID.randomUUID();
         for (int index = 0; index < 505; index++) {
             var run = new AutomationModels.Run();
-            run.id = AutomationStore.ownerPrefix(1) + AutomationStore.timeKey(time + index) + "." + java.util.UUID.randomUUID();
+            run.id =
+                    AutomationStore.ownerPrefix(1)
+                            + AutomationStore.timeKey(time + index)
+                            + "."
+                            + java.util.UUID.randomUUID();
             run.ownerId = 1;
             run.taskId = taskId;
             run.startedAt = time + index;
@@ -187,7 +259,11 @@ public class AutomationEngineTest {
             store.insertRun(run);
         }
         var active = new AutomationModels.Run();
-        active.id = AutomationStore.ownerPrefix(1) + AutomationStore.timeKey(time - 1000) + "." + java.util.UUID.randomUUID();
+        active.id =
+                AutomationStore.ownerPrefix(1)
+                        + AutomationStore.timeKey(time - 1000)
+                        + "."
+                        + java.util.UUID.randomUUID();
         active.taskId = taskId;
         active.ownerId = 1;
         active.status = "running";
@@ -201,7 +277,8 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void executesOneTimeTaskOnceAcrossSeparateTicksAndRetainsHistoryAfterDeletion() throws Exception {
+    public void executesOneTimeTaskOnceAcrossSeparateTicksAndRetainsHistoryAfterDeletion()
+            throws Exception {
         StoredTask task = service.save(actor, plan("once"));
         assertEquals(0, engine().tick("external", 60000).executed);
         now.addAndGet(1000);
@@ -223,10 +300,11 @@ public class AutomationEngineTest {
     public void repeatedTickDuringExecutionCannotClaimTheTaskAgain() throws Exception {
         StoredTask task = service.save(actor, plan("interval"));
         now.addAndGet(1000);
-        action = () -> {
-            assertEquals(0, engine().tick("external", 60000).executed);
-            assertEquals("running", service.runs(actor, task.id, 20, 0).get(0).status);
-        };
+        action =
+                () -> {
+                    assertEquals(0, engine().tick("external", 60000).executed);
+                    assertEquals("running", service.runs(actor, task.id, 20, 0).get(0).status);
+                };
         assertEquals(1, engine().tick("internal", 60000).executed);
         assertEquals(1, calls.get());
         assertEquals(Long.valueOf(now.get() + 300000), store.task(task.id).value.nextRunAt);
@@ -262,11 +340,14 @@ public class AutomationEngineTest {
     public void permissionChangesDuringExecutionAreDetectedByTheNextFence() throws Exception {
         StoredTask task = service.save(actor, plan("interval"));
         AtomicBoolean nextAction = new AtomicBoolean();
-        action = () -> {
-            db.execute("UPDATE user SET authVersion=authVersion+1 WHERE userId=?", actor.getUserId());
-            executionContext.checkActive();
-            nextAction.set(true);
-        };
+        action =
+                () -> {
+                    db.execute(
+                            "UPDATE user SET authVersion=authVersion+1 WHERE userId=?",
+                            actor.getUserId());
+                    executionContext.checkActive();
+                    nextAction.set(true);
+                };
         var run = engine().runNow(actor, task.id, task.revision, 60000);
         assertFalse(nextAction.get());
         assertEquals("needs_attention", run.status);
@@ -276,20 +357,27 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void pauseAfterTheFinalFenceIsPreservedWhenReleaseRetriesItsConditionalWrite() throws Exception {
+    public void pauseAfterTheFinalFenceIsPreservedWhenReleaseRetriesItsConditionalWrite()
+            throws Exception {
         if (!"web-api".equals(backend)) return;
         StoredTask task = service.save(actor, plan("interval"));
         AtomicBoolean paused = new AtomicBoolean();
-        db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")
-                    && !sql.contains("FROM user")
-                    && (AutomationStore.TASK_PREFIX + task.id).equals(args[3])
-                    && AutomationStore.JSON.fromJson(args[0].toString(), StoredTask.class).activeRun == null
-                    && paused.compareAndSet(false, true)) {
-                try { service.setEnabled(actor, task.id, task.revision, false); }
-                catch (Exception error) { throw new AssertionError(error); }
-            }
-        });
+        db.beforeWebApiUpdate(
+                (sql, args) -> {
+                    if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")
+                            && !sql.contains("FROM user")
+                            && (AutomationStore.TASK_PREFIX + task.id).equals(args[3])
+                            && AutomationStore.JSON.fromJson(args[0].toString(), StoredTask.class)
+                                            .activeRun
+                                    == null
+                            && paused.compareAndSet(false, true)) {
+                        try {
+                            service.setEnabled(actor, task.id, task.revision, false);
+                        } catch (Exception error) {
+                            throw new AssertionError(error);
+                        }
+                    }
+                });
         now.addAndGet(1000);
         assertEquals(1, engine().tick("internal", 60000).executed);
         assertTrue(paused.get());
@@ -302,25 +390,32 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void expiredRunBecomesUncertainAndCannotOverwriteRecoveryWithLateSuccess() throws Exception {
+    public void expiredRunBecomesUncertainAndCannotOverwriteRecoveryWithLateSuccess()
+            throws Exception {
         StoredTask task = service.save(actor, plan("interval"));
         now.addAndGet(1000);
-        action = () -> {
-            now.addAndGet(40000);
-            engine().tick("external", 60000);
-        };
+        action =
+                () -> {
+                    now.addAndGet(40000);
+                    engine().tick("external", 60000);
+                };
         assertThrows(IllegalStateException.class, () -> engine().tick("internal", 60000));
         assertEquals("uncertain", store.task(task.id).value.lastStatus);
         assertEquals("uncertain", service.runs(actor, task.id, 20, 0).get(0).status);
         assertEquals(0, engine().tick("internal", 60000).executed);
         assertEquals(1, calls.get());
-        assertThrows(IllegalStateException.class, () -> service.setEnabled(actor, task.id, task.revision, true));
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.setEnabled(actor, task.id, task.revision, true));
     }
 
     @Test
     public void unknownOutcomeDoesNotAutomaticallyRepeatSideEffects() throws Exception {
         StoredTask task = service.save(actor, plan("interval"));
-        action = () -> { throw new IllegalStateException("An external action may have completed"); };
+        action =
+                () -> {
+                    throw new IllegalStateException("An external action may have completed");
+                };
         now.addAndGet(1000);
         assertEquals(1, engine().tick("external", 60000).failed);
         now.addAndGet(300000);
@@ -334,10 +429,15 @@ public class AutomationEngineTest {
     @Test
     public void reviewingAndSavingAnUncertainPlanAllowsManualExecutionAgain() throws Exception {
         StoredTask task = service.save(actor, plan("interval"));
-        action = () -> {throw new IllegalStateException("unknown outcome");};
+        action =
+                () -> {
+                    throw new IllegalStateException("unknown outcome");
+                };
         now.addAndGet(1000);
         engine().tick("external", 60000);
-        assertThrows(IllegalStateException.class, () -> engine().runNow(actor, task.id, task.revision, 60000));
+        assertThrows(
+                IllegalStateException.class,
+                () -> engine().runNow(actor, task.id, task.revision, 60000));
         var reviewed = plan("interval");
         reviewed.id = task.id;
         reviewed.revision = task.revision;
@@ -356,7 +456,8 @@ public class AutomationEngineTest {
         StoredTask task = service.save(actor, plan);
         assertEquals(List.of("system.manage"), task.executionActions);
         AutomationModels.Plan update = plan("once");
-        update.id = task.id; update.revision = task.revision;
+        update.id = task.id;
+        update.revision = task.revision;
         service.save(actor, update);
         assertThrows(IllegalStateException.class, () -> service.save(actor, update));
     }
@@ -379,11 +480,13 @@ public class AutomationEngineTest {
         if (!"web-api".equals(backend)) return;
         StoredTask task = service.save(actor, plan("once"));
         AtomicBoolean changed = new AtomicBoolean();
-        db.beforeWebApiUpdate((sql, args) -> {
-            if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?") && changed.compareAndSet(false, true)) {
-                db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
-            }
-        });
+        db.beforeWebApiUpdate(
+                (sql, args) -> {
+                    if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")
+                            && changed.compareAndSet(false, true)) {
+                        db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
+                    }
+                });
         now.addAndGet(1000);
         assertEquals(0, engine().tick("external", 60000).executed);
         assertEquals(0, calls.get());

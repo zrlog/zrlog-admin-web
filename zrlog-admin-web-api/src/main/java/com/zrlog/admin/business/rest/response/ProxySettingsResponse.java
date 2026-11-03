@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.util.NetworkProxy;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -37,7 +36,10 @@ public class ProxySettingsResponse {
         Path file = NetworkProxy.configFile();
         Path parent = file.toAbsolutePath().getParent();
         while (parent != null && !Files.exists(parent)) parent = parent.getParent();
-        writable = parent != null && Files.isWritable(parent) && (!Files.exists(file) || Files.isWritable(file));
+        writable =
+                parent != null
+                        && Files.isWritable(parent)
+                        && (!Files.exists(file) || Files.isWritable(file));
     }
 
     public String getUrl() {

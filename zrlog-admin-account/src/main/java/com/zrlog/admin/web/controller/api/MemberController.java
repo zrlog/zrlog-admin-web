@@ -18,7 +18,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 
 public class MemberController extends BaseController {
@@ -46,7 +45,8 @@ public class MemberController extends BaseController {
     }
 
     private void audit(AdminAuditAction action) {
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), action);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), action);
     }
 
     @ResponseBody
@@ -59,17 +59,24 @@ public class MemberController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.MEMBER_MANAGE, conditional = AccountAction.ADMIN_APPOINT, descriptionKey = "member.create")
+    @RequiresAction(
+            value = AccountAction.MEMBER_MANAGE,
+            conditional = AccountAction.ADMIN_APPOINT,
+            descriptionKey = "member.create")
     public ApiStandardResponse<Member> create() throws SQLException {
         authorizer.requireAdminOrigin(request);
-        Member result = service.create(requestIdentity.current(), getRequestBodyWithNullCheck(Create.class));
+        Member result =
+                service.create(
+                        requestIdentity.current(), getRequestBodyWithNullCheck(Create.class));
         audit(AdminAuditAction.UPDATE_MEMBER);
         return new ApiStandardResponse<>(result);
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.OWNERSHIP_TRANSFER, descriptionKey = "member.transferOwnership")
+    @RequiresAction(
+            value = AccountAction.OWNERSHIP_TRANSFER,
+            descriptionKey = "member.transferOwnership")
     public ApiStandardResponse<Boolean> transfer() throws SQLException {
         authorizer.requireAdminOrigin(request);
         service.transfer(requestIdentity.current(), getRequestBodyWithNullCheck(Transfer.class));
@@ -79,10 +86,15 @@ public class MemberController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.MEMBER_MANAGE, conditional = AccountAction.ADMIN_APPOINT, descriptionKey = "member.update")
+    @RequiresAction(
+            value = AccountAction.MEMBER_MANAGE,
+            conditional = AccountAction.ADMIN_APPOINT,
+            descriptionKey = "member.update")
     public ApiStandardResponse<Member> update() throws SQLException {
         authorizer.requireAdminOrigin(request);
-        Member result = service.update(requestIdentity.current(), getRequestBodyWithNullCheck(Update.class));
+        Member result =
+                service.update(
+                        requestIdentity.current(), getRequestBodyWithNullCheck(Update.class));
         audit(AdminAuditAction.UPDATE_MEMBER);
         return new ApiStandardResponse<>(result);
     }

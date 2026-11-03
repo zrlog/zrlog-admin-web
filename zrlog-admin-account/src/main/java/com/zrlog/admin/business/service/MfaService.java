@@ -3,23 +3,23 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.exception.InvalidMfaCodeException;
 import com.zrlog.admin.business.exception.MfaCodeRequiredException;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.response.MfaStatusResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.util.MfaUtils;
 import com.zrlog.data.repository.UserRepository;
+import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
-import com.zrlog.model.User;
-import com.zrlog.admin.business.exception.PermissionErrorException;
 import java.util.Objects;
 
 @Singleton
 public class MfaService {
     private final jakarta.inject.Provider<UserRepository> userProvider;
+
     @Inject
     public MfaService(jakarta.inject.Provider<UserRepository> userProvider) {
         this.userProvider = userProvider;
@@ -36,13 +36,16 @@ public class MfaService {
         response.setSecret(secret);
         response.setIssuer(StringUtils.isEmpty(issuer) ? "ZrLog Admin" : issuer);
         response.setAccountName(userName);
-        response.setOtpauthUrl(enabled || StringUtils.isEmpty(secret)
-                ? ""
-                : MfaUtils.buildOtpAuthUrl(response.getIssuer(), response.getAccountName(), secret));
+        response.setOtpauthUrl(
+                enabled || StringUtils.isEmpty(secret)
+                        ? ""
+                        : MfaUtils.buildOtpAuthUrl(
+                                response.getIssuer(), response.getAccountName(), secret));
         return response;
     }
 
-    public UpdateRecordResponse enableMfa(int userId, UpdateMfaRequest request) throws SQLException {
+    public UpdateRecordResponse enableMfa(int userId, UpdateMfaRequest request)
+            throws SQLException {
         User user = loadUser(userId);
         String secret = getOrCreateMfaSecret(user);
         if (!MfaUtils.verifyCode(secret, request.getCode())) {
@@ -54,7 +57,8 @@ public class MfaService {
         return response;
     }
 
-    public UpdateRecordResponse disableMfa(int userId, UpdateMfaRequest request) throws SQLException {
+    public UpdateRecordResponse disableMfa(int userId, UpdateMfaRequest request)
+            throws SQLException {
         User user = loadUser(userId);
         if (!getMfaEnabled(user)) {
             UpdateRecordResponse response = new UpdateRecordResponse(true);

@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.type;
 
 public enum AdminAuditAction {
-
     CONFIGURE_ASSISTANT_TASK("admin.audit.action.configureAssistantTask", "system"),
     ENABLE_ASSISTANT_TASK("admin.audit.action.enableAssistantTask", "system"),
     PAUSE_ASSISTANT_TASK("admin.audit.action.pauseAssistantTask", "system"),

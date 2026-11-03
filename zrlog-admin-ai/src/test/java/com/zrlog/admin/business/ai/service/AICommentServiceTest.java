@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hibegin.http.HttpMethod;
@@ -15,13 +17,10 @@ import com.zrlog.admin.util.AiNativeImageUtils;
 import com.zrlog.admin.web.AIWebSetup;
 import com.zrlog.admin.web.controller.ai.AICommentController;
 import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
 import java.net.http.HttpRequest;
 import java.time.Duration;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AICommentServiceTest {
     @Test
@@ -58,11 +57,20 @@ public class AICommentServiceTest {
     @Test
     public void rejectsInvalidResultsAndNeverSuggestsReplyingToSpam() {
         AICommentService service = new AICommentService(AIServiceDependencies.config(null));
-        for (String invalid : new String[]{"not json", "{}", "null", "[]", "{\"verdict\":true,\"reason\":\"ok\",\"reply\":\"hi\"}",
-                "{\"verdict\":\"publish\",\"reason\":\"ok\",\"reply\":\"hi\"}"}) {
+        for (String invalid :
+                new String[] {
+                    "not json",
+                    "{}",
+                    "null",
+                    "[]",
+                    "{\"verdict\":true,\"reason\":\"ok\",\"reply\":\"hi\"}",
+                    "{\"verdict\":\"publish\",\"reason\":\"ok\",\"reply\":\"hi\"}"
+                }) {
             assertThrows(AIResponseException.class, () -> service.parse(invalid));
         }
-        AnalyzeCommentResponse response = service.parse("{\"verdict\":\"spam\",\"reason\":\"广告\",\"reply\":\"malicious reply\"}");
+        AnalyzeCommentResponse response =
+                service.parse(
+                        "{\"verdict\":\"spam\",\"reason\":\"广告\",\"reply\":\"malicious reply\"}");
         assertEquals("", response.getReply());
     }
 
@@ -88,7 +96,10 @@ public class AICommentServiceTest {
     public void registersInternalRouteAndNativePromptResources() throws Exception {
         ServerConfig config = new ServerConfig();
         new AIWebSetup(config).setup();
-        assertEquals(AICommentController.class.getMethod("analyze"), config.getRouter().getMethod("/api/admin/internal/ai/comment/analyze", HttpMethod.POST));
+        assertEquals(
+                AICommentController.class.getMethod("analyze"),
+                config.getRouter()
+                        .getMethod("/api/admin/internal/ai/comment/analyze", HttpMethod.POST));
         assertTrue(AiNativeImageUtils.resources().contains("/ai/comment-review/prompt_zh_CN.md"));
         assertNotNull(getClass().getResource("/ai/comment-review/prompt_zh_CN.md"));
         assertNotNull(getClass().getResource("/ai/comment-review/prompt_en_US.md"));

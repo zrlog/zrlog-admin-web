@@ -6,7 +6,6 @@ import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.service.UpgradeNoticeService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +21,7 @@ public class MessageCenterService {
     private final WebhookService webhookService;
     private final MessageCenterOperationService operationService;
     private final MessageCenterStateService messageCenterStateService;
+
     @Inject
     public MessageCenterService(
             UpgradeNoticeService upgradeNoticeService,
@@ -64,8 +64,10 @@ public class MessageCenterService {
         if (storedUpgradeNotice == null || storedUpgradeNotice.getVersion() == null) {
             return null;
         }
-        CheckVersionResponse checkVersionResponse = upgradeNoticeService.buildResponse(storedUpgradeNotice.getVersion());
-        if (!Boolean.TRUE.equals(checkVersionResponse.getUpgrade()) || checkVersionResponse.getVersion() == null) {
+        CheckVersionResponse checkVersionResponse =
+                upgradeNoticeService.buildResponse(storedUpgradeNotice.getVersion());
+        if (!Boolean.TRUE.equals(checkVersionResponse.getUpgrade())
+                || checkVersionResponse.getVersion() == null) {
             upgradeNoticeService.clearStoredUpgradeNotice();
             return null;
         }
@@ -74,8 +76,8 @@ public class MessageCenterService {
                 VERSION_UPDATE_NOTICE_TYPE,
                 COMMENT_NOTICE_STATUS,
                 storedUpgradeNotice.getUpdatedAt(),
-                MessageCenterNoticeResponse.versionUpdatePayload(checkVersionResponse.getVersion())
-        );
+                MessageCenterNoticeResponse.versionUpdatePayload(
+                        checkVersionResponse.getVersion()));
     }
 
     private MessageCenterNoticeResponse getUnreadCommentNotice() throws SQLException {
@@ -88,8 +90,6 @@ public class MessageCenterService {
                 COMMENT_NOTICE_TYPE,
                 COMMENT_NOTICE_STATUS,
                 System.currentTimeMillis(),
-                MessageCenterNoticeResponse.unreadCommentPayload(unreadCount)
-        );
-
+                MessageCenterNoticeResponse.unreadCommentPayload(unreadCount));
     }
 }

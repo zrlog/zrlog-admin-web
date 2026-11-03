@@ -5,8 +5,7 @@ public class PublishCheckToolPayload {
     private String tool;
     private Object payload;
 
-    public PublishCheckToolPayload() {
-    }
+    public PublishCheckToolPayload() {}
 
     public PublishCheckToolPayload(String tool, Object payload) {
         this.tool = tool;

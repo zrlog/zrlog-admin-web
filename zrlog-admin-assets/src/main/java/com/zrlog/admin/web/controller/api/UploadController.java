@@ -14,7 +14,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -41,7 +40,9 @@ public class UploadController extends Controller {
     public void resource() throws IOException {
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("Content-Type", "application/octet-stream");
-        try (java.io.InputStream input = uploadService.openTemporaryResource(requestIdentity.current(), request.getParaToStr("path"))) {
+        try (java.io.InputStream input =
+                uploadService.openTemporaryResource(
+                        requestIdentity.current(), request.getParaToStr("path"))) {
             response.write(input);
         } catch (java.io.FileNotFoundException missing) {
             response.renderCode(404);
@@ -67,9 +68,14 @@ public class UploadController extends Controller {
         if (imgFile == null || !imgFile.getFile().exists()) {
             throw new ArgsException("imgFile");
         }
-        return new ApiStandardResponse<>(uploadService.saveUploadedFile(
-                requestIdentity.current(), imgFile, request.getParaToStr("dir"), request.getParaToStr("name"),
-                Boolean.parseBoolean(request.getParaToStr("temporary", "false")),
-                getRequest(), AdminTokenThreadLocal.getUser()));
+        return new ApiStandardResponse<>(
+                uploadService.saveUploadedFile(
+                        requestIdentity.current(),
+                        imgFile,
+                        request.getParaToStr("dir"),
+                        request.getParaToStr("name"),
+                        Boolean.parseBoolean(request.getParaToStr("temporary", "false")),
+                        getRequest(),
+                        AdminTokenThreadLocal.getUser()));
     }
 }

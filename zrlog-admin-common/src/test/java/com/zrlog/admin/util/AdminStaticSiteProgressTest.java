@@ -1,5 +1,7 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.assertEquals;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
@@ -9,10 +11,6 @@ import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,13 +20,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.assertEquals;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class AdminStaticSiteProgressTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
     private com.zrlog.common.ZrLogConfig applicationConfig;
 
     @Test
@@ -42,12 +40,18 @@ public class AdminStaticSiteProgressTest {
         adminStates.put("/admin.html", StaticSitePlugin.HandleState.HANDLED);
         {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root").getAbsolutePath());
-            applicationConfig = new StaticPluginConfig(List.of(
-                    new FakeStaticSitePlugin(StaticSiteType.BLOG, blogStates),
-                    new FakeStaticSitePlugin(StaticSiteType.ADMIN, adminStates)
-            ));
+            applicationConfig =
+                    new StaticPluginConfig(
+                            List.of(
+                                    new FakeStaticSitePlugin(StaticSiteType.BLOG, blogStates),
+                                    new FakeStaticSitePlugin(StaticSiteType.ADMIN, adminStates)));
 
-            StaticSiteProgressResponse blogSnapshot = new AdminStaticSiteProgress(() -> applicationConfig.getPluginsByClazz(StaticSitePlugin.class)).snapshot(StaticSiteType.BLOG);
+            StaticSiteProgressResponse blogSnapshot =
+                    new AdminStaticSiteProgress(
+                                    () ->
+                                            applicationConfig.getPluginsByClazz(
+                                                    StaticSitePlugin.class))
+                            .snapshot(StaticSiteType.BLOG);
             assertEquals(4, blogSnapshot.getTotal());
             assertEquals(1, blogSnapshot.getHandled());
             assertEquals(1, blogSnapshot.getHanding());
@@ -56,7 +60,11 @@ public class AdminStaticSiteProgressTest {
             assertEquals(List.of("BLOG"), blogSnapshot.getSiteTypes());
 
             StaticSiteProgressResponse allSnapshot =
-                    new AdminStaticSiteProgress(() -> applicationConfig.getPluginsByClazz(StaticSitePlugin.class)).snapshot(List.of(StaticSiteType.BLOG, StaticSiteType.ADMIN));
+                    new AdminStaticSiteProgress(
+                                    () ->
+                                            applicationConfig.getPluginsByClazz(
+                                                    StaticSitePlugin.class))
+                            .snapshot(List.of(StaticSiteType.BLOG, StaticSiteType.ADMIN));
             assertEquals(5, allSnapshot.getTotal());
             assertEquals(2, allSnapshot.getHandled());
             assertEquals(List.of("BLOG", "ADMIN"), allSnapshot.getSiteTypes());
@@ -91,10 +99,12 @@ public class AdminStaticSiteProgressTest {
     }
 
     private static class FakeStaticSitePlugin implements StaticSitePlugin {
-        private final com.zrlog.common.vo.PublicWebSiteInfo site = new com.zrlog.common.vo.PublicWebSiteInfo();
+        private final com.zrlog.common.vo.PublicWebSiteInfo site =
+                new com.zrlog.common.vo.PublicWebSiteInfo();
         private final StaticSiteType type;
         private final Map<String, HandleState> stateMap;
         private final Lock lock = new ReentrantLock();
+
         FakeStaticSitePlugin(StaticSiteType type, Map<String, HandleState> stateMap) {
             this.type = type;
             this.stateMap = stateMap;

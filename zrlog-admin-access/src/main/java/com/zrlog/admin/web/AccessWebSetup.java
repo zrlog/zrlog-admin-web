@@ -19,7 +19,6 @@ import com.zrlog.data.di.DataComponent;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSiteInfoProvider;
-
 import java.util.List;
 
 public class AccessWebSetup implements WebSetup {
@@ -44,8 +43,8 @@ public class AccessWebSetup implements WebSetup {
                                                 r.get(AccountComponent.class),
                                                 () ->
                                                         context.getZrLogConfig()
-                                                                .getWebSetup(
-                                                                        McpWebSetup.class)
+                                                                        .getWebSetup(
+                                                                                McpWebSetup.class)
                                                                 != null,
                                                 () -> r.get(AdminActionDispatcher.class),
                                                 () -> r.get(ContentToolFactory.class),
@@ -59,7 +58,7 @@ public class AccessWebSetup implements WebSetup {
                                                             provider == null
                                                                     ? null
                                                                     : provider
-                                                                    .getPublicWebSiteInfo();
+                                                                            .getPublicWebSiteInfo();
                                                     return site == null ? "" : site.getTitle();
                                                 }))
                 .singleton(OAuthService.class, r -> r.get(AccessComponent.class).oauth())
@@ -75,16 +74,34 @@ public class AccessWebSetup implements WebSetup {
                 .controller(
                         OAuthAdminController.class,
                         (r, request, response) -> r.get(AccessComponent.class).oauthController());
-        List<Class<? extends Interceptor>> interceptors = context.getZrLogConfig().getServerConfig().getInterceptors();
+        List<Class<? extends Interceptor>> interceptors =
+                context.getZrLogConfig().getServerConfig().getInterceptors();
         interceptors.add(0, OAuthInterceptor.class);
-        interceptors.add(interceptors.indexOf(AdminCrossOriginInterceptor.class) + 1, BearerTokenInterceptor.class);
+        interceptors.add(
+                interceptors.indexOf(AdminCrossOriginInterceptor.class) + 1,
+                BearerTokenInterceptor.class);
         Router router = context.getZrLogConfig().getServerConfig().getRouter();
         router.addMapper("/api/admin/oauth", OAuthAdminController.class);
         router.addMapper("/api/admin/oauth/authorize", OAuthAdminController.class, "consent");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/webhook", WebhookController.class, "config");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/webhook", WebhookController.class, "config");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/webhook/token", WebhookController.class, "token");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/webhook/token/revoke", WebhookController.class, "revokeToken");
-        router.addMapper("/api/webhook/message-center/notice", WebhookController.class, "messageCenterNotice");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/webhook",
+                WebhookController.class,
+                "config");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/webhook",
+                WebhookController.class,
+                "config");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/webhook/token",
+                WebhookController.class,
+                "token");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/webhook/token/revoke",
+                WebhookController.class,
+                "revokeToken");
+        router.addMapper(
+                "/api/webhook/message-center/notice",
+                WebhookController.class,
+                "messageCenterNotice");
     }
 }

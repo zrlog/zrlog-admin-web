@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -38,8 +40,6 @@ import com.zrlog.common.vo.I18nVO;
 import com.zrlog.data.di.DaggerDataComponent;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
-import org.junit.Test;
-
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.net.URI;
@@ -49,8 +49,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class McpInterceptorTest {
 
@@ -58,29 +57,41 @@ public class McpInterceptorTest {
 
     private static void assertToolError(JsonObject result, String message) {
         assertTrue(result.get("isError").getAsBoolean());
-        assertEquals(message, result.getAsJsonObject("structuredContent").get("error").getAsString());
-        assertEquals(result.get("structuredContent"), JsonParser.parseString(result.getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString()));
+        assertEquals(
+                message, result.getAsJsonObject("structuredContent").get("error").getAsString());
+        assertEquals(
+                result.get("structuredContent"),
+                JsonParser.parseString(
+                        result.getAsJsonArray("content")
+                                .get(0)
+                                .getAsJsonObject()
+                                .get("text")
+                                .getAsString()));
     }
 
     private static void login(int userId) throws Exception {
         AdminTokenVO token = new AdminTokenVO();
         token.setUserId(userId);
         token.setSessionId("session-" + userId);
-        var setter = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
+        var setter =
+                AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
         setter.setAccessible(true);
         AdminTokenThreadLocal.remove();
         setter.invoke(null, token);
     }
 
     @Test
-    public void followsTokenOwnerAcrossAccountsAndPreferenceChangesWithoutBrowserSession() throws Exception {
+    public void followsTokenOwnerAcrossAccountsAndPreferenceChangesWithoutBrowserSession()
+            throws Exception {
         I18nVO previous = I18nUtil.threadLocal.get();
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             db.putWebsite("language", "en_US");
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"zh_CN\"}");
             String chineseToken = personalToken(db.dataSource());
-            db.execute("insert into user(userId,userName,role,preferences) values(2,'other','admin',?)", "{\"language\":\"en_US\"}");
+            db.execute(
+                    "insert into user(userId,userName,role,preferences) values(2,'other','admin',?)",
+                    "{\"language\":\"en_US\"}");
             login(2);
             String englishToken = personalToken(db.dataSource());
             // An unrelated browser identity and locale must not override the Bearer token owner.
@@ -119,29 +130,75 @@ public class McpInterceptorTest {
     }
 
     @Test
-    public void oauthUsesTheSameLanguageForInstructionsErrorsAndToolsWithoutTranslatingArticles() throws Exception {
+    public void oauthUsesTheSameLanguageForInstructionsErrorsAndToolsWithoutTranslatingArticles()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             String token = oauthToken(db.dataSource());
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"zh_CN\"}");
             AdminTokenThreadLocal.remove();
             assertTitle(token, "搜索文章", db.dataSource());
-            JsonObject initialize = call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{}}", db.dataSource()).result();
-            assertTrue(initialize.get("instructions").getAsString().startsWith("ZrLog Test\n\n按授权搜索和读取文章"));
-            assertEquals("ZrLog Test", initialize.getAsJsonObject("serverInfo").get("title").getAsString());
+            JsonObject initialize =
+                    call(
+                                    token,
+                                    "initialize",
+                                    "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{}}",
+                                    db.dataSource())
+                            .result();
+            assertTrue(
+                    initialize
+                            .get("instructions")
+                            .getAsString()
+                            .startsWith("ZrLog Test\n\n按授权搜索和读取文章"));
+            assertEquals(
+                    "ZrLog Test",
+                    initialize.getAsJsonObject("serverInfo").get("title").getAsString());
             Recorder unknown = call(token, "tools/call", "{\"name\":\"unknown\"}", db.dataSource());
             assertEquals(-32602, unknown.body.getAsJsonObject("error").get("code").getAsInt());
-            assertEquals("未知工具", unknown.body.getAsJsonObject("error").get("message").getAsString());
-            assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}", db.dataSource()).result(), "文章不可用");
-            assertToolError(call(token, "tools/call", "{\"name\":\"search_articles\",\"arguments\":{\"limit\":11}}", db.dataSource()).result(), "知识库工具参数无效");
-            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(1,1,1,?,?,false,false)",
-                    "Original English title", "Original English content");
-            JsonObject article = call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":1}}", db.dataSource()).result().getAsJsonObject("structuredContent");
+            assertEquals(
+                    "未知工具", unknown.body.getAsJsonObject("error").get("message").getAsString());
+            assertToolError(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}",
+                                    db.dataSource())
+                            .result(),
+                    "文章不可用");
+            assertToolError(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"search_articles\",\"arguments\":{\"limit\":11}}",
+                                    db.dataSource())
+                            .result(),
+                    "知识库工具参数无效");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(1,1,1,?,?,false,false)",
+                    "Original English title",
+                    "Original English content");
+            JsonObject article =
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"read_article\",\"arguments\":{\"id\":1}}",
+                                    db.dataSource())
+                            .result()
+                            .getAsJsonObject("structuredContent");
             assertEquals("Original English content", article.get("content").getAsString());
-            assertEquals("Original English title", article.getAsJsonObject("source").get("title").getAsString());
+            assertEquals(
+                    "Original English title",
+                    article.getAsJsonObject("source").get("title").getAsString());
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
             assertTitle(token, "Search articles", db.dataSource());
-            assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}", db.dataSource()).result(), "Article unavailable");
+            assertToolError(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}",
+                                    db.dataSource())
+                            .result(),
+                    "Article unavailable");
         }
     }
 
@@ -153,53 +210,122 @@ public class McpInterceptorTest {
             PersonalTokenModels.Create input = new PersonalTokenModels.Create();
             input.name = "writer";
             input.permissionMode = "custom";
-            input.permissions = List.of("article.read", "article.create", "article.update", "article.publish", "taxonomy.read");
+            input.permissions =
+                    List.of(
+                            "article.read",
+                            "article.create",
+                            "article.update",
+                            "article.publish",
+                            "taxonomy.read");
             String token =
                     new PersonalAccessTokenService(
-                            new OAuthService(
-                                    ApplicationServicesFixture.backend(db.config())
-                                            ::configured,
-                                    ApplicationServicesFixture.available(
-                                            db.config(), McpWebSetup.class),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .permissions(), AccountServicesFixture.component(db.dataSource())
-                                    .identities(),
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    tokenResource ->
-                                            new PersonalAccessTokenService(
-                                                    tokenResource,
-                                                    AccountServicesFixture
-                                                            .component(db.dataSource())
-                                                            .identities(), AccountServicesFixture
-                                                    .component(db.dataSource())
-                                                    .permissions(),
-                                                    AccountServicesFixture
-                                                            .component(db.dataSource())
-                                                            .security()),
-                                    AccountServicesFixture.component(db.dataSource()).backend())
-                                    .mcpResource(),
-                            AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).security())
-                            .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), input)
+                                    new OAuthService(
+                                                    ApplicationServicesFixture.backend(db.config())
+                                                            ::configured,
+                                                    ApplicationServicesFixture.available(
+                                                            db.config(), McpWebSetup.class),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .permissions(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .identities(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .security(),
+                                                    tokenResource ->
+                                                            new PersonalAccessTokenService(
+                                                                    tokenResource,
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .identities(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .security()),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .backend())
+                                            .mcpResource(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security())
+                            .create(
+                                    new GrantAuthority(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity()
+                                                    .current(),
+                                            !com.zrlog.admin.business.security.DelegatedAccess
+                                                    .restricted()),
+                                    input)
                             .token;
             AdminTokenThreadLocal.remove();
-            JsonObject created = call(token, "tools/call", "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\"" + "a".repeat(20000) + "\"}}", db.dataSource()).result();
+            JsonObject created =
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\""
+                                            + "a".repeat(20000)
+                                            + "\"}}",
+                                    db.dataSource())
+                            .result();
             assertFalse(created.toString(), created.get("isError").getAsBoolean());
             long id = created.getAsJsonObject("structuredContent").get("id").getAsLong();
-            JsonObject detail = call(token, "tools/call", "{\"name\":\"get_article\",\"arguments\":{\"id\":" + id + "}}", db.dataSource()).result();
+            JsonObject detail =
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"get_article\",\"arguments\":{\"id\":" + id + "}}",
+                                    db.dataSource())
+                            .result();
             assertEquals(0, detail.getAsJsonObject("structuredContent").get("version").getAsInt());
-            JsonObject published = call(token, "tools/call", "{\"name\":\"publish_article\",\"arguments\":{\"id\":" + id + ",\"version\":0}}", db.dataSource()).result();
+            JsonObject published =
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"publish_article\",\"arguments\":{\"id\":"
+                                            + id
+                                            + ",\"version\":0}}",
+                                    db.dataSource())
+                            .result();
             assertFalse(published.toString(), published.get("isError").getAsBoolean());
-            assertEquals("published", published.getAsJsonObject("structuredContent").get("status").getAsString());
+            assertEquals(
+                    "published",
+                    published.getAsJsonObject("structuredContent").get("status").getAsString());
             assertNull(AdminTokenThreadLocal.getUser());
             login(1);
             String taxonomy = oauthToken("taxonomy:read", db.dataSource());
             AdminTokenThreadLocal.remove();
-            JsonArray tools = call(taxonomy, "tools/list", "{}", db.dataSource()).result().getAsJsonArray("tools");
+            JsonArray tools =
+                    call(taxonomy, "tools/list", "{}", db.dataSource())
+                            .result()
+                            .getAsJsonArray("tools");
             assertEquals(2, tools.size());
-            assertEquals("list_categories", tools.get(0).getAsJsonObject().get("name").getAsString());
-            assertFalse(call(taxonomy, "tools/call", "{\"name\":\"list_categories\",\"arguments\":{}}", db.dataSource()).result().get("isError").getAsBoolean());
-            assertTrue(call(taxonomy, "tools/call", "{\"name\":\"create_article\",\"arguments\":{}}", db.dataSource()).result().get("isError").getAsBoolean());
+            assertEquals(
+                    "list_categories", tools.get(0).getAsJsonObject().get("name").getAsString());
+            assertFalse(
+                    call(
+                                    taxonomy,
+                                    "tools/call",
+                                    "{\"name\":\"list_categories\",\"arguments\":{}}",
+                                    db.dataSource())
+                            .result()
+                            .get("isError")
+                            .getAsBoolean());
+            assertTrue(
+                    call(
+                                    taxonomy,
+                                    "tools/call",
+                                    "{\"name\":\"create_article\",\"arguments\":{}}",
+                                    db.dataSource())
+                            .result()
+                            .get("isError")
+                            .getAsBoolean());
         }
     }
 
@@ -209,15 +335,54 @@ public class McpInterceptorTest {
             applicationConfig = db.config();
             String token = oauthToken("articles:write", db.dataSource());
             db.execute("insert into user(userId,userName,role) values(2,'other','author')");
-            db.execute("insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(10,2,1,'Other','Text',true,false,0)");
-            db.execute("insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(11,1,1,'Live','Text',false,false,0)");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(10,2,1,'Other','Text',true,false,0)");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(11,1,1,'Live','Text',false,false,0)");
             AdminTokenThreadLocal.remove();
-            assertEquals(2, call(token, "tools/list", "{}", db.dataSource()).result().getAsJsonArray("tools").size());
-            assertTrue(call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":10,\"version\":0,\"title\":\"Changed\"}}", db.dataSource()).result().get("isError").getAsBoolean());
-            assertTrue(call(token, "tools/call", "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Denied\",\"typeId\":1,\"status\":\"published\"}}", db.dataSource()).result().get("isError").getAsBoolean());
+            assertEquals(
+                    2,
+                    call(token, "tools/list", "{}", db.dataSource())
+                            .result()
+                            .getAsJsonArray("tools")
+                            .size());
+            assertTrue(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"update_article\",\"arguments\":{\"id\":10,\"version\":0,\"title\":\"Changed\"}}",
+                                    db.dataSource())
+                            .result()
+                            .get("isError")
+                            .getAsBoolean());
+            assertTrue(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Denied\",\"typeId\":1,\"status\":\"published\"}}",
+                                    db.dataSource())
+                            .result()
+                            .get("isError")
+                            .getAsBoolean());
             assertEquals("Other", db.scalar("select title from log where logId=10"));
-            assertTrue(call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"title\":\"Changed\"}}", db.dataSource()).result().get("isError").getAsBoolean());
-            assertTrue(call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"status\":\"draft\"}}", db.dataSource()).result().get("isError").getAsBoolean());
+            assertTrue(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"title\":\"Changed\"}}",
+                                    db.dataSource())
+                            .result()
+                            .get("isError")
+                            .getAsBoolean());
+            assertTrue(
+                    call(
+                                    token,
+                                    "tools/call",
+                                    "{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"status\":\"draft\"}}",
+                                    db.dataSource())
+                            .result()
+                            .get("isError")
+                            .getAsBoolean());
             assertEquals("Live", db.scalar("select title from log where logId=11"));
             assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=11")));
         }
@@ -245,75 +410,155 @@ public class McpInterceptorTest {
                 input.permissionMode = "inherit";
                 token =
                         new PersonalAccessTokenService(
-                                new OAuthService(
-                                        ApplicationServicesFixture.backend(
-                                                db.config())
-                                                ::configured,
-                                        ApplicationServicesFixture.available(
-                                                db.config(), McpWebSetup.class),
+                                        new OAuthService(
+                                                        ApplicationServicesFixture.backend(
+                                                                        db.config())
+                                                                ::configured,
+                                                        ApplicationServicesFixture.available(
+                                                                db.config(), McpWebSetup.class),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .permissions(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .identities(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .security(),
+                                                        tokenResource ->
+                                                                new PersonalAccessTokenService(
+                                                                        tokenResource,
+                                                                        AccountServicesFixture
+                                                                                .component(
+                                                                                        db
+                                                                                                .dataSource())
+                                                                                .identities(),
+                                                                        AccountServicesFixture
+                                                                                .component(
+                                                                                        db
+                                                                                                .dataSource())
+                                                                                .permissions(),
+                                                                        AccountServicesFixture
+                                                                                .component(
+                                                                                        db
+                                                                                                .dataSource())
+                                                                                .security()),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .backend())
+                                                .mcpResource(),
                                         AccountServicesFixture.component(db.dataSource())
-                                                .permissions(), AccountServicesFixture.component(db.dataSource())
-                                        .identities(),
+                                                .identities(),
                                         AccountServicesFixture.component(db.dataSource())
-                                                .security(),
-                                        tokenResource ->
-                                                new PersonalAccessTokenService(
-                                                        tokenResource,
-                                                        AccountServicesFixture
-                                                                .component(db.dataSource())
-                                                                .identities(), AccountServicesFixture
-                                                        .component(db.dataSource())
-                                                        .permissions(),
-                                                        AccountServicesFixture
-                                                                .component(db.dataSource())
-                                                                .security()),
+                                                .permissions(),
                                         AccountServicesFixture.component(db.dataSource())
-                                                .backend())
-                                        .mcpResource(),
-                                AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).security())
-                                .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), input)
+                                                .security())
+                                .create(
+                                        new GrantAuthority(
+                                                AccountServicesFixture.component(db.dataSource())
+                                                        .requestIdentity()
+                                                        .current(),
+                                                !com.zrlog.admin.business.security.DelegatedAccess
+                                                        .restricted()),
+                                        input)
                                 .token;
             }
             AdminTokenThreadLocal.remove();
-            call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}", db.dataSource());
+            call(
+                    token,
+                    "initialize",
+                    "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}",
+                    db.dataSource());
             String[][] clients = {
-                    {"codex/0.42.0-beta.1 (Linux; x86_64)", "Linux", "codex", "0.42.0-beta.1"},
-                    {"openai-mcp/1.0.0", null, "openai-mcp", "1.0.0"},
-                    {"custom-agent", null, "custom-agent", null},
-                    {"zrlogctl/0.1.42 dot/1.2-beta.1", null, "dot", "1.2-beta.1"},
-                    {"zrlogctl/0.1.42 muse", null, "muse", null},
-                    {"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36", "Linux", "Chrome", "146.0.0.0"},
-                    {"client/", null, null, null},
-                    {null, null, null, null},
-                    {"   ", null, null, null}
+                {"codex/0.42.0-beta.1 (Linux; x86_64)", "Linux", "codex", "0.42.0-beta.1"},
+                {"openai-mcp/1.0.0", null, "openai-mcp", "1.0.0"},
+                {"custom-agent", null, "custom-agent", null},
+                {"zrlogctl/0.1.42 dot/1.2-beta.1", null, "dot", "1.2-beta.1"},
+                {"zrlogctl/0.1.42 muse", null, "muse", null},
+                {
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36",
+                    "Linux",
+                    "Chrome",
+                    "146.0.0.0"
+                },
+                {"client/", null, null, null},
+                {null, null, null, null},
+                {"   ", null, null, null}
             };
             for (String[] client : clients) {
-                JsonObject created = call(token, "tools/call", "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Audit article\",\"typeId\":1,\"status\":\"draft\",\"content\":\"Text\"}}", client[0], db.dataSource()).result();
+                JsonObject created =
+                        call(
+                                        token,
+                                        "tools/call",
+                                        "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Audit article\",\"typeId\":1,\"status\":\"draft\",\"content\":\"Text\"}}",
+                                        client[0],
+                                        db.dataSource())
+                                .result();
                 assertFalse(created.toString(), created.get("isError").getAsBoolean());
                 long id = created.getAsJsonObject("structuredContent").get("id").getAsLong();
-                JsonObject updated = call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":" + id + ",\"version\":0,\"title\":\"Updated draft\"}}", client[0], db.dataSource()).result();
+                JsonObject updated =
+                        call(
+                                        token,
+                                        "tools/call",
+                                        "{\"name\":\"update_article\",\"arguments\":{\"id\":"
+                                                + id
+                                                + ",\"version\":0,\"title\":\"Updated draft\"}}",
+                                        client[0],
+                                        db.dataSource())
+                                .result();
                 assertFalse(updated.toString(), updated.get("isError").getAsBoolean());
-                assertEquals("draft", updated.getAsJsonObject("structuredContent").get("status").getAsString());
-                JsonObject published = call(token, "tools/call", "{\"name\":\"publish_article\",\"arguments\":{\"id\":" + id + ",\"version\":1}}", client[0], db.dataSource()).result();
+                assertEquals(
+                        "draft",
+                        updated.getAsJsonObject("structuredContent").get("status").getAsString());
+                JsonObject published =
+                        call(
+                                        token,
+                                        "tools/call",
+                                        "{\"name\":\"publish_article\",\"arguments\":{\"id\":"
+                                                + id
+                                                + ",\"version\":1}}",
+                                        client[0],
+                                        db.dataSource())
+                                .result();
                 assertFalse(published.toString(), published.get("isError").getAsBoolean());
-                assertEquals("published", published.getAsJsonObject("structuredContent").get("status").getAsString());
-                JsonArray audit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
+                assertEquals(
+                        "published",
+                        published.getAsJsonObject("structuredContent").get("status").getAsString());
+                JsonArray audit =
+                        JsonParser.parseString(
+                                        String.valueOf(
+                                                db.scalar(
+                                                        "select value from website where name='admin_audit_log'")))
+                                .getAsJsonArray();
                 for (int index = 0; index < 2; index++) {
                     JsonObject entry = audit.get(index).getAsJsonObject();
-                    assertEquals(index == 0 ? "PUBLISH_ARTICLE" : "CREATE_ARTICLE", entry.get("action").getAsString());
-                    assertEquals(index == 0 ? "Updated draft" : "Audit article", entry.get("content").getAsString());
+                    assertEquals(
+                            index == 0 ? "PUBLISH_ARTICLE" : "CREATE_ARTICLE",
+                            entry.get("action").getAsString());
+                    assertEquals(
+                            index == 0 ? "Updated draft" : "Audit article",
+                            entry.get("content").getAsString());
                     assertEquals(1, entry.get("actorUserId").getAsInt());
                     assertEquals("127.0.0.1", entry.get("ip").getAsString());
                     assertEquals("MCP", entry.get("browser").getAsString());
                     assertEquals(client[1], entry.has("os") ? entry.get("os").getAsString() : null);
                     assertEquals("mcp", entry.get("source").getAsString());
-                    assertEquals(client[2], entry.has("agentName") ? entry.get("agentName").getAsString() : null);
-                    assertEquals(client[3], entry.has("agentVersion") ? entry.get("agentVersion").getAsString() : null);
+                    assertEquals(
+                            client[2],
+                            entry.has("agentName") ? entry.get("agentName").getAsString() : null);
+                    assertEquals(
+                            client[3],
+                            entry.has("agentVersion")
+                                    ? entry.get("agentVersion").getAsString()
+                                    : null);
                 }
                 var displayed =
                         new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
-                                .getRecentLogs(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L)))
+                                .getRecentLogs(
+                                        com.zrlog.data.security.AccountAccess.from(
+                                                new com.zrlog.data.repository.UserRepository(
+                                                                db.dataSource())
+                                                        .loadById(1L)))
                                 .get(0);
                 assertEquals("MCP", displayed.getBrowser());
                 assertEquals(client[2], displayed.getAgentName());
@@ -323,10 +568,19 @@ public class McpInterceptorTest {
         }
     }
 
-    private void assertTitle(String token, String title, DataSourceWrapper testDataSource) throws Exception {
+    private void assertTitle(String token, String title, DataSourceWrapper testDataSource)
+            throws Exception {
         Recorder response = call(token, "tools/list", "{}", testDataSource);
         assertEquals(response.body.toString(), 200, response.status);
-        assertEquals(title, response.result().getAsJsonArray("tools").get(0).getAsJsonObject().getAsJsonObject("annotations").get("title").getAsString());
+        assertEquals(
+                title,
+                response.result()
+                        .getAsJsonArray("tools")
+                        .get(0)
+                        .getAsJsonObject()
+                        .getAsJsonObject("annotations")
+                        .get("title")
+                        .getAsString());
     }
 
     private String personalToken(DataSourceWrapper testDataSource) throws Exception {
@@ -334,26 +588,40 @@ public class McpInterceptorTest {
         request.name = "MCP language test";
         request.scopes = List.of("articles:read");
         return new PersonalAccessTokenService(
-                new OAuthService(
-                        ApplicationServicesFixture.backend(applicationConfig)
-                                ::configured,
-                        ApplicationServicesFixture.available(
-                                applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
-                        AccountServicesFixture.component(testDataSource).security(),
-                        tokenResource ->
-                                new PersonalAccessTokenService(
-                                        tokenResource,
+                        new OAuthService(
+                                        ApplicationServicesFixture.backend(applicationConfig)
+                                                ::configured,
+                                        ApplicationServicesFixture.available(
+                                                applicationConfig, McpWebSetup.class),
                                         AccountServicesFixture.component(testDataSource)
-                                                .identities(), AccountServicesFixture.component(testDataSource)
-                                        .permissions(),
+                                                .permissions(),
                                         AccountServicesFixture.component(testDataSource)
-                                                .security()),
-                        AccountServicesFixture.component(testDataSource).backend())
-                        .mcpResource(),
-                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                AccountServicesFixture.component(testDataSource).security())
-                .create(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), request)
+                                                .identities(),
+                                        AccountServicesFixture.component(testDataSource).security(),
+                                        tokenResource ->
+                                                new PersonalAccessTokenService(
+                                                        tokenResource,
+                                                        AccountServicesFixture.component(
+                                                                        testDataSource)
+                                                                .identities(),
+                                                        AccountServicesFixture.component(
+                                                                        testDataSource)
+                                                                .permissions(),
+                                                        AccountServicesFixture.component(
+                                                                        testDataSource)
+                                                                .security()),
+                                        AccountServicesFixture.component(testDataSource).backend())
+                                .mcpResource(),
+                        AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security())
+                .create(
+                        new GrantAuthority(
+                                AccountServicesFixture.component(testDataSource)
+                                        .requestIdentity()
+                                        .current(),
+                                !com.zrlog.admin.business.security.DelegatedAccess.restricted()),
+                        request)
                 .token;
     }
 
@@ -366,18 +634,28 @@ public class McpInterceptorTest {
                 new OAuthService(
                         ApplicationServicesFixture.backend(applicationConfig)::configured,
                         ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).security(),
                         tokenResource ->
                                 new PersonalAccessTokenService(
                                         tokenResource,
-                                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                                        AccountServicesFixture.component(testDataSource).security()),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .identities(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .permissions(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .security()),
                         AccountServicesFixture.component(testDataSource).backend());
         Client client = new Client();
         client.name = "MCP language test";
         client.redirectUris = List.of("http://127.0.0.1:3000/callback");
-        client = oauth.register(AccountServicesFixture.component(testDataSource).requestIdentity().current(), client);
+        client =
+                oauth.register(
+                        AccountServicesFixture.component(testDataSource)
+                                .requestIdentity()
+                                .current(),
+                        client);
         String verifier = OAuthService.random();
         AuthorizationRequest request = new AuthorizationRequest();
         request.client_id = client.clientId;
@@ -388,8 +666,18 @@ public class McpInterceptorTest {
         request.state = "language-test";
         request.code_challenge = OAuthService.hash(verifier);
         request.code_challenge_method = "S256";
-        String requestId = OAuthInterceptor.parameters(URI.create(oauth.authorize(request)).getRawQuery()).get("request_id");
-        Consent consent = oauth.consent(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), AdminTokenThreadLocal.getUser().getSessionId(), requestId);
+        String requestId =
+                OAuthInterceptor.parameters(URI.create(oauth.authorize(request)).getRawQuery())
+                        .get("request_id");
+        Consent consent =
+                oauth.consent(
+                        new GrantAuthority(
+                                AccountServicesFixture.component(testDataSource)
+                                        .requestIdentity()
+                                        .current(),
+                                !com.zrlog.admin.business.security.DelegatedAccess.restricted()),
+                        AdminTokenThreadLocal.getUser().getSessionId(),
+                        requestId);
         Decision decision = new Decision();
         decision.requestId = requestId;
         decision.csrf = consent.csrf;
@@ -399,20 +687,64 @@ public class McpInterceptorTest {
         exchange.grant_type = "authorization_code";
         exchange.client_id = client.clientId;
         exchange.redirect_uri = request.redirect_uri;
-        exchange.code = OAuthInterceptor.parameters(URI.create(oauth.decide(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), AdminTokenThreadLocal.getUser().getSessionId(), decision).redirectUri).getRawQuery()).get("code");
+        exchange.code =
+                OAuthInterceptor.parameters(
+                                URI.create(
+                                                oauth.decide(
+                                                                new GrantAuthority(
+                                                                        AccountServicesFixture
+                                                                                .component(
+                                                                                        testDataSource)
+                                                                                .requestIdentity()
+                                                                                .current(),
+                                                                        !com.zrlog.admin.business
+                                                                                .security
+                                                                                .DelegatedAccess
+                                                                                .restricted()),
+                                                                AdminTokenThreadLocal.getUser()
+                                                                        .getSessionId(),
+                                                                decision)
+                                                        .redirectUri)
+                                        .getRawQuery())
+                        .get("code");
         exchange.code_verifier = verifier;
         exchange.resource = request.resource;
         return oauth.token(exchange).access_token;
     }
 
-    private Recorder call(String token, String method, String params, DataSourceWrapper testDataSource) throws Exception {
+    private Recorder call(
+            String token, String method, String params, DataSourceWrapper testDataSource)
+            throws Exception {
         return call(token, method, params, null, testDataSource);
     }
 
-    private Recorder call(String token, String method, String params, String userAgent, DataSourceWrapper testDataSource) throws Exception {
-        byte[] body = ("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"" + method + "\",\"params\":" + params + "}").getBytes(StandardCharsets.UTF_8);
-        Map<String, String> headers = new HashMap<>(Map.of("Authorization", "Bearer " + token, "Accept", "application/json, text/event-stream",
-                "Content-Type", "application/json", "Accept-Language", "fr-FR", "MCP-Protocol-Version", "2025-11-25"));
+    private Recorder call(
+            String token,
+            String method,
+            String params,
+            String userAgent,
+            DataSourceWrapper testDataSource)
+            throws Exception {
+        byte[] body =
+                ("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\""
+                                + method
+                                + "\",\"params\":"
+                                + params
+                                + "}")
+                        .getBytes(StandardCharsets.UTF_8);
+        Map<String, String> headers =
+                new HashMap<>(
+                        Map.of(
+                                "Authorization",
+                                "Bearer " + token,
+                                "Accept",
+                                "application/json, text/event-stream",
+                                "Content-Type",
+                                "application/json",
+                                "Accept-Language",
+                                "fr-FR",
+                                "MCP-Protocol-Version",
+                                "2025-11-25"));
         if (userAgent != null) headers.put("User-Agent", userAgent);
         var serverConfig = new ServerConfig();
         var cache = new InMemoryZrLogDatabase.TestCacheService();
@@ -448,17 +780,25 @@ public class McpInterceptorTest {
                                 () -> null,
                                 () -> null,
                                 java.util.Collections::emptyList);
-        var account = DaggerAccountComponent.factory().create(
-                data, shared,
-                () -> true, () -> null, Collections::emptySet,
-                ApplicationServicesFixture.site(applicationConfig), () -> "test",
-                serverConfig::getPort, serverConfig::getContextPath);
+        var account =
+                DaggerAccountComponent.factory()
+                        .create(
+                                data,
+                                shared,
+                                () -> true,
+                                () -> null,
+                                Collections::emptySet,
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                serverConfig::getPort,
+                                serverConfig::getContextPath);
         serverConfig
                 .getBindings()
                 .instance(
                         ContentComponent.class,
                         DaggerContentComponent.factory()
-                                .create(() -> null,
+                                .create(
+                                        () -> null,
                                         data,
                                         shared,
                                         account,
@@ -469,39 +809,53 @@ public class McpInterceptorTest {
                                         ApplicationServicesFixture.publisher(
                                                 cache, applicationConfig),
                                         markdown -> null));
-        new ContentWebSetup(serverConfig)
-                .setup();
-        HttpRequest request = (HttpRequest) Proxy.newProxyInstance(McpInterceptorTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, invoked, args) -> {
-            switch (invoked.getName()) {
-                case "getUri":
-                    return "/mcp";
-                case "getMethod":
-                    return HttpMethod.POST;
-                case "getContextPath":
-                    return "";
-                case "getRemoteHost":
-                    return "127.0.0.1";
-                case "getHeaderMap":
-                    return headers;
-                case "getHeader":
-                    return headers.get(args[0]);
-                case "getRequestBodyByteBuffer":
-                    return ByteBuffer.wrap(body);
-                default:
-                    throw new UnsupportedOperationException(invoked.getName());
-            }
-        });
+        new ContentWebSetup(serverConfig).setup();
+        HttpRequest request =
+                (HttpRequest)
+                        Proxy.newProxyInstance(
+                                McpInterceptorTest.class.getClassLoader(),
+                                new Class[] {HttpRequest.class},
+                                (proxy, invoked, args) -> {
+                                    switch (invoked.getName()) {
+                                        case "getUri":
+                                            return "/mcp";
+                                        case "getMethod":
+                                            return HttpMethod.POST;
+                                        case "getContextPath":
+                                            return "";
+                                        case "getRemoteHost":
+                                            return "127.0.0.1";
+                                        case "getHeaderMap":
+                                            return headers;
+                                        case "getHeader":
+                                            return headers.get(args[0]);
+                                        case "getRequestBodyByteBuffer":
+                                            return ByteBuffer.wrap(body);
+                                        default:
+                                            throw new UnsupportedOperationException(
+                                                    invoked.getName());
+                                    }
+                                });
         Recorder recorder = new Recorder();
-        var interceptor = DaggerAccessComponent.factory().create(
-                data,
-                shared,
-                account,
-                ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
-                () -> {
-                    throw new IllegalStateException("MCP must not use the OAuth dispatcher");
-                },
-                () -> serverConfig.getBindings().build().get(ContentToolFactory.class),
-                ApplicationServicesFixture.siteTitle(applicationConfig)).mcp();
+        var interceptor =
+                DaggerAccessComponent.factory()
+                        .create(
+                                data,
+                                shared,
+                                account,
+                                ApplicationServicesFixture.available(
+                                        applicationConfig, McpWebSetup.class),
+                                () -> {
+                                    throw new IllegalStateException(
+                                            "MCP must not use the OAuth dispatcher");
+                                },
+                                () ->
+                                        serverConfig
+                                                .getBindings()
+                                                .build()
+                                                .get(ContentToolFactory.class),
+                                ApplicationServicesFixture.siteTitle(applicationConfig))
+                        .mcp();
         var config = applicationConfig;
         {
             assertFalse(interceptor.doInterceptor(request, recorder.response()));
@@ -519,14 +873,26 @@ public class McpInterceptorTest {
         }
 
         HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class}, (proxy, method, args) -> {
-                if (method.getName().equals("write")) {
-                    status = (Integer) args[1];
-                    body = JsonParser.parseString(new String(((InputStream) args[0]).readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
-                } else if (method.getName().equals("renderCode")) status = (Integer) args[0];
-                else if (method.getName().equals("addHeader")) headers.put((String) args[0], (String) args[1]);
-                return null;
-            });
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            getClass().getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                if (method.getName().equals("write")) {
+                                    status = (Integer) args[1];
+                                    body =
+                                            JsonParser.parseString(
+                                                            new String(
+                                                                    ((InputStream) args[0])
+                                                                            .readAllBytes(),
+                                                                    StandardCharsets.UTF_8))
+                                                    .getAsJsonObject();
+                                } else if (method.getName().equals("renderCode"))
+                                    status = (Integer) args[0];
+                                else if (method.getName().equals("addHeader"))
+                                    headers.put((String) args[0], (String) args[1]);
+                                return null;
+                            });
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.account.AvatarStorage;
@@ -19,17 +21,13 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.data.repository.UserRepository;
-import org.junit.Test;
-
+import com.zrlog.data.service.UserPreferenceStore;
 import java.util.HashSet;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class UserServiceDatabaseTest {
-
 
     private static LoginRequest loginRequest(String userName, String password) {
         LoginRequest request = new LoginRequest();
@@ -60,7 +58,9 @@ public class UserServiceDatabaseTest {
             assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
             uris.clear();
             uris.add("/api/admin/site-b");
-            assertEquals(java.util.Set.of("/api/admin/site-b"), users.getBasicUserInfo(1, "second").getCacheableApiUris());
+            assertEquals(
+                    java.util.Set.of("/api/admin/site-b"),
+                    users.getBasicUserInfo(1, "second").getCacheableApiUris());
             assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
         }
     }
@@ -69,20 +69,27 @@ public class UserServiceDatabaseTest {
     public void shouldLoginAgainstUserTableAndUpgradeLegacyPasswordHash() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             String submittedPassword = SecurityUtils.md5("secret");
-            db.execute("update user set password=?, secretKey=? where userId=?", submittedPassword, "secret-key", 1);
-            db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\",\"appearance\":{\"theme\":\"desk\"}}");
+            db.execute(
+                    "update user set password=?, secretKey=? where userId=?",
+                    submittedPassword,
+                    "secret-key",
+                    1);
+            db.execute(
+                    "update user set preferences=? where userId=1",
+                    "{\"language\":\"en_US\",\"appearance\":{\"theme\":\"desk\"}}");
             LoginRequest request = new LoginRequest();
             request.setUserName("admin");
             request.setPassword(submittedPassword);
 
             UserLoginDTO login =
                     new UserService(
-                            java.util.Collections::emptySet,
-                            AccountServicesFixture.component(db.dataSource()).mfa(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new AdminUserRepository(db.dataSource()))
+                                    java.util.Collections::emptySet,
+                                    AccountServicesFixture.component(db.dataSource()).mfa(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new AdminUserRepository(db.dataSource()))
                             .login(request);
-            String upgradedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
+            String upgradedPassword =
+                    String.valueOf(db.scalar("select password from user where userId=?", 1));
 
             assertEquals(Integer.valueOf(1), login.getId());
             assertEquals("secret-key", login.getSecretKey());
@@ -98,36 +105,45 @@ public class UserServiceDatabaseTest {
     public void shouldUpdatePasswordUsingRealUserDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             String oldNormalized = SecurityUtils.md5("old-password");
-            db.execute("update user set password=? where userId=?", PasswordHashUtils.hash(oldNormalized), 1);
+            db.execute(
+                    "update user set password=? where userId=?",
+                    PasswordHashUtils.hash(oldNormalized),
+                    1);
             UpdatePasswordRequest request = new UpdatePasswordRequest();
             request.setOldPassword("old-password");
             request.setNewPassword("new-password");
 
             UpdateRecordResponse response =
                     new UserService(
-                            java.util.Collections::emptySet,
-                            AccountServicesFixture.component(db.dataSource()).mfa(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new AdminUserRepository(db.dataSource()))
+                                    java.util.Collections::emptySet,
+                                    AccountServicesFixture.component(db.dataSource()).mfa(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new AdminUserRepository(db.dataSource()))
                             .updatePassword(1, request);
-            String updatedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
+            String updatedPassword =
+                    String.valueOf(db.scalar("select password from user where userId=?", 1));
 
             assertEquals(0, response.getError());
-            assertTrue(PasswordHashUtils.matches(SecurityUtils.md5("new-password"), updatedPassword));
+            assertTrue(
+                    PasswordHashUtils.matches(SecurityUtils.md5("new-password"), updatedPassword));
         }
     }
 
     @Test
     public void shouldLoadUserInfoWithCacheAndMfaStateThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            db.execute("update user set mfaEnabled=?, mfaSecret=? where userId=?", 1, "JBSWY3DPEHPK3PXP", 1);
+            db.execute(
+                    "update user set mfaEnabled=?, mfaSecret=? where userId=?",
+                    1,
+                    "JBSWY3DPEHPK3PXP",
+                    1);
 
             UserInfoResponse response =
                     new UserService(
-                            java.util.Collections::emptySet,
-                            AccountServicesFixture.component(db.dataSource()).mfa(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new AdminUserRepository(db.dataSource()))
+                                    java.util.Collections::emptySet,
+                                    AccountServicesFixture.component(db.dataSource()).mfa(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new AdminUserRepository(db.dataSource()))
                             .getUserInfoWithCache(1, "session-key", db.unitCacheService());
 
             assertEquals("admin", response.getUserName());
@@ -139,12 +155,14 @@ public class UserServiceDatabaseTest {
     }
 
     @Test
-    public void shouldResolveAccountAppearanceWithoutFreezingDefaultsInTheIdentityCache() throws Exception {
+    public void shouldResolveAccountAppearanceWithoutFreezingDefaultsInTheIdentityCache()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
             db.putWebsite("admin_theme", "antd");
             db.putWebsite("admin_darkMode", true);
-            db.execute("update user set preferences=? where userId=1",
+            db.execute(
+                    "update user set preferences=? where userId=1",
                     "{\"language\":\"en_US\",\"appearance\":{\"darkMode\":false}}");
             UserService service =
                     new UserService(
@@ -152,8 +170,10 @@ public class UserServiceDatabaseTest {
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
                             () -> new AdminUserRepository(db.dataSource()));
-            UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
-            UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.unitCacheService());
+            UserInfoResponse owner =
+                    service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
+            UserInfoResponse writer =
+                    service.getUserInfoWithCache(2, "writer-session", db.unitCacheService());
             assertEquals("en_US", owner.getLanguage());
             assertEquals("zh_CN", writer.getLanguage());
             assertEquals("antd", owner.getAppearance().theme);
@@ -170,15 +190,27 @@ public class UserServiceDatabaseTest {
                             .getLanguage());
 
             db.putWebsite("admin_theme", "desk");
-            assertEquals("desk", service.getUserInfoWithCache(1, "owner-session", db.unitCacheService()).getAppearance().theme);
-            new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
-                    new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
-                    .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{}", "appearance");
-            UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
+            assertEquals(
+                    "desk",
+                    service.getUserInfoWithCache(1, "owner-session", db.unitCacheService())
+                            .getAppearance()
+                            .theme);
+            new UserPreferenceService(
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new UserRepository(db.dataSource())))
+                    .updateBody(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .current(),
+                            "{}",
+                            "appearance");
+            UserInfoResponse reset =
+                    service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
             assertEquals("zh_CN", reset.getLanguage());
             assertTrue(reset.getAppearance().darkMode);
             assertEquals("desk", reset.getAppearance().theme);
-            com.google.gson.JsonObject json = new com.google.gson.Gson().toJsonTree(reset).getAsJsonObject();
+            com.google.gson.JsonObject json =
+                    new com.google.gson.Gson().toJsonTree(reset).getAsJsonObject();
             assertEquals("desk", json.getAsJsonObject("appearance").get("theme").getAsString());
             assertFalse(json.has("defaults"));
             assertFalse(json.has("editor"));
@@ -196,9 +228,15 @@ public class UserServiceDatabaseTest {
                             AccountServicesFixture.component(db.dataSource()).preferences(),
                             () -> new AdminUserRepository(db.dataSource()));
 
-            assertThrows(UserNameAndPasswordRequiredException.class, () -> service.login(loginRequest("", "")));
-            assertThrows(UserNameOrPasswordException.class, () -> service.login(loginRequest("missing", "secret")));
-            assertThrows(UserNameOrPasswordException.class, () -> service.login(loginRequest("admin", "bad")));
+            assertThrows(
+                    UserNameAndPasswordRequiredException.class,
+                    () -> service.login(loginRequest("", "")));
+            assertThrows(
+                    UserNameOrPasswordException.class,
+                    () -> service.login(loginRequest("missing", "secret")));
+            assertThrows(
+                    UserNameOrPasswordException.class,
+                    () -> service.login(loginRequest("admin", "bad")));
             assertEquals(1, service.updatePassword(1, null).getError());
 
             UpdatePasswordRequest missingNewPassword = new UpdatePasswordRequest();
@@ -208,7 +246,8 @@ public class UserServiceDatabaseTest {
             UpdatePasswordRequest wrongOldPassword = new UpdatePasswordRequest();
             wrongOldPassword.setOldPassword("wrong");
             wrongOldPassword.setNewPassword("new");
-            assertThrows(OldPasswordException.class, () -> service.updatePassword(1, wrongOldPassword));
+            assertThrows(
+                    OldPasswordException.class, () -> service.updatePassword(1, wrongOldPassword));
         }
     }
 
@@ -229,7 +268,8 @@ public class UserServiceDatabaseTest {
 
             service.update(1, request, null, null);
             UserBasicInfoResponse updated = service.getBasicUserInfo(1, "session-key");
-            Map<String, Object> row = db.queryOne("select userName,email,header from user where userId=?", 1);
+            Map<String, Object> row =
+                    db.queryOne("select userName,email,header from user where userId=?", 1);
 
             assertEquals("admin", before.getUserName());
             assertEquals("admin@example.com", before.getEmail());
@@ -258,13 +298,17 @@ public class UserServiceDatabaseTest {
             UpdateAdminRequest missingBase64Marker = profileRequest("data:image/png,abc");
 
             assertThrows(ArgsException.class, () -> service.update(1, missingComma, null, null));
-            assertThrows(ArgsException.class, () -> service.update(1, missingBase64Marker, null, null));
-            assertEquals("/avatar.png", db.queryOne("select header from user where userId=?", 1).get("header"));
+            assertThrows(
+                    ArgsException.class, () -> service.update(1, missingBase64Marker, null, null));
+            assertEquals(
+                    "/avatar.png",
+                    db.queryOne("select header from user where userId=?", 1).get("header"));
         }
     }
 
     @Test
-    public void profileUsesTheSuppliedAvatarStorageAndRejectsMissingStorageWithoutChangingTheUser() throws Exception {
+    public void profileUsesTheSuppliedAvatarStorageAndRejectsMissingStorageWithoutChangingTheUser()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             {
                 UserService service =
@@ -280,22 +324,25 @@ public class UserServiceDatabaseTest {
                 var storage =
                         new AvatarStorage() {
                             @Override
-                            public void setup() {
-                            }
+                            public void setup() {}
 
                             @Override
                             public String saveAvatar(
                                     byte[] bytes,
                                     String extension,
                                     com.hibegin.http.server.api.HttpRequest request) {
-                                org.junit.Assert.assertArrayEquals(new byte[]{1, 2, 3}, bytes);
+                                org.junit.Assert.assertArrayEquals(new byte[] {1, 2, 3}, bytes);
                                 assertEquals("webp", extension);
                                 return "https://assets.example/avatars/profile.webp";
                             }
                         };
                 service.update(1, input, null, storage);
-                assertEquals("https://assets.example/avatars/profile.webp", service.getBasicUserInfo(1, "session-key").getHeader());
-                assertEquals("https://assets.example/avatars/profile.webp", db.scalar("select header from user where userId=1"));
+                assertEquals(
+                        "https://assets.example/avatars/profile.webp",
+                        service.getBasicUserInfo(1, "session-key").getHeader());
+                assertEquals(
+                        "https://assets.example/avatars/profile.webp",
+                        db.scalar("select header from user where userId=1"));
             }
         }
     }

@@ -5,8 +5,7 @@ public class MessageCenterStatusResponse {
     private long revision;
     private boolean hasUnread;
 
-    public MessageCenterStatusResponse() {
-    }
+    public MessageCenterStatusResponse() {}
 
     public MessageCenterStatusResponse(long revision, boolean hasUnread) {
         this.revision = revision;

@@ -2,12 +2,11 @@ package com.zrlog.admin.business.service;
 
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.automation.*;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
-
 import java.util.List;
 
 public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider {
@@ -16,14 +15,19 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
     private final Provider<WebSiteRepository> websites;
 
     @Inject
-    public TemporaryCleanupTaskProvider(DbFileService files, AccountPermissionService permissions, Provider<WebSiteRepository> websites) {
+    public TemporaryCleanupTaskProvider(
+            DbFileService files,
+            AccountPermissionService permissions,
+            Provider<WebSiteRepository> websites) {
         this.files = files;
         this.permissions = permissions;
         this.websites = websites;
     }
 
     @Override
-    public List<String> types() { return List.of("system.cleanup-temporary"); }
+    public List<String> types() {
+        return List.of("system.cleanup-temporary");
+    }
 
     @Override
     public List<AutomationModels.Definition> definitions() {
@@ -55,25 +59,36 @@ public final class TemporaryCleanupTaskProvider implements ScheduledTaskProvider
     public JsonObject prepare(String type, JsonObject parameters, AccountAccess actor) {
         permissions.require(actor, AccountAction.SYSTEM_MANAGE);
         int days;
-        try { days = parameters.get("retentionDays").getAsBigDecimal().intValueExact(); }
-        catch (RuntimeException error) { throw new IllegalArgumentException("automation.invalidParameters", error); }
-        if (days < 1 || days > 3650) throw new IllegalArgumentException("automation.invalidParameters");
+        try {
+            days = parameters.get("retentionDays").getAsBigDecimal().intValueExact();
+        } catch (RuntimeException error) {
+            throw new IllegalArgumentException("automation.invalidParameters", error);
+        }
+        if (days < 1 || days > 3650)
+            throw new IllegalArgumentException("automation.invalidParameters");
         var normalized = new JsonObject();
         normalized.addProperty("retentionDays", days);
         return normalized;
     }
 
     @Override
-    public AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
+    public AutomationModels.Result execute(
+            String type, JsonObject parameters, TaskExecutionContext context) throws Exception {
         context.checkActive();
         permissions.require(context.actor(), AccountAction.SYSTEM_MANAGE);
         String cursorKey = "assistant.cleanup.cursor:" + parameters.get("retentionDays").getAsInt();
-        Object stored = websites.get().queryFirstObj("SELECT value FROM website WHERE name=?", cursorKey);
-        var batch = files.cleanupTemporary(parameters.get("retentionDays").getAsInt(), stored == null ? "" : stored.toString(), context);
+        Object stored =
+                websites.get().queryFirstObj("SELECT value FROM website WHERE name=?", cursorKey);
+        var batch =
+                files.cleanupTemporary(
+                        parameters.get("retentionDays").getAsInt(),
+                        stored == null ? "" : stored.toString(),
+                        context);
         context.checkActive();
         websites.get().updateByKV(cursorKey, batch.cursor);
         var result = AutomationModels.Result.success("admin.assistant.cleanup.success.completed");
-        result.messageArguments = List.of(Integer.toString(batch.removed), Integer.toString(batch.scanned));
+        result.messageArguments =
+                List.of(Integer.toString(batch.removed), Integer.toString(batch.scanned));
         return result;
     }
 }

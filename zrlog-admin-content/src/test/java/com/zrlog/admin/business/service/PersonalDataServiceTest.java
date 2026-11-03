@@ -1,17 +1,16 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.repository.CommentRepository;
 import com.zrlog.data.repository.UserRepository;
-import org.junit.Test;
-
 import java.sql.Timestamp;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class PersonalDataServiceTest {
 
@@ -21,25 +20,53 @@ public class PersonalDataServiceTest {
         return request;
     }
 
-    private static void insertComment(InMemoryZrLogDatabase db, int id, String comment, String mail, String home,
-                                      String ip, String name, String time, int logId) throws Exception {
-        db.execute("insert into comment(commentId,commTime,hide,have_read,userComment,userMail,userHome,userIp,userName,"
+    private static void insertComment(
+            InMemoryZrLogDatabase db,
+            int id,
+            String comment,
+            String mail,
+            String home,
+            String ip,
+            String name,
+            String time,
+            int logId)
+            throws Exception {
+        db.execute(
+                "insert into comment(commentId,commTime,hide,have_read,userComment,userMail,userHome,userIp,userName,"
                         + "logId) values(?,?,?,?,?,?,?,?,?,?)",
-                id, Timestamp.valueOf(time), false, false, comment, mail, home, ip, name, logId);
+                id,
+                Timestamp.valueOf(time),
+                false,
+                false,
+                comment,
+                mail,
+                home,
+                ip,
+                name,
+                logId);
     }
 
     @Test
     public void shouldConvertCommentRowsToExportEntries() throws Exception {
-        PersonalDataService service = new PersonalDataService(() -> {
-            throw new IllegalStateException("Database is unavailable in this test");
-        }, () -> {
-            throw new IllegalStateException("Database is unavailable in this test");
-        });
-        PersonalDataCommentExportResponse.CommentEntry row = new PersonalDataCommentExportResponse.CommentEntry();
-        row.setId(9L); row.setUserComment("hello"); row.setUserHome("https://example.com");
-        row.setUserIp("127.0.0.1"); row.setUserName("Alice");
-        row.setCommTime("2024-01-02 03:04:05"); row.setLogId(12);
-        List<PersonalDataCommentExportResponse.CommentEntry> rows = List.of(row, new PersonalDataCommentExportResponse.CommentEntry());
+        PersonalDataService service =
+                new PersonalDataService(
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        },
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
+        PersonalDataCommentExportResponse.CommentEntry row =
+                new PersonalDataCommentExportResponse.CommentEntry();
+        row.setId(9L);
+        row.setUserComment("hello");
+        row.setUserHome("https://example.com");
+        row.setUserIp("127.0.0.1");
+        row.setUserName("Alice");
+        row.setCommTime("2024-01-02 03:04:05");
+        row.setLogId(12);
+        List<PersonalDataCommentExportResponse.CommentEntry> rows =
+                List.of(row, new PersonalDataCommentExportResponse.CommentEntry());
 
         List<PersonalDataCommentExportResponse.CommentEntry> entries =
                 service.toCommentEntries(rows);
@@ -64,18 +91,22 @@ public class PersonalDataServiceTest {
 
     @Test
     public void shouldConvertHelperValuesSafely() throws Exception {
-        PersonalDataService service = new PersonalDataService(() -> {
-            throw new IllegalStateException("Database is unavailable in this test");
-        }, () -> {
-            throw new IllegalStateException("Database is unavailable in this test");
-        });
+        PersonalDataService service =
+                new PersonalDataService(
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        },
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         assertEquals(7L, service.toLong(7));
         assertEquals(0L, service.toLong("7"));
         assertEquals("", service.toString(null));
         assertEquals("42", service.toString(42));
         assertEquals("", service.formatDate(null));
-        assertEquals("2024-01-02 03:04:05",
+        assertEquals(
+                "2024-01-02 03:04:05",
                 service.formatDate(Timestamp.valueOf("2024-01-02 03:04:05")));
         assertTrue(service.equalsIgnoreCase("Admin", " admin "));
         assertFalse(service.equalsIgnoreCase("Admin", ""));
@@ -85,18 +116,47 @@ public class PersonalDataServiceTest {
     @Test
     public void shouldPreviewAndExportCommentMatchesThroughRealTables() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            insertComment(db, 1, "first", "Alice@Example.com", "https://alice.example", "10.0.0.1",
-                    "Alice", "2024-02-01 10:00:00", 1);
-            insertComment(db, 2, "second", "alice@example.com", "https://example.net", "10.0.0.2",
-                    "Alice B", "2024-02-02 11:00:00", 2);
-            insertComment(db, 3, "other", "other@example.com", "https://other.example", "10.0.0.3",
-                    "Other", "2024-02-03 12:00:00", 2);
-            PersonalDataService service = new PersonalDataService(() -> new UserRepository(db.dataSource()), () -> new CommentRepository(db.dataSource()));
+            insertComment(
+                    db,
+                    1,
+                    "first",
+                    "Alice@Example.com",
+                    "https://alice.example",
+                    "10.0.0.1",
+                    "Alice",
+                    "2024-02-01 10:00:00",
+                    1);
+            insertComment(
+                    db,
+                    2,
+                    "second",
+                    "alice@example.com",
+                    "https://example.net",
+                    "10.0.0.2",
+                    "Alice B",
+                    "2024-02-02 11:00:00",
+                    2);
+            insertComment(
+                    db,
+                    3,
+                    "other",
+                    "other@example.com",
+                    "https://other.example",
+                    "10.0.0.3",
+                    "Other",
+                    "2024-02-03 12:00:00",
+                    2);
+            PersonalDataService service =
+                    new PersonalDataService(
+                            () -> new UserRepository(db.dataSource()),
+                            () -> new CommentRepository(db.dataSource()));
 
             PersonalDataPreviewResponse preview = service.preview(request("alice@example.com"), 1);
-            PersonalDataPreviewResponse adminPreview = service.preview(request("admin@example.com"), 1);
+            PersonalDataPreviewResponse adminPreview =
+                    service.preview(request("admin@example.com"), 1);
             PersonalDataPreviewResponse anonymousPreview = service.preview(request("admin"), 0);
-            PersonalDataCommentExportResponse export = service.exportComments(request("ALICE@example.com"));
+            PersonalDataCommentExportResponse export =
+                    service.exportComments(request("ALICE@example.com"));
 
             assertEquals("alice@example.com", preview.getQuery());
             assertEquals(2L, preview.getCommentCount());

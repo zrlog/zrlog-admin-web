@@ -2,8 +2,7 @@ package com.zrlog.admin.business.rest.response;
 
 public final class AdminSsePayloads {
 
-    private AdminSsePayloads() {
-    }
+    private AdminSsePayloads() {}
 
     public static Message message(String message) {
         return new Message(message);
@@ -21,8 +20,7 @@ public final class AdminSsePayloads {
 
         private String message;
 
-        public Message() {
-        }
+        public Message() {}
 
         public Message(String message) {
             this.message = message;
@@ -41,8 +39,7 @@ public final class AdminSsePayloads {
 
         private String tool;
 
-        public Tool() {
-        }
+        public Tool() {}
 
         public Tool(String tool) {
             this.tool = tool;
@@ -62,8 +59,7 @@ public final class AdminSsePayloads {
         private int error;
         private String message;
 
-        public Error() {
-        }
+        public Error() {}
 
         public Error(int error, String message) {
             this.error = error;

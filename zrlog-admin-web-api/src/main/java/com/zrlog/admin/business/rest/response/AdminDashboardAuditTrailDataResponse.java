@@ -7,10 +7,10 @@ public class AdminDashboardAuditTrailDataResponse {
     private List<AdminAuditLogEntryResponse> auditLogs;
     private Boolean loading;
 
-    public AdminDashboardAuditTrailDataResponse() {
-    }
+    public AdminDashboardAuditTrailDataResponse() {}
 
-    public AdminDashboardAuditTrailDataResponse(List<AdminAuditLogEntryResponse> auditLogs, Boolean loading) {
+    public AdminDashboardAuditTrailDataResponse(
+            List<AdminAuditLogEntryResponse> auditLogs, Boolean loading) {
         this.auditLogs = auditLogs;
         this.loading = loading;
     }

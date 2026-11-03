@@ -8,5 +8,4 @@ public class UnsupportedAIImageGenerationException extends AbstractAdminBusiness
     public UnsupportedAIImageGenerationException(String detail) {
         super(AdminErrorCode.AI_IMAGE_GENERATION_UNSUPPORTED, detail);
     }
-
 }

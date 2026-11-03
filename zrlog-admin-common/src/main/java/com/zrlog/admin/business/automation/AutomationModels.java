@@ -2,13 +2,12 @@ package com.zrlog.admin.business.automation;
 
 import com.google.gson.JsonObject;
 import com.zrlog.common.Validator;
-
 import java.util.ArrayList;
 import java.util.List;
 
 /** Public task contracts. Parameters are the dynamic, provider-owned JSON boundary. */
 public final class AutomationModels {
-    private AutomationModels() { }
+    private AutomationModels() {}
 
     public static class Definition {
         public String type;
@@ -17,8 +16,10 @@ public final class AutomationModels {
         public String title;
         public String description;
         public String category;
+
         /** A preconfigured maintenance task, managed through enablement and settings. */
         public boolean systemTask;
+
         public boolean enabledByDefault;
         public boolean requiresAi;
         public boolean available = true;
@@ -64,15 +65,24 @@ public final class AutomationModels {
 
         @Override
         public void doValid() {
-            if (name == null || name.isBlank() || name.length() > 160 || type == null || type.isBlank()
-                    || schedule == null || parameters == null || parameters.toString().length() > 32768
+            if (name == null
+                    || name.isBlank()
+                    || name.length() > 160
+                    || type == null
+                    || type.isBlank()
+                    || schedule == null
+                    || parameters == null
+                    || parameters.toString().length() > 32768
                     || (id != null && (revision == null || revision < 1))) {
                 throw new IllegalArgumentException("automation.invalidPlan");
             }
         }
     }
 
-    /** A provider-owned step or group within one execution, without an independent schedule or lifecycle. */
+    /**
+     * A provider-owned step or group within one execution, without an independent schedule or
+     * lifecycle.
+     */
     public static class ChildResult {
         public String id;
         public String name;
@@ -92,8 +102,10 @@ public final class AutomationModels {
 
     public static class Result {
         public String status = "success";
+
         /** Show a successful outcome in the owner's inbox. Failures always appear there. */
         public boolean notifyOwner;
+
         public String messageKey;
         public List<String> messageArguments = new ArrayList<>();
         public String text;

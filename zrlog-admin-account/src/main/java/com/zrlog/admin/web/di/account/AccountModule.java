@@ -8,14 +8,12 @@ import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
 import jakarta.inject.Named;
-
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 @Module
 public abstract class AccountModule {
-    private AccountModule() {
-    }
+    private AccountModule() {}
 
     @Provides
     @Named("adminSessionTimeoutMinutes")

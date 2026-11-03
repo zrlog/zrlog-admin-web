@@ -3,8 +3,7 @@ package com.zrlog.admin.business.ai.model;
 import java.util.List;
 
 public final class AIFileModels {
-    private AIFileModels() {
-    }
+    private AIFileModels() {}
 
     public static class Input {
         public String name;

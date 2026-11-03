@@ -3,12 +3,10 @@ package com.zrlog.admin.business.ai.model;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Source;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
-
 import java.util.*;
 
 public final class AIChatModels {
-    private AIChatModels() {
-    }
+    private AIChatModels() {}
 
     public static class ChatRequest implements Validator {
         public String input;
@@ -27,25 +25,36 @@ public final class AIChatModels {
                 if (reference == null) throw new ArgsException();
                 String key;
                 if ("article".equals(reference.type)) {
-                    if (reference.articleId == null || reference.articleId <= 0 || reference.articleId > Integer.MAX_VALUE
+                    if (reference.articleId == null
+                            || reference.articleId <= 0
+                            || reference.articleId > Integer.MAX_VALUE
                             || reference.fileIndex != null) throw new ArgsException();
                     key = "article:" + reference.articleId;
                 } else if ("file".equals(reference.type)) {
-                    if (reference.fileIndex == null || reference.fileIndex < 0 || reference.fileIndex >= files.size()
+                    if (reference.fileIndex == null
+                            || reference.fileIndex < 0
+                            || reference.fileIndex >= files.size()
                             || reference.articleId != null) throw new ArgsException();
                     key = "file:" + reference.fileIndex;
                 } else throw new ArgsException();
                 if (!referenceKeys.add(key)) throw new ArgsException();
             }
-            com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.validateSnapshot(editorContext);
-            if (editorContext != null && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")))
+            com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.validateSnapshot(
+                    editorContext);
+            if (editorContext != null
+                    && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")))
                 throw new ArgsException();
-            if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
-                    || history == null || history.size() > 12) throw new ArgsException();
+            if (articleId < 0
+                    || input == null
+                    || input.trim().isEmpty()
+                    || input.length() > 8000
+                    || history == null
+                    || history.size() > 12) throw new ArgsException();
             int size = 0;
             for (ChatMessage m : history) {
-                if (m == null || !("user".equals(m.role) || "assistant".equals(m.role)) || m.content == null)
-                    throw new ArgsException();
+                if (m == null
+                        || !("user".equals(m.role) || "assistant".equals(m.role))
+                        || m.content == null) throw new ArgsException();
                 size += m.content.length();
             }
             if (size > 32000) throw new ArgsException();
@@ -79,12 +88,17 @@ public final class AIChatModels {
         public String decision;
 
         private static boolean uuid(String value) {
-            return value != null && value.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
+            return value != null
+                    && value.matches(
+                            "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
         }
 
         public void doValid() {
-            if (articleId < 0 || !uuid(runId) || !uuid(approvalId)
-                    || !("approve".equals(decision) || "reject".equals(decision))) throw new ArgsException();
+            if (articleId < 0
+                    || !uuid(runId)
+                    || !uuid(approvalId)
+                    || !("approve".equals(decision) || "reject".equals(decision)))
+                throw new ArgsException();
         }
     }
 
@@ -131,16 +145,17 @@ public final class AIChatModels {
         public String contextRevision;
 
         public void doValid() {
-            if (articleId < 0 || !ApprovalRequest.uuid(runId) || !ApprovalRequest.uuid(interactionId)
+            if (articleId < 0
+                    || !ApprovalRequest.uuid(runId)
+                    || !ApprovalRequest.uuid(interactionId)
                     || !Set.of("submit", "cancel").contains(Objects.toString(decision, ""))
                     || value != null && value.length() > 8000
-                    || contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")) throw new ArgsException();
+                    || contextRevision == null
+                    || !contextRevision.matches("[a-f0-9]{32}")) throw new ArgsException();
         }
     }
 
-    /**
-     * Durable execution checkpoint. Never sent to the browser or stored in public settings.
-     */
+    /** Durable execution checkpoint. Never sent to the browser or stored in public settings. */
     public static class Run {
         public String id = UUID.randomUUID().toString();
         public int userId;
@@ -168,7 +183,8 @@ public final class AIChatModels {
         public Interaction interaction;
         public com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest editorContext;
         public String contextRevision;
-        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> skillMessages = new ArrayList<>();
+        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry>
+                skillMessages = new ArrayList<>();
         public List<Event> articleUpdates = new ArrayList<>();
         public Event answer;
         public String error;
@@ -182,7 +198,8 @@ public final class AIChatModels {
         public String status;
         public Approval approval;
         public Interaction interaction;
-        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> skillMessages;
+        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry>
+                skillMessages;
         public String error;
         public Event answer;
         public List<Event> articleUpdates;

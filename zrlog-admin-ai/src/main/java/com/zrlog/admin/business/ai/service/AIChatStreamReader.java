@@ -7,7 +7,6 @@ import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.knowledge.ContentToolCatalog;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -39,17 +38,20 @@ final class AIChatStreamReader {
         return new AIResponseException("Invalid AI stream");
     }
 
-    AIProviderResponses.Choice read(InputStream input, boolean sse, Progress progress) throws IOException {
+    AIProviderResponses.Choice read(InputStream input, boolean sse, Progress progress)
+            throws IOException {
         try (InputStream bounded = new LimitedInput(input)) {
             if (!sse) {
-                AIProviderResponses.CompletionResponse response = parse(new String(bounded.readAllBytes(), StandardCharsets.UTF_8));
+                AIProviderResponses.CompletionResponse response =
+                        parse(new String(bounded.readAllBytes(), StandardCharsets.UTF_8));
                 AIProviderResponses.Choice choice = single(response);
                 if (choice.getMessage() == null) throw invalid();
                 text(progress, "reasoning_delta", choice.getMessage().getReasoningText());
                 text(progress, "delta", choice.getMessage().getContent());
                 return choice;
             }
-            BufferedReader reader = new BufferedReader(new InputStreamReader(bounded, StandardCharsets.UTF_8));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(bounded, StandardCharsets.UTF_8));
             StringBuilder data = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
@@ -61,15 +63,18 @@ final class AIChatStreamReader {
                     data.append(line.substring(line.startsWith("data: ") ? 6 : 5));
                 }
             }
-            if (data.length() > 0 && !"[DONE]".equals(data.toString())) frame(data.toString(), progress);
+            if (data.length() > 0 && !"[DONE]".equals(data.toString()))
+                frame(data.toString(), progress);
             if (finish == null) throw new AIIncompleteResponseException("stream_ended");
             AIProviderResponses.Message message = new AIProviderResponses.Message();
             message.setContent(content.toString());
             message.reasoningContent = reasoning.toString();
             if (!calls.isEmpty()) {
-                calls.forEach((index, call) -> {
-                    if (toolArguments.containsKey(index)) call.function.arguments = toolArguments.get(index).toString();
-                });
+                calls.forEach(
+                        (index, call) -> {
+                            if (toolArguments.containsKey(index))
+                                call.function.arguments = toolArguments.get(index).toString();
+                        });
                 message.toolCalls = new ArrayList<>(calls.values());
             }
             AIProviderResponses.Choice choice = new AIProviderResponses.Choice();
@@ -93,8 +98,11 @@ final class AIChatStreamReader {
             // Some providers repeat the finished choice with an empty delta in their usage frame.
             // Accept that metadata without allowing new output or a changed finish reason.
             if (choice.getFinishReason() != null && !finish.equals(choice.getFinishReason())
-                    || delta != null && (hasText(delta.getContent()) || hasText(thought)
-                    || delta.toolCalls != null && !delta.toolCalls.isEmpty())) throw invalid();
+                    || delta != null
+                            && (hasText(delta.getContent())
+                                    || hasText(thought)
+                                    || delta.toolCalls != null && !delta.toolCalls.isEmpty()))
+                throw invalid();
             return false;
         }
         if (delta != null) {
@@ -114,20 +122,26 @@ final class AIChatStreamReader {
     }
 
     private void merge(AIProviderResponses.ToolCallDelta part) {
-        if (part == null || part.index == null || part.index < 0 || part.index >= 8) throw invalid();
-        AIProviderRequests.ToolCall call = calls.computeIfAbsent(part.index, ignored -> {
-            AIProviderRequests.ToolCall value = new AIProviderRequests.ToolCall();
-            value.function = new AIProviderRequests.FunctionCall();
-            return value;
-        });
+        if (part == null || part.index == null || part.index < 0 || part.index >= 8)
+            throw invalid();
+        AIProviderRequests.ToolCall call =
+                calls.computeIfAbsent(
+                        part.index,
+                        ignored -> {
+                            AIProviderRequests.ToolCall value = new AIProviderRequests.ToolCall();
+                            value.function = new AIProviderRequests.FunctionCall();
+                            return value;
+                        });
         if (part.id != null) call.id = identifier(call.id, part.id);
         if (part.type != null) call.type = identifier(call.type, part.type);
         if (part.function != null) {
-            if (part.function.name != null) call.function.name = identifier(call.function.name, part.function.name);
+            if (part.function.name != null)
+                call.function.name = identifier(call.function.name, part.function.name);
             if (part.function.arguments != null) {
-                StringBuilder arguments = toolArguments.computeIfAbsent(part.index, ignored -> new StringBuilder());
-                if (arguments.length() + part.function.arguments.length() > ContentToolCatalog.MAX_ARGUMENT_LENGTH)
-                    throw invalid();
+                StringBuilder arguments =
+                        toolArguments.computeIfAbsent(part.index, ignored -> new StringBuilder());
+                if (arguments.length() + part.function.arguments.length()
+                        > ContentToolCatalog.MAX_ARGUMENT_LENGTH) throw invalid();
                 arguments.append(part.function.arguments);
             }
         }
@@ -142,9 +156,12 @@ final class AIChatStreamReader {
 
     private AIProviderResponses.CompletionResponse parse(String data) {
         try {
-            AIProviderResponses.CompletionResponse response = gson.fromJson(data, AIProviderResponses.CompletionResponse.class);
-            if (response == null || response.getChoices() == null
-                    || response.getError() != null && !response.getError().isJsonNull()) throw invalid();
+            AIProviderResponses.CompletionResponse response =
+                    gson.fromJson(data, AIProviderResponses.CompletionResponse.class);
+            if (response == null
+                    || response.getChoices() == null
+                    || response.getError() != null && !response.getError().isJsonNull())
+                throw invalid();
             return response;
         } catch (JsonParseException e) {
             throw invalid();
@@ -152,7 +169,8 @@ final class AIChatStreamReader {
     }
 
     private AIProviderResponses.Choice single(AIProviderResponses.CompletionResponse response) {
-        if (response.getChoices().size() != 1 || response.getChoices().get(0) == null) throw invalid();
+        if (response.getChoices().size() != 1 || response.getChoices().get(0) == null)
+            throw invalid();
         return response.getChoices().get(0);
     }
 

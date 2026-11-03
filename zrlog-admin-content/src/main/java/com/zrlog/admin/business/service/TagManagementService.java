@@ -10,14 +10,13 @@ import com.zrlog.admin.business.rest.response.TagManagementEntryResponse;
 import com.zrlog.admin.business.rest.response.TagManagementPreviewResponse;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.TagDTO;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.repository.TagRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
-import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,22 +28,25 @@ public class TagManagementService {
 
     @Inject
     public TagManagementService(
-            jakarta.inject.Provider<LogRepository> logProvider, jakarta.inject.Provider<TagRepository> tagProvider,
+            jakarta.inject.Provider<LogRepository> logProvider,
+            jakarta.inject.Provider<TagRepository> tagProvider,
             ArticleVersionService versions) {
         this.logProvider = logProvider;
         this.tagProvider = tagProvider;
         this.versions = versions;
     }
 
-    public PageData<TagManagementEntryResponse> find(String homeUrl, PageRequest pageRequest, String key, boolean staticHtml) throws SQLException {
+    public PageData<TagManagementEntryResponse> find(
+            String homeUrl, PageRequest pageRequest, String key, boolean staticHtml)
+            throws SQLException {
         List<TagManagementEntryResponse> allTags =
                 this.tagProvider.get().findAll().stream()
                         .filter(
                                 tag ->
                                         StringUtils.isEmpty(key)
                                                 || tag.getText()
-                                                .toLowerCase(Locale.ROOT)
-                                                .contains(key.toLowerCase(Locale.ROOT)))
+                                                        .toLowerCase(Locale.ROOT)
+                                                        .contains(key.toLowerCase(Locale.ROOT)))
                         .sorted(
                                 Comparator.comparing(
                                                 (TagDTO tag) ->
@@ -77,15 +79,21 @@ public class TagManagementService {
         response.setText(tag.getText());
         response.setCount(tag.getCount());
         String suffix = staticHtml ? ".html" : "";
-        response.setUrl(homeUrl + UrlEncodeUtils.encodeUrl(Constants.getArticleUri() + "tag/" + tag.getText()) + suffix);
+        response.setUrl(
+                homeUrl
+                        + UrlEncodeUtils.encodeUrl(
+                                Constants.getArticleUri() + "tag/" + tag.getText())
+                        + suffix);
         return response;
     }
 
-    public TagManagementPreviewResponse preview(TagManageRequest request, String operation) throws SQLException {
+    public TagManagementPreviewResponse preview(TagManageRequest request, String operation)
+            throws SQLException {
         return buildPreview(request, operation, null);
     }
 
-    public TagManagementPreviewResponse execute(AccountAccess actor, TagManageRequest request, String operation) throws SQLException {
+    public TagManagementPreviewResponse execute(
+            AccountAccess actor, TagManageRequest request, String operation) throws SQLException {
         AccountPermissionService.requireAction(actor, AccountAction.TAXONOMY_MANAGE.getId());
         TagManagementPreviewResponse preview = buildPreview(request, operation, actor);
         if (preview.getUpdatedArticleCount() > 0) {
@@ -94,8 +102,8 @@ public class TagManagementService {
         return preview;
     }
 
-    private TagManagementPreviewResponse buildPreview(TagManageRequest request, String operation, AccountAccess actor)
-            throws SQLException {
+    private TagManagementPreviewResponse buildPreview(
+            TagManageRequest request, String operation, AccountAccess actor) throws SQLException {
         boolean execute = actor != null;
         String sourceTag = normalizeTag(request.getSourceTag());
         String targetTag = normalizeTag(request.getTargetTag());
@@ -106,7 +114,8 @@ public class TagManagementService {
                         .queryList(
                                 "select logId,title,keywords,version from "
                                         + LogRepository.TABLE_NAME
-                                        + " where keywords is not null and keywords <> ''", ArticleBasicDTO.class);
+                                        + " where keywords is not null and keywords <> ''",
+                                ArticleBasicDTO.class);
         TagManagementPreviewResponse response = new TagManagementPreviewResponse();
         response.setSourceTag(sourceTag);
         response.setTargetTag(remove ? "" : targetTag);
@@ -131,12 +140,23 @@ public class TagManagementService {
             if (execute) {
                 Number logId = (Number) row.getLogId();
                 int version = ((Number) row.getVersion()).intValue();
-                // This explicit projection supports a conditional bulk edit without loading article bodies.
-                if (version == Integer.MAX_VALUE || !logDao.execute("UPDATE log SET keywords=?,last_update_date=?,version=version+1 WHERE logId=? AND keywords=? AND version=?",
+                // This explicit projection supports a conditional bulk edit without loading article
+                // bodies.
+                if (version == Integer.MAX_VALUE
+                        || !logDao.execute(
+                                "UPDATE log SET keywords=?,last_update_date=?,version=version+1 WHERE logId=? AND keywords=? AND version=?",
+                                afterKeywords.isEmpty() ? null : afterKeywords,
+                                new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                                logId,
+                                beforeKeywords,
+                                version)) continue;
+                versions.recordKeywordPatch(
+                        logId.intValue(),
+                        version + 1,
+                        row.getTitle(),
+                        beforeKeywords,
                         afterKeywords.isEmpty() ? null : afterKeywords,
-                        new java.sql.Timestamp(System.currentTimeMillis()).toString(), logId, beforeKeywords, version)) continue;
-                versions.recordKeywordPatch(logId.intValue(), version + 1, row.getTitle(),
-                        beforeKeywords, afterKeywords.isEmpty() ? null : afterKeywords, actor.getUserId());
+                        actor.getUserId());
                 updated += 1;
             }
         }
@@ -147,8 +167,8 @@ public class TagManagementService {
         return response;
     }
 
-    TagManagementArticleImpactResponse toImpact(ArticleBasicDTO row, String beforeKeywords,
-                                                String afterKeywords) {
+    TagManagementArticleImpactResponse toImpact(
+            ArticleBasicDTO row, String beforeKeywords, String afterKeywords) {
         TagManagementArticleImpactResponse impact = new TagManagementArticleImpactResponse();
         Number logId = (Number) row.getLogId();
         impact.setId(logId == null ? null : logId.longValue());

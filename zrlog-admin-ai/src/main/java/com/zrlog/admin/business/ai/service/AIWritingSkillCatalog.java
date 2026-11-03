@@ -9,23 +9,31 @@ import com.zrlog.admin.business.ai.exception.UnsupportedAIToolException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Tool;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.common.exception.ArgsException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/**
- * Trusted Markdown instructions paired with code-owned executors and result contracts.
- */
+/** Trusted Markdown instructions paired with code-owned executors and result contracts. */
 public final class AIWritingSkillCatalog {
-    public static final List<String> KEYS = List.of("title", "alias", "digest", "tags", "rewrite", "score",
-            "publishCheck", "seo", "proofread", "structure", "questions", "cover");
+    public static final List<String> KEYS =
+            List.of(
+                    "title",
+                    "alias",
+                    "digest",
+                    "tags",
+                    "rewrite",
+                    "score",
+                    "publishCheck",
+                    "seo",
+                    "proofread",
+                    "structure",
+                    "questions",
+                    "cover");
     public static final String INPUT_TOOL = "request_writing_input";
     private static final Map<String, String> DOCUMENTS = loadDocuments();
 
-    private AIWritingSkillCatalog() {
-    }
+    private AIWritingSkillCatalog() {}
 
     public static String resource(String key) {
         return "/ai/skills/" + key + "/SKILL.md";
@@ -42,7 +50,8 @@ public final class AIWritingSkillCatalog {
             try (InputStream in = AIWritingSkillCatalog.class.getResourceAsStream(resource(key))) {
                 if (in == null) throw new IOException("Missing skill: " + key);
                 String text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-                if (!text.startsWith("---\nname: " + key + "\ndescription: ") || !text.contains("\n---\n"))
+                if (!text.startsWith("---\nname: " + key + "\ndescription: ")
+                        || !text.contains("\n---\n"))
                     throw new IOException("Invalid skill metadata: " + key);
                 documents.put(key, text);
             } catch (IOException e) {
@@ -71,20 +80,27 @@ public final class AIWritingSkillCatalog {
     public static List<Tool> tools() {
         List<Tool> result = new ArrayList<>();
         for (String key : KEYS)
-            result.add(tool("writing_" + key, instructions(key),
-                    "{\"instruction\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"Task-specific requirements and chosen preferences. "
-                            + "May be empty when no extra requirements are needed. The editor snapshot is supplied by the runtime.\"}}",
-                    List.of("instruction")));
-        result.add(tool(INPUT_TOOL, "Ask for essential missing information, or a user choice required before subsequent work. "
-                        + "Do not ask for optional preferences when the task is already clear, or ask users to repeat a choice they delegated to you. "
-                        + "For title selection, supply resultId from a writing_title result; options are taken from that validated result. "
-                        + "Omit resultId for a free text answer. Selection does not apply or save anything. Never repeat a cancelled request.",
-                "{\"question\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000},\"resultId\":{\"type\":\"string\",\"maxLength\":300}}",
-                List.of("question")));
+            result.add(
+                    tool(
+                            "writing_" + key,
+                            instructions(key),
+                            "{\"instruction\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"Task-specific requirements and chosen preferences. "
+                                    + "May be empty when no extra requirements are needed. The editor snapshot is supplied by the runtime.\"}}",
+                            List.of("instruction")));
+        result.add(
+                tool(
+                        INPUT_TOOL,
+                        "Ask for essential missing information, or a user choice required before subsequent work. "
+                                + "Do not ask for optional preferences when the task is already clear, or ask users to repeat a choice they delegated to you. "
+                                + "For title selection, supply resultId from a writing_title result; options are taken from that validated result. "
+                                + "Omit resultId for a free text answer. Selection does not apply or save anything. Never repeat a cancelled request.",
+                        "{\"question\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000},\"resultId\":{\"type\":\"string\",\"maxLength\":300}}",
+                        List.of("question")));
         return result;
     }
 
-    private static Tool tool(String name, String description, String properties, List<String> required) {
+    private static Tool tool(
+            String name, String description, String properties, List<String> required) {
         Tool tool = new Tool();
         tool.name = name;
         tool.description = description;
@@ -98,13 +114,23 @@ public final class AIWritingSkillCatalog {
 
     public static void validateSnapshot(GenerateArticleFieldRequest context) {
         if (context == null) return;
-        List<String> values = Arrays.asList(context.getTitle(), context.getMarkdown(), context.getDigest(),
-                context.getKeywords(), context.getSelectedText(), context.getAlias(), context.getThumbnail());
+        List<String> values =
+                Arrays.asList(
+                        context.getTitle(),
+                        context.getMarkdown(),
+                        context.getDigest(),
+                        context.getKeywords(),
+                        context.getSelectedText(),
+                        context.getAlias(),
+                        context.getThumbnail());
         int total = 0;
         for (String value : values) if (value != null) total += value.length();
-        if (total > 180_000 || length(context.getTitle()) > 1024 || length(context.getKeywords()) > 2000
-                || length(context.getDigest()) > 10000 || length(context.getAlias()) > 255 || length(context.getThumbnail()) > 4000)
-            throw new ArgsException("editorContext");
+        if (total > 180_000
+                || length(context.getTitle()) > 1024
+                || length(context.getKeywords()) > 2000
+                || length(context.getDigest()) > 10000
+                || length(context.getAlias()) > 255
+                || length(context.getThumbnail()) > 4000) throw new ArgsException("editorContext");
     }
 
     private static int length(String value) {
@@ -112,7 +138,8 @@ public final class AIWritingSkillCatalog {
     }
 
     /**
-     * Validate the normalized DTO before it can become an actionable card, including manual invocations.
+     * Validate the normalized DTO before it can become an actionable card, including manual
+     * invocations.
      */
     public static void validateResult(String key, Object value) {
         instructions(key);
@@ -136,18 +163,23 @@ public final class AIWritingSkillCatalog {
                 text(result, "markdown", 262144, false);
                 text(result, "summary", 10000, true);
                 break;
-            case "cover": {
-                String url = text(result, "url", 1_400_000, false);
-                if (!(url.startsWith("/") && !url.startsWith("//")) && !url.startsWith("https://")
-                        && !url.startsWith("http://") && !url.matches("(?s)data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=\\s]+"))
-                    throw invalid();
-                break;
-            }
+            case "cover":
+                {
+                    String url = text(result, "url", 1_400_000, false);
+                    if (!(url.startsWith("/") && !url.startsWith("//"))
+                            && !url.startsWith("https://")
+                            && !url.startsWith("http://")
+                            && !url.matches(
+                                    "(?s)data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=\\s]+"))
+                        throw invalid();
+                    break;
+                }
             default:
                 text(result, "summary", 10000, false);
                 if (Set.of("score", "publishCheck", "seo").contains(key)) score(result);
                 JsonElement items = result.get("items");
-                if (items == null || !items.isJsonArray() || items.getAsJsonArray().size() > 100) throw invalid();
+                if (items == null || !items.isJsonArray() || items.getAsJsonArray().size() > 100)
+                    throw invalid();
                 for (JsonElement item : items.getAsJsonArray()) {
                     if (!item.isJsonObject()) throw invalid();
                     JsonObject entry = item.getAsJsonObject();
@@ -174,15 +206,20 @@ public final class AIWritingSkillCatalog {
 
     private static void score(JsonObject object) {
         JsonElement value = object.get("score");
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()
-                || !Double.isFinite(value.getAsDouble()) || value.getAsDouble() < 0 || value.getAsDouble() > 100)
-            throw invalid();
+        if (value == null
+                || !value.isJsonPrimitive()
+                || !value.getAsJsonPrimitive().isNumber()
+                || !Double.isFinite(value.getAsDouble())
+                || value.getAsDouble() < 0
+                || value.getAsDouble() > 100) throw invalid();
     }
 
     private static void strings(JsonObject object, String field, int max, int length) {
         JsonElement value = object.get(field);
-        if (value == null || !value.isJsonArray() || value.getAsJsonArray().isEmpty() || value.getAsJsonArray().size() > max)
-            throw invalid();
+        if (value == null
+                || !value.isJsonArray()
+                || value.getAsJsonArray().isEmpty()
+                || value.getAsJsonArray().size() > max) throw invalid();
         for (JsonElement item : value.getAsJsonArray()) {
             JsonObject wrapper = new JsonObject();
             wrapper.add(field, item);
@@ -192,7 +229,8 @@ public final class AIWritingSkillCatalog {
 
     private static String text(JsonObject object, String field, int max, boolean empty) {
         JsonElement value = object.get(field);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) throw invalid();
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString())
+            throw invalid();
         String text = value.getAsString();
         if (text.length() > max || !empty && text.isBlank()) throw invalid();
         return text;

@@ -3,12 +3,11 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.dao.dto.PageData;
 import com.zrlog.admin.business.rest.request.CreateNavRequest;
 import com.zrlog.admin.business.rest.request.UpdateNavRequest;
+import com.zrlog.admin.data.repository.AdminLogNavRepository;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.cache.dto.LogNavDTO;
-import com.zrlog.admin.data.repository.AdminLogNavRepository;
-import jakarta.inject.Inject;
 import com.zrlog.model.LogNav;
-
+import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -27,11 +26,15 @@ public class BlogNavService {
         }
         String placeholders = placeholders(navIds.size());
         AdminLogNavRepository logNav = this.logNavProvider.get();
-        Object count = logNav.queryFirstObj(
-                "select count(1) from lognav where navId in (" + placeholders + ")", navIds.toArray());
+        Object count =
+                logNav.queryFirstObj(
+                        "select count(1) from lognav where navId in (" + placeholders + ")",
+                        navIds.toArray());
         boolean allExist = count instanceof Number && ((Number) count).intValue() == navIds.size();
-        return allExist && logNav.execute(
-                "delete from lognav where navId in (" + placeholders + ")", navIds.toArray());
+        return allExist
+                && logNav.execute(
+                        "delete from lognav where navId in (" + placeholders + ")",
+                        navIds.toArray());
     }
 
     public PageData<LogNavDTO> find() throws SQLException {

@@ -19,7 +19,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 
 public class AdminArticlePinningController extends BaseController {
@@ -66,17 +65,22 @@ public class AdminArticlePinningController extends BaseController {
     @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.movePin")
     @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<ArticlePinningResponse> move() throws SQLException {
-        MoveArticlePinningRequest body = getRequestBodyWithNullCheck(MoveArticlePinningRequest.class);
+        MoveArticlePinningRequest body =
+                getRequestBodyWithNullCheck(MoveArticlePinningRequest.class);
         ArticlePinningResponse result = pinningService.move(body.getLogId(), body.getDirection());
         record("move-" + body.getDirection(), body.getLogId());
         return response(result, "admin.article.pinning.move.success");
     }
 
-    private ApiStandardResponse<ArticlePinningResponse> response(ArticlePinningResponse result, String messageKey) {
+    private ApiStandardResponse<ArticlePinningResponse> response(
+            ArticlePinningResponse result, String messageKey) {
         return new ApiStandardResponse<>(result, I18nUtil.getAdminBackendStringFromRes(messageKey));
     }
 
     private void record(String operation, Long logId) {
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_ARTICLE_PINNING, operation + ": " + logId);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.UPDATE_ARTICLE_PINNING,
+                operation + ": " + logId);
     }
 }

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
@@ -7,20 +9,17 @@ import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.model.Log;
-import com.zrlog.admin.data.repository.LogVersionRepository;
-import org.junit.Test;
-
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class ArticleVersionServiceTest {
 
@@ -53,12 +52,14 @@ public class ArticleVersionServiceTest {
     }
 
     private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
-        return new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
+        return new ArticleVersionService(
+                AccountServicesFixture.component(testDataSource).permissions(),
                 () -> new AdminLogRepository(testDataSource),
                 () -> new LogVersionRepository(testDataSource));
     }
 
-    private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
+    private static FakeAdminArticleService fakeArticleService(
+            LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
         FakeAdminArticleService fake = new FakeAdminArticleService(testDataSource);
         fake.queries.current = current;
         return fake;
@@ -68,7 +69,8 @@ public class ArticleVersionServiceTest {
     @SuppressWarnings("unchecked")
     public void shouldBuildReversePatchForChangedSnapshotFields() throws Exception {
         ArticleVersionService service = newService(null);
-        Method method = method("buildReversePatch", ArticleVersionService.Revision.class, Log.class);
+        Method method =
+                method("buildReversePatch", ArticleVersionService.Revision.class, Log.class);
         Log oldLog = new Log();
         oldLog.setTitle("hello old world");
         oldLog.setContent("same");
@@ -80,7 +82,8 @@ public class ArticleVersionServiceTest {
         newLog.setTypeId(3);
         newLog.setEditorType("rich");
 
-        Map<String, Object> patch = (Map<String, Object>) method.invoke(service, service.beforeUpdate(oldLog), newLog);
+        Map<String, Object> patch =
+                (Map<String, Object>) method.invoke(service, service.beforeUpdate(oldLog), newLog);
 
         assertEquals(3, patch.size());
         assertTrue(patch.containsKey("title"));
@@ -111,16 +114,19 @@ public class ArticleVersionServiceTest {
         article.setEditorType("rich");
         Method method = method("applyReversePatch", LoadEditArticleResponse.class, String.class);
 
-        method.invoke(service, article, "{"
-                + "\"title\":{\"type\":\"text\",\"prefixLength\":6,\"suffixLength\":6,\"oldMiddle\":\"old\"},"
-                + "\"content\":{\"type\":\"value\",\"old\":\"old content\"},"
-                + "\"typeId\":{\"type\":\"value\",\"old\":2},"
-                + "\"canComment\":{\"type\":\"value\",\"old\":true},"
-                + "\"recommended\":{\"type\":\"value\",\"old\":true},"
-                + "\"privacy\":{\"type\":\"value\",\"old\":false},"
-                + "\"rubbish\":{\"type\":\"value\",\"old\":false},"
-                + "\"editorType\":{\"type\":\"value\",\"old\":\"markdown\"}"
-                + "}");
+        method.invoke(
+                service,
+                article,
+                "{"
+                        + "\"title\":{\"type\":\"text\",\"prefixLength\":6,\"suffixLength\":6,\"oldMiddle\":\"old\"},"
+                        + "\"content\":{\"type\":\"value\",\"old\":\"old content\"},"
+                        + "\"typeId\":{\"type\":\"value\",\"old\":2},"
+                        + "\"canComment\":{\"type\":\"value\",\"old\":true},"
+                        + "\"recommended\":{\"type\":\"value\",\"old\":true},"
+                        + "\"privacy\":{\"type\":\"value\",\"old\":false},"
+                        + "\"rubbish\":{\"type\":\"value\",\"old\":false},"
+                        + "\"editorType\":{\"type\":\"value\",\"old\":\"markdown\"}"
+                        + "}");
 
         assertEquals("hello old world", article.getTitle());
         assertEquals("old content", article.getContent());
@@ -133,12 +139,13 @@ public class ArticleVersionServiceTest {
     }
 
     @Test
-    public void historicalNullArrangementPatchRestoresDefaultInsteadOfPreservingCurrentPlugin() throws Exception {
+    public void historicalNullArrangementPatchRestoresDefaultInsteadOfPreservingCurrentPlugin()
+            throws Exception {
         ArticleVersionService service = newService(null);
         LoadEditArticleResponse article = article(9, 4, "Layout");
         article.setArrange_plugin("retro-runtime");
-        method("applyReversePatch", LoadEditArticleResponse.class, String.class).invoke(
-                service, article, "{\"arrange_plugin\":{\"type\":\"value\",\"old\":null}}");
+        method("applyReversePatch", LoadEditArticleResponse.class, String.class)
+                .invoke(service, article, "{\"arrange_plugin\":{\"type\":\"value\",\"old\":null}}");
         assertEquals("", article.getArrange_plugin());
     }
 
@@ -149,20 +156,27 @@ public class ArticleVersionServiceTest {
         Method toBoolean = method("toBoolean", Object.class);
         Method toStringValue = method("toStringValue", Object.class);
 
-        assertEquals("hello old world", applyTextReversePatch.invoke(null, "hello new world",
-                Map.of("prefixLength", 6, "suffixLength", 6, "oldMiddle", "old")));
-        assertEquals("short", applyTextReversePatch.invoke(null, "short",
-                Map.of("prefixLength", 10, "suffixLength", 1, "oldMiddle", "old")));
-        assertEquals("old", applyTextReversePatch.invoke(null, null,
-                Map.of("oldMiddle", "old")));
+        assertEquals(
+                "hello old world",
+                applyTextReversePatch.invoke(
+                        null,
+                        "hello new world",
+                        Map.of("prefixLength", 6, "suffixLength", 6, "oldMiddle", "old")));
+        assertEquals(
+                "short",
+                applyTextReversePatch.invoke(
+                        null,
+                        "short",
+                        Map.of("prefixLength", 10, "suffixLength", 1, "oldMiddle", "old")));
+        assertEquals("old", applyTextReversePatch.invoke(null, null, Map.of("oldMiddle", "old")));
         assertEquals(7, toInteger.invoke(null, 7L));
         assertEquals(8, toInteger.invoke(null, "8"));
-        assertNull(toInteger.invoke(null, new Object[]{null}));
+        assertNull(toInteger.invoke(null, new Object[] {null}));
         assertEquals(true, toBoolean.invoke(null, "true"));
         assertEquals(false, toBoolean.invoke(null, false));
-        assertNull(toBoolean.invoke(null, new Object[]{null}));
+        assertNull(toBoolean.invoke(null, new Object[] {null}));
         assertEquals("text", toStringValue.invoke(null, "text"));
-        assertNull(toStringValue.invoke(null, new Object[]{null}));
+        assertNull(toStringValue.invoke(null, new Object[] {null}));
     }
 
     @Test
@@ -171,7 +185,8 @@ public class ArticleVersionServiceTest {
         ArticleVersionService service = newService(null);
 
         ArticleVersionCompareResponse response =
-                new ArticleRevisionService(fake.queries, service, fake).compare(null, 5, 3, 3, null);
+                new ArticleRevisionService(fake.queries, service, fake)
+                        .compare(null, 5, 3, 3, null);
 
         assertEquals(Integer.valueOf(3), response.getFromVersion());
         assertEquals(Integer.valueOf(3), response.getToVersion());
@@ -218,10 +233,12 @@ public class ArticleVersionServiceTest {
     private static class FakeAdminArticleService extends AdminArticleService {
         private final FakeArticleQueryService queries = new FakeArticleQueryService();
         private UpdateArticleRequest updatedRequest;
+
         private FakeAdminArticleService(DataSourceWrapper testDataSource) {
             super(
                     () -> null,
-                    AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
+                    AccountServicesFixture.component(testDataSource).permissions(),
+                    AccountServicesFixture.component(testDataSource).identities(),
                     AccountServicesFixture.component(testDataSource).preferences(),
                     newService(testDataSource),
                     new ArticlePinningService(
@@ -232,7 +249,9 @@ public class ArticleVersionServiceTest {
         }
 
         @Override
-        public CreateOrUpdateArticleResponse update(com.zrlog.data.security.AccountAccess actor, UpdateArticleRequest updateArticleRequest)
+        public CreateOrUpdateArticleResponse update(
+                com.zrlog.data.security.AccountAccess actor,
+                UpdateArticleRequest updateArticleRequest)
                 throws SQLException {
             updatedRequest = updateArticleRequest;
             CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
@@ -252,7 +271,8 @@ public class ArticleVersionServiceTest {
         }
 
         @Override
-        public LoadEditArticleResponse loadDetail(com.zrlog.data.security.AccountAccess actor, String id, HttpRequest request) {
+        public LoadEditArticleResponse loadDetail(
+                com.zrlog.data.security.AccountAccess actor, String id, HttpRequest request) {
             loadedId = id;
             return current;
         }

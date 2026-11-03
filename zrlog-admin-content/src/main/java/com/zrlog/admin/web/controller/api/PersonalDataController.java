@@ -19,7 +19,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 
 public class PersonalDataController extends BaseController {
@@ -45,24 +44,34 @@ public class PersonalDataController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.page")
     public AdminPageDataResponse<PersonalDataPreviewResponse> index() {
-        return pages.response(requestIdentity.optional(), new PersonalDataPreviewResponse(), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                new PersonalDataPreviewResponse(),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.preview")
     public ApiStandardResponse<PersonalDataPreviewResponse> preview() throws SQLException {
         requirePost();
-        PersonalDataPreviewRequest body = getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
-        return new ApiStandardResponse<>(personalDataService.preview(body, AdminTokenThreadLocal.getUserId()));
+        PersonalDataPreviewRequest body =
+                getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
+        return new ApiStandardResponse<>(
+                personalDataService.preview(body, AdminTokenThreadLocal.getUserId()));
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.exportComments")
-    public ApiStandardResponse<PersonalDataCommentExportResponse> exportComments() throws SQLException {
+    public ApiStandardResponse<PersonalDataCommentExportResponse> exportComments()
+            throws SQLException {
         requirePost();
-        PersonalDataPreviewRequest body = getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
+        PersonalDataPreviewRequest body =
+                getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
         PersonalDataCommentExportResponse response = personalDataService.exportComments(body);
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.EXPORT_PERSONAL_DATA);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.EXPORT_PERSONAL_DATA);
         return new ApiStandardResponse<>(response);
     }
 

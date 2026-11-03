@@ -8,7 +8,13 @@ public class ServerSideDataResponse<T> extends AdminPageDataResponse<T> {
     private final AdminResourceInfoResponse resourceInfo;
     private final String key;
 
-    public ServerSideDataResponse(UserInfoResponse user, AdminResourceInfoResponse resourceInfo, T pageData, String key, String documentTitle, AdminPageMetadata metadata) {
+    public ServerSideDataResponse(
+            UserInfoResponse user,
+            AdminResourceInfoResponse resourceInfo,
+            T pageData,
+            String key,
+            String documentTitle,
+            AdminPageMetadata metadata) {
         super(pageData, "", metadata);
         this.user = user;
         this.resourceInfo = resourceInfo;
@@ -27,5 +33,4 @@ public class ServerSideDataResponse<T> extends AdminPageDataResponse<T> {
     public String getKey() {
         return key;
     }
-
 }

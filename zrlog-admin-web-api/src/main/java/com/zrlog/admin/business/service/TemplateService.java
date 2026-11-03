@@ -19,7 +19,6 @@ import com.zrlog.util.TemplateHelper;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -41,11 +40,15 @@ public class TemplateService {
     private final TemplateCatalog catalog;
 
     @Inject
-    public TemplateService(CacheService cacheService, Supplier<PluginCorePlugin> pluginCore,
-                           Supplier<TemplateDownloadPlugin> templateDownload,
-                           AdminAuditService adminAuditService, Provider<WebSiteRepository> webSiteProvider,
-                           TemplatePackageInstaller installer, TemplateSettingsService settingsService,
-                           TemplateCatalog catalog) {
+    public TemplateService(
+            CacheService cacheService,
+            Supplier<PluginCorePlugin> pluginCore,
+            Supplier<TemplateDownloadPlugin> templateDownload,
+            AdminAuditService adminAuditService,
+            Provider<WebSiteRepository> webSiteProvider,
+            TemplatePackageInstaller installer,
+            TemplateSettingsService settingsService,
+            TemplateCatalog catalog) {
         this.cacheService = cacheService;
         this.pluginCore = pluginCore;
         this.templateDownload = templateDownload;
@@ -65,7 +68,8 @@ public class TemplateService {
     }
 
     public String getTemplatePath(HttpRequest request) {
-        return TemplateHelper.getTemplatePath(request, cacheService.getPublicWebSiteInfo().getTemplate(), templateDownload.get());
+        return TemplateHelper.getTemplatePath(
+                request, cacheService.getPublicWebSiteInfo().getTemplate(), templateDownload.get());
     }
 
     public boolean apply(String template, AdminAuditContext audit) throws SQLException {
@@ -75,8 +79,9 @@ public class TemplateService {
     }
 
     public DeleteResponse delete(String shortTemplate, AdminAuditContext audit) {
-        File file = PathUtil.safeAppendFilePath(
-                PathUtil.getStaticPath() + Constants.TEMPLATE_BASE_PATH, shortTemplate);
+        File file =
+                PathUtil.safeAppendFilePath(
+                        PathUtil.getStaticPath() + Constants.TEMPLATE_BASE_PATH, shortTemplate);
         boolean deleted = file.exists() && FileUtils.deleteFile(file.toString());
         if (deleted) {
             this.adminAuditService.record(audit, AdminAuditAction.DELETE_TEMPLATE, shortTemplate);
@@ -84,19 +89,20 @@ public class TemplateService {
         return new DeleteResponse(deleted);
     }
 
-    public UploadTemplateResponse uploadAndRecord(String shortTemplate, boolean overwrite, File file,
-                                                  AdminAuditContext audit) throws IOException {
+    public UploadTemplateResponse uploadAndRecord(
+            String shortTemplate, boolean overwrite, File file, AdminAuditContext audit)
+            throws IOException {
         UploadTemplateResponse response = installer.upload(shortTemplate, overwrite, file);
         if (response.getError() == 0 && response.getData() != null) {
-            this.adminAuditService.record(audit,
-                    AdminAuditAction.UPLOAD_TEMPLATE,
-                    response.getData().getShortTemplate());
+            this.adminAuditService.record(
+                    audit, AdminAuditAction.UPLOAD_TEMPLATE, response.getData().getShortTemplate());
         }
         return response;
     }
 
-    public UpdateRecordResponse saveAndRecord(String template, Map<String, Object> settings,
-                                              AdminAuditContext audit) throws SQLException, IOException {
+    public UpdateRecordResponse saveAndRecord(
+            String template, Map<String, Object> settings, AdminAuditContext audit)
+            throws SQLException, IOException {
         UpdateRecordResponse response = settingsService.save(template, settings);
         this.adminAuditService.record(audit, AdminAuditAction.UPDATE_TEMPLATE_CONFIG, template);
         return response;
@@ -104,11 +110,16 @@ public class TemplateService {
 
     public TemplateVO loadTemplateConfig(String templateName, HttpRequest request) {
         TemplateVO template = loadTemplateConfig(templateName);
-        template.getConfig().values().forEach(value -> {
-            if (Objects.equals(value.getContentType(), "html") && value.getValue() instanceof String) {
-                value.setPreviewValue(previewValue((String) value.getValue(), request));
-            }
-        });
+        template.getConfig()
+                .values()
+                .forEach(
+                        value -> {
+                            if (Objects.equals(value.getContentType(), "html")
+                                    && value.getValue() instanceof String) {
+                                value.setPreviewValue(
+                                        previewValue((String) value.getValue(), request));
+                            }
+                        });
         return template;
     }
 
@@ -120,10 +131,19 @@ public class TemplateService {
         return new HtmlTemplateProcessor(request, null, "/", pluginCore.get()).transform(value);
     }
 
-    public TemplateDownloadResponse templateCenter(String protocol, String host, String contextPath) {
-        return new TemplateDownloadResponse("https://store.zrlog.com/template/index.html?from=" + protocol
-                + "://" + host + contextPath + AdminConstants.ADMIN_URI_BASE_PATH + "/template&v="
-                + BlogBuildInfoUtil.getVersion() + "&id=" + BlogBuildInfoUtil.getBuildId() + "&upgrade-v3=true");
+    public TemplateDownloadResponse templateCenter(
+            String protocol, String host, String contextPath) {
+        return new TemplateDownloadResponse(
+                "https://store.zrlog.com/template/index.html?from="
+                        + protocol
+                        + "://"
+                        + host
+                        + contextPath
+                        + AdminConstants.ADMIN_URI_BASE_PATH
+                        + "/template&v="
+                        + BlogBuildInfoUtil.getVersion()
+                        + "&id="
+                        + BlogBuildInfoUtil.getBuildId()
+                        + "&upgrade-v3=true");
     }
-
 }

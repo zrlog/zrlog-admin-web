@@ -1,12 +1,13 @@
 package com.zrlog.model;
 
+import static org.junit.Assert.*;
+
+import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.hibegin.common.dao.ResultValueConvertUtils;
-import org.junit.Test;
 import java.sql.SQLException;
 import java.util.Date;
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class LogVersionTest {
     @Test
@@ -23,8 +24,12 @@ public class LogVersionTest {
             assertEquals(Long.valueOf(0), row.getVersion());
             assertEquals(1_000L, row.getCreatedAt().getTime());
             assertEquals(1_000L, row.getUpdatedAt().getTime());
-            assertThrows(SQLException.class, () -> repository.savePatch(7, 3, "{}", 9, "duplicate", time, 2));
-            assertEquals("{\"diff\":true}", repository.findReversePatchesGreaterThanVersion(7, 2).get(0).getPatchJson());
+            assertThrows(
+                    SQLException.class,
+                    () -> repository.savePatch(7, 3, "{}", 9, "duplicate", time, 2));
+            assertEquals(
+                    "{\"diff\":true}",
+                    repository.findReversePatchesGreaterThanVersion(7, 2).get(0).getPatchJson());
             assertTrue(repository.deleteByLogIdAndArticleVersion(7, 3));
             assertTrue(repository.findVersionList(7).isEmpty());
         }

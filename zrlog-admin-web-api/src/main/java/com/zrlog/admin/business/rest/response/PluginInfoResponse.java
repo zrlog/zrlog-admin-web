@@ -4,8 +4,7 @@ public class PluginInfoResponse {
 
     private String includePagePath;
 
-    public PluginInfoResponse() {
-    }
+    public PluginInfoResponse() {}
 
     public PluginInfoResponse(String includePagePath) {
         this.includePagePath = includePagePath;

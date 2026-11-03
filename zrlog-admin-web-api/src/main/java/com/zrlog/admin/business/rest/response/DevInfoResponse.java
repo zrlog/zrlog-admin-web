@@ -1,8 +1,6 @@
 package com.zrlog.admin.business.rest.response;
 
-
 import com.zrlog.common.vo.LockVO;
-
 import java.util.List;
 
 public class DevInfoResponse {

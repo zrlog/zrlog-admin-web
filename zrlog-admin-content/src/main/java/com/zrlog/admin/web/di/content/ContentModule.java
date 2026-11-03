@@ -7,14 +7,12 @@ import dagger.Module;
 import dagger.Provides;
 import jakarta.inject.Named;
 import jakarta.inject.Provider;
-
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 @Module
 public final class ContentModule {
-    private ContentModule() {
-    }
+    private ContentModule() {}
 
     @Provides
     static Supplier<PublicWebSiteInfo> site(Provider<CacheService> cache) {

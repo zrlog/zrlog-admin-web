@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.base;
 
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
-
 import java.util.List;
 
 public class AIWebSiteInfoWithAIMessages extends AIWebSiteInfo {

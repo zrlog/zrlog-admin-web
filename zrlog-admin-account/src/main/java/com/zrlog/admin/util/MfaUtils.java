@@ -1,13 +1,13 @@
 package com.zrlog.admin.util;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Locale;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 public class MfaUtils {
 
@@ -17,8 +17,7 @@ public class MfaUtils {
     private static final int TIME_STEP_SECONDS = 30;
     private static final int CODE_DIGITS = 6;
 
-    private MfaUtils() {
-    }
+    private MfaUtils() {}
 
     public static String generateSecret() {
         byte[] bytes = new byte[SECRET_SIZE];
@@ -45,13 +44,19 @@ public class MfaUtils {
 
     public static String buildOtpAuthUrl(String issuer, String accountName, String secret) {
         String normalizedIssuer = issuer == null || issuer.isEmpty() ? "ZrLog Admin" : issuer;
-        String normalizedAccount = accountName == null || accountName.isEmpty() ? "admin" : accountName;
+        String normalizedAccount =
+                accountName == null || accountName.isEmpty() ? "admin" : accountName;
         String label = urlEncode(normalizedIssuer + ":" + normalizedAccount);
-        return "otpauth://totp/" + label
-                + "?secret=" + urlEncode(secret)
-                + "&issuer=" + urlEncode(normalizedIssuer)
-                + "&algorithm=SHA1&digits=" + CODE_DIGITS
-                + "&period=" + TIME_STEP_SECONDS;
+        return "otpauth://totp/"
+                + label
+                + "?secret="
+                + urlEncode(secret)
+                + "&issuer="
+                + urlEncode(normalizedIssuer)
+                + "&algorithm=SHA1&digits="
+                + CODE_DIGITS
+                + "&period="
+                + TIME_STEP_SECONDS;
     }
 
     static String generateCode(String secret, long counter) {
@@ -62,10 +67,11 @@ public class MfaUtils {
             mac.init(new SecretKeySpec(secretBytes, "HmacSHA1"));
             byte[] hash = mac.doFinal(counterBytes);
             int offset = hash[hash.length - 1] & 0x0F;
-            int binary = ((hash[offset] & 0x7F) << 24)
-                    | ((hash[offset + 1] & 0xFF) << 16)
-                    | ((hash[offset + 2] & 0xFF) << 8)
-                    | (hash[offset + 3] & 0xFF);
+            int binary =
+                    ((hash[offset] & 0x7F) << 24)
+                            | ((hash[offset + 1] & 0xFF) << 16)
+                            | ((hash[offset + 2] & 0xFF) << 8)
+                            | (hash[offset + 3] & 0xFF);
             int otp = binary % 1_000_000;
             return String.format(Locale.ROOT, "%06d", otp);
         } catch (GeneralSecurityException e) {

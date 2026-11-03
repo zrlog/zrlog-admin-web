@@ -21,7 +21,6 @@ import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.Map;
@@ -63,10 +62,13 @@ public class WebSiteSettingsService {
         response.setBuildId(BlogBuildInfoUtil.getBuildId());
         response.setVersion(BlogBuildInfoUtil.getVersion());
         response.setChangelog(changelog);
-        try (InputStream input = WebSiteSettingsService.class.getResourceAsStream(AdminConstants.BUILD_SYSTEM_INFO_MD)) {
-            response.setBuildSystemInfo(input == null
-                    ? "#### Not find build system info file"
-                    : IOUtil.getStringInputStream(input));
+        try (InputStream input =
+                WebSiteSettingsService.class.getResourceAsStream(
+                        AdminConstants.BUILD_SYSTEM_INFO_MD)) {
+            response.setBuildSystemInfo(
+                    input == null
+                            ? "#### Not find build system info file"
+                            : IOUtil.getStringInputStream(input));
         } catch (Exception e) {
             throw new IllegalStateException("Unable to read build system information", e);
         }
@@ -74,7 +76,8 @@ public class WebSiteSettingsService {
     }
 
     public void update(Object settings, AdminAuditContext audit) throws SQLException {
-        this.adminAuditService.record(audit,
+        this.adminAuditService.record(
+                audit,
                 AdminAuditAction.UPDATE_SETTING,
                 settingAuditContent(settings, audit.getUri()));
         Map<String, Object> values = BeanUtil.convert(settings, Map.class);
@@ -90,7 +93,8 @@ public class WebSiteSettingsService {
         }
     }
 
-    public void updateAdmin(AdminWebSiteInfo settings, AdminAuditContext audit) throws SQLException {
+    public void updateAdmin(AdminWebSiteInfo settings, AdminAuditContext audit)
+            throws SQLException {
         // Older clients omit the new field; only an explicit empty string clears it.
         if (settings.getBackend_server_url() == null) {
             settings.setBackend_server_url(
@@ -100,12 +104,14 @@ public class WebSiteSettingsService {
         tokenService.updateSessionTimeout(settings.getSession_timeout());
     }
 
-    public void updateUpgrade(UpgradeWebSiteInfo settings, AdminAuditContext audit) throws SQLException {
+    public void updateUpgrade(UpgradeWebSiteInfo settings, AdminAuditContext audit)
+            throws SQLException {
         validateUpgrade(settings);
         UpdateVersionInfoPlugin plugin = updatePlugin.get();
         update(settings, audit);
         plugin.stop();
-        if (AutoUpgradeVersionType.cycle(settings.getAutoUpgradeVersion()) != AutoUpgradeVersionType.NEVER) {
+        if (AutoUpgradeVersionType.cycle(settings.getAutoUpgradeVersion())
+                != AutoUpgradeVersionType.NEVER) {
             plugin.start();
         }
     }
@@ -124,7 +130,8 @@ public class WebSiteSettingsService {
         UpdateVersionInfoPlugin plugin = updatePlugin.get();
         if (plugin == null) {
             throw new IllegalStateException(
-                    I18nUtil.getAdminBackendStringFromRes("admin.website.upgrade.error.missingUpdatePlugin"));
+                    I18nUtil.getAdminBackendStringFromRes(
+                            "admin.website.upgrade.error.missingUpdatePlugin"));
         }
     }
 

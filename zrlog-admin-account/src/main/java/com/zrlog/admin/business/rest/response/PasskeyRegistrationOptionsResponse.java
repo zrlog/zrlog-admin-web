@@ -8,14 +8,18 @@ public class PasskeyRegistrationOptionsResponse {
     private String challenge;
     private RelyingParty rp;
     private User user;
-    private List<CredentialParameter> pubKeyCredParams = Collections.singletonList(new CredentialParameter());
+    private List<CredentialParameter> pubKeyCredParams =
+            Collections.singletonList(new CredentialParameter());
     private long timeout = 60000;
     private List<PasskeyCredentialDescriptor> excludeCredentials = Collections.emptyList();
     private AuthenticatorSelection authenticatorSelection = new AuthenticatorSelection();
     private String attestation = "none";
 
-    public PasskeyRegistrationOptionsResponse(String challenge, RelyingParty rp, User user,
-                                              List<PasskeyCredentialDescriptor> excludeCredentials) {
+    public PasskeyRegistrationOptionsResponse(
+            String challenge,
+            RelyingParty rp,
+            User user,
+            List<PasskeyCredentialDescriptor> excludeCredentials) {
         this.challenge = challenge;
         this.rp = rp;
         this.user = user;

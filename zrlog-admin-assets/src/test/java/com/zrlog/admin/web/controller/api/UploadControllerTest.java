@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -11,16 +13,10 @@ import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.support.AccountServicesFixture;
-import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
@@ -28,57 +24,62 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class UploadControllerTest {
 
-
     private final String previousRootPath = System.getProperty("sws.root.path");
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
     private InMemoryZrLogDatabase permissionDb;
 
-    private static void setControllerField(UploadController controller, String name, Object value) throws Exception {
+    private static void setControllerField(UploadController controller, String name, Object value)
+            throws Exception {
         Field field = Controller.class.getDeclaredField(name);
         field.setAccessible(true);
         field.set(controller, value);
     }
 
     private static HttpRequest request(Map<String, String> params, Map<String, File> files) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                UploadControllerTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getFile".equals(method.getName())) {
-                        return files.get(args[0].toString());
-                    }
-                    if ("getUploadedFile".equals(method.getName())) {
-                        File file = files.get(args[0].toString());
-                        return file == null ? null : new UploadedFile(args[0].toString(), null, null, file);
-                    }
-                    if ("getParaToStr".equals(method.getName())) {
-                        String key = args[0].toString();
-                        if (args.length == 2) {
-                            return params.getOrDefault(key, args[1].toString());
-                        }
-                        return params.get(key);
-                    }
-                    if ("getContextPath".equals(method.getName())) {
-                        return "/blog";
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        UploadControllerTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if ("getFile".equals(method.getName())) {
+                                return files.get(args[0].toString());
+                            }
+                            if ("getUploadedFile".equals(method.getName())) {
+                                File file = files.get(args[0].toString());
+                                return file == null
+                                        ? null
+                                        : new UploadedFile(args[0].toString(), null, null, file);
+                            }
+                            if ("getParaToStr".equals(method.getName())) {
+                                String key = args[0].toString();
+                                if (args.length == 2) {
+                                    return params.getOrDefault(key, args[1].toString());
+                                }
+                                return params.get(key);
+                            }
+                            if ("getContextPath".equals(method.getName())) {
+                                return "/blog";
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "HttpRequestProxy";
+                            }
+                            return null;
+                        });
     }
 
     private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                UploadControllerTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        UploadControllerTest.class.getClassLoader(),
+                        new Class[] {HttpResponse.class},
+                        (proxy, method, args) -> null);
     }
 
     @org.junit.Before
@@ -98,7 +99,8 @@ public class UploadControllerTest {
 
     @Test
     public void shouldRejectMissingUploadFiles() throws Exception {
-        UploadController controller = controller(new HashMap<>(), new HashMap<>(), permissionDb.dataSource());
+        UploadController controller =
+                controller(new HashMap<>(), new HashMap<>(), permissionDb.dataSource());
 
         ArgsException exception = assertThrows(ArgsException.class, controller::index);
 
@@ -107,11 +109,14 @@ public class UploadControllerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void shouldStoreUploadedFileAndReturnLocalUrlWhenPluginCoreIsUnavailable() throws Exception {
+    public void shouldStoreUploadedFileAndReturnLocalUrlWhenPluginCoreIsUnavailable()
+            throws Exception {
         withRootPath();
         File file = temporaryFolder.newFile("cover.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadController controller = controller(Map.of("dir", "image"), Map.of("imgFile", file), permissionDb.dataSource());
+        UploadController controller =
+                controller(
+                        Map.of("dir", "image"), Map.of("imgFile", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.index();
@@ -129,7 +134,8 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("thumb.jpg");
         Files.writeString(file.toPath(), "thumb", StandardCharsets.UTF_8);
-        UploadController controller = controller(new HashMap<>(), Map.of("file", file), permissionDb.dataSource());
+        UploadController controller =
+                controller(new HashMap<>(), Map.of("file", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.thumbnail();
@@ -149,7 +155,8 @@ public class UploadControllerTest {
             File file = temporaryFolder.newFile("thumb.png");
             Files.writeString(file.toPath(), "thumb", StandardCharsets.UTF_8);
             String dir = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover";
-            UploadController controller = controller(Map.of("dir", dir), Map.of("imgFile", file), ignored.dataSource());
+            UploadController controller =
+                    controller(Map.of("dir", dir), Map.of("imgFile", file), ignored.dataSource());
 
             ApiStandardResponse<UploadFileResponse> response =
                     (ApiStandardResponse<UploadFileResponse>) controller.thumbnail();
@@ -169,7 +176,8 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("default.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadController controller = controller(new HashMap<>(), Map.of("imgFile", file), permissionDb.dataSource());
+        UploadController controller =
+                controller(new HashMap<>(), Map.of("imgFile", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.index();
@@ -183,28 +191,44 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("source.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadController controller = controller(Map.of("dir", "image", "name", "cover-final.png"), Map.of("imgFile", file), permissionDb.dataSource());
+        UploadController controller =
+                controller(
+                        Map.of("dir", "image", "name", "cover-final.png"),
+                        Map.of("imgFile", file),
+                        permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.index();
 
         assertTrue(response.getData().getUrl().startsWith("/blog/attached/image/"));
         assertTrue(response.getData().getUrl().endsWith("/cover-final.png"));
-        assertTrue(Files.exists(PathUtil.getStaticFile(response.getData().getUrl().substring("/blog".length()).toString()).toPath()));
+        assertTrue(
+                Files.exists(
+                        PathUtil.getStaticFile(
+                                        response.getData()
+                                                .getUrl()
+                                                .substring("/blog".length())
+                                                .toString())
+                                .toPath()));
     }
 
     private void withRootPath() throws Exception {
-        System.setProperty("sws.root.path", temporaryFolder.newFolder("zrlog-upload-controller").getAbsolutePath());
+        System.setProperty(
+                "sws.root.path",
+                temporaryFolder.newFolder("zrlog-upload-controller").getAbsolutePath());
     }
 
-    private UploadController controller(Map<String, String> params, Map<String, File> files, DataSourceWrapper source) throws Exception {
+    private UploadController controller(
+            Map<String, String> params, Map<String, File> files, DataSourceWrapper source)
+            throws Exception {
         UploadController controller =
                 new UploadController(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(source).identities(), AccountServicesFixture.component(source).permissions(),
-                                new DbFileService(
-                                        () -> new WebSiteRepository(source))), AccountServicesFixture.component(source).requestIdentity());
+                                AccountServicesFixture.component(source).identities(),
+                                AccountServicesFixture.component(source).permissions(),
+                                new DbFileService(() -> new WebSiteRepository(source))),
+                        AccountServicesFixture.component(source).requestIdentity());
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;

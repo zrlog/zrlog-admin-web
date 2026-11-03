@@ -19,14 +19,13 @@ import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.cache.dto.UserBasicDTO;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Supplier;
@@ -52,24 +51,31 @@ public class UserService {
         this.cacheableApiUris = Objects.requireNonNull(cacheableApiUris);
     }
 
-    public UpdateRecordResponse updatePassword(int currentUserId, UpdatePasswordRequest updatePasswordRequest) throws SQLException {
+    public UpdateRecordResponse updatePassword(
+            int currentUserId, UpdatePasswordRequest updatePasswordRequest) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
         if (Objects.isNull(updatePasswordRequest)) {
             return new UpdateRecordResponse(false);
         }
-        if (StringUtils.isNotEmpty(updatePasswordRequest.getOldPassword()) && StringUtils.isNotEmpty(updatePasswordRequest.getNewPassword())) {
+        if (StringUtils.isNotEmpty(updatePasswordRequest.getOldPassword())
+                && StringUtils.isNotEmpty(updatePasswordRequest.getNewPassword())) {
             AdminUserRepository user = this.userProvider.get();
             User current = user.loadById((long) currentUserId);
             String dbPassword = current == null ? null : current.getPassword();
             String oldPassword = normalizeSubmittedPassword(updatePasswordRequest.getOldPassword());
             if (verifyPassword(oldPassword, dbPassword)) {
-                current.setPassword(encodePassword(normalizeSubmittedPassword(updatePasswordRequest.getNewPassword())));
+                current.setPassword(
+                        encodePassword(
+                                normalizeSubmittedPassword(
+                                        updatePasswordRequest.getNewPassword())));
                 current.setAuthVersion(Math.addExact(current.getAuthVersion(), 1));
                 user.update(current);
                 UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse();
-                updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.password.change.success"));
+                updateRecordResponse.setMessage(
+                        I18nUtil.getAdminBackendStringFromRes(
+                                "admin.user.password.change.success"));
                 return updateRecordResponse;
             } else {
                 throw new OldPasswordException();
@@ -79,7 +85,8 @@ public class UserService {
         }
     }
 
-    public UserBasicInfoResponse getBasicUserInfo(int userId, String sessionId) throws SQLException {
+    public UserBasicInfoResponse getBasicUserInfo(int userId, String sessionId)
+            throws SQLException {
         User byId = this.userProvider.get().loadById((long) userId);
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(byId, sessionId);
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse(byId.getEmail(), ""));
@@ -87,13 +94,20 @@ public class UserService {
         return userInfoByUser;
     }
 
-    public UserInfoResponse getUserInfoWithCache(int userId, String sessionId, CacheService cacheService) throws SQLException {
+    public UserInfoResponse getUserInfoWithCache(
+            int userId, String sessionId, CacheService cacheService) throws SQLException {
         UserBasicDTO userInfoById = cacheService.getUserInfoById((long) userId);
         User user = userProvider.get().loadById((long) userId);
         boolean mfaEnabled = mfaService.getMfaEnabled(user);
-        UserInfoResponse result = new UserInfoResponse(userInfoById.getUserName(),
-                StringUtils.isEmpty(userInfoById.getHeader()) ? getDefaultHeaderImage() : userInfoById.getHeader(),
-                sessionId, buildLastVersionPlaceholder(), mfaEnabled);
+        UserInfoResponse result =
+                new UserInfoResponse(
+                        userInfoById.getUserName(),
+                        StringUtils.isEmpty(userInfoById.getHeader())
+                                ? getDefaultHeaderImage()
+                                : userInfoById.getHeader(),
+                        sessionId,
+                        buildLastVersionPlaceholder(),
+                        mfaEnabled);
         result.setUserId(userId);
         result.setRole(AccountAccess.from(user).getRole());
         fillDisplayPreferences(result, userId);
@@ -109,13 +123,19 @@ public class UserService {
     }
 
     private String getDefaultHeaderImage() {
-        byte[] byteByInputStream = IOUtil.getByteByInputStream(UserService.class.getResourceAsStream("/assets/admin/images/default-portrait.gif"));
+        byte[] byteByInputStream =
+                IOUtil.getByteByInputStream(
+                        UserService.class.getResourceAsStream(
+                                "/assets/admin/images/default-portrait.gif"));
         return "data:image/gif;base64," + Base64.getEncoder().encodeToString(byteByInputStream);
     }
 
     private UserBasicInfoResponse getUserInfoByUser(User user, String sessionId) {
         UserBasicDTO userBasicDTO = UserRepository.toBasic(user);
-        UserBasicInfoResponse basicInfoResponse = ObjectUtil.requireNonNullElse(BeanUtil.convert(userBasicDTO, UserBasicInfoResponse.class), new UserBasicInfoResponse());
+        UserBasicInfoResponse basicInfoResponse =
+                ObjectUtil.requireNonNullElse(
+                        BeanUtil.convert(userBasicDTO, UserBasicInfoResponse.class),
+                        new UserBasicInfoResponse());
         if (StringUtils.isEmpty(basicInfoResponse.getHeader())) {
             basicInfoResponse.setHeader(getDefaultHeaderImage());
         }
@@ -128,13 +148,14 @@ public class UserService {
         } catch (SQLException e) {
             throw new PermissionErrorException();
         }
-        basicInfoResponse.setCacheableApiUris(EnvKit.isFaaSMode()
-                ? new HashSet<>() : new HashSet<>(cacheableApiUris.get()));
+        basicInfoResponse.setCacheableApiUris(
+                EnvKit.isFaaSMode() ? new HashSet<>() : new HashSet<>(cacheableApiUris.get()));
         return basicInfoResponse;
     }
 
     public UserLoginDTO login(LoginRequest loginRequest) throws SQLException {
-        if (StringUtils.isEmpty(loginRequest.getUserName()) || StringUtils.isEmpty(loginRequest.getPassword())) {
+        if (StringUtils.isEmpty(loginRequest.getUserName())
+                || StringUtils.isEmpty(loginRequest.getPassword())) {
             throw new UserNameAndPasswordRequiredException();
         }
         AdminUserRepository userDao = this.userProvider.get();
@@ -152,9 +173,11 @@ public class UserService {
         return buildLoginDTO(user);
     }
 
-    public void verifyCurrentCredentials(int userId, String submittedPassword, String mfaCode) throws SQLException {
+    public void verifyCurrentCredentials(int userId, String submittedPassword, String mfaCode)
+            throws SQLException {
         User user = this.userProvider.get().loadById((long) userId);
-        if (Objects.isNull(user) || !verifyPassword(submittedPassword, Objects.toString(user.getPassword(), ""))) {
+        if (Objects.isNull(user)
+                || !verifyPassword(submittedPassword, Objects.toString(user.getPassword(), ""))) {
             throw new OldPasswordException();
         }
         mfaService.verifyLoginMfa(user, mfaCode);
@@ -163,7 +186,8 @@ public class UserService {
     public UserLoginDTO buildLoginDTO(User user) {
         if (!AccountAccess.from(user).isEnabled()) throw new UserNameOrPasswordException();
         int userId = ((Number) user.getId()).intValue();
-        UserBasicInfoResponse userInfoByUser = getUserInfoByUser(user, UUID.randomUUID().toString());
+        UserBasicInfoResponse userInfoByUser =
+                getUserInfoByUser(user, UUID.randomUUID().toString());
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse(user.getEmail(), ""));
         userInfoByUser.setMfaEnabled(mfaService.getMfaEnabled(user));
         UserLoginDTO userLoginDTO = new UserLoginDTO();
@@ -173,8 +197,12 @@ public class UserService {
         return userLoginDTO;
     }
 
-    public void update(int userId, UpdateAdminRequest updateAdminRequest,
-                       HttpRequest request, AvatarStorage storage) throws SQLException {
+    public void update(
+            int userId,
+            UpdateAdminRequest updateAdminRequest,
+            HttpRequest request,
+            AvatarStorage storage)
+            throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
@@ -240,7 +268,9 @@ public class UserService {
         return PasswordHashUtils.matches(normalizedPassword, dbPassword);
     }
 
-    private void upgradePasswordIfNeeded(UserRepository userDao, User user, String dbPassword, String normalizedPassword) throws SQLException {
+    private void upgradePasswordIfNeeded(
+            UserRepository userDao, User user, String dbPassword, String normalizedPassword)
+            throws SQLException {
         if (PasswordHashUtils.needsRehash(dbPassword)) {
             user.setPassword(encodePassword(normalizedPassword));
             userDao.update(user);

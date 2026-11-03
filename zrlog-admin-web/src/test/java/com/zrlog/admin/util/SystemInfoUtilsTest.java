@@ -1,13 +1,12 @@
 package com.zrlog.admin.util;
 
-import com.hibegin.common.dao.DataSourceWrapperImpl;
-import com.zrlog.util.DataSourceUtil;
-import org.junit.Test;
-
-import java.util.Properties;
-
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DataSourceWrapperImpl;
+import com.zrlog.util.DataSourceUtil;
+import java.util.Properties;
+import org.junit.Test;
 
 public class SystemInfoUtilsTest {
 

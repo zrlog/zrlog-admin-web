@@ -24,7 +24,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
@@ -69,9 +68,15 @@ public class AccountSessionController extends BaseController {
         }
         LoginRequest loginRequest = getRequestBodyWithNullCheck(LoginRequest.class);
         UserLoginDTO dto = userService.login(loginRequest);
-        tokenService.setAdminToken(dto.getId(), dto.getSecretKey(), dto.getUserBasicInfoResponse().getKey(),
-                Objects.equals(loginRequest.getHttps(), true) ? "https" : "http", getRequest(), getResponse());
-        this.adminAuditService.record(AdminAuditContexts.from(request, dto.getId()),
+        tokenService.setAdminToken(
+                dto.getId(),
+                dto.getSecretKey(),
+                dto.getUserBasicInfoResponse().getKey(),
+                Objects.equals(loginRequest.getHttps(), true) ? "https" : "http",
+                getRequest(),
+                getResponse());
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, dto.getId()),
                 AdminAuditAction.LOGIN_SUCCESS,
                 dto.getUserBasicInfoResponse().getUserName());
         return pages.response(requestIdentity.optional(), dto.getUserBasicInfoResponse());
@@ -80,8 +85,8 @@ public class AccountSessionController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.passkeyChallenge")
-    public ApiStandardResponse<PasskeyOptionsResponse<PasskeyAuthenticationOptionsResponse>> passkeyAuthenticationOptions()
-            throws SQLException {
+    public ApiStandardResponse<PasskeyOptionsResponse<PasskeyAuthenticationOptionsResponse>>
+            passkeyAuthenticationOptions() throws SQLException {
         if (!installed.getAsBoolean()) {
             throw new MissingInstallException();
         }
@@ -91,19 +96,27 @@ public class AccountSessionController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.passkeyLogin")
-    public AdminPageDataResponse<UserBasicInfoResponse> passkeyAuthenticationVerify() throws Exception {
+    public AdminPageDataResponse<UserBasicInfoResponse> passkeyAuthenticationVerify()
+            throws Exception {
         if (!installed.getAsBoolean()) {
             throw new MissingInstallException();
         }
-        UserLoginDTO dto = passkeyService.finishAuthentication(
-                getRequestBodyWithNullCheck(PasskeyAuthenticationVerifyRequest.class), getRequest());
+        UserLoginDTO dto =
+                passkeyService.finishAuthentication(
+                        getRequestBodyWithNullCheck(PasskeyAuthenticationVerifyRequest.class),
+                        getRequest());
         String protocol = passkeyService.requestProtocol(getRequest());
-        tokenService.setAdminToken(dto.getId(), dto.getSecretKey(),
-                dto.getUserBasicInfoResponse().getKey(), protocol, getRequest(), getResponse());
-        this.adminAuditService.record(AdminAuditContexts.from(request, dto.getId()),
+        tokenService.setAdminToken(
+                dto.getId(),
+                dto.getSecretKey(),
+                dto.getUserBasicInfoResponse().getKey(),
+                protocol,
+                getRequest(),
+                getResponse());
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, dto.getId()),
                 AdminAuditAction.LOGIN_WITH_PASSKEY,
                 dto.getUserBasicInfoResponse().getUserName());
         return pages.response(requestIdentity.optional(), dto.getUserBasicInfoResponse());
     }
-
 }

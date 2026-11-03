@@ -13,7 +13,6 @@ import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.data.security.AccountAction;
-
 import java.net.URI;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -27,8 +26,12 @@ public final class HostUpgradeResourceSync {
     private final RequestFactory requests;
     private final AdminAuditService audit;
 
-    public HostUpgradeResourceSync(CacheRefreshService refresh, Supplier<List<StaticSitePlugin>> sites,
-                                   BooleanSupplier hasUi, RequestFactory requests, AdminAuditService audit) {
+    public HostUpgradeResourceSync(
+            CacheRefreshService refresh,
+            Supplier<List<StaticSitePlugin>> sites,
+            BooleanSupplier hasUi,
+            RequestFactory requests,
+            AdminAuditService audit) {
         this.refresh = refresh;
         this.sites = sites;
         this.hasUi = hasUi;
@@ -42,35 +45,60 @@ public final class HostUpgradeResourceSync {
         if (!hasUi.getAsBoolean() || refresh.isStaticSiteDisabled()) return;
         if (sites.get().stream().noneMatch(site -> site.getType() == StaticSiteType.ADMIN))
             throw new IllegalStateException("Admin static generator is not ready");
-        refresh.updateCacheWithinBudget(requests.create(), List.of(StaticSiteType.ADMIN),
-                context.runId(), context.actor().getUserId(), context::remainingMillis, () -> {
-                    try { context.checkActive(); }
-                    catch (Exception error) { throw new IllegalStateException("automation.executionExpired", error); }
+        refresh.updateCacheWithinBudget(
+                requests.create(),
+                List.of(StaticSiteType.ADMIN),
+                context.runId(),
+                context.actor().getUserId(),
+                context::remainingMillis,
+                () -> {
+                    try {
+                        context.checkActive();
+                    } catch (Exception error) {
+                        throw new IllegalStateException("automation.executionExpired", error);
+                    }
                 });
         context.checkActive();
         audit.record(context.audit(), AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
     }
 
-    /** A trigger may arrive at a different backend origin; verify the configured public static site. */
-    public static HttpRequest request(String host, String resourceBaseUrl, RequestConfig config,
-                                      ApplicationContext application) throws Exception {
+    /**
+     * A trigger may arrive at a different backend origin; verify the configured public static site.
+     */
+    public static HttpRequest request(
+            String host,
+            String resourceBaseUrl,
+            RequestConfig config,
+            ApplicationContext application)
+            throws Exception {
         URI site = URI.create(BackendServerUrl.resolve("", host, ""));
         String scheme = site.getScheme();
         if (resourceBaseUrl != null && !resourceBaseUrl.isBlank()) {
             URI resources = URI.create(resourceBaseUrl);
-            if (!("http".equals(resources.getScheme()) || "https".equals(resources.getScheme())) || resources.getHost() == null
-                    || resources.getRawUserInfo() != null || resources.getRawQuery() != null
-                    || resources.getRawFragment() != null) throw new IllegalArgumentException("admin_static_resource_base_url");
+            if (!("http".equals(resources.getScheme()) || "https".equals(resources.getScheme()))
+                    || resources.getHost() == null
+                    || resources.getRawUserInfo() != null
+                    || resources.getRawQuery() != null
+                    || resources.getRawFragment() != null)
+                throw new IllegalArgumentException("admin_static_resource_base_url");
             int defaultPort = "https".equals(resources.getScheme()) ? 443 : 80;
             int resourcePort = resources.getPort() == -1 ? defaultPort : resources.getPort();
             int sitePort = site.getPort() == -1 ? defaultPort : site.getPort();
-            if (resources.getHost().equalsIgnoreCase(site.getHost()) && resourcePort == sitePort) scheme = resources.getScheme();
+            if (resources.getHost().equalsIgnoreCase(site.getHost()) && resourcePort == sitePort)
+                scheme = resources.getScheme();
         }
         config.setSsl("https".equals(scheme));
-        return HttpRequestBuilder.buildRequest(HttpMethod.GET, application.getServerConfig().getContextPath() + "/",
-                host, "ZrLog Assistant", config, application);
+        return HttpRequestBuilder.buildRequest(
+                HttpMethod.GET,
+                application.getServerConfig().getContextPath() + "/",
+                host,
+                "ZrLog Assistant",
+                config,
+                application);
     }
 
     @FunctionalInterface
-    public interface RequestFactory { HttpRequest create() throws Exception; }
+    public interface RequestFactory {
+        HttpRequest create() throws Exception;
+    }
 }

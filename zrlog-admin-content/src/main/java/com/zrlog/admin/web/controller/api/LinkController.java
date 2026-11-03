@@ -20,7 +20,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -30,8 +29,10 @@ public class LinkController extends BaseController {
     private final LinkService linkService;
 
     @Inject
-    public LinkController(AdminPageDataFactory pages, LinkService linkService,
-                          AdminRequestIdentity requestIdentity) {
+    public LinkController(
+            AdminPageDataFactory pages,
+            LinkService linkService,
+            AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.linkService = linkService;
 
@@ -63,7 +64,11 @@ public class LinkController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.list")
     public AdminPageDataResponse<PageData<LinkDTO>> index() throws SQLException {
-        return pages.response(requestIdentity.optional(), linkService.find(ControllerUtil.unPageRequest()), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                linkService.find(ControllerUtil.unPageRequest()),
+                "",
+                request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -74,5 +79,4 @@ public class LinkController extends BaseController {
         CreateLinkRequest linkRequest = getRequestBodyWithNullCheck(CreateLinkRequest.class);
         return new UpdateRecordResponse(linkService.add(linkRequest));
     }
-
 }

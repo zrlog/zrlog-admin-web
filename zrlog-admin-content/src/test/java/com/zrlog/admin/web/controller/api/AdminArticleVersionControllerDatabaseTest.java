@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -7,28 +9,26 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
-import com.zrlog.admin.data.repository.LogVersionRepository;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminArticleVersionControllerDatabaseTest {
 
     private ZrLogConfig applicationConfig;
 
     private static void insertArticle(InMemoryZrLogDatabase db) throws Exception {
-        db.execute("insert into log(logId, alias, canComment, version, content, plain_content, markdown, digest,"
+        db.execute(
+                "insert into log(logId, alias, canComment, version, content, plain_content, markdown, digest,"
                         + " keywords, recommended, releaseTime, last_update_date, title, typeId, userId, hot,"
                         + " rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now(),"
                         + " ?, ?, ?, ?, ?, ?, ?)",
@@ -52,45 +52,48 @@ public class AdminArticleVersionControllerDatabaseTest {
     }
 
     private static HttpRequest request(Map<String, String> params) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminArticleVersionControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getParaToStr":
-                            if (args.length == 2) {
-                                return params.getOrDefault(args[0].toString(), args[1].toString());
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminArticleVersionControllerDatabaseTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getParaToStr":
+                                    if (args.length == 2) {
+                                        return params.getOrDefault(
+                                                args[0].toString(), args[1].toString());
+                                    }
+                                    return params.get(args[0].toString());
+                                case "getUri":
+                                    return "/api/admin/article/version";
+                                case "getHeader":
+                                    if ("Host".equals(args[0])) {
+                                        return "localhost:18080";
+                                    }
+                                    return "User-Agent".equals(args[0]) ? "JUnit" : null;
+                                case "getHeaderMap":
+                                    return Map.of("X-Real-IP", "127.0.0.1");
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "getContextPath":
+                                    return "/";
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return params.get(args[0].toString());
-                        case "getUri":
-                            return "/api/admin/article/version";
-                        case "getHeader":
-                            if ("Host".equals(args[0])) {
-                                return "localhost:18080";
-                            }
-                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getContextPath":
-                            return "/";
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
-                            }
-                            return null;
-                    }
-                });
+                        });
     }
 
     private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminArticleVersionControllerDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        AdminArticleVersionControllerDatabaseTest.class.getClassLoader(),
+                        new Class[] {HttpResponse.class},
+                        (proxy, method, args) -> null);
     }
 
     @Test
@@ -112,7 +115,10 @@ public class AdminArticleVersionControllerDatabaseTest {
             ApiStandardResponse<List<ArticleVersionResponse>> versions =
                     controller(Map.of("id", "10"), db.dataSource()).index();
             ApiStandardResponse<ArticleVersionCompareResponse> compare =
-                    controller(Map.of("id", "10", "fromVersion", "1", "toVersion", "2"), db.dataSource()).compare();
+                    controller(
+                                    Map.of("id", "10", "fromVersion", "1", "toVersion", "2"),
+                                    db.dataSource())
+                            .compare();
 
             assertEquals(2, versions.getData().size());
             assertEquals(Integer.valueOf(2), versions.getData().get(0).getVersion());
@@ -128,7 +134,8 @@ public class AdminArticleVersionControllerDatabaseTest {
         }
     }
 
-    private AdminArticleVersionController controller(Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
+    private AdminArticleVersionController controller(
+            Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
         var data =
                 com.zrlog.data.di.DaggerDataComponent.factory()
                         .create(() -> testDataSource, () -> true);
@@ -142,7 +149,8 @@ public class AdminArticleVersionControllerDatabaseTest {
                                 java.util.Collections::emptyList);
         var content =
                 com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
-                        .create(() -> null,
+                        .create(
+                                () -> null,
                                 data,
                                 services,
                                 AccountServicesFixture.component(testDataSource),

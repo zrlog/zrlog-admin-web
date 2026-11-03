@@ -21,7 +21,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -32,12 +31,12 @@ public class FileManagerController extends BaseController {
     private final AdminPageDataFactory pages;
     private final AdminRequestIdentity requestIdentity;
 
-
     private final FileManagerService fileManagerService;
 
     @Inject
     public FileManagerController(
-            FileManagerService fileManagerService, AdminPageDataFactory pages,
+            FileManagerService fileManagerService,
+            AdminPageDataFactory pages,
             AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.pages = pages;
@@ -51,7 +50,9 @@ public class FileManagerController extends BaseController {
         String key = request.getParaToStr("key", "");
         String resourceType = request.getParaToStr("resourceType", "");
         var actor = requestIdentity.current();
-        return new AdminPageDataResponse<>(fileManagerService.page(path, key, resourceType), "",
+        return new AdminPageDataResponse<>(
+                fileManagerService.page(path, key, resourceType),
+                "",
                 pages.metadata(actor, request.getUri()));
     }
 
@@ -81,17 +82,20 @@ public class FileManagerController extends BaseController {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
-        ReplaceArticleResourceUrlRequest body = getRequestBodyWithNullCheck(ReplaceArticleResourceUrlRequest.class);
+        ReplaceArticleResourceUrlRequest body =
+                getRequestBodyWithNullCheck(ReplaceArticleResourceUrlRequest.class);
         var actor = requestIdentity.current();
-        ReplaceArticleResourceUrlResponse response = fileManagerService.replaceArticleResourceUrlAndRecord(
-                actor, body, AdminAuditContexts.from(request, actor.getUserId()));
+        ReplaceArticleResourceUrlResponse response =
+                fileManagerService.replaceArticleResourceUrlAndRecord(
+                        actor, body, AdminAuditContexts.from(request, actor.getUserId()));
         return new ApiStandardResponse<>(response);
     }
 
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
     @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.restore")
-    public ApiStandardResponse<UploadFileResponse> reuploadMissingLocalResource() throws IOException {
+    public ApiStandardResponse<UploadFileResponse> reuploadMissingLocalResource()
+            throws IOException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
@@ -107,8 +111,13 @@ public class FileManagerController extends BaseController {
         if (uploadFile == null || !uploadFile.exists()) {
             throw new ArgsException("imgFile");
         }
-        UploadFileResponse response = fileManagerService.reuploadMissingLocalResourceAndRecord(
-                path, uploadFile, request, AdminTokenThreadLocal.getUser(), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+        UploadFileResponse response =
+                fileManagerService.reuploadMissingLocalResourceAndRecord(
+                        path,
+                        uploadFile,
+                        request,
+                        AdminTokenThreadLocal.getUser(),
+                        AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         return new ApiStandardResponse<>(response);
     }
 
@@ -120,7 +129,9 @@ public class FileManagerController extends BaseController {
         if (path.isEmpty()) {
             throw new ArgsException("path");
         }
-        return new ApiStandardResponse<>(fileManagerService.deleteAndRecord(path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
+        return new ApiStandardResponse<>(
+                fileManagerService.deleteAndRecord(
+                        path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -134,8 +145,13 @@ public class FileManagerController extends BaseController {
         }
         boolean syncArticleReferences = request.getParaToBool("syncArticleReferences", false);
         var actor = requestIdentity.current();
-        return new ApiStandardResponse<>(fileManagerService.renameAndRecord(
-                path, newName, syncArticleReferences, actor, AdminAuditContexts.from(request, actor.getUserId())));
+        return new ApiStandardResponse<>(
+                fileManagerService.renameAndRecord(
+                        path,
+                        newName,
+                        syncArticleReferences,
+                        actor,
+                        AdminAuditContexts.from(request, actor.getUserId())));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -146,7 +162,9 @@ public class FileManagerController extends BaseController {
         if (path.isEmpty()) {
             throw new ArgsException("path");
         }
-        return new ApiStandardResponse<>(fileManagerService.mkdirAndRecord(path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
+        return new ApiStandardResponse<>(
+                fileManagerService.mkdirAndRecord(
+                        path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
     }
 
     @ResponseBody
@@ -167,11 +185,14 @@ public class FileManagerController extends BaseController {
         String path = request.getParaToStr("path", "");
         if (FileEntryUtils.isExternalUrl(path)) {
             String target = path.trim();
-            response.redirect(URI.create(target.startsWith("//") ? "https:" + target : target).toASCIIString());
+            response.redirect(
+                    URI.create(target.startsWith("//") ? "https:" + target : target)
+                            .toASCIIString());
             return;
         }
         try (java.io.InputStream target = fileManagerService.open(path)) {
-            response.addHeader("Content-Disposition", "attachment;filename=" + new File(path).getName());
+            response.addHeader(
+                    "Content-Disposition", "attachment;filename=" + new File(path).getName());
             response.write(target);
         }
     }

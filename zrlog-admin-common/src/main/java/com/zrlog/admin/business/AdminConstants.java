@@ -3,21 +3,25 @@ package com.zrlog.admin.business;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.util.I18nUtil;
-
 import java.util.*;
 
 public class AdminConstants {
     public static final String ADMIN_URI_BASE_PATH = "/admin";
     public static final String ADMIN_DEV_URI_BASE_PATH = ADMIN_URI_BASE_PATH + "/dev";
     public static final String ADMIN_DEV_FILE_URI_BASE_PATH = ADMIN_URI_BASE_PATH + "/dev/file";
-    public static final String ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH = ADMIN_URI_BASE_PATH + "/dev/file/tmp";
-    public static final String ADMIN_DB_ATTACHED_TMP = AdminConstants.ADMIN_URI_BASE_PATH + "/attached/tmp";
+    public static final String ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH =
+            ADMIN_URI_BASE_PATH + "/dev/file/tmp";
+    public static final String ADMIN_DB_ATTACHED_TMP =
+            AdminConstants.ADMIN_URI_BASE_PATH + "/attached/tmp";
 
     public static final String ADMIN_HTML_PAGE = ADMIN_URI_BASE_PATH + "/index.html";
     public static final String ADMIN_LOGIN_URI_PATH = ADMIN_URI_BASE_PATH + "/login";
-    public static final String ADMIN_PWA_MANIFEST_API_URI_PATH = "/api" + ADMIN_URI_BASE_PATH + "/manifest";
-    public static final String ADMIN_REFRESH_CACHE_API_URI_PATH = "/api" + ADMIN_URI_BASE_PATH + "/refreshCache";
-    public static final String ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH = "/api" + ADMIN_URI_BASE_PATH + "/assistant/trigger";
+    public static final String ADMIN_PWA_MANIFEST_API_URI_PATH =
+            "/api" + ADMIN_URI_BASE_PATH + "/manifest";
+    public static final String ADMIN_REFRESH_CACHE_API_URI_PATH =
+            "/api" + ADMIN_URI_BASE_PATH + "/refreshCache";
+    public static final String ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH =
+            "/api" + ADMIN_URI_BASE_PATH + "/assistant/trigger";
     public static final String ADMIN_TITLE_CHAR = " - ";
     public static final String AUTO_UPGRADE_VERSION_KEY = "autoUpgradeVersion";
     public static final Map<String, String> TITLE_MAP = new TreeMap<>();
@@ -26,21 +30,32 @@ public class AdminConstants {
     public static final String ADMIN_SERVICE_WORKER_JS = ADMIN_URI_BASE_PATH + "/service-worker.js";
 
     public static final String FAVICON_ICO_URI_PATH = "/favicon.ico";
-    public static final String FAVICON_PNG_PWA_192_URI_PATH = ADMIN_URI_BASE_PATH + "/pwa/icon/favicon-192.png";
-    public static final String FAVICON_PNG_PWA_512_URI_PATH = ADMIN_URI_BASE_PATH + "/pwa/icon/favicon-512.png";
+    public static final String FAVICON_PNG_PWA_192_URI_PATH =
+            ADMIN_URI_BASE_PATH + "/pwa/icon/favicon-192.png";
+    public static final String FAVICON_PNG_PWA_512_URI_PATH =
+            ADMIN_URI_BASE_PATH + "/pwa/icon/favicon-512.png";
     public static final String ATTACHED_FOLDER = "/attached/";
     public static final String BUILD_SYSTEM_INFO_MD = "/build_system_info.md";
 
-    public static final List<String> adminStaticResources = Arrays.asList(ADMIN_URI_BASE_PATH + "/static", ADMIN_URI_BASE_PATH + "/pwa");
+    public static final List<String> adminStaticResources =
+            Arrays.asList(ADMIN_URI_BASE_PATH + "/static", ADMIN_URI_BASE_PATH + "/pwa");
 
     static {
         TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "admin.login.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/members", "admin.members.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/access", "admin.access.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/tokens", "admin.user.applications.tokens.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/grants", "admin.user.applications.grants.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/clients", "admin.user.applications.clients.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/authorize", "admin.oauth.authorize.title");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/applications/tokens",
+                "admin.user.applications.tokens.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/applications/grants",
+                "admin.user.applications.grants.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/applications/clients",
+                "admin.user.applications.clients.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/applications/authorize",
+                "admin.oauth.authorize.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-edit", "admin.article.edit.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article", "admin.article.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/index", "admin.dashboard.manage");
@@ -53,8 +68,11 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/upgrade", "admin.website.upgrade.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/assistant", "admin.website.assistant.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/ai", "admin.website.ai.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/article-edit", "admin.website.articleEdit.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/content-protector", "admin.website.contentProtector.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/website/article-edit", "admin.website.articleEdit.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/website/content-protector",
+                "admin.website.contentProtector.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/webhook", "admin.website.webhook.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/privacy", "admin.website.privacy.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/lab", "admin.website.lab.manage");
@@ -65,10 +83,18 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/plugin", "admin.plugin.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user", "admin.user.info.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/security", "admin.user.security.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/appearance", "admin.user.preferences.appearance.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/writing", "admin.user.preferences.writing.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/session", "admin.user.preferences.session.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/assistant", "admin.user.preferences.assistant.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/preferences/appearance",
+                "admin.user.preferences.appearance.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/preferences/writing",
+                "admin.user.preferences.writing.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/preferences/session",
+                "admin.user.preferences.session.manage");
+        TITLE_MAP.put(
+                ADMIN_URI_BASE_PATH + "/user/preferences/assistant",
+                "admin.user.preferences.assistant.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "admin.upgrade.wizard.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");
@@ -83,10 +109,15 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev/ui", "admin.dev.ui.manage");
     }
 
-    public static String getAdminDocumentTitleByUri(String uri, PublicWebSiteInfo publicWebSiteInfo) {
+    public static String getAdminDocumentTitleByUri(
+            String uri, PublicWebSiteInfo publicWebSiteInfo) {
         String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
-        String title = key == null ? "" : I18nUtil.getAdminBackendStringFromRes(key, pageLanguage(publicWebSiteInfo));
+        String title =
+                key == null
+                        ? ""
+                        : I18nUtil.getAdminBackendStringFromRes(
+                                key, pageLanguage(publicWebSiteInfo));
         return getAdminTitle(title, publicWebSiteInfo);
     }
 
@@ -103,9 +134,9 @@ public class AdminConstants {
         if (StringUtils.isNotEmpty(title)) {
             sj.add(title);
         }
-        sj.add(I18nUtil.getAdminBackendStringFromRes("admin.management.title", pageLanguage(publicWebSiteInfo)));
+        sj.add(
+                I18nUtil.getAdminBackendStringFromRes(
+                        "admin.management.title", pageLanguage(publicWebSiteInfo)));
         return sj.toString();
     }
-
-
 }

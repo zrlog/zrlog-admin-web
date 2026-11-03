@@ -10,9 +10,6 @@ import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.common.vo.AdminTokenVO;
-import org.jsoup.Jsoup;
-import org.jsoup.select.Elements;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -21,20 +18,25 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.jsoup.Jsoup;
+import org.jsoup.select.Elements;
 
 public class ArticleCoverUtils {
 
-
     private static final Logger LOGGER = LoggerUtil.getLogger(ArticleCoverUtils.class);
 
-    private static byte[] getRequestBodyBytes(String url) throws IOException, URISyntaxException, InterruptedException {
+    private static byte[] getRequestBodyBytes(String url)
+            throws IOException, URISyntaxException, InterruptedException {
         HttpFileHandle fileHandler = new HttpFileHandle("");
         HttpUtil.getInstance().sendGetRequest(url, new HashMap<>(), fileHandler, new HashMap<>());
         return IOUtil.getByteByInputStream(new FileInputStream(fileHandler.getT().getPath()));
     }
 
-    public static String getFirstImgUrl(String htmlContent, HttpRequest httpRequest, AdminTokenVO adminTokenVO,
-                                        UploadService uploadService) {
+    public static String getFirstImgUrl(
+            String htmlContent,
+            HttpRequest httpRequest,
+            AdminTokenVO adminTokenVO,
+            UploadService uploadService) {
         if (StringUtils.isEmpty(htmlContent)) {
             return "";
         }
@@ -54,10 +56,18 @@ public class ArticleCoverUtils {
                     path = path.replace("//", "/");
                 }
                 bytes = getRequestBodyBytes(url);
-                path = path.substring(0, path.indexOf('.')) + "_thumbnail" + path.substring(path.indexOf('.'));
+                path =
+                        path.substring(0, path.indexOf('.'))
+                                + "_thumbnail"
+                                + path.substring(path.indexOf('.'));
             } else {
-                bytes = IOUtil.getByteByInputStream(new FileInputStream(PathUtil.getStaticFile(url)));
-                path = url.substring(0, url.indexOf('.')) + "_thumbnail" + url.substring(path.indexOf('.'));
+                bytes =
+                        IOUtil.getByteByInputStream(
+                                new FileInputStream(PathUtil.getStaticFile(url)));
+                path =
+                        url.substring(0, url.indexOf('.'))
+                                + "_thumbnail"
+                                + url.substring(path.indexOf('.'));
             }
             File thumbnailFile = PathUtil.getStaticFile(path);
             if (bytes.length == 0) {
@@ -65,11 +75,16 @@ public class ArticleCoverUtils {
             }
             int height = -1;
             int width = -1;
-            //创建文件夹，避免保存失败
+            // 创建文件夹，避免保存失败
             thumbnailFile.getParentFile().mkdirs();
             IOUtil.writeBytesToFile(bytes, thumbnailFile);
-            return uploadService.getCloudUrl(path, thumbnailFile.getPath(), httpRequest,
-                    adminTokenVO).getUrl() + "?h=" + height + "&w=" + width;
+            return uploadService
+                            .getCloudUrl(path, thumbnailFile.getPath(), httpRequest, adminTokenVO)
+                            .getUrl()
+                    + "?h="
+                    + height
+                    + "&w="
+                    + width;
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "", e);
         }

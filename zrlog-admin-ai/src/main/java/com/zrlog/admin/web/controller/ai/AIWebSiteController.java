@@ -23,7 +23,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -54,10 +53,13 @@ public class AIWebSiteController extends BaseController {
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
-    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.optimizeDescription")
+    @RequiresAction(
+            value = AccountAction.SITE_CONFIGURE,
+            descriptionKey = "website.optimizeDescription")
     public ApiStandardResponse<OptimizeWebsiteDescriptionResponse> optimizeDescription()
             throws IOException, InterruptedException {
-        OptimizeWebsiteDescriptionRequest body = getRequestBodyWithNullCheck(OptimizeWebsiteDescriptionRequest.class);
+        OptimizeWebsiteDescriptionRequest body =
+                getRequestBodyWithNullCheck(OptimizeWebsiteDescriptionRequest.class);
         return new ApiStandardResponse<>(this.aIToolService.optimizeWebsiteDescription(body));
     }
 
@@ -74,7 +76,10 @@ public class AIWebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
     public AdminPageDataResponse<AIWebSiteInfoResponse> ai() throws SQLException {
         if (isPost()) {
-            this.aIConfigService.updateAi(getRequestBodyWithNullCheck(AIWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), settingsService);
+            this.aIConfigService.updateAi(
+                    getRequestBodyWithNullCheck(AIWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                    settingsService);
         }
         return page(this.aIConfigService.aiResponse());
     }
@@ -84,7 +89,10 @@ public class AIWebSiteController extends BaseController {
     }
 
     private <T> AdminPageDataResponse<T> page(T data) {
-        String message = isPost() ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success") : "";
+        String message =
+                isPost()
+                        ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
+                        : "";
         return pages.response(requestIdentity.optional(), data, message, request.getUri());
     }
 }

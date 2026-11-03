@@ -2,13 +2,11 @@ package com.zrlog.admin.business.ai.model;
 
 import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
-
 import java.util.List;
 
 public final class AIProviderResponses {
 
-    private AIProviderResponses() {
-    }
+    private AIProviderResponses() {}
 
     public static class CompletionResponse {
 
@@ -76,7 +74,10 @@ public final class AIProviderResponses {
 
         private Message message;
         private Delta delta;
-        @SerializedName(value = "finish_reason", alternate = {"finishReason"})
+
+        @SerializedName(
+                value = "finish_reason",
+                alternate = {"finishReason"})
         private String finishReason;
 
         public Message getMessage() {
@@ -108,16 +109,23 @@ public final class AIProviderResponses {
 
         @SerializedName("tool_calls")
         public List<AIProviderRequests.ToolCall> toolCalls;
-        @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
+
+        @SerializedName(
+                value = "reasoning_content",
+                alternate = {"reasoningContent"})
         public String reasoningContent;
+
         public JsonElement reasoning;
         public List<OpenAIResponses.Item> responsesOutput;
         private String content;
 
         public String getReasoningText() {
             if (reasoningContent != null) return reasoningContent;
-            return reasoning != null && reasoning.isJsonPrimitive() && reasoning.getAsJsonPrimitive().isString()
-                    ? reasoning.getAsString() : null;
+            return reasoning != null
+                            && reasoning.isJsonPrimitive()
+                            && reasoning.getAsJsonPrimitive().isString()
+                    ? reasoning.getAsString()
+                    : null;
         }
 
         public String getContent() {
@@ -133,9 +141,14 @@ public final class AIProviderResponses {
 
         @SerializedName("tool_calls")
         public List<ToolCallDelta> toolCalls;
+
         private String content;
-        @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
+
+        @SerializedName(
+                value = "reasoning_content",
+                alternate = {"reasoningContent"})
         private String reasoningContent;
+
         private Object reasoning;
 
         public String getContent() {
@@ -184,6 +197,7 @@ public final class AIProviderResponses {
 
         @SerializedName("b64_json")
         private String b64Json;
+
         private String url;
 
         public String getB64Json() {

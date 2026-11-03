@@ -17,13 +17,12 @@ import com.zrlog.common.cache.vo.BaseDataInitVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataComponent;
-import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.data.repository.UserRepository;
+import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
 import com.zrlog.web.*;
-
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -31,9 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 
-/**
- * Admin identity, resources and seed data on top of the shared database fixture.
- */
+/** Admin identity, resources and seed data on top of the shared database fixture. */
 public class InMemoryZrLogDatabase implements AutoCloseable {
 
     private final ZrLogTestDatabase database;
@@ -66,7 +63,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public static InMemoryZrLogDatabase openSqlite() throws Exception {
-        return new InMemoryZrLogDatabase(ZrLogTestDatabase.open(ZrLogTestDatabase.DatabaseType.SQLITE));
+        return new InMemoryZrLogDatabase(
+                ZrLogTestDatabase.open(ZrLogTestDatabase.DatabaseType.SQLITE));
     }
 
     public static InMemoryZrLogDatabase openWebApi() throws Exception {
@@ -76,7 +74,9 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     private static void setToken(AdminTokenVO token) throws Exception {
         AdminTokenThreadLocal.remove();
         if (token != null) {
-            var setter = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
+            var setter =
+                    AdminTokenThreadLocal.class.getDeclaredMethod(
+                            "setAdminToken", AdminTokenVO.class);
             setter.setAccessible(true);
             setter.invoke(null, token);
         }
@@ -87,7 +87,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     /**
-     * Register controlled host boundaries after modules, before database-ready callbacks freeze bindings.
+     * Register controlled host boundaries after modules, before database-ready callbacks freeze
+     * bindings.
      */
     public void loadAdminWebModules(java.util.function.Consumer<ServerConfig> configure) {
         config.webModules(java.util.Objects.requireNonNull(configure));
@@ -109,17 +110,14 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         return component(DataComponent.class).cache();
     }
 
-    /**
-     * Explicit fake for isolated unit tests; never substitute it into a loaded application.
-     */
+    /** Explicit fake for isolated unit tests; never substitute it into a loaded application. */
     public TestCacheService unitCacheService() {
-        if (config.modulesLoaded) throw new IllegalStateException("Use the production cache after loading modules");
+        if (config.modulesLoaded)
+            throw new IllegalStateException("Use the production cache after loading modules");
         return cacheService;
     }
 
-    /**
-     * Resolve a production graph after all of the application's WebSetup registrations.
-     */
+    /** Resolve a production graph after all of the application's WebSetup registrations. */
     public <T> T component(Class<T> type) {
         loadAdminWebModules();
         return config.getServerConfig().getBindings().build().get(type);
@@ -163,10 +161,20 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     private void seedBaseData() throws SQLException {
-        execute("insert into user(userId, email, password, userName, header, role) values(?, ?, ?, ?, ?, ?)",
-                1, "admin@example.com", "password", "admin", "/avatar.png", "admin");
-        execute("insert into type(typeId, alias, typeName, remark) values(?, ?, ?, ?)",
-                1, "default", "Default", "Default type");
+        execute(
+                "insert into user(userId, email, password, userName, header, role) values(?, ?, ?, ?, ?, ?)",
+                1,
+                "admin@example.com",
+                "password",
+                "admin",
+                "/avatar.png",
+                "admin");
+        execute(
+                "insert into type(typeId, alias, typeName, remark) values(?, ?, ?, ?)",
+                1,
+                "default",
+                "Default",
+                "Default type");
         putWebsite("title", "ZrLog Test");
         putWebsite("host", "localhost:18080");
         putWebsite("language", Constants.DEFAULT_LANGUAGE);
@@ -282,7 +290,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private synchronized void webModules(java.util.function.Consumer<ServerConfig> configure) {
             if (modulesLoaded) {
                 if (configure != null)
-                    throw new IllegalStateException("Configure test boundaries before loading modules");
+                    throw new IllegalStateException(
+                            "Configure test boundaries before loading modules");
                 return;
             }
             this.webSetups.clear();
@@ -295,12 +304,13 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
                                             || provider.name().equals("admin")
                                             || provider.name().startsWith("admin-")));
             if (configure != null) {
-                this.webSetups.add(new WebSetup() {
-                    @Override
-                    public void setup() {
-                        configure.accept(serverConfig);
-                    }
-                });
+                this.webSetups.add(
+                        new WebSetup() {
+                            @Override
+                            public void setup() {
+                                configure.accept(serverConfig);
+                            }
+                        });
             }
             modulesLoaded = true;
             initializeWebSetups();
@@ -317,15 +327,23 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         }
 
         private boolean staticHtmlEnabled() {
-            return Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status());
+            return Boolean.TRUE.equals(
+                    cacheService.getPublicWebSiteInfo().getGenerator_html_status());
         }
 
         @Override
         protected TokenService initTokenService() {
             if (modulesLoaded) return super.initTokenService();
             if (testTokens == null) {
-                testTokens = new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled,
-                        () -> new UserRepository(testDataSource), () -> new UserPreferenceStore(() -> new UserRepository(testDataSource)));
+                testTokens =
+                        new AdminTokenService(
+                                60,
+                                this::isInstalled,
+                                this::staticHtmlEnabled,
+                                () -> new UserRepository(testDataSource),
+                                () ->
+                                        new UserPreferenceStore(
+                                                () -> new UserRepository(testDataSource)));
             }
             return testTokens;
         }
@@ -371,6 +389,5 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         public String getStaticResourceBuildId() {
             return "test";
         }
-
     }
 }

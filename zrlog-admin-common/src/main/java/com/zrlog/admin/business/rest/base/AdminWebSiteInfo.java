@@ -4,10 +4,9 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.util.WebSiteUtils;
+import java.util.Objects;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
-
-import java.util.Objects;
 
 public class AdminWebSiteInfo implements Validator {
 
@@ -30,7 +29,6 @@ public class AdminWebSiteInfo implements Validator {
     public void setSession_timeout(Long session_timeout) {
         this.session_timeout = session_timeout;
     }
-
 
     public String getLanguage() {
         return language;
@@ -59,7 +57,8 @@ public class AdminWebSiteInfo implements Validator {
     @Override
     public void doValid() {
         try {
-            backend_server_url = com.zrlog.admin.util.BackendServerUrl.normalize(backend_server_url);
+            backend_server_url =
+                    com.zrlog.admin.util.BackendServerUrl.normalize(backend_server_url);
         } catch (IllegalArgumentException invalid) {
             throw new ArgsException(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY);
         }
@@ -74,10 +73,12 @@ public class AdminWebSiteInfo implements Validator {
     @Override
     public void doClean() {
         if (StringUtils.isNotEmpty(favicon_png_pwa_512_base64)) {
-            this.favicon_png_pwa_512_base64 = Jsoup.clean(favicon_png_pwa_512_base64, Safelist.none());
+            this.favicon_png_pwa_512_base64 =
+                    Jsoup.clean(favicon_png_pwa_512_base64, Safelist.none());
         }
         if (StringUtils.isNotEmpty(favicon_png_pwa_192_base64)) {
-            this.favicon_png_pwa_192_base64 = Jsoup.clean(favicon_png_pwa_192_base64, Safelist.none());
+            this.favicon_png_pwa_192_base64 =
+                    Jsoup.clean(favicon_png_pwa_192_base64, Safelist.none());
         }
         if (StringUtils.isNotEmpty(language)) {
             this.language = Jsoup.clean(language, Safelist.none());
@@ -89,8 +90,10 @@ public class AdminWebSiteInfo implements Validator {
             this.admin_theme = Jsoup.clean(admin_theme, Safelist.none());
         }
         if (StringUtils.isNotEmpty(admin_static_resource_base_url)) {
-            if (admin_static_resource_base_url.startsWith("http://") || admin_static_resource_base_url.startsWith("https://")) {
-                this.admin_static_resource_base_url = Jsoup.clean(admin_static_resource_base_url, Safelist.none());
+            if (admin_static_resource_base_url.startsWith("http://")
+                    || admin_static_resource_base_url.startsWith("https://")) {
+                this.admin_static_resource_base_url =
+                        Jsoup.clean(admin_static_resource_base_url, Safelist.none());
             } else {
                 throw new ArgsException("admin_static_resource_base_url");
             }

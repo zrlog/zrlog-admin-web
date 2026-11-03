@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -14,24 +16,21 @@ import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminResourceService;
 import com.zrlog.admin.business.service.FeatureLabService;
 import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
-import com.zrlog.admin.data.repository.UserPasskeyRepository;
-import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.After;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.Test;
 
 public class AdminDevControllerTest {
 
@@ -39,39 +38,43 @@ public class AdminDevControllerTest {
     private ZrLogConfig applicationConfig;
 
     private static HttpRequest request(Map<String, String> params, ServerConfig serverConfig) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminDevControllerTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return "/api/admin/dev";
-                        case "getParaToBool":
-                            return Boolean.parseBoolean(params.getOrDefault(args[0].toString(), args[1].toString()));
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminDevControllerTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getUri":
+                                    return "/api/admin/dev";
+                                case "getParaToBool":
+                                    return Boolean.parseBoolean(
+                                            params.getOrDefault(
+                                                    args[0].toString(), args[1].toString()));
+                                case "getHeader":
+                                    return "Host".equals(args[0]) ? "localhost:18080" : null;
+                                case "getHeaderMap":
+                                    return Map.of("X-Real-IP", "127.0.0.1");
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "getServerConfig":
+                                    return serverConfig;
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(
-                AdminDevControllerTest.class.getClassLoader(),
-                new Class[]{HttpResponse.class},
-                (proxy, method, args) -> null);
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        AdminDevControllerTest.class.getClassLoader(),
+                        new Class[] {HttpResponse.class},
+                        (proxy, method, args) -> null);
     }
 
     @After
@@ -88,15 +91,26 @@ public class AdminDevControllerTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             String runMode = System.getProperty("sws.run.mode");
-            Object before = db.queryOne("select value from website where name=?", "admin_audit_log");
+            Object before =
+                    db.queryOne("select value from website where name=?", "admin_audit_log");
             AdminPageDataResponse<Boolean> result = controller(Map.of(), db.dataSource()).ui();
             assertEquals(Boolean.TRUE, result.getData());
             assertEquals(runMode, System.getProperty("sws.run.mode"));
-            assertEquals(before, db.queryOne("select value from website where name=?", "admin_audit_log"));
-            assertEquals(AccountAction.SYSTEM_MANAGE, AdminDevController.class.getMethod("ui")
-                    .getAnnotation(RequiresAction.class).value());
-            assertEquals(HttpMethod.GET, AdminDevController.class.getMethod("ui")
-                    .getAnnotation(RequestMethod.class).method());
+            assertEquals(
+                    before,
+                    db.queryOne("select value from website where name=?", "admin_audit_log"));
+            assertEquals(
+                    AccountAction.SYSTEM_MANAGE,
+                    AdminDevController.class
+                            .getMethod("ui")
+                            .getAnnotation(RequiresAction.class)
+                            .value());
+            assertEquals(
+                    HttpMethod.GET,
+                    AdminDevController.class
+                            .getMethod("ui")
+                            .getAnnotation(RequestMethod.class)
+                            .method());
         }
     }
 
@@ -122,11 +136,14 @@ public class AdminDevControllerTest {
             AdminDevController enable = controller(Map.of(), serverConfig, db.dataSource());
 
             enable.enable();
-            ApiStandardResponse<Boolean> disabled = controller(Map.of("enabled", "false"), serverConfig, db.dataSource()).mode();
+            ApiStandardResponse<Boolean> disabled =
+                    controller(Map.of("enabled", "false"), serverConfig, db.dataSource()).mode();
 
             assertFalse(disabled.getData());
-            String audit = String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
-                    .get("value"));
+            String audit =
+                    String.valueOf(
+                            db.queryOne("select value from website where name=?", "admin_audit_log")
+                                    .get("value"));
             assertTrue(audit.contains("ENABLE_DEV_MODE"));
             assertTrue(audit.contains("DISABLE_DEV_MODE"));
         }
@@ -143,8 +160,10 @@ public class AdminDevControllerTest {
                             new FeatureLabService(
                                     () -> true,
                                     new WebhookService(
-                                            ApplicationServicesFixture.messages(ignored.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(ignored.dataSource())),
+                                            ApplicationServicesFixture.messages(
+                                                    ignored.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(
+                                                    ignored.dataSource())),
                                     () -> new WebSiteRepository(ignored.dataSource())),
                             ApplicationServicesFixture.site(ignored.config()),
                             () ->
@@ -152,7 +171,8 @@ public class AdminDevControllerTest {
                                             .getStringValueByName("admin_static_resource_base_url"),
                             () -> new UserPasskeyRepository(ignored.dataSource()));
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
-            ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true"), ignored.dataSource()).mode();
+            ApiStandardResponse<Boolean> enabled =
+                    controller(Map.of("enabled", "true"), ignored.dataSource()).mode();
 
             assertEquals(Boolean.TRUE, enabled.getData());
             assertEquals("dev", System.getProperty("sws.run.mode"));
@@ -168,16 +188,23 @@ public class AdminDevControllerTest {
             applicationConfig = db.config();
             assertEquals(0, controller(Map.of(), db.dataSource()).releaseLocks().getError());
 
-            assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
-                    .get("value")).contains("RELEASE_DEV_LOCKS"));
+            assertTrue(
+                    String.valueOf(
+                                    db.queryOne(
+                                                    "select value from website where name=?",
+                                                    "admin_audit_log")
+                                            .get("value"))
+                            .contains("RELEASE_DEV_LOCKS"));
         }
     }
 
-    private AdminDevController controller(Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
+    private AdminDevController controller(
+            Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
         return controller(params, new ServerConfig(), testDataSource);
     }
 
-    private AdminDevController controller(Map<String, String> params, ServerConfig serverConfig, DataSourceWrapper testDataSource)
+    private AdminDevController controller(
+            Map<String, String> params, ServerConfig serverConfig, DataSourceWrapper testDataSource)
             throws Exception {
         AdminDevController controller =
                 new AdminDevController(
@@ -188,7 +215,8 @@ public class AdminDevControllerTest {
                         ApplicationServicesFixture.audit(testDataSource),
                         ApplicationServicesFixture.websiteCache(testDataSource),
                         new DistributedLockManager(
-                                () -> new WebSiteRepository(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                                () -> new WebSiteRepository(testDataSource),
+                                ApplicationServicesFixture.locks(testDataSource)),
                         AccountServicesFixture.component(testDataSource).requestIdentity());
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);

@@ -4,18 +4,15 @@ import com.google.gson.Gson;
 import com.zrlog.admin.business.ai.model.AIChatModels.Run;
 import com.zrlog.admin.business.ai.model.AIChatModels.RunView;
 import com.zrlog.admin.business.security.SecurityStore;
-import jakarta.inject.Inject;
-
-import java.sql.SQLException;
-import com.zrlog.model.WebSite;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.model.WebSite;
+import jakarta.inject.Inject;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * One private checkpoint per account/editor, with atomic claims on JDBC and Web API databases.
- */
+/** One private checkpoint per account/editor, with atomic claims on JDBC and Web API databases. */
 final class AIApprovalStore {
 
     static final long APPROVAL_TTL = 30 * 60_000L;
@@ -23,6 +20,7 @@ final class AIApprovalStore {
     private static final int MAX_CHECKPOINT_LENGTH = 16 * 1024 * 1024;
     private final Gson json = new Gson();
     private final SecurityStore db;
+
     @Inject
     public AIApprovalStore(SecurityStore db) {
         this.db = db;
@@ -31,7 +29,10 @@ final class AIApprovalStore {
     static boolean active(Run run) {
         if (run == null) return false;
         String status = view(run).status;
-        return "awaiting_approval".equals(status) || "awaiting_input".equals(status) || "running".equals(status) || "executing".equals(status);
+        return "awaiting_approval".equals(status)
+                || "awaiting_input".equals(status)
+                || "running".equals(status)
+                || "executing".equals(status);
     }
 
     static RunView view(Run run) {
@@ -48,12 +49,13 @@ final class AIApprovalStore {
         view.skillMessages = run.skillMessages;
         view.answer = run.answer;
         view.articleUpdates = run.articleUpdates;
-        if ("awaiting_approval".equals(view.status) && run.approval.expiresAt <= System.currentTimeMillis())
-            view.status = "expired";
-        if ("awaiting_input".equals(view.status) && run.interaction.expiresAt <= System.currentTimeMillis())
-            view.status = "expired";
+        if ("awaiting_approval".equals(view.status)
+                && run.approval.expiresAt <= System.currentTimeMillis()) view.status = "expired";
+        if ("awaiting_input".equals(view.status)
+                && run.interaction.expiresAt <= System.currentTimeMillis()) view.status = "expired";
         if (("running".equals(view.status) || "executing".equals(view.status))
-                && run.updatedAt + RUN_TIMEOUT <= System.currentTimeMillis()) view.status = "uncertain";
+                && run.updatedAt + RUN_TIMEOUT <= System.currentTimeMillis())
+            view.status = "uncertain";
         return view;
     }
 
@@ -62,11 +64,19 @@ final class AIApprovalStore {
     }
 
     Run read(int userId, long articleId) throws SQLException {
-        WebSite row = db.withSession(c -> db.firstEntity(c, WebSite.class,
-                "WHERE name=? LIMIT 1", key(userId, articleId)));
+        WebSite row =
+                db.withSession(
+                        c ->
+                                db.firstEntity(
+                                        c,
+                                        WebSite.class,
+                                        "WHERE name=? LIMIT 1",
+                                        key(userId, articleId)));
         if (row == null || row.getValue() == null) return null;
         Run run = json.fromJson(row.getValue().toString(), Run.class);
-        if (run == null || run.userId != userId || run.articleId != articleId
+        if (run == null
+                || run.userId != userId
+                || run.articleId != articleId
                 || !Objects.equals(run.revision, row.getRemark()))
             throw new SQLException("Invalid assistant checkpoint");
         return run;
@@ -92,8 +102,14 @@ final class AIApprovalStore {
         }
         if (old == null) {
             try {
-                db.withSession(c -> db.repository(c, WebSite.class).insert(
-                        WebSiteRepository.entry(key(run.userId, run.articleId), value, run.revision)));
+                db.withSession(
+                        c ->
+                                db.repository(c, WebSite.class)
+                                        .insert(
+                                                WebSiteRepository.entry(
+                                                        key(run.userId, run.articleId),
+                                                        value,
+                                                        run.revision)));
             } catch (SQLException e) {
                 run.revision = null;
                 if (read(run.userId, run.articleId) != null) throw new Changed();
@@ -101,9 +117,17 @@ final class AIApprovalStore {
             }
         } else {
             try {
-                if (db.withSession(c -> db.repository(c, WebSite.class).updateWhere(
-                        WebSiteRepository.entry(null, value, run.revision), List.of("value", "remark"),
-                        "name=? AND remark=?", key(run.userId, run.articleId), old.revision)) != 1) throw new Changed();
+                if (db.withSession(
+                                c ->
+                                        db.repository(c, WebSite.class)
+                                                .updateWhere(
+                                                        WebSiteRepository.entry(
+                                                                null, value, run.revision),
+                                                        List.of("value", "remark"),
+                                                        "name=? AND remark=?",
+                                                        key(run.userId, run.articleId),
+                                                        old.revision))
+                        != 1) throw new Changed();
             } catch (SQLException | RuntimeException e) {
                 run.revision = null;
                 throw e;
@@ -122,9 +146,16 @@ final class AIApprovalStore {
         run.revision = next;
         try {
             String value = serialize(run);
-            if (db.withSession(c -> db.repository(c, WebSite.class).updateWhere(
-                    WebSiteRepository.entry(null, value, next), List.of("value", "remark"),
-                    "name=? AND remark=?", key(run.userId, run.articleId), expected)) != 1) throw new Changed();
+            if (db.withSession(
+                            c ->
+                                    db.repository(c, WebSite.class)
+                                            .updateWhere(
+                                                    WebSiteRepository.entry(null, value, next),
+                                                    List.of("value", "remark"),
+                                                    "name=? AND remark=?",
+                                                    key(run.userId, run.articleId),
+                                                    expected))
+                    != 1) throw new Changed();
         } catch (SQLException | RuntimeException e) {
             run.revision = expected;
             run.status = previousStatus;
@@ -135,17 +166,22 @@ final class AIApprovalStore {
 
     void check(Run run) throws SQLException {
         if (run.revision == null) return;
-        Object current = db.withSession(c -> db.scalar(c,
-                "select remark from website where name=?", key(run.userId, run.articleId)));
+        Object current =
+                db.withSession(
+                        c ->
+                                db.scalar(
+                                        c,
+                                        "select remark from website where name=?",
+                                        key(run.userId, run.articleId)));
         if (current == null || !Objects.equals(current, run.revision)) throw new Changed();
     }
 
     private String serialize(Run run) throws SQLException {
         String value = json.toJson(run);
-        if (value.length() > MAX_CHECKPOINT_LENGTH) throw new SQLException("Assistant checkpoint is too large");
+        if (value.length() > MAX_CHECKPOINT_LENGTH)
+            throw new SQLException("Assistant checkpoint is too large");
         return value;
     }
 
-    static final class Changed extends RuntimeException {
-    }
+    static final class Changed extends RuntimeException {}
 }

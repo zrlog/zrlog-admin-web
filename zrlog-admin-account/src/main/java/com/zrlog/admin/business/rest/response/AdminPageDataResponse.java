@@ -3,13 +3,12 @@ package com.zrlog.admin.business.rest.response;
 import com.zrlog.admin.business.service.AdminPageMetadata;
 import com.zrlog.common.rest.response.StandardResponse;
 
-
 /**
  * Response for admin page hydration APIs.
- * <p>
- * This response includes page-level metadata used by the admin shell:
- * static resource build id, document title, system notification, and message center status.
- * Use ApiStandardResponse for ordinary actions, polling endpoints, public APIs, and SSE response events.
+ *
+ * <p>This response includes page-level metadata used by the admin shell: static resource build id,
+ * document title, system notification, and message center status. Use ApiStandardResponse for
+ * ordinary actions, polling endpoints, public APIs, and SSE response events.
  */
 public class AdminPageDataResponse<T> extends StandardResponse {
     protected final String pageBuildId;

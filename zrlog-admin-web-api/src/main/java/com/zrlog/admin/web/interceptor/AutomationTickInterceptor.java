@@ -11,17 +11,21 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 
 /** Exact route with trigger-only authentication, before the browser session interceptor. */
 public final class AutomationTickInterceptor implements HandleAbleInterceptor {
-    public static final String PATH = com.zrlog.admin.business.AdminConstants.ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH;
+    public static final String PATH =
+            com.zrlog.admin.business.AdminConstants.ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH;
     private final AutomationSettingsService settings;
     private final AutomationTickService ticks;
 
-    public AutomationTickInterceptor(AutomationSettingsService settings, AutomationTickService ticks) {
+    public AutomationTickInterceptor(
+            AutomationSettingsService settings, AutomationTickService ticks) {
         this.settings = settings;
         this.ticks = ticks;
     }
 
     @Override
-    public boolean isHandleAble(HttpRequest request) { return PATH.equals(request.getUri()); }
+    public boolean isHandleAble(HttpRequest request) {
+        return PATH.equals(request.getUri());
+    }
 
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
@@ -32,13 +36,19 @@ public final class AutomationTickInterceptor implements HandleAbleInterceptor {
             return false;
         }
         AutomationSettingsService.TriggerAuthorization authorization;
-        try { authorization = settings.authenticateTrigger(request.getHeader("Authorization")); }
-        catch (PermissionErrorException error) {
+        try {
+            authorization = settings.authenticateTrigger(request.getHeader("Authorization"));
+        } catch (PermissionErrorException error) {
             response.addHeader("WWW-Authenticate", "Bearer");
             response.renderCode(401);
             return false;
         }
-        response.renderJson(new ApiStandardResponse<>(ticks.tick("external", authorization.credentialId(), authorization.budgetMillis())));
+        response.renderJson(
+                new ApiStandardResponse<>(
+                        ticks.tick(
+                                "external",
+                                authorization.credentialId(),
+                                authorization.budgetMillis())));
         return false;
     }
 }

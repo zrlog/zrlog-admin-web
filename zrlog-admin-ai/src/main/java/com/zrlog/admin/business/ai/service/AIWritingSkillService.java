@@ -19,7 +19,6 @@ import com.zrlog.util.I18nUtil;
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -42,7 +41,9 @@ public class AIWritingSkillService extends AIService {
             @Assisted AccountAccess actor,
             @Assisted AIConversationService conversationStore,
             AIToolService toolService,
-            AIImageService imageService, AccountIdentityService identities, AccountPermissionService permissions) {
+            AIImageService imageService,
+            AccountIdentityService identities,
+            AccountPermissionService permissions) {
         this.actor = actor;
         this.identities = identities;
         this.permissions = permissions;
@@ -51,14 +52,14 @@ public class AIWritingSkillService extends AIService {
         this.conversationStore = conversationStore;
     }
 
-    public AIStreamResponse startStreamResponse(String input, Long articleId, String tool,
-                                                GenerateArticleFieldRequest articleContext)
+    public AIStreamResponse startStreamResponse(
+            String input, Long articleId, String tool, GenerateArticleFieldRequest articleContext)
             throws IOException, InterruptedException, SQLException {
         return startToolStreamResponse(input, articleId, tool, articleContext);
     }
 
-    public List<AIResponseEntry.AIContentEntry> runToolResponse(String input, Long articleId, String tool,
-                                                                GenerateArticleFieldRequest articleContext)
+    public List<AIResponseEntry.AIContentEntry> runToolResponse(
+            String input, Long articleId, String tool, GenerateArticleFieldRequest articleContext)
             throws SQLException, IOException, InterruptedException {
         List<AIResponseEntry.AIContentEntry> generatedMessages =
                 runToolResponseWithoutPersistence(input, articleId, tool, articleContext);
@@ -79,12 +80,13 @@ public class AIWritingSkillService extends AIService {
         AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
-        ToolResult toolResult = runTool(tool, articleContext, buildToolConversationContext(tool, messages));
+        ToolResult toolResult =
+                runTool(tool, articleContext, buildToolConversationContext(tool, messages));
         return List.of(userMessage, buildToolMessage(tool, toolResult, info));
     }
 
-    private AIStreamResponse startToolStreamResponse(String input, Long articleId, String tool,
-                                                     GenerateArticleFieldRequest articleContext)
+    private AIStreamResponse startToolStreamResponse(
+            String input, Long articleId, String tool, GenerateArticleFieldRequest articleContext)
             throws SQLException, IOException, InterruptedException {
         if (articleContext == null) {
             throw new ArgsException("articleContext");
@@ -93,12 +95,21 @@ public class AIWritingSkillService extends AIService {
         AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         try {
-            ToolResult toolResult = runTool(tool, articleContext, buildToolConversationContext(tool, messages));
-            AIResponseEntry.AIContentEntry savedMessage = saveToolMessage(messages, articleId, tool, toolResult, info);
-            String payload = "data: " + gson.toJson(AIStreamPayloads.Chunk.tool(tool, toolResult.payload,
-                    savedMessage.getMessageId())) + "\n\n"
-                    + "data: " + gson.toJson(AIStreamPayloads.Chunk.content(toolResult.content)) + "\n\n";
-            return new AIStreamResponse(200, "", new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)));
+            ToolResult toolResult =
+                    runTool(tool, articleContext, buildToolConversationContext(tool, messages));
+            AIResponseEntry.AIContentEntry savedMessage =
+                    saveToolMessage(messages, articleId, tool, toolResult, info);
+            String payload =
+                    "data: "
+                            + gson.toJson(
+                                    AIStreamPayloads.Chunk.tool(
+                                            tool, toolResult.payload, savedMessage.getMessageId()))
+                            + "\n\n"
+                            + "data: "
+                            + gson.toJson(AIStreamPayloads.Chunk.content(toolResult.content))
+                            + "\n\n";
+            return new AIStreamResponse(
+                    200, "", new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             return buildStreamErrorResponse(e, info, tool);
         }
@@ -112,89 +123,114 @@ public class AIWritingSkillService extends AIService {
         if (articleId > 0) permissions.article(actor, articleId, false);
     }
 
-    private ToolResult runTool(String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
+    private ToolResult runTool(
+            String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
             throws IOException, InterruptedException, SQLException {
         AIWritingSkillCatalog.validateSnapshot(articleContext);
         articleContext.doValid();
         AIWritingSkillCatalog.instructions(tool);
-        // SKILL.md guides the orchestrating model. Each generator keeps its existing task/output prompt.
+        // SKILL.md guides the orchestrating model. Each generator keeps its existing task/output
+        // prompt.
         ToolResult result = executeTool(tool, articleContext, conversationContext);
         AIWritingSkillCatalog.validateResult(tool, result.payload);
         return result;
     }
 
-    /**
-     * Shared generator; chat owns its own message/checkpoint persistence.
-     */
-    AIResponseEntry.AIContentEntry generate(String tool, GenerateArticleFieldRequest context, String instruction)
+    /** Shared generator; chat owns its own message/checkpoint persistence. */
+    AIResponseEntry.AIContentEntry generate(
+            String tool, GenerateArticleFieldRequest context, String instruction)
             throws IOException, InterruptedException, SQLException {
         ToolResult result = runTool(tool, context, instruction);
-        AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("assistant", result.content);
+        AIResponseEntry.AIContentEntry entry =
+                new AIResponseEntry.AIContentEntry("assistant", result.content);
         entry.setTool(tool);
         entry.setPayload(result.payload);
         return entry;
     }
 
-    private ToolResult executeTool(String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
+    private ToolResult executeTool(
+            String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
             throws IOException, InterruptedException, SQLException {
         AIToolService toolService = this.toolService;
         switch (tool) {
-            case "title": {
-                GenerateArticleTitleRequest request = toTitleRequest(articleContext);
-                GenerateArticleTitleResponse response = toolService.generateArticleTitles(request, conversationContext);
-                return new ToolResult(formatTitles(response), response);
-            }
-            case "alias": {
-                GenerateArticleAliasResponse response = toolService.generateArticleAlias(articleContext, conversationContext);
-                return new ToolResult("`" + response.getAlias() + "`", response);
-            }
-            case "digest": {
-                GenerateArticleDigestResponse response = toolService.generateArticleDigest(articleContext, conversationContext);
-                return new ToolResult(response.getDigest(), response);
-            }
-            case "tags": {
-                GenerateArticleTagsResponse response = toolService.generateArticleTags(articleContext, conversationContext);
-                return new ToolResult(formatTags(response), response);
-            }
-            case "rewrite": {
-                GenerateArticleMarkdownResponse response =
-                        toolService.rewriteArticleMarkdown(articleContext, conversationContext);
-                return new ToolResult(formatMarkdownRewrite(response), response);
-            }
-            case "score": {
-                ScoreArticleRequest request = toScoreRequest(articleContext);
-                ScoreArticleResponse response = toolService.scoreArticle(request, conversationContext);
-                return new ToolResult(formatScore(response), response);
-            }
-            case "publishCheck": {
-                ScoreArticleResponse response = toolService.publishCheckArticle(articleContext, conversationContext);
-                return new ToolResult(formatScore(response), response);
-            }
-            case "seo": {
-                ArticleSeoCheckResponse response = toolService.checkArticleSeo(articleContext, conversationContext);
-                return new ToolResult(formatSeo(response), response);
-            }
-            case "proofread": {
-                ArticleProofreadResponse response = toolService.proofreadArticle(articleContext, conversationContext);
-                return new ToolResult(formatProofread(response), response);
-            }
-            case "structure": {
-                ArticleStructureAdviceResponse response =
-                        toolService.adviseArticleStructure(articleContext, conversationContext);
-                return new ToolResult(formatStructure(response), response);
-            }
-            case "questions": {
-                ArticleReaderQuestionsResponse response =
-                        toolService.generateReaderQuestions(articleContext, conversationContext);
-                return new ToolResult(formatReaderQuestions(response), response);
-            }
-            case "cover": {
-                GenerateArticleCoverResponse response =
-                        this.imageService.generateArticleCover(
-                                actor, articleContext, conversationContext);
-                return new ToolResult(I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
-                        new AIStreamPayloads.CoverPayload(response.getUrl()));
-            }
+            case "title":
+                {
+                    GenerateArticleTitleRequest request = toTitleRequest(articleContext);
+                    GenerateArticleTitleResponse response =
+                            toolService.generateArticleTitles(request, conversationContext);
+                    return new ToolResult(formatTitles(response), response);
+                }
+            case "alias":
+                {
+                    GenerateArticleAliasResponse response =
+                            toolService.generateArticleAlias(articleContext, conversationContext);
+                    return new ToolResult("`" + response.getAlias() + "`", response);
+                }
+            case "digest":
+                {
+                    GenerateArticleDigestResponse response =
+                            toolService.generateArticleDigest(articleContext, conversationContext);
+                    return new ToolResult(response.getDigest(), response);
+                }
+            case "tags":
+                {
+                    GenerateArticleTagsResponse response =
+                            toolService.generateArticleTags(articleContext, conversationContext);
+                    return new ToolResult(formatTags(response), response);
+                }
+            case "rewrite":
+                {
+                    GenerateArticleMarkdownResponse response =
+                            toolService.rewriteArticleMarkdown(articleContext, conversationContext);
+                    return new ToolResult(formatMarkdownRewrite(response), response);
+                }
+            case "score":
+                {
+                    ScoreArticleRequest request = toScoreRequest(articleContext);
+                    ScoreArticleResponse response =
+                            toolService.scoreArticle(request, conversationContext);
+                    return new ToolResult(formatScore(response), response);
+                }
+            case "publishCheck":
+                {
+                    ScoreArticleResponse response =
+                            toolService.publishCheckArticle(articleContext, conversationContext);
+                    return new ToolResult(formatScore(response), response);
+                }
+            case "seo":
+                {
+                    ArticleSeoCheckResponse response =
+                            toolService.checkArticleSeo(articleContext, conversationContext);
+                    return new ToolResult(formatSeo(response), response);
+                }
+            case "proofread":
+                {
+                    ArticleProofreadResponse response =
+                            toolService.proofreadArticle(articleContext, conversationContext);
+                    return new ToolResult(formatProofread(response), response);
+                }
+            case "structure":
+                {
+                    ArticleStructureAdviceResponse response =
+                            toolService.adviseArticleStructure(articleContext, conversationContext);
+                    return new ToolResult(formatStructure(response), response);
+                }
+            case "questions":
+                {
+                    ArticleReaderQuestionsResponse response =
+                            toolService.generateReaderQuestions(
+                                    articleContext, conversationContext);
+                    return new ToolResult(formatReaderQuestions(response), response);
+                }
+            case "cover":
+                {
+                    GenerateArticleCoverResponse response =
+                            this.imageService.generateArticleCover(
+                                    actor, articleContext, conversationContext);
+                    return new ToolResult(
+                            I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
+                            new AIStreamPayloads.CoverPayload(response.getUrl()));
+                }
             default:
                 throw new UnsupportedAIToolException(tool);
         }
@@ -210,7 +246,8 @@ public class AIWritingSkillService extends AIService {
         return request;
     }
 
-    private String buildToolConversationContext(String tool, List<AIResponseEntry.AIContentEntry> messages) {
+    private String buildToolConversationContext(
+            String tool, List<AIResponseEntry.AIContentEntry> messages) {
         ToolContextPolicy policy = getToolContextPolicy(tool);
         if (policy == ToolContextPolicy.NONE) {
             return "";
@@ -219,19 +256,25 @@ public class AIWritingSkillService extends AIService {
         int start = Math.max(0, messages.size() - 8);
         for (int i = start; i < messages.size(); i++) {
             AIResponseEntry.AIContentEntry entry = messages.get(i);
-            if (Objects.equals(entry.getRole(), "system") || StringUtils.isEmpty(entry.getContent())
-                    || isArticleContextMessage(entry) || !shouldUseToolConversationEntry(policy, entry)) {
+            if (Objects.equals(entry.getRole(), "system")
+                    || StringUtils.isEmpty(entry.getContent())
+                    || isArticleContextMessage(entry)
+                    || !shouldUseToolConversationEntry(policy, entry)) {
                 continue;
             }
             if (sb.length() == 0) {
                 sb.append("Conversation context:\n");
             }
-            sb.append(entry.getRole()).append(": ").append(truncateContext(entry.getContent())).append("\n");
+            sb.append(entry.getRole())
+                    .append(": ")
+                    .append(truncateContext(entry.getContent()))
+                    .append("\n");
         }
         return sb.toString().trim();
     }
 
-    private boolean shouldUseToolConversationEntry(ToolContextPolicy policy, AIResponseEntry.AIContentEntry entry) {
+    private boolean shouldUseToolConversationEntry(
+            ToolContextPolicy policy, AIResponseEntry.AIContentEntry entry) {
         if (policy == ToolContextPolicy.CHAT_ONLY) {
             return StringUtils.isEmpty(entry.getTool());
         }
@@ -305,12 +348,19 @@ public class AIWritingSkillService extends AIService {
 
     private String formatScore(ScoreArticleResponse response) {
         StringBuilder sb = new StringBuilder();
-        sb.append(I18nUtil.getAdminBackendStringFromRes("admin.ai.score.label")).append(": ")
-                .append(response.getScore()).append("\n\n");
+        sb.append(I18nUtil.getAdminBackendStringFromRes("admin.ai.score.label"))
+                .append(": ")
+                .append(response.getScore())
+                .append("\n\n");
         sb.append(response.getSummary()).append("\n\n");
         for (ScoreArticleResponse.ScoreItem item : response.getItems()) {
-            sb.append("- ").append(item.getName()).append(" ").append(item.getScore()).append(": ")
-                    .append(item.getSuggestion()).append("\n");
+            sb.append("- ")
+                    .append(item.getName())
+                    .append(" ")
+                    .append(item.getScore())
+                    .append(": ")
+                    .append(item.getSuggestion())
+                    .append("\n");
         }
         return sb.toString().trim();
     }
@@ -320,8 +370,13 @@ public class AIWritingSkillService extends AIService {
         sb.append("SEO: ").append(response.getScore()).append("\n\n");
         sb.append(response.getSummary()).append("\n\n");
         for (ArticleSeoCheckResponse.SeoItem item : response.getItems()) {
-            sb.append("- ").append(item.getName()).append(" ").append(item.getStatus()).append(": ")
-                    .append(item.getSuggestion()).append("\n");
+            sb.append("- ")
+                    .append(item.getName())
+                    .append(" ")
+                    .append(item.getStatus())
+                    .append(": ")
+                    .append(item.getSuggestion())
+                    .append("\n");
         }
         return sb.toString().trim();
     }
@@ -330,7 +385,11 @@ public class AIWritingSkillService extends AIService {
         StringBuilder sb = new StringBuilder();
         sb.append(response.getSummary());
         for (ArticleProofreadResponse.ProofreadItem item : response.getItems()) {
-            sb.append("\n- ").append(item.getOriginal()).append(": ").append(item.getIssue()).append(" -> ")
+            sb.append("\n- ")
+                    .append(item.getOriginal())
+                    .append(": ")
+                    .append(item.getIssue())
+                    .append(" -> ")
                     .append(item.getSuggestion());
         }
         return sb.toString().trim();
@@ -340,7 +399,11 @@ public class AIWritingSkillService extends AIService {
         StringBuilder sb = new StringBuilder();
         sb.append(response.getSummary());
         for (ArticleStructureAdviceResponse.StructureItem item : response.getItems()) {
-            sb.append("\n- ").append(item.getName()).append(" ").append(item.getStatus()).append(": ")
+            sb.append("\n- ")
+                    .append(item.getName())
+                    .append(" ")
+                    .append(item.getStatus())
+                    .append(": ")
                     .append(item.getSuggestion());
         }
         return sb.toString().trim();
@@ -355,11 +418,12 @@ public class AIWritingSkillService extends AIService {
         return sb.toString().trim();
     }
 
-    private List<AIResponseEntry.AIContentEntry> prepareMessages(String input, AIWebSiteInfoWithAIMessages info,
-                                                                 String tool) {
+    private List<AIResponseEntry.AIContentEntry> prepareMessages(
+            String input, AIWebSiteInfoWithAIMessages info, String tool) {
         List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
         conversationStore.ensureSystemMessage(messages, info.getAi_prompt());
-        AIResponseEntry.AIContentEntry userEntry = new AIResponseEntry.AIContentEntry("user", input);
+        AIResponseEntry.AIContentEntry userEntry =
+                new AIResponseEntry.AIContentEntry("user", input);
         if (StringUtils.isNotEmpty(tool)) {
             userEntry.setTool(tool);
         }
@@ -367,28 +431,39 @@ public class AIWritingSkillService extends AIService {
         return messages;
     }
 
-    private AIStreamResponse buildStreamErrorResponse(Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
-        String payload = "event: ai-error\n"
-                + "data: " + gson.toJson(buildStreamErrorPayload(e, info, tool)) + "\n\n";
-        return new AIStreamResponse(200, "", new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)));
+    private AIStreamResponse buildStreamErrorResponse(
+            Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
+        String payload =
+                "event: ai-error\n"
+                        + "data: "
+                        + gson.toJson(buildStreamErrorPayload(e, info, tool))
+                        + "\n\n";
+        return new AIStreamResponse(
+                200, "", new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)));
     }
 
-    private void sendStreamError(OutputStream out, Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
+    private void sendStreamError(
+            OutputStream out, Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
         try {
-            out.write(("event: ai-error\n"
-                    + "data: " + gson.toJson(buildStreamErrorPayload(e, info, tool)) + "\n\n")
-                    .getBytes(StandardCharsets.UTF_8));
+            out.write(
+                    ("event: ai-error\n"
+                                    + "data: "
+                                    + gson.toJson(buildStreamErrorPayload(e, info, tool))
+                                    + "\n\n")
+                            .getBytes(StandardCharsets.UTF_8));
             out.flush();
         } catch (IOException ignored) {
             // Client connection may already be closed.
         }
     }
 
-    AIStreamPayloads.ErrorPayload buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info) {
+    AIStreamPayloads.ErrorPayload buildStreamErrorPayload(
+            Exception e, AIWebSiteInfoWithAIMessages info) {
         return buildStreamErrorPayload(e, info, null);
     }
 
-    AIStreamPayloads.ErrorPayload buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
+    AIStreamPayloads.ErrorPayload buildStreamErrorPayload(
+            Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
         AIStreamPayloads.ErrorPayload payload = new AIStreamPayloads.ErrorPayload();
         payload.setMessage(AIErrorMessages.message(e, "admin.ai.error.request"));
         payload.setErrorType(getStreamErrorType(e));
@@ -407,8 +482,8 @@ public class AIWritingSkillService extends AIService {
         return payload;
     }
 
-    private void fillStreamErrorProvider(AIStreamPayloads.ErrorPayload payload, AIWebSiteInfoWithAIMessages info,
-                                         String tool) {
+    private void fillStreamErrorProvider(
+            AIStreamPayloads.ErrorPayload payload, AIWebSiteInfoWithAIMessages info, String tool) {
         if (Objects.equals(tool, "cover")) {
             if (info.getAi_image_provider() != null) {
                 payload.setProvider(info.getAi_image_provider().name());
@@ -448,9 +523,13 @@ public class AIWritingSkillService extends AIService {
         return "unknown";
     }
 
-    private AIResponseEntry.AIContentEntry saveToolMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId,
-                                                           String tool, ToolResult toolResult,
-                                                           AIWebSiteInfoWithAIMessages info) throws SQLException {
+    private AIResponseEntry.AIContentEntry saveToolMessage(
+            List<AIResponseEntry.AIContentEntry> messages,
+            Long articleId,
+            String tool,
+            ToolResult toolResult,
+            AIWebSiteInfoWithAIMessages info)
+            throws SQLException {
         authorize(articleId);
         AIResponseEntry.AIContentEntry entry = buildToolMessage(tool, toolResult, info);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
@@ -460,16 +539,18 @@ public class AIWritingSkillService extends AIService {
         return entry;
     }
 
-    private AIResponseEntry.AIContentEntry buildToolMessage(String tool, ToolResult toolResult,
-                                                            AIWebSiteInfoWithAIMessages info) {
-        AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("assistant", toolResult.content);
+    private AIResponseEntry.AIContentEntry buildToolMessage(
+            String tool, ToolResult toolResult, AIWebSiteInfoWithAIMessages info) {
+        AIResponseEntry.AIContentEntry entry =
+                new AIResponseEntry.AIContentEntry("assistant", toolResult.content);
         entry.setTool(tool);
         entry.setPayload(toolResult.payload);
         fillModelTrace(entry, info);
         return entry;
     }
 
-    private void fillModelTrace(AIResponseEntry.AIContentEntry entry, AIWebSiteInfoWithAIMessages info) {
+    private void fillModelTrace(
+            AIResponseEntry.AIContentEntry entry, AIWebSiteInfoWithAIMessages info) {
         if (info.getAi_provider() != null) {
             entry.setProvider(info.getAi_provider().name());
         }

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.ArticleNotPinnedException;
@@ -8,15 +10,13 @@ import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticlePinningEntryResponse;
 import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.admin.data.repository.AdminLogRepository;
-import com.zrlog.admin.data.repository.LogVersionRepository;
-import org.junit.Test;
-
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -24,17 +24,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class ArticlePinningServiceDatabaseTest {
 
     private ZrLogConfig applicationConfig;
 
     private static void assertIds(ArticlePinningResponse response, Long... ids) {
-        assertEquals(List.of(ids), response.getItems().stream()
-                .map(ArticlePinningEntryResponse::getLogId)
-                .collect(Collectors.toList()));
+        assertEquals(
+                List.of(ids),
+                response.getItems().stream()
+                        .map(ArticlePinningEntryResponse::getLogId)
+                        .collect(Collectors.toList()));
         long expectedPriority = ids.length;
         for (ArticlePinningEntryResponse item : response.getItems()) {
             assertEquals(expectedPriority--, item.getSticky().longValue());
@@ -56,7 +57,9 @@ public class ArticlePinningServiceDatabaseTest {
             Long second = createArticle("Second", false, false, db.dataSource());
             Long third = createArticle("Third", false, false, db.dataSource());
             ArticlePinningService service =
-                    new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
+                    new ArticlePinningService(
+                            () -> new AdminLogRepository(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
 
             assertIds(service.pin(first), first);
             assertIds(service.pin(second), second, first);
@@ -67,8 +70,13 @@ public class ArticlePinningServiceDatabaseTest {
             assertIds(service.unpin(second), first);
             assertIds(service.unpin(second), first);
 
-            assertEquals(1, ((Number) db.scalar("select sticky from log where logId=?", first)).intValue());
-            assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?", second)).intValue());
+            assertEquals(
+                    1,
+                    ((Number) db.scalar("select sticky from log where logId=?", first)).intValue());
+            assertEquals(
+                    0,
+                    ((Number) db.scalar("select sticky from log where logId=?", second))
+                            .intValue());
             assertThrows(ArticleNotPinnedException.class, () -> service.move(third, "up"));
         }
     }
@@ -80,10 +88,13 @@ public class ArticlePinningServiceDatabaseTest {
             Long draft = createArticle("Draft", false, true, ignored.dataSource());
             Long privateArticle = createArticle("Private", true, false, ignored.dataSource());
             ArticlePinningService service =
-                    new ArticlePinningService(() -> new AdminLogRepository(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource()));
+                    new ArticlePinningService(
+                            () -> new AdminLogRepository(ignored.dataSource()),
+                            ApplicationServicesFixture.locks(ignored.dataSource()));
 
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(draft));
-            assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(privateArticle));
+            assertThrows(
+                    ArticlePinningNotAllowedException.class, () -> service.pin(privateArticle));
             assertTrue(service.list().getItems().isEmpty());
         }
     }
@@ -104,7 +115,9 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                            () -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                                                    () -> new AdminLogRepository(db.dataSource()),
+                                                    ApplicationServicesFixture.locks(
+                                                            db.dataSource()))
                                             .pin(first);
                                 });
                 Future<ArticlePinningResponse> secondResult =
@@ -113,7 +126,9 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                            () -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                                                    () -> new AdminLogRepository(db.dataSource()),
+                                                    ApplicationServicesFixture.locks(
+                                                            db.dataSource()))
                                             .pin(second);
                                 });
                 ready.await();
@@ -122,16 +137,24 @@ public class ArticlePinningServiceDatabaseTest {
                 secondResult.get();
 
                 List<ArticlePinningEntryResponse> items =
-                        new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                        new ArticlePinningService(
+                                        () -> new AdminLogRepository(db.dataSource()),
+                                        ApplicationServicesFixture.locks(db.dataSource()))
                                 .list()
                                 .getItems();
-                assertEquals(Set.of(first, second), items.stream()
-                        .map(ArticlePinningEntryResponse::getLogId)
-                        .collect(Collectors.toSet()));
-                assertEquals(List.of(2L, 1L), items.stream()
-                        .map(ArticlePinningEntryResponse::getSticky)
-                        .collect(Collectors.toList()));
-                assertEquals(2, ((Number) db.scalar("select count(1) from log where sticky>0")).intValue());
+                assertEquals(
+                        Set.of(first, second),
+                        items.stream()
+                                .map(ArticlePinningEntryResponse::getLogId)
+                                .collect(Collectors.toSet()));
+                assertEquals(
+                        List.of(2L, 1L),
+                        items.stream()
+                                .map(ArticlePinningEntryResponse::getSticky)
+                                .collect(Collectors.toList()));
+                assertEquals(
+                        2,
+                        ((Number) db.scalar("select count(1) from log where sticky>0")).intValue());
             } finally {
                 executor.shutdownNow();
             }
@@ -143,7 +166,9 @@ public class ArticlePinningServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             ArticlePinningService service =
-                    new ArticlePinningService(() -> new AdminLogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
+                    new ArticlePinningService(
+                            () -> new AdminLogRepository(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             for (int i = 1; i <= 40; i++) {
                 service.pin(createArticle("Pinned " + i, false, false, db.dataSource()));
             }
@@ -155,14 +180,22 @@ public class ArticlePinningServiceDatabaseTest {
             assertEquals("Pinned 1", items.get(39).getTitle());
             assertEquals(40L, items.get(0).getSticky().longValue());
             assertEquals(1L, items.get(39).getSticky().longValue());
-            assertEquals(40, ((Number) db.scalar(
-                    "select count(distinct sticky) from log where sticky>0")).intValue());
-            assertEquals(2L, ArticlePinningService.buildPersistSql(items).chars()
-                    .filter(value -> value == '?').count());
+            assertEquals(
+                    40,
+                    ((Number) db.scalar("select count(distinct sticky) from log where sticky>0"))
+                            .intValue());
+            assertEquals(
+                    2L,
+                    ArticlePinningService.buildPersistSql(items)
+                            .chars()
+                            .filter(value -> value == '?')
+                            .count());
         }
     }
 
-    private Long createArticle(String title, boolean privacy, boolean rubbish, DataSourceWrapper testDataSource) throws Exception {
+    private Long createArticle(
+            String title, boolean privacy, boolean rubbish, DataSourceWrapper testDataSource)
+            throws Exception {
         CreateArticleRequest request = new CreateArticleRequest();
         request.setTitle(title);
         request.setAlias(title.toLowerCase().replace(' ', '-'));
@@ -174,21 +207,27 @@ public class ArticlePinningServiceDatabaseTest {
         request.setRubbish(rubbish);
         request.setEditorType("markdown");
         CreateOrUpdateArticleResponse response =
-                new AdminArticleService(ApplicationServicesFixture.capability(
-                        applicationConfig, ArticleAssistant.class),
-                        AccountServicesFixture.component(testDataSource).permissions(),
-                        AccountServicesFixture.component(testDataSource).identities(),
-                        AccountServicesFixture.component(testDataSource).preferences(),
-                        new ArticleVersionService(AccountServicesFixture.component(testDataSource)
-                                .permissions(),
+                new AdminArticleService(
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).identities(),
+                                AccountServicesFixture.component(testDataSource).preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component(testDataSource)
+                                                .permissions(),
+                                        () -> new AdminLogRepository(testDataSource),
+                                        () -> new LogVersionRepository(testDataSource)),
+                                new ArticlePinningService(
+                                        () -> new AdminLogRepository(testDataSource),
+                                        ApplicationServicesFixture.locks(testDataSource)),
                                 () -> new AdminLogRepository(testDataSource),
-                                () -> new LogVersionRepository(testDataSource)),
-                        new ArticlePinningService(
-                                () -> new AdminLogRepository(testDataSource),
-                                ApplicationServicesFixture.locks(testDataSource)),
-                        () -> new AdminLogRepository(testDataSource),
-                        ApplicationServicesFixture.locks(testDataSource))
-                        .create(AccountServicesFixture.component(testDataSource).requestIdentity().account(token()), request);
+                                ApplicationServicesFixture.locks(testDataSource))
+                        .create(
+                                AccountServicesFixture.component(testDataSource)
+                                        .requestIdentity()
+                                        .account(token()),
+                                request);
         return response.getLogId();
     }
 }

@@ -3,7 +3,6 @@ package com.zrlog.admin.business.ai.model;
 import com.google.gson.Gson;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.http.server.util.PathUtil;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -14,9 +13,7 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-/**
- * Hot-loads a small local catalog. Network synchronization is an external scheduled job.
- */
+/** Hot-loads a small local catalog. Network synchronization is an external scheduled job. */
 public final class AIModelCatalog {
     public static final String RESOURCE = "/ai/models.json";
     private static final int MAX_BYTES = 1024 * 1024;
@@ -42,8 +39,10 @@ public final class AIModelCatalog {
 
     public static List<AIModelEntry> getModels(AIProviderType provider) {
         String override = System.getProperty("zrlog.ai.modelCatalog");
-        Path path = override == null || override.isBlank()
-                ? PathUtil.getConfFile("ai-models.json").toPath() : Path.of(override);
+        Path path =
+                override == null || override.isBlank()
+                        ? PathUtil.getConfFile("ai-models.json").toPath()
+                        : Path.of(override);
         return Holder.INSTANCE.getModels(provider, path);
     }
 
@@ -56,26 +55,45 @@ public final class AIModelCatalog {
     }
 
     static Map<AIProviderType, List<AIModelEntry>> parse(String content) {
-        AIModelCatalogDocument document = new Gson().fromJson(content, AIModelCatalogDocument.class);
+        AIModelCatalogDocument document =
+                new Gson().fromJson(content, AIModelCatalogDocument.class);
         require(document != null && document.schemaVersion == 1 && document.providers != null);
         Map<AIProviderType, List<AIModelEntry>> result = new EnumMap<>(AIProviderType.class);
         for (AIModelCatalogDocument.Provider provider : document.providers) {
-            require(provider != null && provider.name != null && !result.containsKey(provider.name));
-            require(provider.models != null && !provider.models.isEmpty() && provider.models.size() <= 512);
+            require(
+                    provider != null
+                            && provider.name != null
+                            && !result.containsKey(provider.name));
+            require(
+                    provider.models != null
+                            && !provider.models.isEmpty()
+                            && provider.models.size() <= 512);
             Set<String> names = new HashSet<>();
             for (AIModelEntry model : provider.models) {
-                require(model != null && model.getName() != null
-                        && model.getName().matches("[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}")
-                        && names.add(model.getName()));
+                require(
+                        model != null
+                                && model.getName() != null
+                                && model.getName().matches("[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}")
+                                && names.add(model.getName()));
                 List<AIModelCapability> capabilities = model.getCapabilities();
-                require(capabilities != null && !capabilities.isEmpty() && !capabilities.contains(null)
-                        && new HashSet<>(capabilities).size() == capabilities.size());
-                require(!model.supports(AIModelCapability.IMAGE_GENERATION)
-                        || provider.name == AIProviderType.OPEN_AI || provider.name == AIProviderType.GOOGLE_GEMINI);
-                require(!model.isRetired() || (model.getRetirementSource() != null
-                        && !model.getRetirementSource().isBlank() && model.getRetirementSource().length() <= 2048));
+                require(
+                        capabilities != null
+                                && !capabilities.isEmpty()
+                                && !capabilities.contains(null)
+                                && new HashSet<>(capabilities).size() == capabilities.size());
+                require(
+                        !model.supports(AIModelCapability.IMAGE_GENERATION)
+                                || provider.name == AIProviderType.OPEN_AI
+                                || provider.name == AIProviderType.GOOGLE_GEMINI);
+                require(
+                        !model.isRetired()
+                                || (model.getRetirementSource() != null
+                                        && !model.getRetirementSource().isBlank()
+                                        && model.getRetirementSource().length() <= 2048));
             }
-            require(provider.models.stream().anyMatch(model -> model.supports(AIModelCapability.TEXT)));
+            require(
+                    provider.models.stream()
+                            .anyMatch(model -> model.supports(AIModelCapability.TEXT)));
             result.put(provider.name, List.copyOf(provider.models));
         }
         require(result.size() == AIProviderType.values().length);
@@ -100,7 +118,8 @@ public final class AIModelCatalog {
             String content = read(input);
             readFailure = false;
             if (!Objects.equals(content, observedContent)) {
-                // Remember rejected contents too, to avoid logging the same bad update on every request.
+                // Remember rejected contents too, to avoid logging the same bad update on every
+                // request.
                 observedContent = content;
                 try {
                     current = parse(content);
@@ -119,9 +138,7 @@ public final class AIModelCatalog {
             }
         }
         // DTOs are mutable; callers must not be able to corrupt the shared snapshot.
-        return current.get(provider).stream()
-                .map(AIModelEntry::new)
-                .collect(Collectors.toList());
+        return current.get(provider).stream().map(AIModelEntry::new).collect(Collectors.toList());
     }
 
     private static class Holder {

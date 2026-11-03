@@ -4,9 +4,7 @@ public class PublicVersionResponse {
 
     private String buildId;
 
-    public PublicVersionResponse() {
-    }
-
+    public PublicVersionResponse() {}
 
     public String getBuildId() {
         return buildId;

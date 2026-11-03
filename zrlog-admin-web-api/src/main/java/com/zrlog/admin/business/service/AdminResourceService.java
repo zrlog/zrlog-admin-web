@@ -6,17 +6,16 @@ import com.hibegin.common.util.ObjectUtil;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
+import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.util.WebSiteUtils;
-import com.zrlog.admin.data.repository.UserPasskeyRepository;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -47,42 +46,56 @@ public class AdminResourceService {
     }
 
     public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
-        PublicWebSiteInfo publicWebSiteInfo = Objects.requireNonNullElseGet(site.get(),
-                () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
+        PublicWebSiteInfo publicWebSiteInfo =
+                Objects.requireNonNullElseGet(
+                        site.get(), () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
         var requestLanguage = I18nUtil.threadLocal.get();
-        String lang = requestLanguage == null ? publicWebSiteInfo.getLanguage() : requestLanguage.getLocale();
+        String lang =
+                requestLanguage == null
+                        ? publicWebSiteInfo.getLanguage()
+                        : requestLanguage.getLocale();
         AdminResourceInfoResponse response = new AdminResourceInfoResponse();
         response.setDevMode(EnvKit.isDevMode());
         response.setCapabilities(capabilities.get());
         response.setCurrentVersion(BlogBuildInfoUtil.getBuildId());
         if (Objects.nonNull(publicWebSiteInfo)) {
-            response.setWebsiteTitle(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getTitle(), ""));
+            response.setWebsiteTitle(
+                    ObjectUtil.requireNonNullElse(publicWebSiteInfo.getTitle(), ""));
             response.setAdmin_darkMode(Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true));
-            response.setAdmin_theme(Objects.requireNonNullElse(publicWebSiteInfo.getAdmin_theme(), "default"));
-            response.setAdmin_compactMode(Objects.equals(publicWebSiteInfo.getAdmin_compactMode(), true));
+            response.setAdmin_theme(
+                    Objects.requireNonNullElse(publicWebSiteInfo.getAdmin_theme(), "default"));
+            response.setAdmin_compactMode(
+                    Objects.equals(publicWebSiteInfo.getAdmin_compactMode(), true));
             response.setAppId(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAppId(), ""));
-            response.setAdmin_color_primary(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAdmin_color_primary(), WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR));
+            response.setAdmin_color_primary(
+                    ObjectUtil.requireNonNullElse(
+                            publicWebSiteInfo.getAdmin_color_primary(),
+                            WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR));
         }
         response.setHomeUrl(ZrLogUtil.getHomeUrlWithHost(request, publicWebSiteInfo.getHost()));
         response.setArticleRoute("");
         if (ZrLogUtil.isPreviewMode()) {
-            AdminResourceInfoResponse.DefaultLoginInfo defaultLoginInfo = new AdminResourceInfoResponse.DefaultLoginInfo();
+            AdminResourceInfoResponse.DefaultLoginInfo defaultLoginInfo =
+                    new AdminResourceInfoResponse.DefaultLoginInfo();
             defaultLoginInfo.setUserName(System.getenv("DEFAULT_USERNAME"));
             defaultLoginInfo.setPassword(System.getenv("DEFAULT_PASSWORD"));
-            defaultLoginInfo.setBackendServerUrl(ObjectUtil.requireNonNullElse(System.getenv("DEFAULT_BACKEND_SERVER_URL"), "/"));
+            defaultLoginInfo.setBackendServerUrl(
+                    ObjectUtil.requireNonNullElse(
+                            System.getenv("DEFAULT_BACKEND_SERVER_URL"), "/"));
             response.setDefaultLoginInfo(defaultLoginInfo);
         }
         response.setBuildId(BlogBuildInfoUtil.getBuildId());
         response.setLang(lang);
         response.setStaticPage(BaseStaticSitePlugin.isStaticPluginRequest(request));
-        //remove
+        // remove
         response.setStaticPlugin(BaseStaticSitePlugin.isStaticPluginRequest(request));
         response.setSupportSse(!EnvKit.isLambda() || EnvKit.isLambdaResponseStreamEnabled());
         response.setAdmin_static_resource_base_url(staticResourceBaseUrl(request));
         FeatureLabWebSiteInfo featureLab = features.featureLab();
         response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
         response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
-        response.setFeature_article_arrangement_enabled(featureLab.getFeature_article_arrangement_enabled());
+        response.setFeature_article_arrangement_enabled(
+                featureLab.getFeature_article_arrangement_enabled());
         response.setPasskeyLoginEnabled(isPasskeyLoginEnabled());
         return response;
     }
@@ -99,5 +112,4 @@ public class AdminResourceService {
             return false;
         }
     }
-
 }

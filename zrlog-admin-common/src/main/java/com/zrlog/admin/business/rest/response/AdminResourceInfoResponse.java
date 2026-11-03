@@ -189,7 +189,8 @@ public class AdminResourceInfoResponse {
         return feature_article_arrangement_enabled;
     }
 
-    public void setFeature_article_arrangement_enabled(Boolean feature_article_arrangement_enabled) {
+    public void setFeature_article_arrangement_enabled(
+            Boolean feature_article_arrangement_enabled) {
         this.feature_article_arrangement_enabled = feature_article_arrangement_enabled;
     }
 
@@ -201,9 +202,7 @@ public class AdminResourceInfoResponse {
         this.passkeyLoginEnabled = passkeyLoginEnabled;
     }
 
-    /**
-     * Enabled server modules, independent of account permissions and model configuration.
-     */
+    /** Enabled server modules, independent of account permissions and model configuration. */
     public static class Capabilities {
         public boolean account;
         public boolean content;

@@ -12,7 +12,6 @@ import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.StaticFileCacheUtils;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -20,7 +19,6 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
-
 
     private final Supplier<AdminStaticResourcePlugin> staticSite;
 
@@ -30,7 +28,8 @@ public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
     }
 
     private boolean isAdminMainJs(String uri) {
-        return uri.contains(Constants.ADMIN_URI_BASE_PATH + "/static/js/main.") && uri.endsWith(".js");
+        return uri.contains(Constants.ADMIN_URI_BASE_PATH + "/static/js/main.")
+                && uri.endsWith(".js");
     }
 
     /**
@@ -46,16 +45,24 @@ public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
         }
         String stringInputStream = IOUtil.getStringInputStream(inputStream);
         String adminPath = "admin/";
-        return stringInputStream.replace("\"" + AdminConstants.ADMIN_URI_BASE_PATH + "/\"", "document.currentScript.baseURI + \"" + adminPath + "\"");
+        return stringInputStream.replace(
+                "\"" + AdminConstants.ADMIN_URI_BASE_PATH + "/\"",
+                "document.currentScript.baseURI + \"" + adminPath + "\"");
     }
 
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         ZrLogUtil.putLongTimeCache(response);
-        //打包过后的静态资源文件进行拦截
+        // 打包过后的静态资源文件进行拦截
         if (isAdminMainJs(request.getUri())) {
-            response.getHeader().put("Content-Type", "application/javascript;charset=" + request.getRequestConfig().getCharSet());
-            response.write(new ByteArrayInputStream(geAdminMainJsContent(request.getUri()).getBytes()), 200);
+            response.getHeader()
+                    .put(
+                            "Content-Type",
+                            "application/javascript;charset="
+                                    + request.getRequestConfig().getCharSet());
+            response.write(
+                    new ByteArrayInputStream(geAdminMainJsContent(request.getUri()).getBytes()),
+                    200);
             return false;
         }
         AdminStaticResourcePlugin staticSitePlugin = staticSite.get();
@@ -84,6 +91,7 @@ public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
         if (BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             return false;
         }
-        return AdminConstants.adminStaticResources.stream().anyMatch(e -> request.getUri().startsWith(e + "/"));
+        return AdminConstants.adminStaticResources.stream()
+                .anyMatch(e -> request.getUri().startsWith(e + "/"));
     }
 }

@@ -8,8 +8,7 @@ public class FileReferenceVO {
     private boolean thumbnail;
     private boolean content;
 
-    public FileReferenceVO() {
-    }
+    public FileReferenceVO() {}
 
     public FileReferenceVO(int logId, String title, String alias) {
         this.logId = logId;

@@ -1,16 +1,15 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.Test;
-
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import org.junit.Test;
 
 public class OAuthAdminOriginTest {
     private static final String SETTING = "admin_static_resource_base_url";
@@ -20,10 +19,15 @@ public class OAuthAdminOriginTest {
         return new OAuthService(
                 () -> "https://api.example/sub",
                 () -> true,
-                accounts.permissions(), accounts.identities(),
+                accounts.permissions(),
+                accounts.identities(),
                 accounts.security(),
-                resource -> new PersonalAccessTokenService(
-                        resource, accounts.identities(), accounts.permissions(), accounts.security()),
+                resource ->
+                        new PersonalAccessTokenService(
+                                resource,
+                                accounts.identities(),
+                                accounts.permissions(),
+                                accounts.security()),
                 accounts.backend());
     }
 
@@ -49,9 +53,12 @@ public class OAuthAdminOriginTest {
             service.requireAdminOrigin("https://api.example");
             assertEquals("https://api.example/sub", service.issuer());
             assertEquals("https://api.example/sub/mcp", service.mcpResource());
-            assertEquals("https://api.example/sub/oauth/authorize", service.metadata().authorization_endpoint);
+            assertEquals(
+                    "https://api.example/sub/oauth/authorize",
+                    service.metadata().authorization_endpoint);
             // The MCP endpoint retains its separate, backend-only origin policy.
-            assertThrows(OAuthException.class, () -> service.requireSameOrigin("https://admin.example"));
+            assertThrows(
+                    OAuthException.class, () -> service.requireSameOrigin("https://admin.example"));
         }
     }
 
@@ -75,13 +82,30 @@ public class OAuthAdminOriginTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "https://admin.example/assets");
-            for (String origin : Arrays.asList(null, "", "null", "https://evil.example",
-                    "https://admin.example.evil.example", "https://child.admin.example", "http://admin.example",
-                    "https://admin.example:8443", "https://admin.example:0", "https://admin.example:65536",
-                    "https://admin.example/assets", "https://admin.example?x=1", "https://admin.example#fragment",
-                    "https://user@admin.example", "https://admin.example@evil.example", "//admin.example",
-                    "https://admin.example\\evil", "https://admin.example https://evil.example")) {
-                assertThrows(String.valueOf(origin), OAuthException.class, () -> service.requireAdminOrigin(origin));
+            for (String origin :
+                    Arrays.asList(
+                            null,
+                            "",
+                            "null",
+                            "https://evil.example",
+                            "https://admin.example.evil.example",
+                            "https://child.admin.example",
+                            "http://admin.example",
+                            "https://admin.example:8443",
+                            "https://admin.example:0",
+                            "https://admin.example:65536",
+                            "https://admin.example/assets",
+                            "https://admin.example?x=1",
+                            "https://admin.example#fragment",
+                            "https://user@admin.example",
+                            "https://admin.example@evil.example",
+                            "//admin.example",
+                            "https://admin.example\\evil",
+                            "https://admin.example https://evil.example")) {
+                assertThrows(
+                        String.valueOf(origin),
+                        OAuthException.class,
+                        () -> service.requireAdminOrigin(origin));
             }
         }
     }
@@ -90,10 +114,19 @@ public class OAuthAdminOriginTest {
     public void malformedConfigurationNeverGrantsAdditionalTrust() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             OAuthService service = service(db.dataSource());
-            for (String url : List.of("/admin", "//admin.example", "http://admin.example",
-                    "https://user@admin.example", "https://admin.example?x=1", "https://admin.example#fragment",
-                    "https://admin.example:0", "https://admin.example:65536", "https://admin.example/../assets",
-                    "https://admin.example/%2e%2e/assets", "https://admin.example/sub%2fassets")) {
+            for (String url :
+                    List.of(
+                            "/admin",
+                            "//admin.example",
+                            "http://admin.example",
+                            "https://user@admin.example",
+                            "https://admin.example?x=1",
+                            "https://admin.example#fragment",
+                            "https://admin.example:0",
+                            "https://admin.example:65536",
+                            "https://admin.example/../assets",
+                            "https://admin.example/%2e%2e/assets",
+                            "https://admin.example/sub%2fassets")) {
                 db.putWebsite(SETTING, url);
                 assertDenied(service, "https://admin.example");
                 service.requireAdminOrigin("https://api.example");
@@ -114,7 +147,8 @@ public class OAuthAdminOriginTest {
     }
 
     private void assertDenied(OAuthService service, String origin) {
-        OAuthException error = assertThrows(OAuthException.class, () -> service.requireAdminOrigin(origin));
+        OAuthException error =
+                assertThrows(OAuthException.class, () -> service.requireAdminOrigin(origin));
         assertEquals("access_denied", error.getOAuthError());
         assertEquals(403, error.getStatus());
     }

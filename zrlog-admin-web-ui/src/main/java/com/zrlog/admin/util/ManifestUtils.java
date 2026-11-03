@@ -12,7 +12,6 @@ import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.StaticFileCacheUtils;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -23,12 +22,19 @@ import java.util.Objects;
 
 public class ManifestUtils {
 
-    public static AdminManifestResponse manifest(HttpRequest request, PublicWebSiteInfo publicWebSiteInfo) throws IOException {
-        try (InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
+    public static AdminManifestResponse manifest(
+            HttpRequest request, PublicWebSiteInfo publicWebSiteInfo) throws IOException {
+        try (InputStream inputStream =
+                AdminPageController.class.getResourceAsStream(
+                        AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
             if (inputStream == null) {
                 return new AdminManifestResponse();
             }
-            AdminManifestResponse manifest = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), AdminManifestResponse.class);
+            AdminManifestResponse manifest =
+                    new Gson()
+                            .fromJson(
+                                    IOUtil.getStringInputStream(inputStream),
+                                    AdminManifestResponse.class);
             if (StringUtils.isNotEmpty(publicWebSiteInfo.getTitle())) {
                 manifest.setShort_name(publicWebSiteInfo.getTitle());
             }
@@ -36,13 +42,17 @@ public class ManifestUtils {
             manifest.setTheme_color(publicWebSiteInfo.getAdmin_color_primary());
             manifest.setDescription(publicWebSiteInfo.getDescription());
             manifest.setId(publicWebSiteInfo.getAppId());
-            manifest.setBackground_color(Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true) ? "#000000" : "#FFFFFF");
+            manifest.setBackground_color(
+                    Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true)
+                            ? "#000000"
+                            : "#FFFFFF");
             List<AdminManifestResponse.Icon> list = getManifestIcons();
             for (AdminManifestResponse.Icon icon : list) {
                 icon.setSrc(WebTools.buildEncodedUrl(request, icon.getSrc()));
             }
             manifest.setIcons(list);
-            if (BaseStaticSitePlugin.isStaticPluginRequest(request) && StringUtils.isNotEmpty(manifest.getStart_url())) {
+            if (BaseStaticSitePlugin.isStaticPluginRequest(request)
+                    && StringUtils.isNotEmpty(manifest.getStart_url())) {
                 manifest.setStart_url(manifest.getStart_url().replace("./index", "./index.html"));
             }
             return manifest;
@@ -50,17 +60,24 @@ public class ManifestUtils {
     }
 
     public static List<AdminManifestResponse.Icon> getManifestIcons() throws IOException {
-        try (InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
+        try (InputStream inputStream =
+                AdminPageController.class.getResourceAsStream(
+                        AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
             if (inputStream == null) {
                 return new ArrayList<>();
             }
-            AdminManifestResponse manifest = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), AdminManifestResponse.class);
+            AdminManifestResponse manifest =
+                    new Gson()
+                            .fromJson(
+                                    IOUtil.getStringInputStream(inputStream),
+                                    AdminManifestResponse.class);
             List<AdminManifestResponse.Icon> icons = manifest.getIcons();
             if (Objects.isNull(icons)) {
                 return new ArrayList<>();
             }
             for (AdminManifestResponse.Icon icon : icons) {
-                String src = AdminConstants.ADMIN_URI_BASE_PATH + icon.getSrc().replaceFirst("./", "/");
+                String src =
+                        AdminConstants.ADMIN_URI_BASE_PATH + icon.getSrc().replaceFirst("./", "/");
                 File file = PathUtil.getStaticFile(src);
                 InputStream srcIn;
                 if (file.exists()) {
@@ -79,5 +96,4 @@ public class ManifestUtils {
             return icons;
         }
     }
-
 }

@@ -22,7 +22,6 @@ import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.Map;
 
@@ -56,8 +55,13 @@ public class WebSiteController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.version")
     public AdminPageDataResponse<VersionResponse> version() {
-        VersionResponse version = settingsService.version(getCurrentChangeLog(I18nUtil.getBackend()));
-        return pages.response(requestIdentity.optional(), version, "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/version");
+        VersionResponse version =
+                settingsService.version(getCurrentChangeLog(I18nUtil.getBackend()));
+        return pages.response(
+                requestIdentity.optional(),
+                version,
+                "",
+                AdminConstants.ADMIN_URI_BASE_PATH + "/system/version");
     }
 
     protected String getCurrentChangeLog(Map<String, Object> backendMessages) {
@@ -70,13 +74,17 @@ public class WebSiteController extends BaseController {
         return basic();
     }
 
-    @RefreshCache(onlyOnPostMethod = true, updateStaticSites = {StaticSiteType.BLOG, StaticSiteType.ADMIN})
+    @RefreshCache(
+            onlyOnPostMethod = true,
+            updateStaticSites = {StaticSiteType.BLOG, StaticSiteType.ADMIN})
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.basic")
     public AdminPageDataResponse<BasicWebSiteInfo> basic() throws SQLException {
         if (isPost()) {
-            settingsService.update(getRequestBodyWithNullCheck(BasicWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            settingsService.update(
+                    getRequestBodyWithNullCheck(BasicWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return page(webSiteService.basicWebSiteInfo());
     }
@@ -87,7 +95,9 @@ public class WebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.blog")
     public AdminPageDataResponse<BlogWebSiteInfo> blog() throws SQLException {
         if (isPost()) {
-            settingsService.update(getRequestBodyWithNullCheck(BlogWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            settingsService.update(
+                    getRequestBodyWithNullCheck(BlogWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return page(webSiteService.blogWebSiteInfo());
     }
@@ -98,7 +108,9 @@ public class WebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.other")
     public AdminPageDataResponse<OtherWebSiteInfo> other() throws SQLException {
         if (isPost()) {
-            settingsService.update(getRequestBodyWithNullCheck(OtherWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            settingsService.update(
+                    getRequestBodyWithNullCheck(OtherWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return page(webSiteService.other());
     }
@@ -109,7 +121,9 @@ public class WebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.admin")
     public AdminPageDataResponse<AdminWebSiteInfo> admin() throws SQLException {
         if (isPost()) {
-            settingsService.updateAdmin(getRequestBodyWithNullCheck(AdminWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            settingsService.updateAdmin(
+                    getRequestBodyWithNullCheck(AdminWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         AdminWebSiteInfo settings = webSiteService.adminWebSiteInfo();
         if (BaseStaticSitePlugin.isStaticPluginRequest(request)) {
@@ -123,7 +137,9 @@ public class WebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.editor")
     public AdminPageDataResponse<ArticleEditWebSiteInfo> articleEdit() throws SQLException {
         if (isPost()) {
-            settingsService.update(getRequestBodyWithNullCheck(ArticleEditWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            settingsService.update(
+                    getRequestBodyWithNullCheck(ArticleEditWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return page(webSiteService.articleEditWebSiteInfo());
     }
@@ -132,9 +148,12 @@ public class WebSiteController extends BaseController {
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.protection")
-    public AdminPageDataResponse<ContentProtectorWebSiteInfo> contentProtector() throws SQLException {
+    public AdminPageDataResponse<ContentProtectorWebSiteInfo> contentProtector()
+            throws SQLException {
         if (isPost()) {
-            settingsService.update(getRequestBodyWithNullCheck(ContentProtectorWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            settingsService.update(
+                    getRequestBodyWithNullCheck(ContentProtectorWebSiteInfo.class),
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return page(webSiteService.contentProtector());
     }
@@ -144,8 +163,10 @@ public class WebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.lab")
     public AdminPageDataResponse<FeatureLabWebSiteInfo> lab() throws SQLException {
         if (isPost()) {
-            FeatureLabWebSiteInfo settings = getRequestBodyWithNullCheck(FeatureLabWebSiteInfo.class);
-            settingsService.update(settings, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            FeatureLabWebSiteInfo settings =
+                    getRequestBodyWithNullCheck(FeatureLabWebSiteInfo.class);
+            settingsService.update(
+                    settings, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
             features.updateWebhook(settings.getFeature_webhook_enabled());
         }
         return page(features.featureLab());
@@ -158,13 +179,19 @@ public class WebSiteController extends BaseController {
         UpgradeSettingsService upgradeSettings = upgradeSettingsService();
         var actor = requestIdentity.current();
         if (isPost()) {
-            upgradeSettings.save(actor, getRequestBodyWithNullCheck(UpgradeSettingsRequest.class),
+            upgradeSettings.save(
+                    actor,
+                    getRequestBodyWithNullCheck(UpgradeSettingsRequest.class),
                     AdminAuditContexts.from(request, actor.getUserId()));
         }
-        String message = isPost() ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success") : "";
+        String message =
+                isPost()
+                        ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
+                        : "";
         return new AdminPageDataResponse<>(
                 upgradeSettings.read(actor, isPost() ? null : request.getParaToStr("channel")),
-                message, pages.metadata(actor, request.getUri()));
+                message,
+                pages.metadata(actor, request.getUri()));
     }
 
     protected UpgradeSettingsService upgradeSettingsService() {
@@ -176,7 +203,10 @@ public class WebSiteController extends BaseController {
     }
 
     private <T> AdminPageDataResponse<T> page(T data) {
-        String message = isPost() ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success") : "";
+        String message =
+                isPost()
+                        ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
+                        : "";
         return pages.response(requestIdentity.optional(), data, message, request.getUri());
     }
 }

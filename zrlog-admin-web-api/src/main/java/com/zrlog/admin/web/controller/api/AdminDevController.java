@@ -22,7 +22,6 @@ import com.zrlog.common.vo.LockVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
 import jakarta.inject.Inject;
-
 import java.util.List;
 
 public class AdminDevController extends Controller {
@@ -64,7 +63,10 @@ public class AdminDevController extends Controller {
         for (LockVO lockDTO : lockDTOS) {
             lockManager.releaseLock(lockDTO.getName());
         }
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.RELEASE_DEV_LOCKS, String.valueOf(lockDTOS.size()));
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.RELEASE_DEV_LOCKS,
+                String.valueOf(lockDTOS.size()));
         return new UpdateRecordResponse(true);
     }
 
@@ -76,14 +78,19 @@ public class AdminDevController extends Controller {
         devInfoResponse.setLocks(lockManager.getLocks());
         devInfoResponse.setCacheEntries(this.websiteCacheService.listEntries());
         devInfoResponse.setDevMode(EnvKit.isDevMode());
-        return pages.response(requestIdentity.optional(), devInfoResponse, "", getRequest().getUri());
+        return pages.response(
+                requestIdentity.optional(), devInfoResponse, "", getRequest().getUri());
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.enableDevelopment")
+    @RequiresAction(
+            value = AccountAction.SYSTEM_MANAGE,
+            descriptionKey = "system.enableDevelopment")
     public ApiStandardResponse<Void> enable() {
         setDevMode(true);
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.ENABLE_DEV_MODE);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.ENABLE_DEV_MODE);
         return new ApiStandardResponse<>();
     }
 
@@ -92,7 +99,8 @@ public class AdminDevController extends Controller {
     public ApiStandardResponse<Boolean> mode() {
         boolean enabled = request.getParaToBool("enabled", false);
         setDevMode(enabled);
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 enabled ? AdminAuditAction.ENABLE_DEV_MODE : AdminAuditAction.DISABLE_DEV_MODE);
         return new ApiStandardResponse<>(EnvKit.isDevMode());
     }

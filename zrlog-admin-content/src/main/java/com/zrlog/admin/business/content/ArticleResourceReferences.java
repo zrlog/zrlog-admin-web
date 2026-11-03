@@ -1,20 +1,17 @@
 package com.zrlog.admin.business.content;
 
 import com.hibegin.common.util.StringUtils;
-import com.zrlog.model.Log;
 import com.zrlog.data.dto.ArticleBasicDTO;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-
+import com.zrlog.model.Log;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
-/**
- * Article resource syntax and replacement rules; no database or filesystem access.
- */
+/** Article resource syntax and replacement rules; no database or filesystem access. */
 public final class ArticleResourceReferences {
     private static final Pattern MARKDOWN_LINK_PATTERN =
             Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)");
@@ -145,13 +142,25 @@ public final class ArticleResourceReferences {
     }
 
     public Changes replace(Log article, String fromUrl, String toUrl, boolean prefix) {
-        return replace(article.getThumbnail(), article.getContent(), article.getMarkdown(), article.getDigest(),
-                fromUrl, toUrl, prefix);
+        return replace(
+                article.getThumbnail(),
+                article.getContent(),
+                article.getMarkdown(),
+                article.getDigest(),
+                fromUrl,
+                toUrl,
+                prefix);
     }
 
     public Changes replace(ArticleBasicDTO article, String fromUrl, String toUrl, boolean prefix) {
-        return replace(article.getThumbnail(), article.getContent(), article.getMarkdown(), article.getDigest(),
-                fromUrl, toUrl, prefix);
+        return replace(
+                article.getThumbnail(),
+                article.getContent(),
+                article.getMarkdown(),
+                article.getDigest(),
+                fromUrl,
+                toUrl,
+                prefix);
     }
 
     /** A null field means no replacement; resource rewriting never clears a field. */
@@ -161,15 +170,33 @@ public final class ArticleResourceReferences {
         private String markdown;
         private String digest;
 
-        public String getThumbnail() { return thumbnail; }
-        public String getContent() { return content; }
-        public String getMarkdown() { return markdown; }
-        public String getDigest() { return digest; }
-        public int size() {
-            return (thumbnail == null ? 0 : 1) + (content == null ? 0 : 1)
-                    + (markdown == null ? 0 : 1) + (digest == null ? 0 : 1);
+        public String getThumbnail() {
+            return thumbnail;
         }
-        public boolean isEmpty() { return size() == 0; }
+
+        public String getContent() {
+            return content;
+        }
+
+        public String getMarkdown() {
+            return markdown;
+        }
+
+        public String getDigest() {
+            return digest;
+        }
+
+        public int size() {
+            return (thumbnail == null ? 0 : 1)
+                    + (content == null ? 0 : 1)
+                    + (markdown == null ? 0 : 1)
+                    + (digest == null ? 0 : 1);
+        }
+
+        public boolean isEmpty() {
+            return size() == 0;
+        }
+
         public void applyTo(Log article) {
             if (thumbnail != null) article.setThumbnail(thumbnail);
             if (content != null) article.setContent(content);
@@ -178,8 +205,14 @@ public final class ArticleResourceReferences {
         }
     }
 
-    private Changes replace(String thumbnail, String content, String markdown, String digest,
-                            String fromUrl, String toUrl, boolean prefix) {
+    private Changes replace(
+            String thumbnail,
+            String content,
+            String markdown,
+            String digest,
+            String fromUrl,
+            String toUrl,
+            boolean prefix) {
         Changes changes = new Changes();
         ResourceReplacement replacement = buildResourceReplacement(fromUrl, toUrl, prefix);
         if (replacement != null) {

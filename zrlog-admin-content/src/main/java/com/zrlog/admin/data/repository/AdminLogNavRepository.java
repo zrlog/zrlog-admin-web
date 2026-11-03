@@ -16,6 +16,12 @@ public class AdminLogNavRepository extends LogNavRepository {
     }
 
     public PageData<LogNavDTO> find(PageRequest page) {
-        return queryPageData("select l.navId as id,l.navName,l.url,l.sort,l.icon from " + tableName + " l where l.url is not null and l.navName is not null order by sort", page, new Object[0], LogNavDTO.class);
+        return queryPageData(
+                "select l.navId as id,l.navName,l.url,l.sort,l.icon from "
+                        + tableName
+                        + " l where l.url is not null and l.navName is not null order by sort",
+                page,
+                new Object[0],
+                LogNavDTO.class);
     }
 }

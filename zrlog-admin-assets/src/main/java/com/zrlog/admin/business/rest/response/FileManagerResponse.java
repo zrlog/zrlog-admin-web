@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.admin.business.type.FileDirectoryAction;
-
 import java.util.Collections;
 import java.util.List;
 
@@ -32,6 +31,7 @@ public class FileManagerResponse {
     }
 
     public void setDirectoryActions(List<FileDirectoryAction> directoryActions) {
-        this.directoryActions = directoryActions == null ? Collections.emptyList() : directoryActions;
+        this.directoryActions =
+                directoryActions == null ? Collections.emptyList() : directoryActions;
     }
 }

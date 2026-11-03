@@ -1,5 +1,7 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.common.CacheService;
@@ -10,13 +12,10 @@ import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSiteInfoProvider;
-import org.junit.Test;
-
-import javax.sql.DataSource;
 import java.lang.reflect.Proxy;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import javax.sql.DataSource;
+import org.junit.Test;
 
 public class ManifestUtilsTest {
 
@@ -31,40 +30,43 @@ public class ManifestUtilsTest {
     }
 
     private static HttpRequest request(String userAgent) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                ManifestUtilsTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getContextPath".equals(method.getName())) {
-                        return "/blog";
-                    }
-                    if ("getHeader".equals(method.getName()) && "User-Agent".equals(args[0])) {
-                        return userAgent;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        ManifestUtilsTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if ("getContextPath".equals(method.getName())) {
+                                return "/blog";
+                            }
+                            if ("getHeader".equals(method.getName())
+                                    && "User-Agent".equals(args[0])) {
+                                return userAgent;
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "HttpRequestProxy";
+                            }
+                            return null;
+                        });
     }
 
     private static CacheService cacheService(PublicWebSiteInfo publicWebSiteInfo) {
-        return (CacheService) Proxy.newProxyInstance(
-                ManifestUtilsTest.class.getClassLoader(),
-                new Class[]{CacheService.class},
-                (proxy, method, args) -> {
-                    if ("getPublicWebSiteInfo".equals(method.getName())) {
-                        return publicWebSiteInfo;
-                    }
-                    if ("getCurrentSqlVersion".equals(method.getName())
-                            || "getWebSiteVersion".equals(method.getName())) {
-                        return 0L;
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "CacheServiceProxy";
-                    }
-                    return null;
-                });
+        return (CacheService)
+                Proxy.newProxyInstance(
+                        ManifestUtilsTest.class.getClassLoader(),
+                        new Class[] {CacheService.class},
+                        (proxy, method, args) -> {
+                            if ("getPublicWebSiteInfo".equals(method.getName())) {
+                                return publicWebSiteInfo;
+                            }
+                            if ("getCurrentSqlVersion".equals(method.getName())
+                                    || "getWebSiteVersion".equals(method.getName())) {
+                                return 0L;
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "CacheServiceProxy";
+                            }
+                            return null;
+                        });
     }
 
     @Test
@@ -81,7 +83,8 @@ public class ManifestUtilsTest {
 
     @Test
     public void shouldBuildManifestFromPublicWebsiteInfo() throws Exception {
-        AdminManifestResponse manifest = ManifestUtils.manifest(request(null), publicWebSiteInfo(false));
+        AdminManifestResponse manifest =
+                ManifestUtils.manifest(request(null), publicWebSiteInfo(false));
 
         assertEquals("Admin Test Blog", manifest.getShort_name());
         assertTrue(manifest.getName().contains("Admin Test Blog"));
@@ -95,7 +98,9 @@ public class ManifestUtilsTest {
 
     @Test
     public void shouldRewriteManifestStartUrlForStaticPluginRequests() throws Exception {
-        AdminManifestResponse manifest = ManifestUtils.manifest(request(BaseStaticSitePlugin.STATIC_USER_AGENT), publicWebSiteInfo(true));
+        AdminManifestResponse manifest =
+                ManifestUtils.manifest(
+                        request(BaseStaticSitePlugin.STATIC_USER_AGENT), publicWebSiteInfo(true));
 
         assertEquals("#000000", manifest.getBackground_color());
         assertEquals("./index.html?pwa=true", manifest.getStart_url());

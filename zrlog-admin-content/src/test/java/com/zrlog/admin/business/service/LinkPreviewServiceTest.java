@@ -1,12 +1,11 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.Test;
-
-import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -19,13 +18,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.*;
+import javax.net.ssl.SSLSession;
+import org.junit.Test;
 
 public class LinkPreviewServiceTest {
 
-    private static LinkPreviewService hostAllowedService(LinkPreviewService.HttpSender sender, DataSourceWrapper testDataSource) {
-        return new LinkPreviewService(sender, ApplicationServicesFixture.websiteCache(testDataSource)) {
+    private static LinkPreviewService hostAllowedService(
+            LinkPreviewService.HttpSender sender, DataSourceWrapper testDataSource) {
+        return new LinkPreviewService(
+                sender, ApplicationServicesFixture.websiteCache(testDataSource)) {
             @Override
             boolean isSafeHost(String host) {
                 return true;
@@ -34,11 +35,12 @@ public class LinkPreviewServiceTest {
     }
 
     private static HttpResponse<java.io.InputStream> htmlResponse(URI uri, String html) {
-        return response(uri, 200, Map.of("content-type", List.of("text/html; charset=utf-8")), html);
+        return response(
+                uri, 200, Map.of("content-type", List.of("text/html; charset=utf-8")), html);
     }
 
-    private static HttpResponse<java.io.InputStream> response(URI uri, int statusCode,
-                                                              Map<String, List<String>> headers, String body) {
+    private static HttpResponse<java.io.InputStream> response(
+            URI uri, int statusCode, Map<String, List<String>> headers, String body) {
         return new HttpResponse<>() {
             @Override
             public int statusCode() {
@@ -83,7 +85,7 @@ public class LinkPreviewServiceTest {
     }
 
     private static byte[] ipv4(int a, int b, int c, int d) {
-        return new byte[]{(byte) a, (byte) b, (byte) c, (byte) d};
+        return new byte[] {(byte) a, (byte) b, (byte) c, (byte) d};
     }
 
     private static byte[] ipv6(int a, int b, int c, int d, int e, int f, int g, int h) {
@@ -111,21 +113,24 @@ public class LinkPreviewServiceTest {
         assertFalse(service.normalizeSafeUri("https:///missing-host").isPresent());
         assertFalse(service.normalizeSafeUri("https://exa mple.com").isPresent());
         assertFalse(service.normalizeSafeUri("").isPresent());
-        assertFalse(service.normalizeSafeUri("https://example.com/" + "a".repeat(2049)).isPresent());
+        assertFalse(
+                service.normalizeSafeUri("https://example.com/" + "a".repeat(2049)).isPresent());
     }
 
     @Test
     public void shouldParseOpenGraphAndTwitterMetadata() throws Exception {
         LinkPreviewService service =
                 new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
-        String html = "<html><head>"
-                + "<meta property=\"og:title\" content=\"OG Title\">"
-                + "<meta property=\"og:description\" content=\"OG Description\">"
-                + "<meta name=\"twitter:image\" content=\"/img/card.png\">"
-                + "<meta property=\"og:site_name\" content=\"Example Site\">"
-                + "</head><body>content</body></html>";
+        String html =
+                "<html><head>"
+                        + "<meta property=\"og:title\" content=\"OG Title\">"
+                        + "<meta property=\"og:description\" content=\"OG Description\">"
+                        + "<meta name=\"twitter:image\" content=\"/img/card.png\">"
+                        + "<meta property=\"og:site_name\" content=\"Example Site\">"
+                        + "</head><body>content</body></html>";
 
-        LinkPreviewResponse response = service.parse(URI.create("https://example.com/posts/1"), html);
+        LinkPreviewResponse response =
+                service.parse(URI.create("https://example.com/posts/1"), html);
 
         assertTrue(response.isAvailable());
         assertEquals("https://example.com/posts/1", response.getUrl());
@@ -140,13 +145,15 @@ public class LinkPreviewServiceTest {
     public void shouldParseFallbackTitleDescriptionAndFavicon() throws Exception {
         LinkPreviewService service =
                 new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
-        String html = "<html><head>"
-                + "<title>Document Title</title>"
-                + "<meta name=\"description\" content=\"Fallback description\">"
-                + "<link rel=\"shortcut icon\" href=\"../favicon.ico\">"
-                + "</head></html>";
+        String html =
+                "<html><head>"
+                        + "<title>Document Title</title>"
+                        + "<meta name=\"description\" content=\"Fallback description\">"
+                        + "<link rel=\"shortcut icon\" href=\"../favicon.ico\">"
+                        + "</head></html>";
 
-        LinkPreviewResponse response = service.parse(URI.create("https://example.com/posts/1"), html);
+        LinkPreviewResponse response =
+                service.parse(URI.create("https://example.com/posts/1"), html);
 
         assertEquals("Document Title", response.getTitle());
         assertEquals("Fallback description", response.getDescription());
@@ -158,14 +165,16 @@ public class LinkPreviewServiceTest {
     public void shouldPreferAppleTouchIconAndSkipEmptyIconLinks() throws Exception {
         LinkPreviewService service =
                 new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
-        String html = "<html><head>"
-                + "<title>Icon Page</title>"
-                + "<link rel=\"icon\" href=\"\">"
-                + "<link rel=\"apple-touch-icon\" href=\"/apple.png\">"
-                + "<link rel=\"shortcut icon\" href=\"/favicon.png\">"
-                + "</head></html>";
+        String html =
+                "<html><head>"
+                        + "<title>Icon Page</title>"
+                        + "<link rel=\"icon\" href=\"\">"
+                        + "<link rel=\"apple-touch-icon\" href=\"/apple.png\">"
+                        + "<link rel=\"shortcut icon\" href=\"/favicon.png\">"
+                        + "</head></html>";
 
-        LinkPreviewResponse response = service.parse(URI.create("https://example.com/posts/1"), html);
+        LinkPreviewResponse response =
+                service.parse(URI.create("https://example.com/posts/1"), html);
 
         assertEquals("Icon Page", response.getTitle());
         assertEquals("https://example.com/apple.png", response.getImage());
@@ -191,8 +200,12 @@ public class LinkPreviewServiceTest {
                 new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         URI base = URI.create("https://example.com/post/page.html");
 
-        assertEquals("https://example.com/assets/card.png", service.resolveUri(base, "../assets/card.png"));
-        assertEquals("https://cdn.example.com/card.png", service.resolveUri(base, "//cdn.example.com/card.png"));
+        assertEquals(
+                "https://example.com/assets/card.png",
+                service.resolveUri(base, "../assets/card.png"));
+        assertEquals(
+                "https://cdn.example.com/card.png",
+                service.resolveUri(base, "//cdn.example.com/card.png"));
         assertEquals("", service.resolveUri(base, "javascript:alert(1)"));
         assertEquals("", service.resolveUri(base, "mailto:test@example.com"));
         assertEquals("", service.resolveUri(base, "http://[bad"));
@@ -232,7 +245,9 @@ public class LinkPreviewServiceTest {
                 new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html>" + "a".repeat(20_000) + "</html>";
 
-        String result = service.readLimited(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
+        String result =
+                service.readLimited(
+                        new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
 
         assertEquals(html, result);
     }
@@ -243,7 +258,9 @@ public class LinkPreviewServiceTest {
                 new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html>" + "a".repeat(300_000) + "</html>";
 
-        String result = service.readLimited(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
+        String result =
+                service.readLimited(
+                        new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
 
         assertTrue(result.length() < html.length());
     }
@@ -251,10 +268,13 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldReturnEmptyPreviewForInvalidUrlAndUnsafeHost() {
         AtomicInteger calls = new AtomicInteger();
-        LinkPreviewService invalidUrlService = hostAllowedService(request -> {
-            calls.incrementAndGet();
-            return htmlResponse(request.uri(), "<html></html>");
-        }, null);
+        LinkPreviewService invalidUrlService =
+                hostAllowedService(
+                        request -> {
+                            calls.incrementAndGet();
+                            return htmlResponse(request.uri(), "<html></html>");
+                        },
+                        null);
         LinkPreviewService unsafeHostService =
                 new LinkPreviewService(
                         request -> {
@@ -282,18 +302,24 @@ public class LinkPreviewServiceTest {
     public void shouldFetchPreviewAndReuseWebsiteCacheThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AtomicInteger calls = new AtomicInteger();
-            LinkPreviewService service = hostAllowedService(request -> {
-                calls.incrementAndGet();
-                return htmlResponse(request.uri(), "<html><head>"
-                        + "<meta property=\"og:title\" content=\"Cached Title\">"
-                        + "<meta name=\"description\" content=\"Cached description\">"
-                        + "</head></html>");
-            }, db.dataSource());
+            LinkPreviewService service =
+                    hostAllowedService(
+                            request -> {
+                                calls.incrementAndGet();
+                                return htmlResponse(
+                                        request.uri(),
+                                        "<html><head>"
+                                                + "<meta property=\"og:title\" content=\"Cached Title\">"
+                                                + "<meta name=\"description\" content=\"Cached description\">"
+                                                + "</head></html>");
+                            },
+                            db.dataSource());
 
             LinkPreviewResponse first = service.fetch("https://example.com/post", "Test\r\nAgent");
             LinkPreviewResponse second = service.fetch("https://example.com/post", "Other Agent");
-            Map<String, Object> cacheRow = db.queryOne("select value from website where name=?",
-                    "admin_cache:link_preview");
+            Map<String, Object> cacheRow =
+                    db.queryOne(
+                            "select value from website where name=?", "admin_cache:link_preview");
 
             assertTrue(first.isAvailable());
             assertEquals("Cached Title", first.getTitle());
@@ -308,28 +334,49 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldReturnEmptyPreviewForRedirectAndHttpFailureEdges() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            LinkPreviewService service = hostAllowedService(request -> {
-                String path = request.uri().getPath();
-                if ("/too-many".equals(path)) {
-                    return response(request.uri(), 302, Map.of("location", List.of("/too-many")), "");
-                }
-                if ("/missing-location".equals(path)) {
-                    return response(request.uri(), 302, Map.of(), "");
-                }
-                if ("/bad-redirect".equals(path)) {
-                    return response(request.uri(), 302, Map.of("location", List.of("ftp://example.com/file")), "");
-                }
-                if ("/server-error".equals(path)) {
-                    return response(request.uri(), 500, Map.of("content-type", List.of("text/html")), "error");
-                }
-                if ("/empty".equals(path)) {
-                    return response(request.uri(), 200, Map.of("content-type", List.of("text/html")), "");
-                }
-                if ("/boom".equals(path)) {
-                    throw new IOException("boom");
-                }
-                return htmlResponse(request.uri(), "<html><head><title>Unexpected</title></head></html>");
-            }, ignored.dataSource());
+            LinkPreviewService service =
+                    hostAllowedService(
+                            request -> {
+                                String path = request.uri().getPath();
+                                if ("/too-many".equals(path)) {
+                                    return response(
+                                            request.uri(),
+                                            302,
+                                            Map.of("location", List.of("/too-many")),
+                                            "");
+                                }
+                                if ("/missing-location".equals(path)) {
+                                    return response(request.uri(), 302, Map.of(), "");
+                                }
+                                if ("/bad-redirect".equals(path)) {
+                                    return response(
+                                            request.uri(),
+                                            302,
+                                            Map.of("location", List.of("ftp://example.com/file")),
+                                            "");
+                                }
+                                if ("/server-error".equals(path)) {
+                                    return response(
+                                            request.uri(),
+                                            500,
+                                            Map.of("content-type", List.of("text/html")),
+                                            "error");
+                                }
+                                if ("/empty".equals(path)) {
+                                    return response(
+                                            request.uri(),
+                                            200,
+                                            Map.of("content-type", List.of("text/html")),
+                                            "");
+                                }
+                                if ("/boom".equals(path)) {
+                                    throw new IOException("boom");
+                                }
+                                return htmlResponse(
+                                        request.uri(),
+                                        "<html><head><title>Unexpected</title></head></html>");
+                            },
+                            ignored.dataSource());
 
             assertFalse(service.fetch("https://example.com/too-many", null).isAvailable());
             assertFalse(service.fetch("https://example.com/missing-location", null).isAvailable());
@@ -344,13 +391,22 @@ public class LinkPreviewServiceTest {
     public void shouldFollowSafeRedirectBeforeParsingPreview() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             AtomicInteger calls = new AtomicInteger();
-            LinkPreviewService service = hostAllowedService(request -> {
-                calls.incrementAndGet();
-                if ("/redirect".equals(request.uri().getPath())) {
-                    return response(request.uri(), 302, Map.of("location", List.of("/final")), "");
-                }
-                return htmlResponse(request.uri(), "<html><head><title>Final Page</title></head></html>");
-            }, ignored.dataSource());
+            LinkPreviewService service =
+                    hostAllowedService(
+                            request -> {
+                                calls.incrementAndGet();
+                                if ("/redirect".equals(request.uri().getPath())) {
+                                    return response(
+                                            request.uri(),
+                                            302,
+                                            Map.of("location", List.of("/final")),
+                                            "");
+                                }
+                                return htmlResponse(
+                                        request.uri(),
+                                        "<html><head><title>Final Page</title></head></html>");
+                            },
+                            ignored.dataSource());
 
             LinkPreviewResponse response = service.fetch("https://example.com/redirect", null);
 
@@ -365,10 +421,17 @@ public class LinkPreviewServiceTest {
     public void shouldCacheUnavailablePreviewForNonHtmlResponse() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             AtomicInteger calls = new AtomicInteger();
-            LinkPreviewService service = hostAllowedService(request -> {
-                calls.incrementAndGet();
-                return response(request.uri(), 200, Map.of("content-type", List.of("application/json")), "{}");
-            }, ignored.dataSource());
+            LinkPreviewService service =
+                    hostAllowedService(
+                            request -> {
+                                calls.incrementAndGet();
+                                return response(
+                                        request.uri(),
+                                        200,
+                                        Map.of("content-type", List.of("application/json")),
+                                        "{}");
+                            },
+                            ignored.dataSource());
 
             LinkPreviewResponse first = service.fetch("https://example.com/api", null);
             LinkPreviewResponse second = service.fetch("https://example.com/api", null);
@@ -398,7 +461,8 @@ public class LinkPreviewServiceTest {
 
     @Test
     public void shouldExposeLinkPreviewCacheEntryAccessors() {
-        LinkPreviewService.LinkPreviewCacheEntry entry = new LinkPreviewService.LinkPreviewCacheEntry();
+        LinkPreviewService.LinkPreviewCacheEntry entry =
+                new LinkPreviewService.LinkPreviewCacheEntry();
         LinkPreviewResponse response = new LinkPreviewResponse();
 
         entry.setUrl("https://example.com");

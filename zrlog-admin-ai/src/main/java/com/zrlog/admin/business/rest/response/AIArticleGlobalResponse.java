@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.admin.business.ai.model.AIProviderType;
-
 import java.util.List;
 
 public class AIArticleGlobalResponse extends ArticleGlobalResponse {
@@ -11,8 +10,8 @@ public class AIArticleGlobalResponse extends ArticleGlobalResponse {
     private Boolean aiConfigured;
     private List<AIResponseEntry.AIContentEntry> aiMessages;
 
-    public AIArticleGlobalResponse() {
-    }
+    public AIArticleGlobalResponse() {}
+
     public AIArticleGlobalResponse(ArticleGlobalResponse article) {
         setArticle(article.getArticle());
         setTags(article.getTags());
@@ -62,5 +61,4 @@ public class AIArticleGlobalResponse extends ArticleGlobalResponse {
     public void setAiMessages(List<AIResponseEntry.AIContentEntry> aiMessages) {
         this.aiMessages = aiMessages;
     }
-
 }

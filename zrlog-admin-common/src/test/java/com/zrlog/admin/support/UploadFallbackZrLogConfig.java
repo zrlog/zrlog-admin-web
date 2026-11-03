@@ -11,7 +11,6 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -52,16 +51,19 @@ public class UploadFallbackZrLogConfig extends ZrLogConfig {
         }
 
         @Override
-        public CloseResponseHandle getContext(String uri, HttpMethod method, HttpRequest request,
-                                              AdminTokenVO adminTokenVO)
+        public CloseResponseHandle getContext(
+                String uri, HttpMethod method, HttpRequest request, AdminTokenVO adminTokenVO)
                 throws IOException, URISyntaxException, InterruptedException {
             return null;
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T requestService(HttpRequest inputRequest, Map<String, String[]> params,
-                                    AdminTokenVO adminTokenVO, Class<T> clazz)
+        public <T> T requestService(
+                HttpRequest inputRequest,
+                Map<String, String[]> params,
+                AdminTokenVO adminTokenVO,
+                Class<T> clazz)
                 throws IOException, URISyntaxException, InterruptedException {
             if (clazz.isArray()) {
                 return (T) java.lang.reflect.Array.newInstance(clazz.getComponentType(), 0);
@@ -70,8 +72,8 @@ public class UploadFallbackZrLogConfig extends ZrLogConfig {
         }
 
         @Override
-        public boolean accessPlugin(String uri, HttpRequest request, HttpResponse response,
-                                    AdminTokenVO adminTokenVO)
+        public boolean accessPlugin(
+                String uri, HttpRequest request, HttpResponse response, AdminTokenVO adminTokenVO)
                 throws IOException, URISyntaxException, InterruptedException {
             return false;
         }

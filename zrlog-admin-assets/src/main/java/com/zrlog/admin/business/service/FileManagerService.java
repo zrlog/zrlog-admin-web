@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
+
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
@@ -21,14 +23,11 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
 
 public class FileManagerService {
     public static final String LIBRARY_ROOT = "";
@@ -58,7 +57,8 @@ public class FileManagerService {
         this.referenceService = Objects.requireNonNull(referenceService);
     }
 
-    public FileManagerResponse page(String path, String key, String resourceType) throws SQLException {
+    public FileManagerResponse page(String path, String key, String resourceType)
+            throws SQLException {
         FileManagerResponse response = new FileManagerResponse();
         response.setShortcuts(getShortcuts());
         if (Objects.equals(resourceType, "broken")) {
@@ -66,18 +66,18 @@ public class FileManagerService {
             response.setDirectoryActions(Collections.emptyList());
         } else {
             response.setEntries(StringUtils.isEmpty(key) ? list(path) : search(key));
-            response.setDirectoryActions(StringUtils.isEmpty(key)
-                    ? getDirectoryActions(path) : Collections.emptyList());
+            response.setDirectoryActions(
+                    StringUtils.isEmpty(key) ? getDirectoryActions(path) : Collections.emptyList());
         }
         return response;
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrlAndRecord(AccountAccess actor,
-                                                                                ReplaceArticleResourceUrlRequest body,
-                                                                                AdminAuditContext audit)
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrlAndRecord(
+            AccountAccess actor, ReplaceArticleResourceUrlRequest body, AdminAuditContext audit)
             throws SQLException {
         ReplaceArticleResourceUrlResponse response = replaceArticleResourceUrl(actor, body);
-        this.adminAuditService.record(audit,
+        this.adminAuditService.record(
+                audit,
                 AdminAuditAction.REPLACE_ARTICLE_RESOURCE_URL,
                 body.getFromUrl() + " -> " + body.getToUrl());
         this.messageCenterOperationService.recordReplaceArticleResourceUrl(
@@ -87,8 +87,12 @@ public class FileManagerService {
         return response;
     }
 
-    public UploadFileResponse reuploadMissingLocalResourceAndRecord(String path, File uploadFile,
-                                                                    HttpRequest request, AdminTokenVO user, AdminAuditContext audit)
+    public UploadFileResponse reuploadMissingLocalResourceAndRecord(
+            String path,
+            File uploadFile,
+            HttpRequest request,
+            AdminTokenVO user,
+            AdminAuditContext audit)
             throws IOException {
         UploadFileResponse response = reuploadMissingLocalResource(path, uploadFile, request, user);
         this.adminAuditService.record(audit, AdminAuditAction.REUPLOAD_MISSING_FILE, path);
@@ -103,11 +107,17 @@ public class FileManagerService {
         return deleted;
     }
 
-    public boolean renameAndRecord(String path, String newName, boolean syncArticleReferences,
-                                   AccountAccess actor, AdminAuditContext audit) throws SQLException {
+    public boolean renameAndRecord(
+            String path,
+            String newName,
+            boolean syncArticleReferences,
+            AccountAccess actor,
+            AdminAuditContext audit)
+            throws SQLException {
         boolean renamed = rename(path, newName, syncArticleReferences, actor);
         if (renamed) {
-            this.adminAuditService.record(audit, AdminAuditAction.RENAME_FILE, path + " -> " + newName);
+            this.adminAuditService.record(
+                    audit, AdminAuditAction.RENAME_FILE, path + " -> " + newName);
         }
         return renamed;
     }
@@ -122,50 +132,111 @@ public class FileManagerService {
 
     public List<FileEntryVO> getShortcuts() {
         List<FileEntryVO> shortcuts = new ArrayList<>();
-        FileEntryVO library = new FileEntryVO(I18nUtil.getAdminBackendStringFromRes("admin.fileManager.title"), LIBRARY_ROOT, "directory", 0, "", 0);
+        FileEntryVO library =
+                new FileEntryVO(
+                        I18nUtil.getAdminBackendStringFromRes("admin.fileManager.title"),
+                        LIBRARY_ROOT,
+                        "directory",
+                        0,
+                        "",
+                        0);
         shortcuts.add(decorateEntry(library));
-        shortcuts.add(decorateEntry(new FileEntryVO(I18nUtil.getAdminBackendStringFromRes("admin.fileManager.attachedDir"), ATTACHED_ROOT, "directory", 0, "", 0)));
-        shortcuts.add(decorateEntry(new FileEntryVO(I18nUtil.getAdminBackendStringFromRes("admin.fileManager.externalLinks"), EXTERNAL_ROOT, "directory", 0, "", 0)));
+        shortcuts.add(
+                decorateEntry(
+                        new FileEntryVO(
+                                I18nUtil.getAdminBackendStringFromRes(
+                                        "admin.fileManager.attachedDir"),
+                                ATTACHED_ROOT,
+                                "directory",
+                                0,
+                                "",
+                                0)));
+        shortcuts.add(
+                decorateEntry(
+                        new FileEntryVO(
+                                I18nUtil.getAdminBackendStringFromRes(
+                                        "admin.fileManager.externalLinks"),
+                                EXTERNAL_ROOT,
+                                "directory",
+                                0,
+                                "",
+                                0)));
 
         if (EnvKit.isDevMode()) {
-            shortcuts.add(decorateEntry(new FileEntryVO(I18nUtil.getAdminBackendStringFromRes("admin.fileManager.projectRoot"), AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH, "directory", 0, "", 0)));
+            shortcuts.add(
+                    decorateEntry(
+                            new FileEntryVO(
+                                    I18nUtil.getAdminBackendStringFromRes(
+                                            "admin.fileManager.projectRoot"),
+                                    AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH,
+                                    "directory",
+                                    0,
+                                    "",
+                                    0)));
         }
-        shortcuts.add(decorateEntry(new FileEntryVO(I18nUtil.getAdminBackendStringFromRes("admin.fileManager.dbTempDir"), ADMIN_DB_ATTACHED_TMP, "directory", 0, "", 0)));
+        shortcuts.add(
+                decorateEntry(
+                        new FileEntryVO(
+                                I18nUtil.getAdminBackendStringFromRes(
+                                        "admin.fileManager.dbTempDir"),
+                                ADMIN_DB_ATTACHED_TMP,
+                                "directory",
+                                0,
+                                "",
+                                0)));
         if (EnvKit.isDevMode()) {
-            shortcuts.add(decorateEntry(new FileEntryVO(I18nUtil.getAdminBackendStringFromRes("admin.fileManager.systemTempDir"), AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH, "directory", 0, "", 0)));
+            shortcuts.add(
+                    decorateEntry(
+                            new FileEntryVO(
+                                    I18nUtil.getAdminBackendStringFromRes(
+                                            "admin.fileManager.systemTempDir"),
+                                    AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH,
+                                    "directory",
+                                    0,
+                                    "",
+                                    0)));
         }
         return shortcuts;
     }
 
-
     public List<FileEntryVO> list(String path) throws SQLException {
         boolean referenceEnabled = this.webSiteService.isFeatureResourceReferenceEnabled();
         if (Objects.equals(path, LIBRARY_ROOT)) {
-            return getShortcuts().stream().filter(e -> !Objects.equals(e.getPath(), path)).collect(Collectors.toList());
+            return getShortcuts().stream()
+                    .filter(e -> !Objects.equals(e.getPath(), path))
+                    .collect(Collectors.toList());
         }
         if (path.startsWith(EXTERNAL_ROOT)) {
-            return referenceService.getExternalResources(path, referenceEnabled, this::decorateEntry);
+            return referenceService.getExternalResources(
+                    path, referenceEnabled, this::decorateEntry);
         }
         if (path.startsWith(ADMIN_DB_ATTACHED_TMP)) {
             return this.dbFileService.getDbFiles(path);
         }
-        Map<String, List<FileReferenceVO>> localReferenceMap = referenceEnabled
-                ? referenceService.buildLocalReferenceMap() : Collections.emptyMap();
+        Map<String, List<FileReferenceVO>> localReferenceMap =
+                referenceEnabled
+                        ? referenceService.buildLocalReferenceMap()
+                        : Collections.emptyMap();
         File target = resolveAndValidate(path);
         List<FileEntryVO> entries = new ArrayList<>();
         if (target.exists() && target.isDirectory()) {
             File[] files = target.listFiles();
             if (files != null) {
                 for (File child : files) {
-                    String childRelPath = path.endsWith("/") ? path + child.getName() : path + "/" + child.getName();
-                    FileEntryVO vo = new FileEntryVO(
-                            child.getName(),
-                            childRelPath,
-                            child.isDirectory() ? "directory" : "file",
-                            child.isDirectory() ? 0 : child.length(),
-                            child.isDirectory() ? "" : FileEntryUtils.toMimeType(child.getName()),
-                            child.lastModified()
-                    );
+                    String childRelPath =
+                            path.endsWith("/")
+                                    ? path + child.getName()
+                                    : path + "/" + child.getName();
+                    FileEntryVO vo =
+                            new FileEntryVO(
+                                    child.getName(),
+                                    childRelPath,
+                                    child.isDirectory() ? "directory" : "file",
+                                    child.isDirectory() ? 0 : child.length(),
+                                    child.isDirectory()
+                                            ? ""
+                                            : FileEntryUtils.toMimeType(child.getName()),
+                                    child.lastModified());
                     entries.add(decorateEntry(vo));
                 }
             }
@@ -182,7 +253,9 @@ public class FileManagerService {
         return results;
     }
 
-    private void collectSearchResults(String path, String key, List<FileEntryVO> results, Set<String> visited) throws SQLException {
+    private void collectSearchResults(
+            String path, String key, List<FileEntryVO> results, Set<String> visited)
+            throws SQLException {
         if (results.size() >= 100 || !visited.add(path)) {
             return;
         }
@@ -217,7 +290,9 @@ public class FileManagerService {
             return entries;
         }
         String normalizedKey = key.toLowerCase(Locale.ROOT);
-        return entries.stream().filter(entry -> matches(entry, normalizedKey)).collect(Collectors.toList());
+        return entries.stream()
+                .filter(entry -> matches(entry, normalizedKey))
+                .collect(Collectors.toList());
     }
 
     public boolean refreshReferenceIndex() throws SQLException {
@@ -240,18 +315,23 @@ public class FileManagerService {
             return PathUtil.getStaticFile(normalized);
         }
         if (normalized.startsWith(AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH)) {
-            String subPath = normalized.substring(AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH.length());
+            String subPath =
+                    normalized.substring(
+                            AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH.length());
             return new File("/tmp/" + subPath);
         }
         if (normalized.startsWith(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH)) {
-            String subPath = normalized.substring(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH.length());
+            String subPath =
+                    normalized.substring(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH.length());
             return new File(PathUtil.getRootPath() + subPath);
         }
         throw new IllegalArgumentException("Unauthorized path: " + relativePath);
     }
 
     public List<FileDirectoryAction> getDirectoryActions(String path) {
-        if (path != null && (path.equals(ADMIN_DB_ATTACHED_TMP) || path.startsWith(ADMIN_DB_ATTACHED_TMP + "/"))) {
+        if (path != null
+                && (path.equals(ADMIN_DB_ATTACHED_TMP)
+                        || path.startsWith(ADMIN_DB_ATTACHED_TMP + "/"))) {
             return List.of(FileDirectoryAction.UPLOAD);
         }
         if (path != null && (path.equals(ATTACHED_ROOT) || path.startsWith(ATTACHED_ROOT + "/"))) {
@@ -264,7 +344,10 @@ public class FileManagerService {
         entry.setAccess(resolveAccess(entry));
         FileEntryUtils.decorateEntry(entry);
         entry.setActions(resolveActions(entry));
-        entry.setDirectoryActions("directory".equals(entry.getType()) ? getDirectoryActions(entry.getPath()) : Collections.emptyList());
+        entry.setDirectoryActions(
+                "directory".equals(entry.getType())
+                        ? getDirectoryActions(entry.getPath())
+                        : Collections.emptyList());
         return entry;
     }
 
@@ -279,7 +362,9 @@ public class FileManagerService {
         if (path.startsWith(EXTERNAL_ROOT)) {
             return FileEntryAccess.VIRTUAL;
         }
-        if (FileEntryUtils.isExternalUrl(path) || path.startsWith(ATTACHED_ROOT + "/") || path.equals(ATTACHED_ROOT)) {
+        if (FileEntryUtils.isExternalUrl(path)
+                || path.startsWith(ATTACHED_ROOT + "/")
+                || path.equals(ATTACHED_ROOT)) {
             return FileEntryAccess.PUBLIC_URL;
         }
         return FileEntryAccess.ADMIN_ONLY;
@@ -305,7 +390,8 @@ public class FileManagerService {
         if ("file".equals(entry.getType())) {
             actions.add(FileEntryAction.DOWNLOAD);
         }
-        if ("file".equals(entry.getType()) && (FileEntryUtils.isExternalUrl(path) || path.startsWith(ATTACHED_ROOT + "/"))) {
+        if ("file".equals(entry.getType())
+                && (FileEntryUtils.isExternalUrl(path) || path.startsWith(ATTACHED_ROOT + "/"))) {
             actions.add(FileEntryAction.COPY_URL);
             actions.add(FileEntryAction.SELECT);
         }
@@ -323,14 +409,14 @@ public class FileManagerService {
         return actions.stream().distinct().collect(Collectors.toList());
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(AccountAccess actor,
-                                                                       ReplaceArticleResourceUrlRequest request)
-            throws SQLException {
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(
+            AccountAccess actor, ReplaceArticleResourceUrlRequest request) throws SQLException {
         return referenceService.replaceArticleResourceUrl(actor, request);
     }
 
-    public UploadFileResponse reuploadMissingLocalResource(String path, File uploadFile, HttpRequest request,
-                                                           AdminTokenVO user) throws IOException {
+    public UploadFileResponse reuploadMissingLocalResource(
+            String path, File uploadFile, HttpRequest request, AdminTokenVO user)
+            throws IOException {
         if (StringUtils.isEmpty(path) || !path.startsWith(ATTACHED_ROOT + "/")) {
             throw new IllegalArgumentException("Invalid path");
         }
@@ -361,7 +447,8 @@ public class FileManagerService {
     }
 
     public boolean mkdir(String path) {
-        if (StringUtils.isEmpty(path) || !getDirectoryActions(parentPath(path)).contains(FileDirectoryAction.MKDIR)) {
+        if (StringUtils.isEmpty(path)
+                || !getDirectoryActions(parentPath(path)).contains(FileDirectoryAction.MKDIR)) {
             return false;
         }
         File target = resolveAndValidate(path);
@@ -384,7 +471,9 @@ public class FileManagerService {
         return rename(path, newName, false, null);
     }
 
-    public boolean rename(String path, String newName, boolean syncArticleReferences, AccountAccess actor) throws SQLException {
+    public boolean rename(
+            String path, String newName, boolean syncArticleReferences, AccountAccess actor)
+            throws SQLException {
         if (syncArticleReferences && (actor == null || !AccountAction.FILE_MANAGE.allowed(actor))) {
             throw new PermissionErrorException();
         }
@@ -395,9 +484,14 @@ public class FileManagerService {
         File dest = new File(target.getParentFile(), newName);
         boolean directory = target.isDirectory();
         boolean renamed = target.renameTo(dest);
-        if (renamed && syncArticleReferences && hasAction(path, FileEntryAction.UPDATE_REFERENCES)) {
-            referenceService.replaceArticleResourceReferences(actor, referenceService.normalizePath(path),
-                    referenceService.normalizePath(toRelativePath(path, newName)), directory);
+        if (renamed
+                && syncArticleReferences
+                && hasAction(path, FileEntryAction.UPDATE_REFERENCES)) {
+            referenceService.replaceArticleResourceReferences(
+                    actor,
+                    referenceService.normalizePath(path),
+                    referenceService.normalizePath(toRelativePath(path, newName)),
+                    directory);
         }
         return renamed;
     }
@@ -411,7 +505,10 @@ public class FileManagerService {
     }
 
     private boolean hasAction(String path, FileEntryAction action) {
-        return resolveActions(new FileEntryVO(new File(path).getName(), path, resolveEntryType(path), 0, "", 0)).contains(action);
+        return resolveActions(
+                        new FileEntryVO(
+                                new File(path).getName(), path, resolveEntryType(path), 0, "", 0))
+                .contains(action);
     }
 
     private String resolveEntryType(String path) {
@@ -425,7 +522,9 @@ public class FileManagerService {
                 return "directory";
             }
         }
-        if (path.startsWith(EXTERNAL_ROOT + "/") || path.equals(ATTACHED_ROOT) || path.equals(EXTERNAL_ROOT)) {
+        if (path.startsWith(EXTERNAL_ROOT + "/")
+                || path.equals(ATTACHED_ROOT)
+                || path.equals(EXTERNAL_ROOT)) {
             return "directory";
         }
         try {

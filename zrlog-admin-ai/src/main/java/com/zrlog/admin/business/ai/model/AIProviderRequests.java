@@ -1,13 +1,11 @@
 package com.zrlog.admin.business.ai.model;
 
 import com.google.gson.annotations.SerializedName;
-
 import java.util.List;
 
 public final class AIProviderRequests {
 
-    private AIProviderRequests() {
-    }
+    private AIProviderRequests() {}
 
     public static class CompletionRequest {
 
@@ -16,10 +14,13 @@ public final class AIProviderRequests {
         private List<Message> messages;
         private String model;
         private boolean stream;
+
         @SerializedName("max_completion_tokens")
         private Integer maxCompletionTokens;
+
         @SerializedName("max_tokens")
         private Integer maxTokens;
+
         @SerializedName("enable_thinking")
         private Boolean enableThinking;
 
@@ -76,19 +77,22 @@ public final class AIProviderRequests {
 
         // Private file references, projected to native content parts at the provider boundary.
         public List<AIFileModels.Attachment> attachments;
+
         @SerializedName("tool_calls")
         public List<ToolCall> toolCalls;
+
         @SerializedName("tool_call_id")
         public String toolCallId;
+
         @SerializedName("reasoning_content")
         public String reasoningContent;
+
         // Private checkpoint data, converted to Responses input before sending to OpenAI.
         public List<OpenAIResponses.Item> responsesOutput;
         private String role;
         private String content;
 
-        public Message() {
-        }
+        public Message() {}
 
         public Message(String role, String content) {
             this.role = role;
@@ -150,8 +154,7 @@ public final class AIProviderRequests {
         private int n;
         private String size;
 
-        public ImageGenerationRequest() {
-        }
+        public ImageGenerationRequest() {}
 
         public ImageGenerationRequest(String model, String prompt, int n, String size) {
             this.model = model;

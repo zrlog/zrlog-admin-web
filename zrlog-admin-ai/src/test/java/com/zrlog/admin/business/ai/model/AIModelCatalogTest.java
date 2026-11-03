@@ -1,22 +1,20 @@
 package com.zrlog.admin.business.ai.model;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class AIModelCatalogTest {
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private String bundled() throws Exception {
         try (var input = getClass().getResourceAsStream(AIModelCatalog.RESOURCE)) {
@@ -31,19 +29,24 @@ public class AIModelCatalogTest {
         Path path = temporaryFolder.getRoot().toPath().resolve("models.json");
         String original = catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName();
         Files.writeString(path, bundled().replace(original, "future-model"));
-        assertEquals("future-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
+        assertEquals(
+                "future-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
         Files.writeString(path, "{broken");
-        assertEquals("future-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
+        assertEquals(
+                "future-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
         Files.writeString(path, " ".repeat(1024 * 1024 + 1));
-        assertEquals("future-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
+        assertEquals(
+                "future-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
         Files.writeString(path, bundled().replace(original, "another-model"));
-        assertEquals("another-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
+        assertEquals(
+                "another-model", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
         Files.delete(path);
         assertEquals(original, catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
     }
 
     @Test
-    public void shouldFallBackOnColdStartAndNotShareMutableEntriesOrRuntimeRoots() throws Exception {
+    public void shouldFallBackOnColdStartAndNotShareMutableEntriesOrRuntimeRoots()
+            throws Exception {
         AIModelCatalog catalog = new AIModelCatalog();
         Path path = temporaryFolder.newFile("bad.json").toPath();
         Files.writeString(path, "null");
@@ -52,11 +55,19 @@ public class AIModelCatalogTest {
         first.get(0).setName("mutated");
         first.get(0).setCapabilities(List.of(AIModelCapability.IMAGE_GENERATION));
         assertEquals(original, catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
-        assertTrue(catalog.getModels(AIProviderType.OPEN_AI, path).get(0).supports(AIModelCapability.TEXT));
+        assertTrue(
+                catalog.getModels(AIProviderType.OPEN_AI, path)
+                        .get(0)
+                        .supports(AIModelCapability.TEXT));
         Files.writeString(path, bundled().replace(original, "root-one"));
         assertEquals("root-one", catalog.getModels(AIProviderType.OPEN_AI, path).get(0).getName());
-        assertEquals(original, catalog.getModels(AIProviderType.OPEN_AI,
-                temporaryFolder.getRoot().toPath().resolve("other-root.json")).get(0).getName());
+        assertEquals(
+                original,
+                catalog.getModels(
+                                AIProviderType.OPEN_AI,
+                                temporaryFolder.getRoot().toPath().resolve("other-root.json"))
+                        .get(0)
+                        .getName());
     }
 
     @Test
@@ -72,7 +83,11 @@ public class AIModelCatalogTest {
         document.getAsJsonArray("providers").remove(0);
         assertInvalid(document.toString());
         document = JsonParser.parseString(source).getAsJsonObject();
-        var models = document.getAsJsonArray("providers").get(0).getAsJsonObject().getAsJsonArray("models");
+        var models =
+                document.getAsJsonArray("providers")
+                        .get(0)
+                        .getAsJsonObject()
+                        .getAsJsonArray("models");
         models.add(models.get(0).deepCopy());
         assertInvalid(document.toString());
         assertInvalid(source.replace("\"TEXT\"", "\"IMAGE_GENERATION\""));
@@ -104,23 +119,36 @@ public class AIModelCatalogTest {
     }
 
     @Test
-    public void shouldPreserveRetirementMetadataWithoutRemovingModelsOrChangingSavedSettings() throws Exception {
+    public void shouldPreserveRetirementMetadataWithoutRemovingModelsOrChangingSavedSettings()
+            throws Exception {
         AIModelCatalog catalog = new AIModelCatalog();
         Path path = temporaryFolder.getRoot().toPath().resolve("models.json");
-        AIModelEntry retired = catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
-                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow();
+        AIModelEntry retired =
+                catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
+                        .filter(model -> model.getName().equals("deepseek-chat"))
+                        .findFirst()
+                        .orElseThrow();
         assertTrue(retired.isRetired());
-        assertEquals("https://api-docs.deepseek.com/news/news260424", retired.getRetirementSource());
+        assertEquals(
+                "https://api-docs.deepseek.com/news/news260424", retired.getRetirementSource());
         assertTrue(retired.supports(AIModelCapability.TEXT));
         retired.setRetired(false);
         retired.setRetirementSource("mutated");
-        AIModelEntry reloaded = catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
-                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow();
+        AIModelEntry reloaded =
+                catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
+                        .filter(model -> model.getName().equals("deepseek-chat"))
+                        .findFirst()
+                        .orElseThrow();
         assertTrue(reloaded.isRetired());
-        assertEquals("https://api-docs.deepseek.com/news/news260424", reloaded.getRetirementSource());
+        assertEquals(
+                "https://api-docs.deepseek.com/news/news260424", reloaded.getRetirementSource());
         Files.writeString(path, bundled().replace("\"retired\": true", "\"retired\": false"));
-        assertFalse(catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
-                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow().isRetired());
+        assertFalse(
+                catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
+                        .filter(model -> model.getName().equals("deepseek-chat"))
+                        .findFirst()
+                        .orElseThrow()
+                        .isRetired());
 
         AIWebSiteInfo settings = new AIWebSiteInfo();
         settings.setAi_provider(AIProviderType.DEEP_SEEK);

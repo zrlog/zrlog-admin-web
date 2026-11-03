@@ -7,7 +7,6 @@ import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
 import com.zrlog.business.service.WebsiteKvService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +21,7 @@ public class WebsiteCacheService {
     private static final Logger LOGGER = LoggerUtil.getLogger(WebsiteCacheService.class);
     private static final Gson GSON = new Gson();
     private final WebsiteKvService kvService;
+
     @Inject
     public WebsiteCacheService(WebsiteKvService kvService) {
         this.kvService = kvService;

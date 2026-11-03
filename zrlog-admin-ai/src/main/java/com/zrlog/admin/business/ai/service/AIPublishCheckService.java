@@ -17,7 +17,6 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +41,9 @@ public class AIPublishCheckService {
             WebSiteService webSiteService,
             MessageCenterOperationService messageCenterOperationService,
             AIWritingSkillService.Factory writing,
-            AIConversationService conversations, AccountIdentityService identities, AccountPermissionService permissions) {
+            AIConversationService conversations,
+            AccountIdentityService identities,
+            AccountPermissionService permissions) {
         this.identities = identities;
         this.permissions = permissions;
         this.conversations = conversations;
@@ -53,9 +54,10 @@ public class AIPublishCheckService {
         this.messageCenterOperationService = messageCenterOperationService;
     }
 
-    public PublishCheckTask startPublishCheck(AccountAccess actor, ArticleGlobalResponse detail,
-                                              CreateArticleRequest body) {
-        if (!(detail instanceof AIArticleGlobalResponse) || !Objects.equals(detail.getPublishCheckEnabled(), true)
+    public PublishCheckTask startPublishCheck(
+            AccountAccess actor, ArticleGlobalResponse detail, CreateArticleRequest body) {
+        if (!(detail instanceof AIArticleGlobalResponse)
+                || !Objects.equals(detail.getPublishCheckEnabled(), true)
                 || !Objects.equals(((AIArticleGlobalResponse) detail).getAiConfigured(), true)) {
             return null;
         }
@@ -64,21 +66,27 @@ public class AIPublishCheckService {
         Long articleId = Long.valueOf(detail.getArticle().getLogId());
         GenerateArticleFieldRequest context = publishCheckContext(body);
         PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
-        AIConversationService conversationStore = this.conversations.captureAccount(actor.getUserId());
+        AIConversationService conversationStore =
+                this.conversations.captureAccount(actor.getUserId());
         String language = I18nUtil.getCurrentLocale();
-        CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(
-                () -> {
-                    try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
-                        return buildPublishCheckPayload(actor, articleId, context, guard, conversationStore);
-                    }
-                });
+        CompletableFuture<PublishCheckResponse> future =
+                CompletableFuture.supplyAsync(
+                        () -> {
+                            try (AdminLanguageContext ignored =
+                                    AdminLanguageContext.open(language)) {
+                                return buildPublishCheckPayload(
+                                        actor, articleId, context, guard, conversationStore);
+                            }
+                        });
         return new PublishCheckTask(future, guard, articleId, context.getTitle());
     }
 
     public void fillPublishCheckContext(GenerateArticleFieldRequest context) {
         BlogWebSiteInfo blog = this.webSiteService.blogWebSiteInfo();
         context.setStaticSiteEnabled(blog.getGenerator_html_status());
-        context.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled(Boolean.TRUE.equals(blog.getGenerator_html_status()), blog.getHost()));
+        context.setStaticSitePluginEnabled(
+                !StaticSitePlugin.isDisabled(
+                        Boolean.TRUE.equals(blog.getGenerator_html_status()), blog.getHost()));
     }
 
     public void recordPublishCheckError(Long articleId, String articleTitle, String messageKey) {
@@ -93,7 +101,10 @@ public class AIPublishCheckService {
     private GenerateArticleFieldRequest publishCheckContext(CreateArticleRequest body) {
         GenerateArticleFieldRequest context = new GenerateArticleFieldRequest();
         context.setTitle(body.getTitle());
-        context.setMarkdown(StringUtils.isNotEmpty(body.getMarkdown()) ? body.getMarkdown() : body.getContent());
+        context.setMarkdown(
+                StringUtils.isNotEmpty(body.getMarkdown())
+                        ? body.getMarkdown()
+                        : body.getContent());
         context.setDigest(body.getDigest());
         context.setKeywords(body.getKeywords());
         context.setAlias(body.getAlias());
@@ -103,27 +114,36 @@ public class AIPublishCheckService {
         return context;
     }
 
-    PublishCheckResponse buildPublishCheckPayload(AccountAccess actor, Long articleId, GenerateArticleFieldRequest context,
-                                                  PublishCheckPersistenceGuard guard, AIConversationService conversationStore) {
+    PublishCheckResponse buildPublishCheckPayload(
+            AccountAccess actor,
+            Long articleId,
+            GenerateArticleFieldRequest context,
+            PublishCheckPersistenceGuard guard,
+            AIConversationService conversationStore) {
         try {
             authorize(actor, articleId);
             List<AIResponseEntry.AIContentEntry> messages =
                     writing.create(actor, conversationStore)
                             .runToolResponseWithoutPersistence(
                                     "publish-check", articleId, "publishCheck", context);
-            return guard.commit(() -> {
-                authorize(actor, articleId);
-                if (!conversationStore.appendAIMessageEntries(messages, articleId)) {
-                    throw new AIMessageSaveException();
-                }
-                AIResponseEntry.AIContentEntry assistant = messages.get(messages.size() - 1);
-                Object payload = assistant.getPayload();
-                PublishCheckResponse response = new PublishCheckResponse(
-                        new PublishCheckToolPayload("publishCheck", payload), assistant.getContent(),
-                        assistant.getMessageId(), messages);
-                recordPublishCheckSuccess(articleId, context.getTitle(), payload);
-                return response;
-            });
+            return guard.commit(
+                    () -> {
+                        authorize(actor, articleId);
+                        if (!conversationStore.appendAIMessageEntries(messages, articleId)) {
+                            throw new AIMessageSaveException();
+                        }
+                        AIResponseEntry.AIContentEntry assistant =
+                                messages.get(messages.size() - 1);
+                        Object payload = assistant.getPayload();
+                        PublishCheckResponse response =
+                                new PublishCheckResponse(
+                                        new PublishCheckToolPayload("publishCheck", payload),
+                                        assistant.getContent(),
+                                        assistant.getMessageId(),
+                                        messages);
+                        recordPublishCheckSuccess(articleId, context.getTitle(), payload);
+                        return response;
+                    });
         } catch (CancellationException e) {
             throw e;
         } catch (Exception e) {
@@ -158,7 +178,8 @@ public class AIPublishCheckService {
 
     private int extractItemCount(Object checkPayload) {
         if (checkPayload instanceof ScoreArticleResponse) {
-            List<ScoreArticleResponse.ScoreItem> items = ((ScoreArticleResponse) checkPayload).getItems();
+            List<ScoreArticleResponse.ScoreItem> items =
+                    ((ScoreArticleResponse) checkPayload).getItems();
             return items == null ? 0 : items.size();
         }
         if (checkPayload instanceof Map) {
@@ -193,7 +214,8 @@ public class AIPublishCheckService {
         private boolean cancelled;
         private PublishCheckResponse committedResponse;
 
-        public synchronized PublishCheckResponse commit(PublishCheckCommit commit) throws Exception {
+        public synchronized PublishCheckResponse commit(PublishCheckCommit commit)
+                throws Exception {
             if (cancelled) {
                 throw new CancellationException();
             }
@@ -217,9 +239,11 @@ public class AIPublishCheckService {
         private final Long articleId;
         private final String articleTitle;
 
-        public PublishCheckTask(CompletableFuture<PublishCheckResponse> future,
-                                PublishCheckPersistenceGuard persistenceGuard,
-                                Long articleId, String articleTitle) {
+        public PublishCheckTask(
+                CompletableFuture<PublishCheckResponse> future,
+                PublishCheckPersistenceGuard persistenceGuard,
+                Long articleId,
+                String articleTitle) {
             this.future = future;
             this.persistenceGuard = persistenceGuard;
             this.articleId = articleId;

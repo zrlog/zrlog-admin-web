@@ -1,43 +1,44 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
-import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.NotImplementException;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class DbFileServiceDatabaseTest {
 
     @Test
     public void shouldStoreLoadListAndDeleteDbFilesThroughWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            DbFileService service =
-                    new DbFileService(() -> new WebSiteRepository(db.dataSource()));
+            DbFileService service = new DbFileService(() -> new WebSiteRepository(db.dataSource()));
 
-            UploadFileResponse uploaded = service.toDbFile("/assets/readme.txt",
-                    "hello".getBytes(StandardCharsets.UTF_8));
-            service.toDbFile("/assets/images/logo.png", new byte[]{1, 2, 3});
+            UploadFileResponse uploaded =
+                    service.toDbFile(
+                            "/assets/readme.txt", "hello".getBytes(StandardCharsets.UTF_8));
+            service.toDbFile("/assets/images/logo.png", new byte[] {1, 2, 3});
             List<FileEntryVO> entries = service.getDbFiles("/assets");
 
-            FileEntryVO textFile = entries.stream()
-                    .filter(entry -> "readme.txt".equals(entry.getName()))
-                    .findFirst()
-                    .orElseThrow();
-            FileEntryVO imageDir = entries.stream()
-                    .filter(entry -> "images".equals(entry.getName()))
-                    .findFirst()
-                    .orElseThrow();
+            FileEntryVO textFile =
+                    entries.stream()
+                            .filter(entry -> "readme.txt".equals(entry.getName()))
+                            .findFirst()
+                            .orElseThrow();
+            FileEntryVO imageDir =
+                    entries.stream()
+                            .filter(entry -> "images".equals(entry.getName()))
+                            .findFirst()
+                            .orElseThrow();
             assertEquals("/assets/readme.txt", uploaded.getUrl());
-            assertArrayEquals("hello".getBytes(StandardCharsets.UTF_8),
+            assertArrayEquals(
+                    "hello".getBytes(StandardCharsets.UTF_8),
                     service.loadDbFile("/assets/readme.txt"));
             assertEquals("file", textFile.getType());
             assertEquals("/assets/readme.txt", textFile.getPath());
@@ -49,9 +50,14 @@ public class DbFileServiceDatabaseTest {
             assertTrue(imageDir.getActions().contains(FileEntryAction.OPEN));
 
             assertTrue(service.deleteByKey("/assets/readme.txt"));
-            assertThrows(NotImplementException.class, () -> service.loadDbFile("/assets/readme.txt"));
+            assertThrows(
+                    NotImplementException.class, () -> service.loadDbFile("/assets/readme.txt"));
             assertTrue(service.deleteByPrefix("/assets"));
-            assertEquals(null, db.queryOne("select name from website where name=?", "db_file/assets/images/logo.png"));
+            assertEquals(
+                    null,
+                    db.queryOne(
+                            "select name from website where name=?",
+                            "db_file/assets/images/logo.png"));
         }
     }
 

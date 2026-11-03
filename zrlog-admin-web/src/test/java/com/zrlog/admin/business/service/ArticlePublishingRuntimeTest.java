@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.config.ServerConfig;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.support.ApplicationServicesFixture;
@@ -7,15 +9,21 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.service.MarkdownRenderer;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 public class ArticlePublishingRuntimeTest {
     @Test
     public void standaloneAdminCanPrepareArticlesWithoutBlogEngines() throws Exception {
         ClassLoader loader = getClass().getClassLoader();
-        assertThrows(ClassNotFoundException.class, () -> loader.loadClass("com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer"));
-        assertThrows(ClassNotFoundException.class, () -> loader.loadClass("org.graalvm.polyglot.Context"));
-        assertThrows(ClassNotFoundException.class, () -> loader.loadClass("com.zrlog.blog.freemarker.template.FreemarkerZrLogTemplate"));
+        assertThrows(
+                ClassNotFoundException.class,
+                () -> loader.loadClass("com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer"));
+        assertThrows(
+                ClassNotFoundException.class,
+                () -> loader.loadClass("org.graalvm.polyglot.Context"));
+        assertThrows(
+                ClassNotFoundException.class,
+                () ->
+                        loader.loadClass(
+                                "com.zrlog.blog.freemarker.template.FreemarkerZrLogTemplate"));
 
         try (var db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();

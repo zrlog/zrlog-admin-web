@@ -8,8 +8,7 @@ public class AdminDashboardCardConfigResponse {
     private String title;
     private Object data;
 
-    public AdminDashboardCardConfigResponse() {
-    }
+    public AdminDashboardCardConfigResponse() {}
 
     public AdminDashboardCardConfigResponse(String id, Boolean enabled, Integer sort) {
         this.id = id;

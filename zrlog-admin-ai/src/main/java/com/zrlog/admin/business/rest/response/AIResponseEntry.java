@@ -40,7 +40,8 @@ public class AIResponseEntry {
         private String reasoningContent;
         private String messageId;
         private List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources;
-        private java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> attachments;
+        private java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment>
+                attachments;
         private String messageType;
         private ArticleContextMeta contextMeta;
         private String tool;
@@ -48,8 +49,9 @@ public class AIResponseEntry {
         private com.zrlog.admin.business.ai.model.AIChatModels.SkillContract skillContract;
         private String provider;
         private String model;
-        public AIContentEntry() {
-        }
+
+        public AIContentEntry() {}
+
         public AIContentEntry(String role, String content) {
             this.role = role;
             this.content = content;
@@ -59,15 +61,18 @@ public class AIResponseEntry {
             return sources;
         }
 
-        public void setSources(List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources) {
+        public void setSources(
+                List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources) {
             this.sources = sources;
         }
 
-        public java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> getAttachments() {
+        public java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment>
+                getAttachments() {
             return attachments;
         }
 
-        public void setAttachments(java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> value) {
+        public void setAttachments(
+                java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> value) {
             attachments = value;
         }
 
@@ -75,7 +80,8 @@ public class AIResponseEntry {
             return skillContract;
         }
 
-        public void setSkillContract(com.zrlog.admin.business.ai.model.AIChatModels.SkillContract value) {
+        public void setSkillContract(
+                com.zrlog.admin.business.ai.model.AIChatModels.SkillContract value) {
             skillContract = value;
         }
 
@@ -199,5 +205,4 @@ public class AIResponseEntry {
             }
         }
     }
-
 }

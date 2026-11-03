@@ -11,7 +11,8 @@ public class PasskeySummaryResponse {
     private Long lastUsedAt;
     private List<String> transports = Collections.emptyList();
 
-    public PasskeySummaryResponse(long id, String name, long createdAt, Long lastUsedAt, List<String> transports) {
+    public PasskeySummaryResponse(
+            long id, String name, long createdAt, Long lastUsedAt, List<String> transports) {
         this.id = id;
         this.name = name;
         this.createdAt = createdAt;

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -10,34 +12,49 @@ import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
+import com.zrlog.data.security.AccountAccess;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static org.junit.Assert.*;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class FileManagerServiceTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private static void insertArticle(InMemoryZrLogDatabase db, int id, String content, String markdown) throws Exception {
-        db.execute("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
+    private static void insertArticle(
+            InMemoryZrLogDatabase db, int id, String content, String markdown) throws Exception {
+        db.execute(
+                "insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
                         + " keywords, thumbnail, recommended, releaseTime, last_update_date, title, typeId, userId,"
                         + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(),"
                         + " now(), ?, ?, ?, ?, ?, ?, ?)",
-                id, "file-manager-" + id, true, 0, 0, content, "plain " + id, markdown, "Digest " + id,
-                "zrlog,file", "", false, "File Manager " + id, 1, 1, false, false, false, "markdown");
+                id,
+                "file-manager-" + id,
+                true,
+                0,
+                0,
+                content,
+                "plain " + id,
+                markdown,
+                "Digest " + id,
+                "zrlog,file",
+                "",
+                false,
+                "File Manager " + id,
+                1,
+                1,
+                false,
+                false,
+                false,
+                "markdown");
     }
 
     private static FileEntryVO findByName(List<FileEntryVO> entries, String name) {
@@ -55,7 +72,8 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     () -> {
                                                         throw new IllegalStateException(
@@ -115,7 +133,8 @@ public class FileManagerServiceTest {
                 new FileManagerService(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).identities(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
                                         () -> {
                                             throw new IllegalStateException(
@@ -138,13 +157,17 @@ public class FileManagerServiceTest {
                         ApplicationServicesFixture.audit(null),
                         ApplicationServicesFixture.operations(null));
 
-        assertEquals(List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
+        assertEquals(
+                List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
                 service.getDirectoryActions("/attached"));
-        assertEquals(List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
+        assertEquals(
+                List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
                 service.getDirectoryActions("/attached/images"));
-        assertEquals(List.of(FileDirectoryAction.UPLOAD),
+        assertEquals(
+                List.of(FileDirectoryAction.UPLOAD),
                 service.getDirectoryActions(AdminConstants.ADMIN_DB_ATTACHED_TMP));
-        assertEquals(List.of(FileDirectoryAction.UPLOAD),
+        assertEquals(
+                List.of(FileDirectoryAction.UPLOAD),
                 service.getDirectoryActions(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/images"));
         assertTrue(service.getDirectoryActions("/admin/dev/file").isEmpty());
         assertTrue(service.getDirectoryActions(null).isEmpty());
@@ -156,7 +179,8 @@ public class FileManagerServiceTest {
                 new FileManagerService(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).identities(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
                                         () -> {
                                             throw new IllegalStateException(
@@ -181,17 +205,20 @@ public class FileManagerServiceTest {
 
         assertTrue(service.search("").isEmpty());
 
-        FileEntryVO library = service.decorateEntry(new FileEntryVO("library", "", "directory", 0, "", 0));
+        FileEntryVO library =
+                service.decorateEntry(new FileEntryVO("library", "", "directory", 0, "", 0));
         assertEquals(FileEntryAccess.VIRTUAL, library.getAccess());
         assertTrue(library.getActions().contains(FileEntryAction.OPEN));
 
-        FileEntryVO virtualDirectory = new FileEntryVO("virtual", "/virtual", "directory", 0, "", 0);
+        FileEntryVO virtualDirectory =
+                new FileEntryVO("virtual", "/virtual", "directory", 0, "", 0);
         virtualDirectory.setVirtual(true);
         service.decorateEntry(virtualDirectory);
         assertEquals(FileEntryAccess.VIRTUAL, virtualDirectory.getAccess());
 
-        FileEntryVO attachedImage = service.decorateEntry(
-                new FileEntryVO("a.png", "/attached/a.png", "file", 10, "image/png", 0));
+        FileEntryVO attachedImage =
+                service.decorateEntry(
+                        new FileEntryVO("a.png", "/attached/a.png", "file", 10, "image/png", 0));
         assertEquals(FileEntryAccess.PUBLIC_URL, attachedImage.getAccess());
         assertTrue(attachedImage.getActions().contains(FileEntryAction.PREVIEW));
         assertTrue(attachedImage.getActions().contains(FileEntryAction.DOWNLOAD));
@@ -201,34 +228,52 @@ public class FileManagerServiceTest {
         assertTrue(attachedImage.getActions().contains(FileEntryAction.DELETE));
         assertTrue(attachedImage.getActions().contains(FileEntryAction.UPDATE_REFERENCES));
 
-        FileEntryVO missingLocal = new FileEntryVO("missing.png", "/attached/missing.png", "file", 0,
-                "image/png", 0);
+        FileEntryVO missingLocal =
+                new FileEntryVO("missing.png", "/attached/missing.png", "file", 0, "image/png", 0);
         missingLocal.setMissing(true);
         service.decorateEntry(missingLocal);
         assertEquals(FileEntryAccess.VIRTUAL, missingLocal.getAccess());
-        assertEquals(List.of(FileEntryAction.REUPLOAD, FileEntryAction.UPDATE_REFERENCES),
+        assertEquals(
+                List.of(FileEntryAction.REUPLOAD, FileEntryAction.UPDATE_REFERENCES),
                 missingLocal.getActions());
 
-        FileEntryVO missingExternal = new FileEntryVO("missing", "/external/missing.png", "file", 0,
-                "image/png", 0);
+        FileEntryVO missingExternal =
+                new FileEntryVO("missing", "/external/missing.png", "file", 0, "image/png", 0);
         missingExternal.setMissing(true);
         service.decorateEntry(missingExternal);
         assertEquals(FileEntryAccess.VIRTUAL, missingExternal.getAccess());
         assertTrue(missingExternal.getActions().isEmpty());
 
-        FileEntryVO external = service.decorateEntry(new FileEntryVO("cdn", "/external/example.com",
-                "directory", 0, "", 0));
+        FileEntryVO external =
+                service.decorateEntry(
+                        new FileEntryVO("cdn", "/external/example.com", "directory", 0, "", 0));
         assertEquals(FileEntryAccess.VIRTUAL, external.getAccess());
-        assertEquals(List.of(FileEntryAction.OPEN, FileEntryAction.UPDATE_REFERENCES), external.getActions());
+        assertEquals(
+                List.of(FileEntryAction.OPEN, FileEntryAction.UPDATE_REFERENCES),
+                external.getActions());
 
-        FileEntryVO externalUrl = service.decorateEntry(new FileEntryVO("remote.png",
-                "https://cdn.example.com/remote.png", "file", 10, "image/png", 0));
+        FileEntryVO externalUrl =
+                service.decorateEntry(
+                        new FileEntryVO(
+                                "remote.png",
+                                "https://cdn.example.com/remote.png",
+                                "file",
+                                10,
+                                "image/png",
+                                0));
         assertEquals(FileEntryAccess.PUBLIC_URL, externalUrl.getAccess());
         assertTrue(externalUrl.getActions().contains(FileEntryAction.COPY_URL));
         assertTrue(externalUrl.getActions().contains(FileEntryAction.SELECT));
 
-        FileEntryVO dbTemp = service.decorateEntry(new FileEntryVO("tmp.txt",
-                AdminConstants.ADMIN_DB_ATTACHED_TMP + "/tmp.txt", "file", 10, "text/plain", 0));
+        FileEntryVO dbTemp =
+                service.decorateEntry(
+                        new FileEntryVO(
+                                "tmp.txt",
+                                AdminConstants.ADMIN_DB_ATTACHED_TMP + "/tmp.txt",
+                                "file",
+                                10,
+                                "text/plain",
+                                0));
         assertEquals(FileEntryAccess.ADMIN_ONLY, dbTemp.getAccess());
         assertTrue(dbTemp.getActions().contains(FileEntryAction.DELETE));
     }
@@ -241,7 +286,8 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     () -> {
                                                         throw new IllegalStateException(
@@ -275,11 +321,26 @@ public class FileManagerServiceTest {
                     assertArrayEquals(
                             "hello".getBytes(StandardCharsets.UTF_8),
                             service.read("/attached/docs/a.txt"));
-                    var readOnlyManager = AccountAccess.fromRow(Map.of(
-                                    "userId", 1, "role", "admin", "enabled", true, "authVersion", 0))
-                            .restrictActions(Set.of());
-                    assertThrows(PermissionErrorException.class, () -> service.rename(
-                            "/attached/docs/a.txt", "b.txt", true, readOnlyManager));
+                    var readOnlyManager =
+                            AccountAccess.fromRow(
+                                            Map.of(
+                                                    "userId",
+                                                    1,
+                                                    "role",
+                                                    "admin",
+                                                    "enabled",
+                                                    true,
+                                                    "authVersion",
+                                                    0))
+                                    .restrictActions(Set.of());
+                    assertThrows(
+                            PermissionErrorException.class,
+                            () ->
+                                    service.rename(
+                                            "/attached/docs/a.txt",
+                                            "b.txt",
+                                            true,
+                                            readOnlyManager));
                     assertTrue(file.exists());
                     assertFalse(PathUtil.getStaticFile("/attached/docs/b.txt").exists());
                     assertTrue(service.rename("/attached/docs/a.txt", "b.txt"));
@@ -300,7 +361,8 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     () -> {
                                                         throw new IllegalStateException(
@@ -347,7 +409,8 @@ public class FileManagerServiceTest {
                     new FileManagerService(
                             new UploadService(
                                     () -> null,
-                                    AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
                                     new DbFileService(
                                             () -> new WebSiteRepository(db.dataSource()))),
                             new FileManagerReferenceService(
@@ -355,8 +418,7 @@ public class FileManagerServiceTest {
                                     "",
                                     null,
                                     () -> new LogRepository(db.dataSource())),
-                            new DbFileService(
-                                    () -> new WebSiteRepository(db.dataSource())),
+                            new DbFileService(() -> new WebSiteRepository(db.dataSource())),
                             ApplicationServicesFixture.settings(db.dataSource()),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
@@ -368,16 +430,23 @@ public class FileManagerServiceTest {
 
             assertEquals("db-temp", service.readContent(filePath));
             assertTrue(service.delete(filePath));
-            assertEquals(null, db.queryOne("select name from website where name=?", "db_file" + filePath));
+            assertEquals(
+                    null,
+                    db.queryOne("select name from website where name=?", "db_file" + filePath));
 
             dbFileService.toDbFile(dirPath + "/b.txt", "nested".getBytes(StandardCharsets.UTF_8));
             assertTrue(service.delete(dirPath));
-            assertEquals(null, db.queryOne("select name from website where name=?", "db_file" + dirPath + "/b.txt"));
+            assertEquals(
+                    null,
+                    db.queryOne(
+                            "select name from website where name=?",
+                            "db_file" + dirPath + "/b.txt"));
         }
     }
 
     @Test
-    public void shouldListSearchAndRefreshReferenceAwareEntriesThroughRealDatabase() throws Exception {
+    public void shouldListSearchAndRefreshReferenceAwareEntriesThroughRealDatabase()
+            throws Exception {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -406,10 +475,13 @@ public class FileManagerServiceTest {
                                         new UploadService(
                                                 () -> null,
                                                 AccountServicesFixture.component(db.dataSource())
-                                                        .identities(), AccountServicesFixture.component(db.dataSource())
-                                                .permissions(),
+                                                        .identities(),
+                                                AccountServicesFixture.component(db.dataSource())
+                                                        .permissions(),
                                                 new DbFileService(
-                                                        () -> new WebSiteRepository(db.dataSource()))),
+                                                        () ->
+                                                                new WebSiteRepository(
+                                                                        db.dataSource()))),
                                         new FileManagerReferenceService(
                                                 ApplicationServicesFixture.websiteCache(
                                                         db.dataSource()),
@@ -480,10 +552,13 @@ public class FileManagerServiceTest {
                                         new UploadService(
                                                 () -> null,
                                                 AccountServicesFixture.component(db.dataSource())
-                                                        .identities(), AccountServicesFixture.component(db.dataSource())
-                                                .permissions(),
+                                                        .identities(),
+                                                AccountServicesFixture.component(db.dataSource())
+                                                        .permissions(),
                                                 new DbFileService(
-                                                        () -> new WebSiteRepository(db.dataSource()))),
+                                                        () ->
+                                                                new WebSiteRepository(
+                                                                        db.dataSource()))),
                                         new FileManagerReferenceService(
                                                 ApplicationServicesFixture.websiteCache(
                                                         db.dataSource()),
@@ -511,7 +586,8 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     () -> {
                                                         throw new IllegalStateException(
@@ -545,7 +621,9 @@ public class FileManagerServiceTest {
     private void withRootPath(ThrowingRunnable runnable) throws Exception {
         String previousRootPath = System.getProperty("sws.root.path");
         try {
-            System.setProperty("sws.root.path", temporaryFolder.newFolder("zrlog-file-manager").getAbsolutePath());
+            System.setProperty(
+                    "sws.root.path",
+                    temporaryFolder.newFolder("zrlog-file-manager").getAbsolutePath());
             runnable.run();
         } finally {
             if (previousRootPath == null) {

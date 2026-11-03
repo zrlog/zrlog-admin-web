@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.*;
@@ -9,8 +11,6 @@ import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.security.AccountAccess;
-import org.junit.Test;
-
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
@@ -20,8 +20,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
 public class OAuthServiceTest {
@@ -36,7 +35,7 @@ public class OAuthServiceTest {
 
     @org.junit.runners.Parameterized.Parameters(name = "database={0}")
     public static String[] databases() {
-        return new String[]{"h2", "sqlite", "webapi"};
+        return new String[] {"h2", "sqlite", "webapi"};
     }
 
     private AccountAccess actor() {
@@ -44,7 +43,8 @@ public class OAuthServiceTest {
     }
 
     private GrantAuthority authority() {
-        return new GrantAuthority(actor(), !com.zrlog.admin.business.security.DelegatedAccess.restricted());
+        return new GrantAuthority(
+                actor(), !com.zrlog.admin.business.security.DelegatedAccess.restricted());
     }
 
     private String sessionId() {
@@ -52,21 +52,28 @@ public class OAuthServiceTest {
     }
 
     private InMemoryZrLogDatabase database() throws Exception {
-        InMemoryZrLogDatabase db = "webapi".equals(backend)
-                ? InMemoryZrLogDatabase.openWebApi()
-                : "sqlite".equals(backend)
-                ? InMemoryZrLogDatabase.openSqlite()
-                : InMemoryZrLogDatabase.open();
+        InMemoryZrLogDatabase db =
+                "webapi".equals(backend)
+                        ? InMemoryZrLogDatabase.openWebApi()
+                        : "sqlite".equals(backend)
+                                ? InMemoryZrLogDatabase.openSqlite()
+                                : InMemoryZrLogDatabase.open();
         try {
             accounts = AccountServicesFixture.component(db.dataSource());
-            service = new OAuthService(
-                    () -> "https://blog.example/sub",
-                    () -> true,
-                    accounts.permissions(), accounts.identities(),
-                    accounts.security(),
-                    resource -> new PersonalAccessTokenService(
-                            resource, accounts.identities(), accounts.permissions(), accounts.security()),
-                    accounts.backend());
+            service =
+                    new OAuthService(
+                            () -> "https://blog.example/sub",
+                            () -> true,
+                            accounts.permissions(),
+                            accounts.identities(),
+                            accounts.security(),
+                            resource ->
+                                    new PersonalAccessTokenService(
+                                            resource,
+                                            accounts.identities(),
+                                            accounts.permissions(),
+                                            accounts.security()),
+                            accounts.backend());
             return db;
         } catch (Exception | java.lang.Error e) {
             db.close();
@@ -111,8 +118,10 @@ public class OAuthServiceTest {
     }
 
     private TokenRequest code(Client app, String scopes) throws Exception {
-        Redirect redirect = service.decide(authority(), sessionId(), decision(consent(request(app, scopes))));
-        Map<String, String> p = OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery());
+        Redirect redirect =
+                service.decide(authority(), sessionId(), decision(consent(request(app, scopes))));
+        Map<String, String> p =
+                OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery());
         assertEquals("state & 中文", p.get("state"));
         assertEquals(service.issuer(), p.get("iss"));
         TokenRequest t = new TokenRequest();
@@ -126,13 +135,17 @@ public class OAuthServiceTest {
     }
 
     @Test
-    public void mcpAudienceAllowsExplicitContentScopesAndCannotCrossUseLegacyTokens() throws Exception {
+    public void mcpAudienceAllowsExplicitContentScopesAndCannotCrossUseLegacyTokens()
+            throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             Client app = client();
             AuthorizationRequest r = request(app, "articles:read articles:delete");
             r.resource = service.mcpResource();
-            assertEquals("invalid_scope", assertThrows(OAuthException.class, () -> service.authorize(r)).getOAuthError());
-            r.scope = "articles:read articles:read_private articles:write articles:publish assets:write taxonomy:read offline_access";
+            assertEquals(
+                    "invalid_scope",
+                    assertThrows(OAuthException.class, () -> service.authorize(r)).getOAuthError());
+            r.scope =
+                    "articles:read articles:read_private articles:write articles:publish assets:write taxonomy:read offline_access";
             Redirect redirect = service.decide(authority(), sessionId(), decision(consent(r)));
             TokenRequest t = new TokenRequest();
             t.grant_type = "authorization_code";
@@ -140,17 +153,63 @@ public class OAuthServiceTest {
             t.redirect_uri = r.redirect_uri;
             t.code_verifier = verifier;
             t.resource = service.mcpResource();
-            t.code = OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery()).get("code");
+            t.code =
+                    OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery())
+                            .get("code");
             TokenResponse token = service.token(t);
-            assertEquals(1, service.authenticate(token.access_token, service.mcpResource(), Set.of("articles:read")).userId);
-            assertThrows(OAuthException.class, () -> service.authenticate(token.access_token, service.resource(), Set.of("articles:read")));
+            assertEquals(
+                    1,
+                    service.authenticate(
+                                    token.access_token,
+                                    service.mcpResource(),
+                                    Set.of("articles:read"))
+                            .userId);
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    token.access_token,
+                                    service.resource(),
+                                    Set.of("articles:read")));
             TokenResponse legacy = service.token(code(app, "articles:read"));
-            assertThrows(OAuthException.class, () -> service.authenticate(legacy.access_token, service.mcpResource(), Set.of("articles:read")));
-            assertEquals("https://blog.example/.well-known/oauth-protected-resource/sub/mcp", service.mcpResourceMetadataUrl());
-            assertTrue(service.mcpResourceMetadata().scopes_supported.containsAll(List.of("articles:write", "articles:publish", "assets:write", "taxonomy:read")));
-            assertTrue(service.authenticate(token.access_token, service.mcpResource(), Set.of("articles:write", "articles:publish", "assets:write", "taxonomy:read")).scopes.contains("taxonomy:read"));
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    legacy.access_token,
+                                    service.mcpResource(),
+                                    Set.of("articles:read")));
+            assertEquals(
+                    "https://blog.example/.well-known/oauth-protected-resource/sub/mcp",
+                    service.mcpResourceMetadataUrl());
+            assertTrue(
+                    service.mcpResourceMetadata()
+                            .scopes_supported
+                            .containsAll(
+                                    List.of(
+                                            "articles:write",
+                                            "articles:publish",
+                                            "assets:write",
+                                            "taxonomy:read")));
+            assertTrue(
+                    service.authenticate(
+                                    token.access_token,
+                                    service.mcpResource(),
+                                    Set.of(
+                                            "articles:write",
+                                            "articles:publish",
+                                            "assets:write",
+                                            "taxonomy:read"))
+                            .scopes
+                            .contains("taxonomy:read"));
             service.revoke(token.access_token, app.clientId);
-            assertThrows(OAuthException.class, () -> service.authenticate(token.access_token, service.mcpResource(), Set.of("articles:read")));
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    token.access_token,
+                                    service.mcpResource(),
+                                    Set.of("articles:read")));
         }
     }
 
@@ -170,10 +229,14 @@ public class OAuthServiceTest {
             r.resource = service.resource();
             r.scope = "site:admin";
             assertThrows(OAuthException.class, () -> service.authorize(r));
-            assertThrows(OAuthException.class, () -> service.requireSameOrigin("https://evil.example"));
+            assertThrows(
+                    OAuthException.class, () -> service.requireSameOrigin("https://evil.example"));
             service.requireSameOrigin("https://blog.example");
-            assertEquals("https://blog.example/.well-known/oauth-protected-resource/sub/api/oauth", service.resourceMetadataUrl());
-            assertThrows(OAuthException.class, () -> OAuthInterceptor.parameters("code=one&code=two"));
+            assertEquals(
+                    "https://blog.example/.well-known/oauth-protected-resource/sub/api/oauth",
+                    service.resourceMetadataUrl());
+            assertThrows(
+                    OAuthException.class, () -> OAuthInterceptor.parameters("code=one&code=two"));
         }
     }
 
@@ -188,13 +251,19 @@ public class OAuthServiceTest {
             d.csrf = c.csrf;
             d.scopes = List.of("articles:read", "articles:publish");
             assertThrows(OAuthException.class, () -> service.decide(authority(), sessionId(), d));
-            db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
+            db.execute(
+                    "insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
             AccountAuthorizationTest.login(db, 2, "author");
-            assertThrows(OAuthException.class, () -> service.consent(authority(), sessionId(), c.requestId));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.consent(authority(), sessionId(), c.requestId));
             assertThrows(OAuthException.class, () -> service.decide(authority(), sessionId(), d));
             AccountAuthorizationTest.login(db, 1, "admin");
             d.approve = false;
-            assertTrue(service.decide(authority(), sessionId(), d).redirectUri.contains("error=access_denied"));
+            assertTrue(
+                    service.decide(authority(), sessionId(), d)
+                            .redirectUri
+                            .contains("error=access_denied"));
             assertThrows(OAuthException.class, () -> service.decide(authority(), sessionId(), d));
             AccountAuthorizationTest.login(db, 2, "contributor");
             Consent limited = consent(request(app, "articles:read articles:all articles:publish"));
@@ -213,12 +282,37 @@ public class OAuthServiceTest {
             t.code_verifier = good;
             TokenResponse token = service.token(t);
             assertNotNull(token.refresh_token);
-            assertEquals(1, service.authenticate(token.access_token, service.resource(), Set.of("articles:read")).userId);
-            assertEquals(0, ((Number) db.scalar("select count(*) from oauth_credential where hash=?", token.access_token)).intValue());
-            assertThrows(OAuthException.class, () -> service.authenticate(token.access_token, "https://wrong.example", Set.of()));
-            assertEquals(403, assertThrows(OAuthException.class, () -> service.authenticate(token.access_token, service.resource(), Set.of("articles:write"))).getStatus());
+            assertEquals(
+                    1,
+                    service.authenticate(
+                                    token.access_token, service.resource(), Set.of("articles:read"))
+                            .userId);
+            assertEquals(
+                    0,
+                    ((Number)
+                                    db.scalar(
+                                            "select count(*) from oauth_credential where hash=?",
+                                            token.access_token))
+                            .intValue());
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    token.access_token, "https://wrong.example", Set.of()));
+            assertEquals(
+                    403,
+                    assertThrows(
+                                    OAuthException.class,
+                                    () ->
+                                            service.authenticate(
+                                                    token.access_token,
+                                                    service.resource(),
+                                                    Set.of("articles:write")))
+                            .getStatus());
             assertThrows(OAuthException.class, () -> service.token(t));
-            assertThrows(OAuthException.class, () -> service.authenticate(token.access_token, service.resource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.authenticate(token.access_token, service.resource(), Set.of()));
         }
     }
 
@@ -226,7 +320,8 @@ public class OAuthServiceTest {
     public void rotatedRefreshReuseRevokesEntireGrantAndScopeCannotExpand() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             Client app = client();
-            TokenResponse token = service.token(code(app, "articles:read articles:write offline_access"));
+            TokenResponse token =
+                    service.token(code(app, "articles:read articles:write offline_access"));
             TokenRequest refresh = new TokenRequest();
             refresh.grant_type = "refresh_token";
             refresh.client_id = app.clientId;
@@ -239,7 +334,9 @@ public class OAuthServiceTest {
             assertNotEquals(token.refresh_token, next.refresh_token);
             assertEquals("articles:read", next.scope);
             assertThrows(OAuthException.class, () -> service.token(refresh));
-            assertThrows(OAuthException.class, () -> service.authenticate(next.access_token, service.resource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.authenticate(next.access_token, service.resource(), Set.of()));
         }
     }
 
@@ -251,15 +348,21 @@ public class OAuthServiceTest {
             service.revoke(one.access_token, "wrong-client");
             service.authenticate(one.access_token, service.resource(), Set.of());
             service.revoke(one.access_token, app.clientId);
-            assertThrows(OAuthException.class, () -> service.authenticate(one.access_token, service.resource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.authenticate(one.access_token, service.resource(), Set.of()));
             TokenResponse two = service.token(code(app, "articles:read"));
             db.execute("update user set authVersion=authVersion+1 where userId=1");
-            assertThrows(OAuthException.class, () -> service.authenticate(two.access_token, service.resource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.authenticate(two.access_token, service.resource(), Set.of()));
             AccountAuthorizationTest.login(db, 1, "admin");
             assertTrue(service.page(actor()).grants.stream().allMatch(g -> g.revoked));
             TokenResponse three = service.token(code(app, "articles:read"));
             service.disableClient(actor(), app.clientId);
-            assertThrows(OAuthException.class, () -> service.authenticate(three.access_token, service.resource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.authenticate(three.access_token, service.resource(), Set.of()));
         }
     }
 
@@ -268,17 +371,23 @@ public class OAuthServiceTest {
         try (InMemoryZrLogDatabase db = database()) {
             Client app = client();
             TokenRequest t = code(app, "articles:read");
-            db.execute("update oauth_credential set expiresAt=? where hash=?", 1L, OAuthService.hash(t.code));
+            db.execute(
+                    "update oauth_credential set expiresAt=? where hash=?",
+                    1L,
+                    OAuthService.hash(t.code));
             assertThrows(OAuthException.class, () -> service.token(t));
             TokenResponse valid = service.token(code(app, "articles:read"));
             String grantId = service.page(actor()).grants.get(0).id;
-            db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
+            db.execute(
+                    "insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
             AccountAuthorizationTest.login(db, 2, "author");
             assertTrue(service.page(actor()).grants.isEmpty());
             service.revokeGrant(actor(), grantId);
             service.authenticate(valid.access_token, service.resource(), Set.of());
             db.execute("update user set enabled=? where userId=1", false);
-            assertThrows(OAuthException.class, () -> service.authenticate(valid.access_token, service.resource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () -> service.authenticate(valid.access_token, service.resource(), Set.of()));
         }
     }
 
@@ -305,7 +414,11 @@ public class OAuthServiceTest {
                 TokenResponse first = a.get(), second = b.get();
                 assertTrue((first == null) != (second == null));
                 TokenResponse issued = first == null ? second : first;
-                assertThrows(OAuthException.class, () -> service.authenticate(issued.access_token, service.resource(), Set.of()));
+                assertThrows(
+                        OAuthException.class,
+                        () ->
+                                service.authenticate(
+                                        issued.access_token, service.resource(), Set.of()));
             } finally {
                 pool.shutdownNow();
             }
@@ -321,7 +434,8 @@ public class OAuthServiceTest {
         return request;
     }
 
-    private TokenResponse approveCli(AuthorizationRequest request, List<String> scopes) throws Exception {
+    private TokenResponse approveCli(AuthorizationRequest request, List<String> scopes)
+            throws Exception {
         Consent consent = consent(request);
         Decision decision = decision(consent);
         decision.scopes = scopes;
@@ -331,30 +445,51 @@ public class OAuthServiceTest {
         token.client_id = request.client_id;
         token.redirect_uri = request.redirect_uri;
         token.resource = request.resource;
-        token.code = OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery()).get("code");
+        token.code =
+                OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery())
+                        .get("code");
         token.code_verifier = verifier;
         return service.token(token);
     }
 
     @Test
-    public void cliRegistersOnDemandAndConsentCanSelectActionsOrExplicitlyInherit() throws Exception {
+    public void cliRegistersOnDemandAndConsentCanSelectActionsOrExplicitlyInherit()
+            throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             AuthorizationRequest request = cli("account:inherit offline_access");
             Consent consent = consent(request);
             assertTrue(consent.accountPermissions);
-            assertTrue(consent.availableScopes.containsAll(List.of("article.read", "site.configure", "account:inherit")));
-            TokenResponse limited = approveCli(request, List.of("article.read", "taxonomy.read", "offline_access"));
-            Identity identity = service.authenticate(limited.access_token, service.adminResource(), Set.of());
+            assertTrue(
+                    consent.availableScopes.containsAll(
+                            List.of("article.read", "site.configure", "account:inherit")));
+            TokenResponse limited =
+                    approveCli(request, List.of("article.read", "taxonomy.read", "offline_access"));
+            Identity identity =
+                    service.authenticate(limited.access_token, service.adminResource(), Set.of());
             assertEquals("custom", identity.permissionMode);
-            assertEquals(Set.of("article.read", "taxonomy.read"), new HashSet<>(identity.permissions));
-            assertThrows(OAuthException.class, () -> service.authenticate(limited.access_token, service.mcpResource(), Set.of()));
-            TokenResponse inherited = approveCli(request, List.of("account:inherit", "offline_access"));
+            assertEquals(
+                    Set.of("article.read", "taxonomy.read"), new HashSet<>(identity.permissions));
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    limited.access_token, service.mcpResource(), Set.of()));
+            TokenResponse inherited =
+                    approveCli(request, List.of("account:inherit", "offline_access"));
             assertEquals(
                     PersonalAccessTokenService.availablePermissions(
-                            AccountServicesFixture.component(db.dataSource()).requestIdentity().current()),
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .current()),
                     service.authenticate(inherited.access_token, service.adminResource(), Set.of())
                             .permissions);
-            assertEquals(1, ((Number) db.scalar("select count(*) from oauth_client where clientId=?", OAuthService.CLI_CLIENT_ID)).intValue());
+            assertEquals(
+                    1,
+                    ((Number)
+                                    db.scalar(
+                                            "select count(*) from oauth_client where clientId=?",
+                                            OAuthService.CLI_CLIENT_ID))
+                            .intValue());
             TokenRequest refresh = new TokenRequest();
             refresh.grant_type = "refresh_token";
             refresh.client_id = OAuthService.CLI_CLIENT_ID;
@@ -366,19 +501,33 @@ public class OAuthServiceTest {
             TokenResponse next = service.token(refresh);
             assertNotEquals(limited.refresh_token, next.refresh_token);
             assertThrows(OAuthException.class, () -> service.token(refresh));
-            assertThrows(OAuthException.class, () -> service.authenticate(next.access_token, service.adminResource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    next.access_token, service.adminResource(), Set.of()));
             service.disableClient(actor(), OAuthService.CLI_CLIENT_ID);
             assertThrows(OAuthException.class, () -> service.authorize(request));
-            assertThrows(OAuthException.class, () -> service.authenticate(inherited.access_token, service.adminResource(), Set.of()));
+            assertThrows(
+                    OAuthException.class,
+                    () ->
+                            service.authenticate(
+                                    inherited.access_token, service.adminResource(), Set.of()));
         }
     }
 
     @Test
-    public void onlyTheCliCallbackAllowsVariableLoopbackPortsAndActionsCannotCrossResources() throws Exception {
+    public void onlyTheCliCallbackAllowsVariableLoopbackPortsAndActionsCannotCrossResources()
+            throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             AuthorizationRequest request = cli("article.read offline_access");
-            for (String uri : List.of("https://evil.example/oauth/callback", "http://localhost:41329/oauth/callback",
-                    "http://127.0.0.1:41329/other", "http://127.0.0.1:41329/oauth/callback?next=evil", "http://127.0.0.1/oauth/callback")) {
+            for (String uri :
+                    List.of(
+                            "https://evil.example/oauth/callback",
+                            "http://localhost:41329/oauth/callback",
+                            "http://127.0.0.1:41329/other",
+                            "http://127.0.0.1:41329/oauth/callback?next=evil",
+                            "http://127.0.0.1/oauth/callback")) {
                 request.redirect_uri = uri;
                 assertThrows(OAuthException.class, () -> service.authorize(request));
             }
@@ -386,7 +535,8 @@ public class OAuthServiceTest {
             Consent consent = consent(request);
             Decision decision = decision(consent);
             decision.scopes = List.of("account:inherit");
-            assertThrows(OAuthException.class, () -> service.decide(authority(), sessionId(), decision));
+            assertThrows(
+                    OAuthException.class, () -> service.decide(authority(), sessionId(), decision));
             request.scope = "articles:read";
             assertThrows(OAuthException.class, () -> service.authorize(request));
             request.scope = "account:inherit";
@@ -415,11 +565,16 @@ public class OAuthServiceTest {
                 start.countDown();
                 assertNotNull(a.get());
                 assertNotNull(b.get());
-                assertEquals(1, ((Number) db.scalar("select count(*) from oauth_client where clientId=?", OAuthService.CLI_CLIENT_ID)).intValue());
+                assertEquals(
+                        1,
+                        ((Number)
+                                        db.scalar(
+                                                "select count(*) from oauth_client where clientId=?",
+                                                OAuthService.CLI_CLIENT_ID))
+                                .intValue());
             } finally {
                 executor.shutdownNow();
             }
         }
     }
-
 }

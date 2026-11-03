@@ -1,48 +1,78 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.data.repository.AdminCommentRepository;
-import org.junit.Test;
-
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminCommentServiceTest {
 
     private static void seedComments(InMemoryZrLogDatabase db) throws Exception {
-        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+        db.execute(
+                "insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
                         + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                1, "2026-06-29 09:00:00", false, "First", "first@example.com", "",
-                "127.0.0.1", "First Reader", false, 1, "/first.png");
-        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+                1,
+                "2026-06-29 09:00:00",
+                false,
+                "First",
+                "first@example.com",
+                "",
+                "127.0.0.1",
+                "First Reader",
+                false,
+                1,
+                "/first.png");
+        db.execute(
+                "insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
                         + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                2, "2026-06-29 10:00:00", false, "Second", "second@example.com", "",
-                "127.0.0.2", "Second Reader", false, 1, "/second.png");
-        db.execute("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+                2,
+                "2026-06-29 10:00:00",
+                false,
+                "Second",
+                "second@example.com",
+                "",
+                "127.0.0.2",
+                "Second Reader",
+                false,
+                1,
+                "/second.png");
+        db.execute(
+                "insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
                         + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                3, "2026-06-29 11:00:00", true, "Third", "third@example.com", "",
-                "127.0.0.3", "Third Reader", false, 1, "/third.png");
+                3,
+                "2026-06-29 11:00:00",
+                true,
+                "Third",
+                "third@example.com",
+                "",
+                "127.0.0.3",
+                "Third Reader",
+                false,
+                1,
+                "/third.png");
     }
 
     @Test
     public void shouldParseCommentIdsWithTrimAndStableDeduplication() throws Exception {
         AdminCommentService service =
-                new AdminCommentService(AccountServicesFixture.component(null).permissions(),
+                new AdminCommentService(
+                        AccountServicesFixture.component(null).permissions(),
                         AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
                         () -> {
                             throw new IllegalStateException("Database is unavailable in this test");
                         });
 
-        List<Integer> ids = service.parseCommentIds(new String[]{" 3 ", "", "3", null, "2"});
-        List<Integer> empty = service.parseCommentIds(new String[]{null, " "});
+        List<Integer> ids = service.parseCommentIds(new String[] {" 3 ", "", "3", null, "2"});
+        List<Integer> empty = service.parseCommentIds(new String[] {null, " "});
 
         assertEquals(List.of(3, 2), ids);
         assertEquals(List.of(), empty);
@@ -51,7 +81,8 @@ public class AdminCommentServiceTest {
     @Test
     public void shouldBuildSqlPlaceholdersForIds() throws Exception {
         AdminCommentService service =
-                new AdminCommentService(AccountServicesFixture.component(null).permissions(),
+                new AdminCommentService(
+                        AccountServicesFixture.component(null).permissions(),
                         AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
                         () -> {
@@ -66,12 +97,14 @@ public class AdminCommentServiceTest {
     @Test
     public void shouldReturnFailureWhenReadRequestIsMissing() throws Exception {
         UpdateRecordResponse response =
-                new AdminCommentService(AccountServicesFixture.component(null).permissions(),
-                        AccountServicesFixture.component(null).identities(),
-                        ApplicationServicesFixture.messages(null),
-                        () -> {
-                            throw new IllegalStateException("Database is unavailable in this test");
-                        })
+                new AdminCommentService(
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).identities(),
+                                ApplicationServicesFixture.messages(null),
+                                () -> {
+                                    throw new IllegalStateException(
+                                            "Database is unavailable in this test");
+                                })
                         .read(null, null);
 
         assertEquals(1, response.getError());
@@ -82,25 +115,33 @@ public class AdminCommentServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedComments(db);
             AdminCommentService service =
-                    new AdminCommentService(AccountServicesFixture.component(db.dataSource()).permissions(),
+                    new AdminCommentService(
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
                             AccountServicesFixture.component(db.dataSource()).identities(),
                             ApplicationServicesFixture.messages(db.dataSource()),
                             () -> new AdminCommentRepository(db.dataSource()));
-            var actor = AccountServicesFixture.component(db.dataSource()).identities().account(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
+            var actor =
+                    AccountServicesFixture.component(db.dataSource())
+                            .identities()
+                            .account(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             ReadCommentRequest readRequest = new ReadCommentRequest();
             readRequest.setId(1L);
 
             UpdateRecordResponse readResponse = service.read(actor, readRequest);
             int unreadAfterRead = service.countUnread();
             service.readAll(actor);
-            DeleteResponse deleteResponse = service.delete(actor, new String[]{"2", "3"});
-            DeleteResponse missingDeleteResponse = service.delete(actor, new String[]{"999"});
-            Map<String, Object> status = db.queryOne("select value from website where name=?",
-                    "admin_cache:message_center_status");
+            DeleteResponse deleteResponse = service.delete(actor, new String[] {"2", "3"});
+            DeleteResponse missingDeleteResponse = service.delete(actor, new String[] {"999"});
+            Map<String, Object> status =
+                    db.queryOne(
+                            "select value from website where name=?",
+                            "admin_cache:message_center_status");
 
             assertEquals(0, readResponse.getError());
-            assertEquals(Boolean.TRUE, db.queryOne("select have_read from comment where commentId=?", 1)
-                    .get("have_read"));
+            assertEquals(
+                    Boolean.TRUE,
+                    db.queryOne("select have_read from comment where commentId=?", 1)
+                            .get("have_read"));
             assertEquals(1, unreadAfterRead);
             assertEquals(0, service.countUnread());
             assertEquals(0, deleteResponse.getError());

@@ -3,9 +3,7 @@ package com.zrlog.admin.test.support;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.updater.spi.DockerControl;
 
-/**
- * Tests must explicitly supply the operations used by a controller or SSE subscription.
- */
+/** Tests must explicitly supply the operations used by a controller or SSE subscription. */
 public abstract class DockerControlStub implements DockerControl {
     public DockerUpdaterProtocol.Capabilities capabilities() {
         throw new AssertionError("Unexpected capabilities request");

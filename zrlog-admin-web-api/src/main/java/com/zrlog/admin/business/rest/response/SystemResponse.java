@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.admin.util.ServerInfo;
-
 import java.util.List;
 
 public class SystemResponse {
@@ -11,7 +10,11 @@ public class SystemResponse {
     private Boolean dockerMode;
     private Boolean nativeImageMode;
 
-    public SystemResponse(List<ServerInfo> serverInfos2, List<ServerInfo> serverInfos, Boolean dockerMode, Boolean nativeImageMode) {
+    public SystemResponse(
+            List<ServerInfo> serverInfos2,
+            List<ServerInfo> serverInfos,
+            Boolean dockerMode,
+            Boolean nativeImageMode) {
         this.serverInfos2 = serverInfos2;
         this.serverInfos = serverInfos;
         this.dockerMode = dockerMode;

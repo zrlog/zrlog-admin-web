@@ -21,7 +21,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
@@ -53,14 +52,20 @@ public class AdminArticleVersionController extends BaseController {
     }
 
     private String getResponseMsg(CreateOrUpdateArticleResponse response) {
-        return I18nUtil.getAdminBackendStringFromRes(Objects.equals(response.getRubbish(), true)
-                || Objects.equals(response.getPrivacy(), true) ? "admin.article.save.success" : "admin.article.release.success");
+        return I18nUtil.getAdminBackendStringFromRes(
+                Objects.equals(response.getRubbish(), true)
+                                || Objects.equals(response.getPrivacy(), true)
+                        ? "admin.article.save.success"
+                        : "admin.article.release.success");
     }
 
     private AdminPageDataResponse<ArticleGlobalResponse> toResponseByArticle(
             CreateOrUpdateArticleResponse createOrUpdateArticleResponse) throws SQLException {
-        AdminPageDataResponse<ArticleGlobalResponse> detail = articleService
-                .loadDetailById(requestIdentity.current(), createOrUpdateArticleResponse.getLogId() + "", request);
+        AdminPageDataResponse<ArticleGlobalResponse> detail =
+                articleService.loadDetailById(
+                        requestIdentity.current(),
+                        createOrUpdateArticleResponse.getLogId() + "",
+                        request);
         if (createOrUpdateArticleResponse.isPublicCacheRefreshRequired()) {
             cacheRefresh.updateCache(false, request, List.of(StaticSiteType.BLOG));
         }
@@ -69,29 +74,42 @@ public class AdminArticleVersionController extends BaseController {
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.versions")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_READ,
+            articleQuery = true,
+            descriptionKey = "article.versions")
     public ApiStandardResponse<List<ArticleVersionResponse>> index() throws SQLException {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
-        return new ApiStandardResponse<>(articleVersionService.listVersions(requestIdentity.current(), id));
+        return new ApiStandardResponse<>(
+                articleVersionService.listVersions(requestIdentity.current(), id));
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.compareVersions")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_READ,
+            articleQuery = true,
+            descriptionKey = "article.compareVersions")
     public ApiStandardResponse<ArticleVersionCompareResponse> compare() throws SQLException {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
         Integer fromVersion = Integer.valueOf(getParamWithEmptyCheck("fromVersion"));
         Integer toVersion = Integer.valueOf(getParamWithEmptyCheck("toVersion"));
-        return new ApiStandardResponse<>(revisions.compare(requestIdentity.current(), id, fromVersion, toVersion, request));
+        return new ApiStandardResponse<>(
+                revisions.compare(requestIdentity.current(), id, fromVersion, toVersion, request));
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.ARTICLE_UPDATE, conditional = AccountAction.ARTICLE_PUBLISH, descriptionKey = "article.restoreVersion")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_UPDATE,
+            conditional = AccountAction.ARTICLE_PUBLISH,
+            descriptionKey = "article.restoreVersion")
     public AdminPageDataResponse<ArticleGlobalResponse> rollback() throws SQLException {
-        ArticleVersionRollbackRequest body = getRequestBodyWithNullCheck(ArticleVersionRollbackRequest.class);
+        ArticleVersionRollbackRequest body =
+                getRequestBodyWithNullCheck(ArticleVersionRollbackRequest.class);
         CreateOrUpdateArticleResponse response =
                 revisions.rollback(requestIdentity.current(), body, request);
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 AdminAuditAction.ROLLBACK_ARTICLE_VERSION,
                 body.getLogId() + " -> v" + body.getTargetVersion());
         return toResponseByArticle(response);

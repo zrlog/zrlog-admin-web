@@ -13,7 +13,6 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
 import jakarta.inject.Inject;
-
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -26,7 +25,8 @@ import java.util.logging.Logger;
 public final class DashboardPluginLoader {
     private static final String PANEL_TYPE_SURFACE = "surface";
     private static final String ITEM_KIND_PLUGIN = "plugin";
-    private static final long DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
+    private static final long DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS =
+            TimeUnit.SECONDS.toMillis(10);
     private static final Gson GSON = new Gson();
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
     private static final Logger LOGGER = Logger.getLogger(DashboardPluginLoader.class.getName());
@@ -40,15 +40,18 @@ public final class DashboardPluginLoader {
 
     DashboardPluginLoader(Supplier<PluginCorePlugin> pluginCore, long timeoutMillis) {
         this.pluginCore = Objects.requireNonNull(pluginCore);
-        this.surfacePreloadTimeoutMillis = timeoutMillis <= 0 ? DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS : timeoutMillis;
+        this.surfacePreloadTimeoutMillis =
+                timeoutMillis <= 0 ? DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS : timeoutMillis;
     }
 
     private static String adminMessage(String key) {
         return I18nUtil.getAdminBackendStringFromRes(key);
     }
 
-    void preloadSurfaceData(List<AdminDashboardCardResponse> panels, HttpRequest request,
-                                    AdminTokenVO adminTokenVO) {
+    void preloadSurfaceData(
+            List<AdminDashboardCardResponse> panels,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO) {
         if (panels == null) {
             return;
         }
@@ -61,13 +64,16 @@ public final class DashboardPluginLoader {
         if (loadablePanels.isEmpty()) {
             return;
         }
-        ExecutorService executor = ThreadUtils.newFixedThreadPool(Math.min(loadablePanels.size(), 8));
+        ExecutorService executor =
+                ThreadUtils.newFixedThreadPool(Math.min(loadablePanels.size(), 8));
         List<CompletableFuture<SurfacePanelLoadResult>> futures = new ArrayList<>();
         boolean forceShutdown = false;
         String unfinishedError = adminMessage("admin.pluginSurface.error.loadFailed");
         try {
             for (AdminDashboardCardResponse panel : loadablePanels) {
-                futures.add(CompletableFuture.supplyAsync(() -> loadSurfacePanel(panel, request, adminTokenVO), executor));
+                futures.add(
+                        CompletableFuture.supplyAsync(
+                                () -> loadSurfacePanel(panel, request, adminTokenVO), executor));
             }
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                     .get(surfacePreloadTimeoutMillis, TimeUnit.MILLISECONDS);
@@ -93,12 +99,14 @@ public final class DashboardPluginLoader {
     }
 
     private boolean isLoadableSurfacePanel(AdminDashboardCardResponse panel) {
-        return panel != null && PANEL_TYPE_SURFACE.equals(panel.getType()) && !Objects.equals(panel.getEnabled(), false)
+        return panel != null
+                && PANEL_TYPE_SURFACE.equals(panel.getType())
+                && !Objects.equals(panel.getEnabled(), false)
                 && StringUtils.isNotEmpty(panel.getSurfaceUrl());
     }
 
-    private SurfacePanelLoadResult loadSurfacePanel(AdminDashboardCardResponse panel, HttpRequest request,
-                                                    AdminTokenVO adminTokenVO) {
+    private SurfacePanelLoadResult loadSurfacePanel(
+            AdminDashboardCardResponse panel, HttpRequest request, AdminTokenVO adminTokenVO) {
         SurfaceLoadResult result = loadSurfaceData(panel.getSurfaceUrl(), request, adminTokenVO);
         Object data = result.data;
         String title = null;
@@ -111,9 +119,10 @@ public final class DashboardPluginLoader {
         return new SurfacePanelLoadResult(result, title);
     }
 
-    private void applySurfacePreloadResults(List<AdminDashboardCardResponse> panels,
-                                            List<CompletableFuture<SurfacePanelLoadResult>> futures,
-                                            String unfinishedError) {
+    private void applySurfacePreloadResults(
+            List<AdminDashboardCardResponse> panels,
+            List<CompletableFuture<SurfacePanelLoadResult>> futures,
+            String unfinishedError) {
         for (int i = 0; i < panels.size(); i++) {
             AdminDashboardCardResponse panel = panels.get(i);
             CompletableFuture<SurfacePanelLoadResult> future = futures.get(i);
@@ -126,7 +135,8 @@ public final class DashboardPluginLoader {
         }
     }
 
-    private void applySurfacePanelLoadResult(AdminDashboardCardResponse panel, SurfacePanelLoadResult preloadResult) {
+    private void applySurfacePanelLoadResult(
+            AdminDashboardCardResponse panel, SurfacePanelLoadResult preloadResult) {
         SurfaceLoadResult result = preloadResult.result;
         panel.setData(result.data);
         panel.setError(result.error);
@@ -142,33 +152,45 @@ public final class DashboardPluginLoader {
         panel.setSurfaceLoaded(false);
     }
 
-    private SurfaceLoadResult loadSurfaceData(String surfaceUrl, HttpRequest request, AdminTokenVO adminTokenVO) {
+    private SurfaceLoadResult loadSurfaceData(
+            String surfaceUrl, HttpRequest request, AdminTokenVO adminTokenVO) {
         try {
             PluginCorePlugin pluginCorePlugin = pluginCore.get();
             if (pluginCorePlugin == null) {
-                return SurfaceLoadResult.error(adminMessage("admin.pluginSurface.error.coreUnavailable"));
+                return SurfaceLoadResult.error(
+                        adminMessage("admin.pluginSurface.error.coreUnavailable"));
             }
-            CloseResponseHandle handle = pluginCorePlugin.getContext(surfaceUrl, HttpMethod.GET, request, adminTokenVO);
+            CloseResponseHandle handle =
+                    pluginCorePlugin.getContext(surfaceUrl, HttpMethod.GET, request, adminTokenVO);
             if (handle.getT() == null || handle.getT().body() == null) {
-                return SurfaceLoadResult.error(adminMessage("admin.pluginSurface.error.noResponse"));
+                return SurfaceLoadResult.error(
+                        adminMessage("admin.pluginSurface.error.noResponse"));
             }
             try (InputStream inputStream = handle.getT().body()) {
-                Map<String, Object> response = GSON.fromJson(new String(IOUtil.getByteByInputStream(inputStream)), MAP_TYPE);
+                Map<String, Object> response =
+                        GSON.fromJson(
+                                new String(IOUtil.getByteByInputStream(inputStream)), MAP_TYPE);
                 if (response == null || !Objects.equals(response.get("success"), true)) {
-                    String message = response == null ? null : Objects.toString(response.get("message"), "");
-                    return SurfaceLoadResult.error(StringUtils.isEmpty(message)
-                            ? adminMessage("admin.pluginSurface.error.loadFailed") : message);
+                    String message =
+                            response == null ? null : Objects.toString(response.get("message"), "");
+                    return SurfaceLoadResult.error(
+                            StringUtils.isEmpty(message)
+                                    ? adminMessage("admin.pluginSurface.error.loadFailed")
+                                    : message);
                 }
                 return SurfaceLoadResult.data(response.get("data"));
             }
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Load dashboard plugin surface failed", e);
-            return SurfaceLoadResult.error(StringUtils.isEmpty(e.getMessage())
-                    ? adminMessage("admin.pluginSurface.error.loadFailed") : e.getMessage());
+            return SurfaceLoadResult.error(
+                    StringUtils.isEmpty(e.getMessage())
+                            ? adminMessage("admin.pluginSurface.error.loadFailed")
+                            : e.getMessage());
         }
     }
 
-    List<AdminDashboardCardResponse> loadStandardPluginPanels(HttpRequest request, AdminTokenVO adminTokenVO) {
+    List<AdminDashboardCardResponse> loadStandardPluginPanels(
+            HttpRequest request, AdminTokenVO adminTokenVO) {
         Map<String, Object> pluginResponse = loadPluginResponse(request, adminTokenVO);
         Object pluginsObj = pluginResponse.get("plugins");
         if (!(pluginsObj instanceof List)) {
@@ -204,8 +226,10 @@ public final class DashboardPluginLoader {
     }
 
     boolean hasSurfaceMetadata(Map<?, ?> plugin) {
-        return hasEntry(plugin.get("paths"), "surface") || hasEntry(plugin.get("actions"), "surface")
-                || hasEntry(plugin.get("paths"), "surfaceAction") || hasEntry(plugin.get("actions"), "surfaceAction");
+        return hasEntry(plugin.get("paths"), "surface")
+                || hasEntry(plugin.get("actions"), "surface")
+                || hasEntry(plugin.get("paths"), "surfaceAction")
+                || hasEntry(plugin.get("actions"), "surfaceAction");
     }
 
     boolean hasEntry(Object value, String target) {
@@ -227,12 +251,15 @@ public final class DashboardPluginLoader {
             if (pluginCorePlugin == null) {
                 return Collections.emptyMap();
             }
-            CloseResponseHandle handle = pluginCorePlugin.getContext("/api/plugins", HttpMethod.GET, request, adminTokenVO);
+            CloseResponseHandle handle =
+                    pluginCorePlugin.getContext(
+                            "/api/plugins", HttpMethod.GET, request, adminTokenVO);
             if (handle.getT() == null || handle.getT().body() == null) {
                 return Collections.emptyMap();
             }
             try (InputStream inputStream = handle.getT().body()) {
-                return GSON.fromJson(new String(IOUtil.getByteByInputStream(inputStream)), MAP_TYPE);
+                return GSON.fromJson(
+                        new String(IOUtil.getByteByInputStream(inputStream)), MAP_TYPE);
             }
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Load dashboard plugin panels failed", e);
@@ -268,4 +295,5 @@ public final class DashboardPluginLoader {
             this.result = result;
             this.title = title;
         }
-    }}
+    }
+}

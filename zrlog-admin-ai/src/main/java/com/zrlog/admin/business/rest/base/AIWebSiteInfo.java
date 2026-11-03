@@ -4,14 +4,11 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
-
 import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * 与 AI 的 api 服务交互的配置信息
- */
+/** 与 AI 的 api 服务交互的配置信息 */
 public class AIWebSiteInfo implements Validator {
 
     private AIProviderType ai_provider;
@@ -43,7 +40,7 @@ public class AIWebSiteInfo implements Validator {
             String scheme = uri.getScheme();
             if (StringUtils.isEmpty(scheme)
                     || !(Objects.equals("http", scheme.toLowerCase(Locale.ROOT))
-                    || Objects.equals("https", scheme.toLowerCase(Locale.ROOT)))
+                            || Objects.equals("https", scheme.toLowerCase(Locale.ROOT)))
                     || StringUtils.isEmpty(uri.getHost())
                     || StringUtils.isNotEmpty(uri.getUserInfo())
                     || StringUtils.isNotEmpty(uri.getFragment())) {

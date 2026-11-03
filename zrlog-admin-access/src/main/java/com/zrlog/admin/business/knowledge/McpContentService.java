@@ -14,7 +14,6 @@ import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 import jakarta.inject.Named;
-
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
@@ -35,9 +34,13 @@ public final class McpContentService implements ToolProvider {
     private final AccountIdentityService identities;
 
     @AssistedInject
-    public McpContentService(@Assisted Supplier<Identity> authenticate, @Assisted HttpRequest request,
-                             @Assisted String language, Supplier<ContentToolFactory> tools,
-                             @Named("mcpIssuer") Supplier<String> issuer, AccountIdentityService identities) {
+    public McpContentService(
+            @Assisted Supplier<Identity> authenticate,
+            @Assisted HttpRequest request,
+            @Assisted String language,
+            Supplier<ContentToolFactory> tools,
+            @Named("mcpIssuer") Supplier<String> issuer,
+            AccountIdentityService identities) {
         this.authenticate = authenticate;
         this.request = request;
         this.language = language;
@@ -70,11 +73,17 @@ public final class McpContentService implements ToolProvider {
             for (AccountAction entry : AccountAction.values())
                 if (entry.getScope() != null && identity.scopes.contains(entry.getScope()))
                     permissions.add(entry.getId());
-            if (identity.scopes.contains("taxonomy:read")) permissions.add(AccountAction.TAXONOMY_READ.getId());
+            if (identity.scopes.contains("taxonomy:read"))
+                permissions.add(AccountAction.TAXONOMY_READ.getId());
         }
         AccountAccess actor = identities.account(token).restrictActions(permissions);
-        return tools.create(actor, Set.copyOf(identity.scopes), request, language,
-                AdminAuditContexts.from(request, actor.getUserId()), token);
+        return tools.create(
+                actor,
+                Set.copyOf(identity.scopes),
+                request,
+                language,
+                AdminAuditContexts.from(request, actor.getUserId()),
+                token);
     }
 
     private <T> T inLanguage(Callable<T> action) throws Exception {
@@ -85,6 +94,7 @@ public final class McpContentService implements ToolProvider {
 
     @AssistedFactory
     public interface Factory {
-        McpContentService create(Supplier<Identity> authenticate, HttpRequest request, String language);
+        McpContentService create(
+                Supplier<Identity> authenticate, HttpRequest request, String language);
     }
 }

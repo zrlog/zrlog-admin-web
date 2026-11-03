@@ -7,7 +7,11 @@ import com.zrlog.business.rest.response.PreCheckVersionResponse;
 public final class UpgradeCheckResponse extends PreCheckVersionResponse {
     private UpgradeExecutionCoordinator.View execution;
 
-    public UpgradeExecutionCoordinator.View getExecution() { return execution; }
+    public UpgradeExecutionCoordinator.View getExecution() {
+        return execution;
+    }
 
-    public void setExecution(UpgradeExecutionCoordinator.View execution) { this.execution = execution; }
+    public void setExecution(UpgradeExecutionCoordinator.View execution) {
+        this.execution = execution;
+    }
 }

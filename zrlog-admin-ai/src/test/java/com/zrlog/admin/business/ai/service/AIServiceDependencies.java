@@ -11,34 +11,58 @@ import com.zrlog.data.repository.WebSiteRepository;
  * Explicit collaborators for focused AI tests; request/client doubles remain supplied by each test.
  */
 public final class AIServiceDependencies {
-    private AIServiceDependencies() {
+    private AIServiceDependencies() {}
+
+    public static AIChatService chat(
+            DataSourceWrapper source,
+            com.hibegin.http.server.api.HttpRequest request,
+            ContentToolFactory tools,
+            AIChatModelClient model,
+            AIFileService files,
+            AIWritingSkillService.Factory skills) {
+        var account = AccountServicesFixture.component(source);
+        return new AIChatService(
+                request,
+                tools,
+                new AIChatAccessPolicy(
+                        account.identities(), account.permissions(), account.preferences()),
+                account.preferences(),
+                approvals(source),
+                skills,
+                conversations(source),
+                references(tools, source),
+                executor(source, model, files, skills),
+                new AIChatSseWriter());
     }
 
-    public static AIChatService chat(DataSourceWrapper source, com.hibegin.http.server.api.HttpRequest request,
-                                     ContentToolFactory tools, AIChatModelClient model, AIFileService files,
-                                     AIWritingSkillService.Factory skills) {
+    static AIChatRunExecutor executor(
+            DataSourceWrapper source,
+            AIChatModelClient model,
+            AIFileService files,
+            AIWritingSkillService.Factory skills) {
         var account = AccountServicesFixture.component(source);
-        return new AIChatService(request, tools, new AIChatAccessPolicy(account.identities(), account.permissions(), account.preferences()),
-                account.preferences(), approvals(source), skills, conversations(source), references(tools, source),
-                executor(source, model, files, skills), new AIChatSseWriter());
-    }
-
-    static AIChatRunExecutor executor(DataSourceWrapper source, AIChatModelClient model, AIFileService files,
-                                      AIWritingSkillService.Factory skills) {
-        var account = AccountServicesFixture.component(source);
-        return new AIChatRunExecutor(model, writingTools(source), conversations(source),
-                approvals(source), files, skills, new AIChatAccessPolicy(account.identities(), account.permissions(), account.preferences()));
+        return new AIChatRunExecutor(
+                model,
+                writingTools(source),
+                conversations(source),
+                approvals(source),
+                files,
+                skills,
+                new AIChatAccessPolicy(
+                        account.identities(), account.permissions(), account.preferences()));
     }
 
     public static com.zrlog.data.security.AccountAccess actor(DataSourceWrapper source) {
-        if (source == null) return com.zrlog.data.security.AccountAccess.fromRow(java.util.Map.of(
-                "userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
+        if (source == null)
+            return com.zrlog.data.security.AccountAccess.fromRow(
+                    java.util.Map.of(
+                            "userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
         return AccountServicesFixture.component(source).requestIdentity().current();
     }
 
     public static com.zrlog.admin.business.audit.AdminAuditContext audit(DataSourceWrapper source) {
-        return new com.zrlog.admin.business.audit.AdminAuditContext(actor(source).getUserId(),
-                "127.0.0.1", "/api/admin/article/ai", null);
+        return new com.zrlog.admin.business.audit.AdminAuditContext(
+                actor(source).getUserId(), "127.0.0.1", "/api/admin/article/ai", null);
     }
 
     public static AIConfigService config(DataSourceWrapper source) {
@@ -76,9 +100,16 @@ public final class AIServiceDependencies {
     }
 
     public static AIWritingSkillService.Factory writing(DataSourceWrapper source) {
-        return (actor, store) -> new AIWritingSkillService(actor, store, tools(source), images(source),
-                com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
-                com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
+        return (actor, store) ->
+                new AIWritingSkillService(
+                        actor,
+                        store,
+                        tools(source),
+                        images(source),
+                        com.zrlog.admin.support.AccountServicesFixture.component(source)
+                                .identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(source)
+                                .permissions());
     }
 
     public static AIPublishCheckService publishing(DataSourceWrapper source) {
@@ -95,8 +126,10 @@ public final class AIServiceDependencies {
         return (run, skills) -> new AIWritingToolProvider(run, skills, publishing(source));
     }
 
-    public static AIReferenceService references(ContentToolFactory tools, DataSourceWrapper source) {
-        return new AIReferenceService(tools,
+    public static AIReferenceService references(
+            ContentToolFactory tools, DataSourceWrapper source) {
+        return new AIReferenceService(
+                tools,
                 AccountServicesFixture.component(source).identities(),
                 AccountServicesFixture.component(source).preferences());
     }

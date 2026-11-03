@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -26,36 +28,47 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-import org.junit.Test;
-
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class BearerTokenInterceptorTest {
 
     private ZrLogConfig applicationConfig;
 
     @Test
-    public void leavesOnlyTheExactSchedulerRouteToItsDedicatedCredentialValidator() throws Exception {
+    public void leavesOnlyTheExactSchedulerRouteToItsDedicatedCredentialValidator()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             call("/api/admin/assistant/trigger", "zra_trigger_only", db.dataSource(), false);
-            assertEquals(401, call("/api/admin/assistant/trigger/", "zra_trigger_only", db.dataSource()).status);
-            assertEquals(401, call("/api/admin/assistant/save", "zra_trigger_only", db.dataSource()).status);
+            assertEquals(
+                    401,
+                    call("/api/admin/assistant/trigger/", "zra_trigger_only", db.dataSource())
+                            .status);
+            assertEquals(
+                    401,
+                    call("/api/admin/assistant/save", "zra_trigger_only", db.dataSource()).status);
         }
     }
 
     @Test
-    public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread() throws Exception {
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open(); var language = AdminLanguageContext.open("zh_CN")) {
+    public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread()
+            throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
+                var language = AdminLanguageContext.open("zh_CN")) {
             applicationConfig = db.config();
-            applicationConfig.getServerConfig().getBindings().controller(
-                    TestController.class,
-                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).requestIdentity()));
+            applicationConfig
+                    .getServerConfig()
+                    .getBindings()
+                    .controller(
+                            TestController.class,
+                            (resolver, request, response) ->
+                                    new TestController(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity()));
             var config = applicationConfig.getServerConfig();
             config.getRouter().addMapper("/api/admin/test", TestController.class);
             db.putWebsite("language", "zh_CN");
@@ -66,46 +79,79 @@ public class BearerTokenInterceptorTest {
             body.permissions = List.of("taxonomy.read");
             String token =
                     new PersonalAccessTokenService(
-                            new OAuthService(
-                                    ApplicationServicesFixture.backend(
-                                            applicationConfig)
-                                            ::configured,
-                                    ApplicationServicesFixture.available(
-                                            applicationConfig, McpWebSetup.class),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .permissions(), AccountServicesFixture.component(db.dataSource())
-                                    .identities(),
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    tokenResource ->
-                                            new PersonalAccessTokenService(
-                                                    tokenResource,
-                                                    AccountServicesFixture
-                                                            .component(db.dataSource())
-                                                            .identities(), AccountServicesFixture
-                                                    .component(db.dataSource())
-                                                    .permissions(),
-                                                    AccountServicesFixture
-                                                            .component(db.dataSource())
-                                                            .security()),
-                                    AccountServicesFixture.component(db.dataSource()).backend())
-                                    .mcpResource(),
-                            AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).security())
-                            .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body)
+                                    new OAuthService(
+                                                    ApplicationServicesFixture.backend(
+                                                                    applicationConfig)
+                                                            ::configured,
+                                                    ApplicationServicesFixture.available(
+                                                            applicationConfig, McpWebSetup.class),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .permissions(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .identities(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .security(),
+                                                    tokenResource ->
+                                                            new PersonalAccessTokenService(
+                                                                    tokenResource,
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .identities(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .security()),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .backend())
+                                            .mcpResource(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security())
+                            .create(
+                                    new GrantAuthority(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity()
+                                                    .current(),
+                                            !com.zrlog.admin.business.security.DelegatedAccess
+                                                    .restricted()),
+                                    body)
                             .token;
             AdminTokenThreadLocal.remove();
             var parent = I18nUtil.threadLocal.get();
-            assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token, db.dataSource()).rendered).getData());
-            var error = (ApiStandardResponse<?>) call("/api/admin/test/failure", token, db.dataSource()).rendered;
+            assertEquals(
+                    "en_US",
+                    ((ApiStandardResponse<?>)
+                                    call("/api/admin/test/language", token, db.dataSource())
+                                            .rendered)
+                            .getData());
+            var error =
+                    (ApiStandardResponse<?>)
+                            call("/api/admin/test/failure", token, db.dataSource()).rendered;
             assertEquals(9016, error.getError());
             try (var english = AdminLanguageContext.open("en_US")) {
-                assertEquals(I18nUtil.getAdminBackendStringFromRes("admin.permission.error"), error.getMessage());
+                assertEquals(
+                        I18nUtil.getAdminBackendStringFromRes("admin.permission.error"),
+                        error.getMessage());
             }
             assertSame(parent, I18nUtil.threadLocal.get());
             assertEquals("zh_CN", parent.getLocale());
             assertNull(AdminTokenThreadLocal.getUser());
             db.execute("update user set preferences=null where userId=1");
-            assertEquals("zh_CN", ((ApiStandardResponse<?>) call("/api/admin/test/language", token, db.dataSource()).rendered).getData());
+            assertEquals(
+                    "zh_CN",
+                    ((ApiStandardResponse<?>)
+                                    call("/api/admin/test/language", token, db.dataSource())
+                                            .rendered)
+                            .getData());
             assertEquals(401, call("/api/admin/test/language", "invalid", db.dataSource()).status);
             assertSame(parent, I18nUtil.threadLocal.get());
         }
@@ -115,9 +161,15 @@ public class BearerTokenInterceptorTest {
     public void bearerReusesActionBindingsWithoutCookieOrSessionFallback() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            applicationConfig.getServerConfig().getBindings().controller(
-                    TestController.class,
-                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).requestIdentity()));
+            applicationConfig
+                    .getServerConfig()
+                    .getBindings()
+                    .controller(
+                            TestController.class,
+                            (resolver, request, response) ->
+                                    new TestController(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity()));
             var config = db.config().getServerConfig();
             config.getRouter().addMapper("/api/admin/test", TestController.class);
             PersonalTokenModels.Create body = new PersonalTokenModels.Create();
@@ -127,25 +179,44 @@ public class BearerTokenInterceptorTest {
             var service =
                     new PersonalAccessTokenService(
                             new OAuthService(
-                                    ApplicationServicesFixture.backend(db.config())
-                                            ::configured,
-                                    ApplicationServicesFixture.available(
-                                            db.config(), McpWebSetup.class),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
-                                    AccountServicesFixture.component(db.dataSource()).security(),
-                                    tokenResource ->
-                                            new PersonalAccessTokenService(
-                                                    tokenResource,
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .identities(), AccountServicesFixture.component(db.dataSource())
+                                            ApplicationServicesFixture.backend(db.config())
+                                                    ::configured,
+                                            ApplicationServicesFixture.available(
+                                                    db.config(), McpWebSetup.class),
+                                            AccountServicesFixture.component(db.dataSource())
                                                     .permissions(),
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .security()),
-                                    AccountServicesFixture.component(db.dataSource()).backend())
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .identities(),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .security(),
+                                            tokenResource ->
+                                                    new PersonalAccessTokenService(
+                                                            tokenResource,
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .identities(),
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .permissions(),
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .security()),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .backend())
                                     .mcpResource(),
-                            AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).identities(),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
                             AccountServicesFixture.component(db.dataSource()).security());
-            String token = service.create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body).token;
+            String token =
+                    service.create(
+                                    new GrantAuthority(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity()
+                                                    .current(),
+                                            !com.zrlog.admin.business.security.DelegatedAccess
+                                                    .restricted()),
+                                    body)
+                            .token;
             var previous = AdminTokenThreadLocal.getUser();
             Recorder success = call("/api/admin/test/read", token, db.dataSource());
             assertEquals(Boolean.TRUE, ((ApiStandardResponse<?>) success.rendered).getData());
@@ -159,46 +230,73 @@ public class BearerTokenInterceptorTest {
             body.permissionMode = null;
             body.scopes = List.of("articles:read");
             body.permissions = List.of();
-            assertEquals(401, call("/api/admin/test/read", service.create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body).token, db.dataSource()).status);
+            assertEquals(
+                    401,
+                    call(
+                                    "/api/admin/test/read",
+                                    service.create(
+                                                    new GrantAuthority(
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .requestIdentity()
+                                                                    .current(),
+                                                            !com.zrlog.admin.business.security
+                                                                    .DelegatedAccess.restricted()),
+                                                    body)
+                                            .token,
+                                    db.dataSource())
+                            .status);
             assertFalse(DelegatedAccess.active());
             assertSame(previous, AdminTokenThreadLocal.getUser());
         }
     }
 
-    private Recorder call(String uri, String token, DataSourceWrapper testDataSource) throws Exception {
+    private Recorder call(String uri, String token, DataSourceWrapper testDataSource)
+            throws Exception {
         return call(uri, token, testDataSource, true);
     }
 
-    private Recorder call(String uri, String token, DataSourceWrapper testDataSource, boolean handled) throws Exception {
+    private Recorder call(
+            String uri, String token, DataSourceWrapper testDataSource, boolean handled)
+            throws Exception {
         var config = applicationConfig.getServerConfig();
         RequestConfig requestConfig = new RequestConfig();
         requestConfig.setRouter(config.getRouter());
-        HttpRequest request = (HttpRequest) Proxy.newProxyInstance(BearerTokenInterceptorTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-            switch (method.getName()) {
-                case "getUri":
-                    return uri;
-                case "getMethod":
-                    return HttpMethod.GET;
-                case "getContextPath":
-                    return "";
-                case "getHeader":
-                    return "Authorization".equals(args[0]) ? "Bearer " + token : "Host".equals(args[0]) ? "localhost:18080" : null;
-                case "getHeaderMap":
-                case "getParamMap":
-                case "decodeParamMap":
-                    return Map.of();
-                case "getRemoteHost":
-                    return "127.0.0.1";
-                case "getServerConfig":
-                    return config;
-                case "getRequestConfig":
-                    return requestConfig;
-                case "toString":
-                    return "BearerRequest";
-                default:
-                    return method.getReturnType().isPrimitive() ? 0 : null;
-            }
-        });
+        HttpRequest request =
+                (HttpRequest)
+                        Proxy.newProxyInstance(
+                                BearerTokenInterceptorTest.class.getClassLoader(),
+                                new Class[] {HttpRequest.class},
+                                (proxy, method, args) -> {
+                                    switch (method.getName()) {
+                                        case "getUri":
+                                            return uri;
+                                        case "getMethod":
+                                            return HttpMethod.GET;
+                                        case "getContextPath":
+                                            return "";
+                                        case "getHeader":
+                                            return "Authorization".equals(args[0])
+                                                    ? "Bearer " + token
+                                                    : "Host".equals(args[0])
+                                                            ? "localhost:18080"
+                                                            : null;
+                                        case "getHeaderMap":
+                                        case "getParamMap":
+                                        case "decodeParamMap":
+                                            return Map.of();
+                                        case "getRemoteHost":
+                                            return "127.0.0.1";
+                                        case "getServerConfig":
+                                            return config;
+                                        case "getRequestConfig":
+                                            return requestConfig;
+                                        case "toString":
+                                            return "BearerRequest";
+                                        default:
+                                            return method.getReturnType().isPrimitive() ? 0 : null;
+                                    }
+                                });
         Recorder recorder = new Recorder();
         BearerTokenInterceptor interceptor =
                 new BearerTokenInterceptor(
@@ -207,15 +305,21 @@ public class BearerTokenInterceptorTest {
                                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                                 ApplicationServicesFixture.available(
                                         applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).security(),
                                 tokenResource ->
                                         new PersonalAccessTokenService(
                                                 tokenResource,
-                                                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
-                                                AccountServicesFixture.component(testDataSource).security()),
+                                                AccountServicesFixture.component(testDataSource)
+                                                        .identities(),
+                                                AccountServicesFixture.component(testDataSource)
+                                                        .permissions(),
+                                                AccountServicesFixture.component(testDataSource)
+                                                        .security()),
                                 AccountServicesFixture.component(testDataSource).backend()),
-                        AccountServicesFixture.component(testDataSource).routeAuthorizer(), AccountServicesFixture.component(testDataSource).requestIdentity(),
+                        AccountServicesFixture.component(testDataSource).routeAuthorizer(),
+                        AccountServicesFixture.component(testDataSource).requestIdentity(),
                         AccountServicesFixture.component(testDataSource).preferences(),
                         new WebhookService(
                                 ApplicationServicesFixture.messages(testDataSource),
@@ -236,9 +340,7 @@ public class BearerTokenInterceptorTest {
         @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "taxonomy.list")
         public ApiStandardResponse<Boolean> read() {
             return new ApiStandardResponse<>(
-                    DelegatedAccess.active()
-                            && !permissions.current()
-                            .canPublish());
+                    DelegatedAccess.active() && !permissions.current().canPublish());
         }
 
         @ResponseBody
@@ -271,13 +373,19 @@ public class BearerTokenInterceptorTest {
         Map<String, String> headers = new HashMap<>();
 
         HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class}, (proxy, method, args) -> {
-                if (method.getName().equals("write") && args.length > 1 && args[1] instanceof Integer)
-                    status = (Integer) args[1];
-                if (method.getName().equals("renderJson")) rendered = args[0];
-                if (method.getName().equals("addHeader")) headers.put(args[0].toString(), args[1].toString());
-                return null;
-            });
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            getClass().getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                if (method.getName().equals("write")
+                                        && args.length > 1
+                                        && args[1] instanceof Integer) status = (Integer) args[1];
+                                if (method.getName().equals("renderJson")) rendered = args[0];
+                                if (method.getName().equals("addHeader"))
+                                    headers.put(args[0].toString(), args[1].toString());
+                                return null;
+                            });
         }
     }
 }

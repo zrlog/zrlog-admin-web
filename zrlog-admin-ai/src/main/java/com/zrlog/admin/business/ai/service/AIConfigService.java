@@ -11,7 +11,6 @@ import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -21,10 +20,21 @@ import java.util.stream.Collectors;
 
 public class AIConfigService {
     public static final String AI_REASONING_ENABLED_KEY = "ai_reasoning_enabled";
-    static final List<String> AI_WEBSITE_INFO_KEYS = Arrays.asList("ai_provider", "ai_model", "ai_base_url", "ai_api_key", "ai_prompt",
-            "ai_max_completion_tokens", AI_REASONING_ENABLED_KEY, "ai_image_provider", "ai_image_model",
-            "ai_image_base_url", "ai_image_api_key");
+    static final List<String> AI_WEBSITE_INFO_KEYS =
+            Arrays.asList(
+                    "ai_provider",
+                    "ai_model",
+                    "ai_base_url",
+                    "ai_api_key",
+                    "ai_prompt",
+                    "ai_max_completion_tokens",
+                    AI_REASONING_ENABLED_KEY,
+                    "ai_image_provider",
+                    "ai_image_model",
+                    "ai_image_base_url",
+                    "ai_image_api_key");
     private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
+
     @Inject
     public AIConfigService(jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.webSiteProvider = webSiteProvider;
@@ -46,7 +56,9 @@ public class AIConfigService {
         return ResultBeanUtils.convert(webSiteByNameIn, clazz);
     }
 
-    public void updateAi(AIWebSiteInfo settings, AdminAuditContext audit, WebSiteSettingsService settingsService) throws SQLException {
+    public void updateAi(
+            AIWebSiteInfo settings, AdminAuditContext audit, WebSiteSettingsService settingsService)
+            throws SQLException {
         mergeRetainedApiKeys(settings, ai());
         settingsService.update(settings, audit);
     }
@@ -58,19 +70,25 @@ public class AIConfigService {
         response.setHasAiImageApiKey(StringUtils.isNotEmpty(ai.getAi_image_api_key()));
         response.setAi_api_key("");
         response.setAi_image_api_key("");
-        response.setAllProviders(Arrays.stream(AIProviderType.values())
-                .map(provider -> toProvider(provider, false)).collect(Collectors.toList()));
-        response.setAllImageProviders(Arrays.stream(AIProviderType.values())
-                .filter(provider -> !provider.getImageModels().isEmpty())
-                .map(provider -> toProvider(provider, true)).collect(Collectors.toList()));
+        response.setAllProviders(
+                Arrays.stream(AIProviderType.values())
+                        .map(provider -> toProvider(provider, false))
+                        .collect(Collectors.toList()));
+        response.setAllImageProviders(
+                Arrays.stream(AIProviderType.values())
+                        .filter(provider -> !provider.getImageModels().isEmpty())
+                        .map(provider -> toProvider(provider, true))
+                        .collect(Collectors.toList()));
         return response;
     }
 
     void mergeRetainedApiKeys(AIWebSiteInfo settings, AIWebSiteInfo current) {
         if (StringUtils.isEmpty(settings.getAi_api_key())) {
-            boolean sameEndpoint = Objects.equals(settings.getAi_provider(), current.getAi_provider())
-                    && Objects.equals(AIWebSiteInfo.normalizeBaseUrl(settings.getAi_base_url()),
-                    AIWebSiteInfo.normalizeBaseUrl(current.getAi_base_url()));
+            boolean sameEndpoint =
+                    Objects.equals(settings.getAi_provider(), current.getAi_provider())
+                            && Objects.equals(
+                                    AIWebSiteInfo.normalizeBaseUrl(settings.getAi_base_url()),
+                                    AIWebSiteInfo.normalizeBaseUrl(current.getAi_base_url()));
             if (sameEndpoint && StringUtils.isNotEmpty(current.getAi_api_key())) {
                 settings.setAi_api_key(current.getAi_api_key());
             } else if (StringUtils.isEmpty(settings.getAi_base_url())) {
@@ -84,12 +102,19 @@ public class AIConfigService {
         if (StringUtils.isNotEmpty(settings.getAi_image_api_key())) {
             return;
         }
-        boolean sameImageEndpoint = Objects.equals(settings.getAi_image_provider(), current.getAi_image_provider())
-                && Objects.equals(AIWebSiteInfo.normalizeImageBaseUrl(settings.getAi_image_base_url()),
-                AIWebSiteInfo.normalizeImageBaseUrl(current.getAi_image_base_url()));
-        boolean sameAsTextEndpoint = Objects.equals(settings.getAi_image_provider(), settings.getAi_provider())
-                && Objects.equals(AIWebSiteInfo.normalizeImageBaseUrl(settings.getAi_image_base_url()),
-                AIWebSiteInfo.normalizeBaseUrl(settings.getAi_base_url()));
+        boolean sameImageEndpoint =
+                Objects.equals(settings.getAi_image_provider(), current.getAi_image_provider())
+                        && Objects.equals(
+                                AIWebSiteInfo.normalizeImageBaseUrl(
+                                        settings.getAi_image_base_url()),
+                                AIWebSiteInfo.normalizeImageBaseUrl(
+                                        current.getAi_image_base_url()));
+        boolean sameAsTextEndpoint =
+                Objects.equals(settings.getAi_image_provider(), settings.getAi_provider())
+                        && Objects.equals(
+                                AIWebSiteInfo.normalizeImageBaseUrl(
+                                        settings.getAi_image_base_url()),
+                                AIWebSiteInfo.normalizeBaseUrl(settings.getAi_base_url()));
         if (sameImageEndpoint && StringUtils.isNotEmpty(current.getAi_image_api_key())) {
             settings.setAi_image_api_key(current.getAi_image_api_key());
         } else if (sameAsTextEndpoint && StringUtils.isNotEmpty(settings.getAi_api_key())) {
@@ -107,5 +132,4 @@ public class AIConfigService {
         result.setModelEntries(provider.getModelEntries());
         return result;
     }
-
 }

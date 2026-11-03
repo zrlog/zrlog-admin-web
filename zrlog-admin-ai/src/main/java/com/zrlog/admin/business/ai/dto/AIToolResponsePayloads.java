@@ -1,13 +1,11 @@
 package com.zrlog.admin.business.ai.dto;
 
 import com.google.gson.JsonElement;
-
 import java.util.List;
 
 public final class AIToolResponsePayloads {
 
-    private AIToolResponsePayloads() {
-    }
+    private AIToolResponsePayloads() {}
 
     public static class Titles {
 

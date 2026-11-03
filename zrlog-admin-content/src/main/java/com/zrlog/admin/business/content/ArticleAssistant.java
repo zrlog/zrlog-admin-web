@@ -6,40 +6,36 @@ import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.web.WebSetup;
 
-/**
- * Optional article assistance supplied by an enabled WebSetup. Content also works without it.
- */
+/** Optional article assistance supplied by an enabled WebSetup. Content also works without it. */
 public interface ArticleAssistant extends WebSetup {
-    ArticleAssistant NONE = new ArticleAssistant() {
-    };
+    ArticleAssistant NONE = new ArticleAssistant() {};
 
     @Override
-    default void setup() {
-    }
+    default void setup() {}
 
-    default void articleCreated(long articleId, int userId) {
-    }
+    default void articleCreated(long articleId, int userId) {}
 
-    default void articleDeleted(long articleId) {
-    }
+    default void articleDeleted(long articleId) {}
 
-    default ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId, int userId) {
+    default ArticleGlobalResponse enrichEditor(
+            ArticleGlobalResponse article, long articleId, int userId) {
         return article;
     }
 
-    default PublishProgress beginPublishCheck(AccountAccess actor, ArticleGlobalResponse article, CreateArticleRequest request,
-                                              AdminSseEmitter emitter) throws Exception {
+    default PublishProgress beginPublishCheck(
+            AccountAccess actor,
+            ArticleGlobalResponse article,
+            CreateArticleRequest request,
+            AdminSseEmitter emitter)
+            throws Exception {
         return PublishProgress.NONE;
     }
 
     interface PublishProgress {
-        PublishProgress NONE = new PublishProgress() {
-        };
+        PublishProgress NONE = new PublishProgress() {};
 
-        default void progress(AdminSseEmitter emitter) throws Exception {
-        }
+        default void progress(AdminSseEmitter emitter) throws Exception {}
 
-        default void complete(AdminSseEmitter emitter) throws Exception {
-        }
+        default void complete(AdminSseEmitter emitter) throws Exception {}
     }
 }

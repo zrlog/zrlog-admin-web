@@ -5,7 +5,9 @@ public class IndexResponse {
     private final AdminDashboardConfigResponse dashboardConfig;
     private final FirstUseChecklistResponse firstUseChecklist;
 
-    public IndexResponse(AdminDashboardConfigResponse dashboardConfig, FirstUseChecklistResponse firstUseChecklist) {
+    public IndexResponse(
+            AdminDashboardConfigResponse dashboardConfig,
+            FirstUseChecklistResponse firstUseChecklist) {
         this.dashboardConfig = dashboardConfig;
         this.firstUseChecklist = firstUseChecklist;
     }

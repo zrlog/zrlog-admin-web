@@ -21,7 +21,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 
 public class AdminController extends BaseController {
@@ -30,7 +29,6 @@ public class AdminController extends BaseController {
     private final AdminAuditService adminAuditService;
 
     private final AdminPageDataFactory pages;
-
 
     private final AdminDashboardService dashboardService;
 
@@ -47,36 +45,47 @@ public class AdminController extends BaseController {
         this.dashboardService = dashboardService;
     }
 
-    /**
-     * 触发更新缓存
-     */
+    /** 触发更新缓存 */
     @ResponseBody
     @RefreshCache(updateStaticSites = {StaticSiteType.ADMIN, StaticSiteType.BLOG})
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.refreshCache")
     public UpdateRecordResponse refreshCache() {
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.REFRESH_CACHE);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.REFRESH_CACHE);
         return new UpdateRecordResponse();
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.error")
     public AdminPageDataResponse<ErrorPageResponse> error() {
-        return pages.response(requestIdentity.optional(), new ErrorPageResponse(request.getParaToStr("message", "")), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                new ErrorPageResponse(request.getParaToStr("message", "")),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.PLUGIN_MANAGE, descriptionKey = "plugin.list")
     public AdminPageDataResponse<PluginInfoResponse> plugin() {
         String page = getRequest().getParaToStr("page", "");
-        return pages.response(requestIdentity.optional(), new PluginInfoResponse("admin/plugins/" + page), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                new PluginInfoResponse("admin/plugins/" + page),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.read")
     public AdminPageDataResponse<IndexResponse> index() throws SQLException {
         var actor = requestIdentity.optional();
-        return pages.response(actor, dashboardService.loadIndex(actor, request, AdminTokenThreadLocal.getUser()),
-                "", request.getUri());
+        return pages.response(
+                actor,
+                dashboardService.loadIndex(actor, request, AdminTokenThreadLocal.getUser()),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
@@ -91,19 +100,27 @@ public class AdminController extends BaseController {
                             getRequestBodyWithNullCheck(AdminDashboardConfigRequest.class),
                             request,
                             AdminTokenThreadLocal.getUser());
-            this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
+            this.adminAuditService.record(
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                    AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
             message = I18nUtil.getAdminBackendStringFromRes("admin.common.update.success");
         } else {
-            config = dashboardService.getConfig(requestIdentity.optional(), request, AdminTokenThreadLocal.getUser());
+            config =
+                    dashboardService.getConfig(
+                            requestIdentity.optional(), request, AdminTokenThreadLocal.getUser());
         }
         return new ApiStandardResponse<>(config, message);
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.dismissChecklist")
-    public ApiStandardResponse<FirstUseChecklistResponse> dismissFirstUseChecklist() throws SQLException {
+    @RequiresAction(
+            value = AccountAction.DASHBOARD_READ,
+            descriptionKey = "dashboard.dismissChecklist")
+    public ApiStandardResponse<FirstUseChecklistResponse> dismissFirstUseChecklist()
+            throws SQLException {
         FirstUseChecklistRequest body = getRequestBodyWithNullCheck(FirstUseChecklistRequest.class);
-        return new ApiStandardResponse<>(dashboardService.dismissFirstUseChecklist(body.getVersion()));
+        return new ApiStandardResponse<>(
+                dashboardService.dismissFirstUseChecklist(body.getVersion()));
     }
 }

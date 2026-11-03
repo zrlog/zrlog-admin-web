@@ -6,14 +6,16 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/** The durable run is also the inbox source, so finishing a task cannot lose a separate notification write. */
+/**
+ * The durable run is also the inbox source, so finishing a task cannot lose a separate notification
+ * write.
+ */
 public final class AutomationNotificationService {
     public static final String PREFIX = "server.assistant.";
     private static final Set<String> ATTENTION = Set.of("failed", "needs_attention", "uncertain");
@@ -21,11 +23,16 @@ public final class AutomationNotificationService {
     private final TaskAuthority authority;
     private final AutomationService tasks;
 
-    AutomationNotificationService(AutomationStore store, TaskAuthority authority) { this(store, authority, null); }
+    AutomationNotificationService(AutomationStore store, TaskAuthority authority) {
+        this(store, authority, null);
+    }
 
     @Inject
-    public AutomationNotificationService(AutomationStore store, TaskAuthority authority, AutomationService tasks) {
-        this.store = store; this.authority = authority; this.tasks = tasks;
+    public AutomationNotificationService(
+            AutomationStore store, TaskAuthority authority, AutomationService tasks) {
+        this.store = store;
+        this.authority = authority;
+        this.tasks = tasks;
     }
 
     public List<MessageCenterNoticeResponse> list(AccountAccess actor) throws SQLException {
@@ -48,21 +55,33 @@ public final class AutomationNotificationService {
                 AutomationModels.Run run = row.value;
                 boolean shared = systemIds.contains(run.taskId);
                 if (!isNotice(run) || run.finishedAt < oldest) continue;
-                if (shared ? readStates.get(readKey(actor, run.id), Long.class) != null : run.noticeReadAt != null) continue;
+                if (shared
+                        ? readStates.get(readKey(actor, run.id), Long.class) != null
+                        : run.noticeReadAt != null) continue;
                 AutomationViews.Run view = AutomationDashboard.run(run);
-                MessageCenterNoticeResponse.OperationTaskPayload payload = new MessageCenterNoticeResponse.OperationTaskPayload();
+                MessageCenterNoticeResponse.OperationTaskPayload payload =
+                        new MessageCenterNoticeResponse.OperationTaskPayload();
                 payload.setTitle(view.taskName);
                 String description = Objects.toString(view.summary, "");
                 if (run.result != null && run.result.text != null && !run.result.text.isBlank()) {
                     description += (description.isEmpty() ? "" : "\n") + run.result.text;
                 }
-                payload.setDescription(description.length() > 1000 ? description.substring(0, 1000) + "…" : description);
+                payload.setDescription(
+                        description.length() > 1000
+                                ? description.substring(0, 1000) + "…"
+                                : description);
                 payload.setSource(I18nUtil.getAdminBackendStringFromRes("admin.assistant.manage"));
-                payload.setActionLabel(I18nUtil.getAdminBackendStringFromRes("admin.assistant.notice.detail"));
+                payload.setActionLabel(
+                        I18nUtil.getAdminBackendStringFromRes("admin.assistant.notice.detail"));
                 payload.setActionPath("/assistant?runId=" + run.id);
                 payload.setClosable(true);
-                String status = "failed".equals(run.status) ? "error" : ATTENTION.contains(run.status) ? "warning" : "notice";
-                notices.add(MessageCenterNoticeResponse.of(PREFIX + run.id, "operationTask", status, run.finishedAt, payload));
+                String status =
+                        "failed".equals(run.status)
+                                ? "error"
+                                : ATTENTION.contains(run.status) ? "warning" : "notice";
+                notices.add(
+                        MessageCenterNoticeResponse.of(
+                                PREFIX + run.id, "operationTask", status, run.finishedAt, payload));
                 if (notices.size() == 50) break;
             }
             if (rows.size() < 100) break;
@@ -73,7 +92,8 @@ public final class AutomationNotificationService {
     public boolean markRead(AccountAccess actor, String taskKey) throws SQLException {
         actor = authority.current(actor);
         TaskAuthority.require(actor, AccountAction.SESSION.getId());
-        if (taskKey == null || !taskKey.startsWith(PREFIX)) throw new IllegalArgumentException("automation.invalidId");
+        if (taskKey == null || !taskKey.startsWith(PREFIX))
+            throw new IllegalArgumentException("automation.invalidId");
         String id = taskKey.substring(PREFIX.length());
         AutomationStore.requireRunId(id);
         List<String> systemIds = tasks == null ? List.of() : tasks.systemTaskIds(actor);
@@ -82,10 +102,12 @@ public final class AutomationNotificationService {
             if (!isNotice(shared.value)) return false;
             String key = readKey(actor, id);
             var previous = store.read(key, Long.class);
-            return previous != null || store.markRunRead(shared, actor)
+            return previous != null
+                    || store.markRunRead(shared, actor)
                     || store.read(key, Long.class) != null;
         }
-        if (!id.startsWith(AutomationStore.ownerPrefix(actor.getUserId()))) throw new PermissionErrorException();
+        if (!id.startsWith(AutomationStore.ownerPrefix(actor.getUserId())))
+            throw new PermissionErrorException();
         for (int attempt = 0; attempt < 3; attempt++) {
             var row = store.run(id);
             if (row == null) return true; // A retained notice may expire before it is dismissed.
@@ -105,7 +127,8 @@ public final class AutomationNotificationService {
     }
 
     private static boolean isNotice(AutomationModels.Run run) {
-        return run.finishedAt != null && !"running".equals(run.status)
+        return run.finishedAt != null
+                && !"running".equals(run.status)
                 && (ATTENTION.contains(run.status) || run.result != null && run.result.notifyOwner);
     }
 }

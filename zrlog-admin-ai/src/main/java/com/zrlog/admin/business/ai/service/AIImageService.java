@@ -29,7 +29,6 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -79,17 +78,20 @@ public class AIImageService extends AIService {
         this.dbFileService = dbFileService;
     }
 
-    public GenerateArticleCoverResponse generateArticleCover(AccountAccess actor, GenerateArticleFieldRequest generateRequest)
+    public GenerateArticleCoverResponse generateArticleCover(
+            AccountAccess actor, GenerateArticleFieldRequest generateRequest)
             throws IOException, InterruptedException, SQLException {
         return generateArticleCover(actor, generateRequest, "");
     }
 
-    public GenerateArticleCoverResponse generateArticleCover(AccountAccess actor, GenerateArticleFieldRequest generateRequest, String instruction)
+    public GenerateArticleCoverResponse generateArticleCover(
+            AccountAccess actor, GenerateArticleFieldRequest generateRequest, String instruction)
             throws IOException, InterruptedException, SQLException {
         authorize(actor);
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkImageConfig(info);
-        String coverAspectRatio = this.userPreferenceService.effective(actor).editor.coverAspectRatio;
+        String coverAspectRatio =
+                this.userPreferenceService.effective(actor).editor.coverAspectRatio;
         String prompt = buildArticleCoverPrompt(generateRequest, coverAspectRatio);
         if (instruction != null && !instruction.isBlank())
             prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
@@ -100,38 +102,59 @@ public class AIImageService extends AIService {
         response.setMimeType(imageResult.mimeType);
         response.setExtension(imageResult.extension);
         // 确定存储目录，统一使用虚拟临时目录
-        String fileName = "article-cover-" + System.currentTimeMillis() + "." + imageResult.extension;
+        String fileName =
+                "article-cover-" + System.currentTimeMillis() + "." + imageResult.extension;
         // 使用统一的路径生成工具
-        String relPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/ai/" + fileName;
+        String relPath =
+                AdminConstants.ADMIN_DB_ATTACHED_TMP
+                        + "/users/"
+                        + actor.getUserId()
+                        + "/ai/"
+                        + fileName;
         UploadFileResponse dbFile = this.dbFileService.toDbFile(relPath, imageResult.bytes);
         response.setUrl(dbFile.getUrl());
         return response;
     }
 
-    public UploadFileResponse applyArticleCover(AccountAccess actor, AdminTokenVO credential,
-                                                ApplyArticleCoverRequest applyRequest, HttpRequest request,
-                                                Long articleId, UploadService uploadService) throws SQLException {
+    public UploadFileResponse applyArticleCover(
+            AccountAccess actor,
+            AdminTokenVO credential,
+            ApplyArticleCoverRequest applyRequest,
+            HttpRequest request,
+            Long articleId,
+            UploadService uploadService)
+            throws SQLException {
         authorize(actor);
         String source = applyRequest.getDataUrl();
-        if (source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP) && !actor.isAdministrator()
-                && (!source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/")
-                || source.contains("..") || source.contains("%") || source.contains("\\")))
-            throw new PermissionErrorException();
+        if (source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)
+                && !actor.isAdministrator()
+                && (!source.startsWith(
+                                AdminConstants.ADMIN_DB_ATTACHED_TMP
+                                        + "/users/"
+                                        + actor.getUserId()
+                                        + "/")
+                        || source.contains("..")
+                        || source.contains("%")
+                        || source.contains("\\"))) throw new PermissionErrorException();
         UploadFileResponse uploadFileResponse;
         if (applyRequest.getDataUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)
                 || applyRequest.getDataUrl().startsWith("data:")) {
-            DecodedImage decodedImage = decodeDataUrl(applyRequest.getDataUrl(), applyRequest.getExtension());
-            uploadFileResponse = uploadService.saveThumbnailBytes(actor, decodedImage.bytes, decodedImage.extension, request,
-                    credential);
+            DecodedImage decodedImage =
+                    decodeDataUrl(applyRequest.getDataUrl(), applyRequest.getExtension());
+            uploadFileResponse =
+                    uploadService.saveThumbnailBytes(
+                            actor, decodedImage.bytes, decodedImage.extension, request, credential);
         } else {
             uploadFileResponse = new UploadFileResponse(applyRequest.getDataUrl());
         }
         if (StringUtils.isNotEmpty(applyRequest.getMessageId())) {
-            this.conversations.captureAccount(actor.getUserId()).updateAIMessagePayload(
-                    articleId,
-                    applyRequest.getMessageId(),
-                    "cover",
-                    new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
+            this.conversations
+                    .captureAccount(actor.getUserId())
+                    .updateAIMessagePayload(
+                            articleId,
+                            applyRequest.getMessageId(),
+                            "cover",
+                            new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
         }
         return uploadFileResponse;
     }
@@ -153,16 +176,24 @@ public class AIImageService extends AIService {
             throw new ArgsException("ai_image_api_key");
         }
         if (!customEndpoint) {
-            boolean supported = info.getAi_image_provider().getModelEntries().stream()
-                    .anyMatch(model -> Objects.equals(model.getName(), info.getAi_image_model())
-                            && model.supports(AIModelCapability.IMAGE_GENERATION));
+            boolean supported =
+                    info.getAi_image_provider().getModelEntries().stream()
+                            .anyMatch(
+                                    model ->
+                                            Objects.equals(
+                                                            model.getName(),
+                                                            info.getAi_image_model())
+                                                    && model.supports(
+                                                            AIModelCapability.IMAGE_GENERATION));
             if (!supported) {
-                throw new UnsupportedAIImageGenerationException("model: " + info.getAi_image_model());
+                throw new UnsupportedAIImageGenerationException(
+                        "model: " + info.getAi_image_model());
             }
         }
     }
 
-    private ImageResult requestImageByAspectRatio(AIWebSiteInfo info, String prompt, String coverAspectRatio)
+    private ImageResult requestImageByAspectRatio(
+            AIWebSiteInfo info, String prompt, String coverAspectRatio)
             throws IOException, InterruptedException {
         String size = resolveImageRequestSize(coverAspectRatio);
         try {
@@ -175,27 +206,37 @@ public class AIImageService extends AIService {
         }
     }
 
-    private ImageResult requestImage(AIWebSiteInfo info, String prompt, String size) throws IOException, InterruptedException {
+    private ImageResult requestImage(AIWebSiteInfo info, String prompt, String size)
+            throws IOException, InterruptedException {
         AIProviderRequests.ImageGenerationRequest providerRequest =
-                new AIProviderRequests.ImageGenerationRequest(info.getAi_image_model(), prompt, 1, size);
+                new AIProviderRequests.ImageGenerationRequest(
+                        info.getAi_image_model(), prompt, 1, size);
 
-        java.net.http.HttpRequest.Builder requestBuilder = java.net.http.HttpRequest.newBuilder()
-                .uri(URI.create(resolveEndpointUrl(info.getAi_image_base_url(),
-                        info.getAi_image_provider().getBaseUrl(), "/images/generations")))
-                .header("Content-Type", "application/json")
-                .header("Accept-Encoding", "identity")
-                .POST(BodyPublishers.ofString(gson.toJson(providerRequest)));
+        java.net.http.HttpRequest.Builder requestBuilder =
+                java.net.http.HttpRequest.newBuilder()
+                        .uri(
+                                URI.create(
+                                        resolveEndpointUrl(
+                                                info.getAi_image_base_url(),
+                                                info.getAi_image_provider().getBaseUrl(),
+                                                "/images/generations")))
+                        .header("Content-Type", "application/json")
+                        .header("Accept-Encoding", "identity")
+                        .POST(BodyPublishers.ofString(gson.toJson(providerRequest)));
         if (StringUtils.isNotEmpty(info.getAi_image_api_key())) {
             requestBuilder.header("Authorization", "Bearer " + info.getAi_image_api_key());
         }
         java.net.http.HttpRequest request = requestBuilder.build();
-        HttpResponse<String> response = client().send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response =
+                client().send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
-            throw new AIRequestException(buildProviderErrorDetail(response.statusCode(), response.body()));
+            throw new AIRequestException(
+                    buildProviderErrorDetail(response.statusCode(), response.body()));
         }
         AIProviderResponses.ImageGenerationResponse responseBody =
                 gson.fromJson(response.body(), AIProviderResponses.ImageGenerationResponse.class);
-        List<AIProviderResponses.ImageData> data = responseBody == null ? null : responseBody.getData();
+        List<AIProviderResponses.ImageData> data =
+                responseBody == null ? null : responseBody.getData();
         if (data == null || data.isEmpty()) {
             throw new AIResponseException("image data is empty");
         }
@@ -229,12 +270,14 @@ public class AIImageService extends AIService {
     }
 
     private ImageResult downloadImage(String url) throws IOException, InterruptedException {
-        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Accept-Encoding", "identity")
-                .GET()
-                .build();
-        HttpResponse<byte[]> response = client().send(request, HttpResponse.BodyHandlers.ofByteArray());
+        java.net.http.HttpRequest request =
+                java.net.http.HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .header("Accept-Encoding", "identity")
+                        .GET()
+                        .build();
+        HttpResponse<byte[]> response =
+                client().send(request, HttpResponse.BodyHandlers.ofByteArray());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new AIImageDownloadException("status: " + response.statusCode());
         }
@@ -265,7 +308,8 @@ public class AIImageService extends AIService {
     }
 
     String toMimeType(String extension, String fallbackContentType) {
-        if (StringUtils.isNotEmpty(fallbackContentType) && fallbackContentType.startsWith("image/")) {
+        if (StringUtils.isNotEmpty(fallbackContentType)
+                && fallbackContentType.startsWith("image/")) {
             return fallbackContentType.split(";")[0];
         }
         if (Objects.equals(extension, "jpg")) {
@@ -277,14 +321,21 @@ public class AIImageService extends AIService {
         return "image/png";
     }
 
-    private String buildArticleCoverPrompt(GenerateArticleFieldRequest request, String coverAspectRatio) {
+    private String buildArticleCoverPrompt(
+            GenerateArticleFieldRequest request, String coverAspectRatio) {
         AIPromptVO promptVO = AIPromptVO.getByToolKey("article-cover-generate");
-        String prompt = loadPromptResource(promptVO.getInputPrefix(), promptVO.getInputFallback())
-                .replace("{{coverAspectRatio}}", ArticleEditWebSiteInfo.normalizeArticleCoverAspectRatio(coverAspectRatio))
-                .replace("{{title}}", emptyToBlank(request.getTitle()))
-                .replace("{{digest}}", emptyToBlank(request.getDigest()))
-                .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
-                .replace("{{markdown}}", truncate(emptyToBlank(request.getMarkdown()), 1200));
+        String prompt =
+                loadPromptResource(promptVO.getInputPrefix(), promptVO.getInputFallback())
+                        .replace(
+                                "{{coverAspectRatio}}",
+                                ArticleEditWebSiteInfo.normalizeArticleCoverAspectRatio(
+                                        coverAspectRatio))
+                        .replace("{{title}}", emptyToBlank(request.getTitle()))
+                        .replace("{{digest}}", emptyToBlank(request.getDigest()))
+                        .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
+                        .replace(
+                                "{{markdown}}",
+                                truncate(emptyToBlank(request.getMarkdown()), 1200));
         return appendSelectedTextContext(prompt, request.getSelectedText());
     }
 
@@ -314,7 +365,10 @@ public class AIImageService extends AIService {
             mimeType = meta.split(";")[0];
             payload = dataUrl.substring(commaIndex + 1);
         }
-        String extension = StringUtils.isNotEmpty(fallbackExtension) ? fallbackExtension : toExtension(mimeType, "");
+        String extension =
+                StringUtils.isNotEmpty(fallbackExtension)
+                        ? fallbackExtension
+                        : toExtension(mimeType, "");
         return new DecodedImage(Base64.getDecoder().decode(payload), extension);
     }
 

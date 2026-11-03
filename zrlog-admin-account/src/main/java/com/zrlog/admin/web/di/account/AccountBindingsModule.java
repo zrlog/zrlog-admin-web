@@ -8,13 +8,10 @@ import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import dagger.Module;
 import dagger.Provides;
 
-/**
- * Shares account-owned services with other admin feature graphs.
- */
+/** Shares account-owned services with other admin feature graphs. */
 @Module
 public final class AccountBindingsModule {
-    private AccountBindingsModule() {
-    }
+    private AccountBindingsModule() {}
 
     @Provides
     static AccountIdentityService identities(AccountComponent account) {

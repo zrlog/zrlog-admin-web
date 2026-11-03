@@ -2,7 +2,6 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
@@ -11,16 +10,23 @@ import java.util.function.LongSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/** Resumes an installed upgrade in the current tick, including its resource delivery and original run. */
+/**
+ * Resumes an installed upgrade in the current tick, including its resource delivery and original
+ * run.
+ */
 final class UpgradeResourceCompletion {
-    private static final Logger LOGGER = Logger.getLogger(UpgradeResourceCompletion.class.getName());
+    private static final Logger LOGGER =
+            Logger.getLogger(UpgradeResourceCompletion.class.getName());
     private final AutomationStore store;
     private final TaskAuthority authority;
     private final AutomaticUpgradeTaskProvider.Operations operations;
     private final LongSupplier clock;
 
-    UpgradeResourceCompletion(AutomationStore store, TaskAuthority authority,
-                              AutomaticUpgradeTaskProvider.Operations operations, LongSupplier clock) {
+    UpgradeResourceCompletion(
+            AutomationStore store,
+            TaskAuthority authority,
+            AutomaticUpgradeTaskProvider.Operations operations,
+            LongSupplier clock) {
         this.store = store;
         this.authority = authority;
         this.operations = operations;
@@ -28,11 +34,19 @@ final class UpgradeResourceCompletion {
     }
 
     void complete(long budgetMillis) throws SQLException {
-        complete(budgetMillis, store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+        complete(
+                budgetMillis,
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class));
     }
 
-    void complete(long budgetMillis, AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> before) throws SQLException {
-        if (before == null || !"assistant".equals(before.value.source) || !installed(before.value)) return;
+    void complete(
+            long budgetMillis,
+            AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> before)
+            throws SQLException {
+        if (before == null || !"assistant".equals(before.value.source) || !installed(before.value))
+            return;
         var receipt = before.value;
         if ("confirmed".equals(receipt.state)) return;
         // The delivery checkpoint survives a crash between receipt and run writes.
@@ -41,8 +55,11 @@ final class UpgradeResourceCompletion {
             return;
         }
         long now = clock.getAsLong();
-        if (budgetMillis <= 5000 || receipt.completionLeaseUntil > now || receipt.nextCompletionAt > now) return;
-        AccountAccess actor = authority.siteActor().restrictActions(List.of(AccountAction.SYSTEM_MANAGE.getId()));
+        if (budgetMillis <= 5000
+                || receipt.completionLeaseUntil > now
+                || receipt.nextCompletionAt > now) return;
+        AccountAccess actor =
+                authority.siteActor().restrictActions(List.of(AccountAction.SYSTEM_MANAGE.getId()));
         TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
         var claimed = before.copy(AutomaticUpgradeTaskProvider.Receipt.class);
         claimed.completionId = UUID.randomUUID().toString();
@@ -50,9 +67,15 @@ final class UpgradeResourceCompletion {
         claimed.resourceStartedAt = now;
         claimed.resourceFinishedAt = null;
         claimed.resourceStatus = "running";
-        if (!store.writeAuthorized(AutomaticUpgradeTaskProvider.KEY, before, claimed, actor)) return;
-        var context = new TaskExecutionContext(receipt.runId, actor, claimed.completionLeaseUntil, clock,
-                () -> fence(claimed, actor));
+        if (!store.writeAuthorized(AutomaticUpgradeTaskProvider.KEY, before, claimed, actor))
+            return;
+        var context =
+                new TaskExecutionContext(
+                        receipt.runId,
+                        actor,
+                        claimed.completionLeaseUntil,
+                        clock,
+                        () -> fence(claimed, actor));
         try {
             recordRun(claimed, false);
             context.checkActive();
@@ -65,46 +88,68 @@ final class UpgradeResourceCompletion {
             synced.resourceFinishedAt = clock.getAsLong();
             if (!store.writeAuthorized(AutomaticUpgradeTaskProvider.KEY, current, synced, actor))
                 throw new IllegalStateException("automation.executionExpired");
-            finish(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+            finish(
+                    store.read(
+                            AutomaticUpgradeTaskProvider.KEY,
+                            AutomaticUpgradeTaskProvider.Receipt.class));
         } catch (Exception error) {
             if (error instanceof InterruptedException) Thread.currentThread().interrupt();
-            LOGGER.log(Level.WARNING, "Automatic upgrade resource completion failed: run=" + receipt.runId, error);
-            var current = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
-            if (current == null || !Objects.equals(current.value.completionId, claimed.completionId)) return;
+            LOGGER.log(
+                    Level.WARNING,
+                    "Automatic upgrade resource completion failed: run=" + receipt.runId,
+                    error);
+            var current =
+                    store.read(
+                            AutomaticUpgradeTaskProvider.KEY,
+                            AutomaticUpgradeTaskProvider.Receipt.class);
+            if (current == null
+                    || !Objects.equals(current.value.completionId, claimed.completionId)) return;
             // A successful delivery checkpoint must never be erased by a later bookkeeping failure.
-            if ("resources_synced".equals(current.value.phase) || "confirmed".equals(current.value.state)) return;
+            if ("resources_synced".equals(current.value.phase)
+                    || "confirmed".equals(current.value.state)) return;
             var failed = current.copy(AutomaticUpgradeTaskProvider.Receipt.class);
             failed.resourceStatus = "failed";
             failed.resourceFinishedAt = clock.getAsLong();
             failed.completionLeaseUntil = 0;
             failed.nextCompletionAt = clock.getAsLong() + 60000;
-            if (store.write(AutomaticUpgradeTaskProvider.KEY, current, failed)) recordRun(failed, false);
+            if (store.write(AutomaticUpgradeTaskProvider.KEY, current, failed))
+                recordRun(failed, false);
         }
     }
 
     private boolean installed(AutomaticUpgradeTaskProvider.Receipt receipt) {
-        return receipt.buildId != null && !receipt.buildId.isBlank()
+        return receipt.buildId != null
+                && !receipt.buildId.isBlank()
                 && receipt.buildId.equals(operations.currentBuildId());
     }
 
     private AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> owned(
             AutomaticUpgradeTaskProvider.Receipt expected) throws SQLException {
-        var current = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
-        if (current == null || !Objects.equals(expected.runId, current.value.runId)
+        var current =
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class);
+        if (current == null
+                || !Objects.equals(expected.runId, current.value.runId)
                 || !Objects.equals(expected.completionId, current.value.completionId)
-                || !installed(current.value)) throw new IllegalStateException("automation.executionExpired");
+                || !installed(current.value))
+            throw new IllegalStateException("automation.executionExpired");
         return current;
     }
 
-    private void fence(AutomaticUpgradeTaskProvider.Receipt expected, AccountAccess actor) throws SQLException {
+    private void fence(AutomaticUpgradeTaskProvider.Receipt expected, AccountAccess actor)
+            throws SQLException {
         if (owned(expected).value.completionLeaseUntil <= clock.getAsLong())
             throw new IllegalStateException("automation.executionExpired");
         authority.revalidateExecution(actor);
         TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
     }
 
-    private void finish(AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> current) throws SQLException {
-        if (current == null || !installed(current.value) || !"resources_synced".equals(current.value.phase)) return;
+    private void finish(AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> current)
+            throws SQLException {
+        if (current == null
+                || !installed(current.value)
+                || !"resources_synced".equals(current.value.phase)) return;
         recordRun(current.value, true);
         var confirmed = current.copy(AutomaticUpgradeTaskProvider.Receipt.class);
         confirmed.state = "confirmed";
@@ -113,7 +158,8 @@ final class UpgradeResourceCompletion {
         store.write(AutomaticUpgradeTaskProvider.KEY, current, confirmed);
     }
 
-    private void recordRun(AutomaticUpgradeTaskProvider.Receipt receipt, boolean complete) throws SQLException {
+    private void recordRun(AutomaticUpgradeTaskProvider.Receipt receipt, boolean complete)
+            throws SQLException {
         for (int attempt = 0; attempt < 3; attempt++) {
             var row = store.run(receipt.runId);
             if (row == null) throw new IllegalStateException("automation.runChanged");
@@ -126,15 +172,20 @@ final class UpgradeResourceCompletion {
                 run.result = result(receipt, complete);
                 if (!store.replaceRun(row, run)) continue;
             }
-            // A new build proves installation even if the old process never released its task lease.
+            // A new build proves installation even if the old process never released its task
+            // lease.
             AutomationEngine.release(store, clock, run.taskId, run);
             for (int update = 0; update < 3; update++) {
                 var task = store.task(run.taskId);
-                if (task == null || task.value.activeRun != null
+                if (task == null
+                        || task.value.activeRun != null
                         || !Objects.equals(task.value.lastRunAt, run.startedAt)) break;
                 var next = task.copy(StoredTask.class);
                 next.lastStatus = run.status;
-                if (complete && next.enabled && next.nextRunAt != null && next.nextRunAt <= clock.getAsLong()) {
+                if (complete
+                        && next.enabled
+                        && next.nextRunAt != null
+                        && next.nextRunAt <= clock.getAsLong()) {
                     next.nextRunAt = TaskSchedule.nextAfter(next.schedule, clock.getAsLong());
                     if (next.nextRunAt == null) next.enabled = false;
                 }
@@ -145,9 +196,13 @@ final class UpgradeResourceCompletion {
         throw new IllegalStateException("automation.runChanged");
     }
 
-    static AutomationModels.Result result(AutomaticUpgradeTaskProvider.Receipt receipt, boolean complete) {
-        var result = AutomationModels.Result.success(complete ? "admin.assistant.upgrade.status.confirmed"
-                : "admin.assistant.upgrade.status.resourcesPending");
+    static AutomationModels.Result result(
+            AutomaticUpgradeTaskProvider.Receipt receipt, boolean complete) {
+        var result =
+                AutomationModels.Result.success(
+                        complete
+                                ? "admin.assistant.upgrade.status.confirmed"
+                                : "admin.assistant.upgrade.status.resourcesPending");
         result.status = complete ? "success" : "submitted";
         result.notifyOwner = complete;
         result.text = receipt.version;
@@ -163,9 +218,12 @@ final class UpgradeResourceCompletion {
         resources.id = "resources";
         resources.nameKey = "admin.assistant.upgrade.resourcesStep";
         resources.status = Objects.toString(receipt.resourceStatus, "running");
-        resources.messageKey = "success".equals(resources.status) ? "admin.assistant.upgrade.status.resourcesSynced"
-                : "failed".equals(resources.status) ? "admin.assistant.upgrade.status.resourcesFailed"
-                : "admin.assistant.upgrade.status.resourcesPending";
+        resources.messageKey =
+                "success".equals(resources.status)
+                        ? "admin.assistant.upgrade.status.resourcesSynced"
+                        : "failed".equals(resources.status)
+                                ? "admin.assistant.upgrade.status.resourcesFailed"
+                                : "admin.assistant.upgrade.status.resourcesPending";
         resources.startedAt = receipt.resourceStartedAt;
         resources.finishedAt = receipt.resourceFinishedAt;
         result.children = List.of(installed, resources);

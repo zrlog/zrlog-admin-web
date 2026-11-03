@@ -1,22 +1,29 @@
 package com.zrlog.admin.business.automation;
 
-import org.junit.Test;
+import static org.junit.Assert.*;
 
 import java.time.Instant;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class TaskScheduleTest {
     @Test
     public void dailyScheduleUsesLocalTimeAcrossDaylightSavingTransitions() {
         AutomationModels.Schedule schedule = daily("America/New_York", "02:30");
-        assertEquals(Long.valueOf(time("2026-03-08T07:30:00Z")), TaskSchedule.nextAfter(schedule, time("2026-03-08T05:00:00Z")));
-        assertEquals(Long.valueOf(time("2026-03-09T06:30:00Z")), TaskSchedule.nextAfter(schedule, time("2026-03-08T07:30:00Z")));
+        assertEquals(
+                Long.valueOf(time("2026-03-08T07:30:00Z")),
+                TaskSchedule.nextAfter(schedule, time("2026-03-08T05:00:00Z")));
+        assertEquals(
+                Long.valueOf(time("2026-03-09T06:30:00Z")),
+                TaskSchedule.nextAfter(schedule, time("2026-03-08T07:30:00Z")));
         schedule.time = "01:30";
-        assertEquals(Long.valueOf(time("2026-11-01T05:30:00Z")), TaskSchedule.nextAfter(schedule, time("2026-11-01T04:00:00Z")));
+        assertEquals(
+                Long.valueOf(time("2026-11-01T05:30:00Z")),
+                TaskSchedule.nextAfter(schedule, time("2026-11-01T04:00:00Z")));
         // The repeated wall-clock hour does not publish the same day's article twice.
-        assertEquals(Long.valueOf(time("2026-11-02T06:30:00Z")), TaskSchedule.nextAfter(schedule, time("2026-11-01T05:30:00Z")));
+        assertEquals(
+                Long.valueOf(time("2026-11-02T06:30:00Z")),
+                TaskSchedule.nextAfter(schedule, time("2026-11-01T05:30:00Z")));
     }
 
     @Test
@@ -35,7 +42,9 @@ public class TaskScheduleTest {
         AutomationModels.Schedule schedule = daily("Asia/Shanghai", "09:00");
         schedule.kind = "weekly";
         schedule.weekdays = List.of(1, 5);
-        assertEquals(Long.valueOf(time("2026-10-30T01:00:00Z")), TaskSchedule.nextAfter(schedule, time("2026-10-29T00:00:00Z")));
+        assertEquals(
+                Long.valueOf(time("2026-10-30T01:00:00Z")),
+                TaskSchedule.nextAfter(schedule, time("2026-10-29T00:00:00Z")));
         schedule.kind = "once";
         schedule.at = time("2026-10-30T01:00:00Z");
         assertNull(TaskSchedule.nextAfter(schedule, schedule.at));
@@ -63,5 +72,7 @@ public class TaskScheduleTest {
         return schedule;
     }
 
-    private static long time(String value) { return Instant.parse(value).toEpochMilli(); }
+    private static long time(String value) {
+        return Instant.parse(value).toEpochMilli();
+    }
 }

@@ -17,9 +17,14 @@ Native/Gson 注册。
 ## 构建与验证
 
 ```bash
+./mvnw -q spotless:apply
+./mvnw -q spotless:check
 scripts/check-admin-guardrails.sh
 ./mvnw -q -DskipTests compile
 cd zrlog-admin-web-ui/src/main/frontend && yarn type-check
 ```
+
+Java 源码统一使用 Google Java Format AOSP 四空格风格。格式化命令在仓库根目录使用 JDK 21+ 执行；
+`java-format` profile 会自动启用并在 `validate` 阶段检查格式，CI 的 Java Format 工作流使用 JDK 21 独立检查。
 
 本地启动入口为 `scripts/dev-start.sh`，内存预览入口为 `bash shell/memory-run.sh`。按改动范围运行相关测试；保留已有工作区改动，不提交构建输出、运行目录和本地配置。

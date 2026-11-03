@@ -23,7 +23,6 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.function.Supplier;
@@ -61,8 +60,14 @@ public class TypeController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<PageData<TypeDTO>> index() throws SQLException {
         PublicWebSiteInfo website = site.get();
-        return pages.response(requestIdentity.optional(), articleTypeService.find(ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
-                ControllerUtil.unPageRequest(), Boolean.TRUE.equals(website.getGenerator_html_status())), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                articleTypeService.find(
+                        ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
+                        ControllerUtil.unPageRequest(),
+                        Boolean.TRUE.equals(website.getGenerator_html_status())),
+                "",
+                request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -74,7 +79,6 @@ public class TypeController extends BaseController {
         CreateTypeRequest requestBody = getRequestBodyWithNullCheck(CreateTypeRequest.class);
         return new UpdateRecordResponse(articleTypeService.add(requestBody));
     }
-
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

@@ -6,7 +6,6 @@ import com.hibegin.common.util.ObjectUtil;
 import com.hibegin.common.util.StringUtils;
 import com.sun.management.OperatingSystemMXBean;
 import com.zrlog.common.Constants;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
@@ -42,14 +41,16 @@ public class CPUInfo {
 
     private String readCPUModel() throws Exception {
         if (EnvKit.isLambda()) {
-            return ObjectUtil.requireNonNullElse(System.getenv("AWS_EXECUTION_ENV"), "AWS_Lambda_OS");
+            return ObjectUtil.requireNonNullElse(
+                    System.getenv("AWS_EXECUTION_ENV"), "AWS_Lambda_OS");
         }
         String os = System.getProperty("os.name").toLowerCase();
         // Windows 系统
         if (os.contains("win")) {
             String command = "wmic cpu get caption";
             Process process = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.contains("Caption")) {
@@ -66,7 +67,8 @@ public class CPUInfo {
         else if (os.contains("nix") || os.contains("nux")) {
             String command = "lscpu";
             Process process = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.contains("Model name")) {
@@ -78,7 +80,8 @@ public class CPUInfo {
         else if (os.contains("mac")) {
             String command = "sysctl -n machdep.cpu.brand_string";
             Process process = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
                 return line.trim(); // 返回 CPU 型号
@@ -89,7 +92,10 @@ public class CPUInfo {
     }
 
     public String getCpuLoad() {
-        OperatingSystemMXBean osMXBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-        return BigDecimal.valueOf(osMXBean.getSystemCpuLoad()).setScale(2, RoundingMode.HALF_UP).toString();
+        OperatingSystemMXBean osMXBean =
+                (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+        return BigDecimal.valueOf(osMXBean.getSystemCpuLoad())
+                .setScale(2, RoundingMode.HALF_UP)
+                .toString();
     }
 }

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hibegin.common.dao.dto.PageRequestImpl;
@@ -21,15 +23,12 @@ import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.repository.LogRepository;
-import org.junit.Test;
-
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminArticleServiceDatabaseTest {
 
@@ -39,7 +38,8 @@ public class AdminArticleServiceDatabaseTest {
         return article(title, alias, false, false);
     }
 
-    private static CreateArticleRequest article(String title, String alias, boolean privacy, boolean rubbish) {
+    private static CreateArticleRequest article(
+            String title, String alias, boolean privacy, boolean rubbish) {
         CreateArticleRequest request = new CreateArticleRequest();
         request.setTitle(title);
         request.setAlias(alias);
@@ -55,7 +55,8 @@ public class AdminArticleServiceDatabaseTest {
         return request;
     }
 
-    private static UpdateArticleRequest updateArticle(int logId, int version, String title, String alias) {
+    private static UpdateArticleRequest updateArticle(
+            int logId, int version, String title, String alias) {
         UpdateArticleRequest request = new UpdateArticleRequest();
         request.setLogId(logId);
         request.setVersion(version);
@@ -84,64 +85,97 @@ public class AdminArticleServiceDatabaseTest {
 
     private static HttpRequest request() {
         Map<String, Object> attrs = new HashMap<>();
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminArticleServiceDatabaseTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getUri":
-                            return "/admin/article-edit";
-                        case "getContextPath":
-                            return "/";
-                        case "getScheme":
-                            return "http";
-                        case "getAttr":
-                            return attrs;
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminArticleServiceDatabaseTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getHeader":
+                                    return "Host".equals(args[0]) ? "localhost:18080" : null;
+                                case "getUri":
+                                    return "/admin/article-edit";
+                                case "getContextPath":
+                                    return "/";
+                                case "getScheme":
+                                    return "http";
+                                case "getAttr":
+                                    return attrs;
+                                case "getHeaderMap":
+                                case "getParamMap":
+                                case "decodeParamMap":
+                                    return Map.of();
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     @Test
     public void personalEditorSettingsReachEditingPublishingAndDigestGeneration() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            UserPreferenceService preferences =
-                    db.component(AccountComponent.class).preferences();
-            preferences.updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
+            UserPreferenceService preferences = db.component(AccountComponent.class).preferences();
+            preferences.updateBody(
+                    AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
+                    "{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}",
+                    "writing");
+            AdminArticleService service = db.component(ContentComponent.class).articles();
             ArticleGlobalResponse editor =
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
+                            .loadDetailById(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "",
+                                    request())
                             .getData();
             assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
             assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
             assertEquals("1:1", editor.getArticleCoverAspectRatio());
             assertEquals(Long.valueOf(10), editor.getArticleEditAutoSaveInterval());
-            CreateOrUpdateArticleResponse emptyDigest = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("No summary", "no-summary"));
-            assertEquals("", db.scalar("select digest from log where logId=?", emptyDigest.getLogId()));
-            preferences.updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"editor\":{\"autoDigestLength\":-1}}", "writing");
-            CreateOrUpdateArticleResponse fullDigest = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Full summary", "full-summary"));
-            assertEquals("<p>Full summary content</p>", db.scalar("select digest from log where logId=?", fullDigest.getLogId()));
-            preferences.updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"editor\":{\"autoDigestLength\":0}}", "writing");
+            CreateOrUpdateArticleResponse emptyDigest =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("No summary", "no-summary"));
+            assertEquals(
+                    "", db.scalar("select digest from log where logId=?", emptyDigest.getLogId()));
+            preferences.updateBody(
+                    AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
+                    "{\"editor\":{\"autoDigestLength\":-1}}",
+                    "writing");
+            CreateOrUpdateArticleResponse fullDigest =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("Full summary", "full-summary"));
+            assertEquals(
+                    "<p>Full summary content</p>",
+                    db.scalar("select digest from log where logId=?", fullDigest.getLogId()));
+            preferences.updateBody(
+                    AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
+                    "{\"editor\":{\"autoDigestLength\":0}}",
+                    "writing");
             CreateArticleRequest custom = article("Custom summary", "custom-summary");
             custom.setDigest("Keep my summary");
-            CreateOrUpdateArticleResponse customDigest = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), custom);
-            assertEquals("Keep my summary", db.scalar("select digest from log where logId=?", customDigest.getLogId()));
+            CreateOrUpdateArticleResponse customDigest =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            custom);
+            assertEquals(
+                    "Keep my summary",
+                    db.scalar("select digest from log where logId=?", customDigest.getLogId()));
         }
     }
 
@@ -149,18 +183,30 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldCreateAndLoadArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
+            AdminArticleService service = db.component(ContentComponent.class).articles();
             AIConversationService conversationService =
                     db.component(AIComponent.class).conversations().captureAccount(1);
-            assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
+            assertTrue(
+                    conversationService.saveAIMessage(
+                            List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
 
-            CreateOrUpdateArticleResponse response = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Hello Article", "hello.article"));
-            Map<String, Object> row = db.queryOne("select * from log where logId=?", response.getLogId());
+            CreateOrUpdateArticleResponse response =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("Hello Article", "hello.article"));
+            Map<String, Object> row =
+                    db.queryOne("select * from log where logId=?", response.getLogId());
             LoadEditArticleResponse loaded =
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "hello-article", request());
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "hello-article",
+                                    request());
 
             assertEquals(Long.valueOf(1), response.getLogId());
             assertEquals("hello-article", row.get("alias"));
@@ -174,8 +220,16 @@ public class AdminArticleServiceDatabaseTest {
             assertEquals(Long.valueOf(1), loaded.getTypeId());
             assertTrue(loaded.getPreviewUrl().contains("/hello-article"));
             assertNotNull(loaded.getSocialPreview());
-            assertEquals(1, conversationService.getAiMessageInfoByArticleId(response.getLogId()).getAiMessages().size());
-            assertEquals("[]", db.queryOne("select value from website where name=?", "ai_chat_message_u1_-1").get("value"));
+            assertEquals(
+                    1,
+                    conversationService
+                            .getAiMessageInfoByArticleId(response.getLogId())
+                            .getAiMessages()
+                            .size());
+            assertEquals(
+                    "[]",
+                    db.queryOne("select value from website where name=?", "ai_chat_message_u1_-1")
+                            .get("value"));
         }
     }
 
@@ -188,26 +242,37 @@ public class AdminArticleServiceDatabaseTest {
             db.putWebsite("ai_base_url", "http://127.0.0.1:18081/v1");
             db.putWebsite("ai_api_key", "");
 
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
+            AdminArticleService service = db.component(ContentComponent.class).articles();
 
             assertEquals(
                     Boolean.TRUE,
                     ((AIArticleGlobalResponse)
-                            db.component(ContentComponent.class)
-                                    .queries()
-                                    .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
-                                    .getData())
+                                    db.component(ContentComponent.class)
+                                            .queries()
+                                            .loadDetailById(
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .requestIdentity()
+                                                            .current(),
+                                                    "",
+                                                    request())
+                                            .getData())
                             .getAiConfigured());
 
             db.putWebsite("ai_base_url", "");
             assertEquals(
                     Boolean.FALSE,
                     ((AIArticleGlobalResponse)
-                            db.component(ContentComponent.class)
-                                    .queries()
-                                    .loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "", request())
-                                    .getData())
+                                    db.component(ContentComponent.class)
+                                            .queries()
+                                            .loadDetailById(
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .requestIdentity()
+                                                            .current(),
+                                                    "",
+                                                    request())
+                                            .getData())
                             .getAiConfigured());
         }
     }
@@ -216,18 +281,29 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldPreserveUnsavedDraftAiMessagesForIndependentCreate() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
-            AdminArticleService service =
-                    ignored.component(ContentComponent.class).articles();
+            AdminArticleService service = ignored.component(ContentComponent.class).articles();
             AIConversationService conversationService =
                     ignored.component(AIComponent.class).conversations().captureAccount(1);
-            assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
+            assertTrue(
+                    conversationService.saveAIMessage(
+                            List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
             CreateArticleRequest request = article("Imported draft", "imported-draft");
             request.setPreserveDraftAiMessages(true);
 
-            CreateOrUpdateArticleResponse response = service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), request);
+            CreateOrUpdateArticleResponse response =
+                    service.create(
+                            AccountServicesFixture.component(ignored.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            request);
 
-            assertTrue(conversationService.getAiMessageInfoByArticleId(response.getLogId()).getAiMessages().isEmpty());
-            assertEquals(1, conversationService.getAiMessageInfoByArticleId(0L).getAiMessages().size());
+            assertTrue(
+                    conversationService
+                            .getAiMessageInfoByArticleId(response.getLogId())
+                            .getAiMessages()
+                            .isEmpty());
+            assertEquals(
+                    1, conversationService.getAiMessageInfoByArticleId(0L).getAiMessages().size());
         }
     }
 
@@ -235,17 +311,30 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldUpdateArticleAndRecordReversePatchThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
-            CreateOrUpdateArticleResponse created = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("First Title", "first"));
-            UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0, "Second Title", "second");
+            AdminArticleService service = db.component(ContentComponent.class).articles();
+            CreateOrUpdateArticleResponse created =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("First Title", "first"));
+            UpdateArticleRequest update =
+                    updateArticle(created.getLogId().intValue(), 0, "Second Title", "second");
 
-            CreateOrUpdateArticleResponse updated = service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
-            Map<String, Object> row = db.queryOne("select title, alias, version, privacy from log where logId=?",
-                    created.getLogId());
-            Map<String, Object> patch = db.queryOne(
-                    "select article_version, from_version, title, patch_json from log_version where log_id=?",
-                    created.getLogId());
+            CreateOrUpdateArticleResponse updated =
+                    service.update(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            update);
+            Map<String, Object> row =
+                    db.queryOne(
+                            "select title, alias, version, privacy from log where logId=?",
+                            created.getLogId());
+            Map<String, Object> patch =
+                    db.queryOne(
+                            "select article_version, from_version, title, patch_json from log_version where log_id=?",
+                            created.getLogId());
 
             assertEquals(created.getLogId(), updated.getLogId());
             assertEquals(Boolean.TRUE, updated.getPrivacy());
@@ -264,25 +353,47 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldClearStickyWhenPublishedArticleBecomesPrivate() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
-            CreateOrUpdateArticleResponse created = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Pinned", "pinned"));
+            AdminArticleService service = db.component(ContentComponent.class).articles();
+            CreateOrUpdateArticleResponse created =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("Pinned", "pinned"));
             CreateOrUpdateArticleResponse other =
-                    service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Pinned Other", "pinned-other"));
-            new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("Pinned Other", "pinned-other"));
+            new ArticlePinningService(
+                            () -> new LogRepository(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()))
                     .pin(created.getLogId());
-            new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+            new ArticlePinningService(
+                            () -> new LogRepository(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()))
                     .pin(other.getLogId());
-            UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0,
-                    "Pinned Private", "pinned-private");
+            UpdateArticleRequest update =
+                    updateArticle(
+                            created.getLogId().intValue(), 0, "Pinned Private", "pinned-private");
 
-            CreateOrUpdateArticleResponse updated = service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
+            CreateOrUpdateArticleResponse updated =
+                    service.update(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            update);
 
-            assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?",
-                    created.getLogId())).intValue());
+            assertEquals(
+                    0,
+                    ((Number) db.scalar("select sticky from log where logId=?", created.getLogId()))
+                            .intValue());
             assertEquals(
                     1L,
-                    new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                    new ArticlePinningService(
+                                    () -> new LogRepository(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource()))
                             .list()
                             .getItems()
                             .get(0)
@@ -290,7 +401,9 @@ public class AdminArticleServiceDatabaseTest {
                             .longValue());
             assertEquals(
                     other.getLogId(),
-                    new ArticlePinningService(() -> new LogRepository(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
+                    new ArticlePinningService(
+                                    () -> new LogRepository(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource()))
                             .list()
                             .getItems()
                             .get(0)
@@ -303,22 +416,49 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldCountAndPageArticleStatusesThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
-            AdminArticleService service =
-                    ignored.component(ContentComponent.class).articles();
-            service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), article("Published", "published"));
-            service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), article("Private", "private", true, false));
-            service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), article("Draft", "draft", false, true));
+            AdminArticleService service = ignored.component(ContentComponent.class).articles();
+            service.create(
+                    AccountServicesFixture.component(ignored.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    article("Published", "published"));
+            service.create(
+                    AccountServicesFixture.component(ignored.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    article("Private", "private", true, false));
+            service.create(
+                    AccountServicesFixture.component(ignored.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    article("Draft", "draft", false, true));
 
             ArticleStatusCountResponse counts =
-                    ignored.component(ContentComponent.class).queries().getStatusCounts(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().current());
+                    ignored.component(ContentComponent.class)
+                            .queries()
+                            .getStatusCounts(
+                                    AccountServicesFixture.component(ignored.dataSource())
+                                            .requestIdentity()
+                                            .current());
             ArticlePageData privatePage =
                     ignored.component(ContentComponent.class)
                             .queries()
-                            .adminPage(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().current(), new PageRequestImpl(1L, 10L), "", "", "private", request());
+                            .adminPage(
+                                    AccountServicesFixture.component(ignored.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    new PageRequestImpl(1L, 10L),
+                                    "",
+                                    "",
+                                    "private",
+                                    request());
             ArticlePageData publishedPage =
                     ignored.component(ContentComponent.class)
                             .queries()
-                            .adminPage(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().current(),
+                            .adminPage(
+                                    AccountServicesFixture.component(ignored.dataSource())
+                                            .requestIdentity()
+                                            .current(),
                                     new PageRequestImpl(1L, 10L),
                                     "Published",
                                     "",
@@ -341,17 +481,33 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldDeleteArticleAndRemovePersistedAiMessageThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
+            AdminArticleService service = db.component(ContentComponent.class).articles();
             AIConversationService conversationService =
                     db.component(AIComponent.class).conversations().captureAccount(1);
-            CreateOrUpdateArticleResponse created = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Delete Me", "delete-me"));
-            assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "keep")), created.getLogId()));
+            CreateOrUpdateArticleResponse created =
+                    service.create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("Delete Me", "delete-me"));
+            assertTrue(
+                    conversationService.saveAIMessage(
+                            List.of(new AIResponseEntry.AIContentEntry("user", "keep")),
+                            created.getLogId()));
 
-            assertTrue(service.delete(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), created.getLogId()));
+            assertTrue(
+                    service.delete(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .current(),
+                            created.getLogId()));
 
             assertNull(db.queryOne("select logId from log where logId=?", created.getLogId()));
-            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_u1_" + created.getLogId()).get("value"));
+            assertNull(
+                    db.queryOne(
+                                    "select value from website where name=?",
+                                    "ai_chat_message_u1_" + created.getLogId())
+                            .get("value"));
         }
     }
 
@@ -359,12 +515,24 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldRejectExpiredArticleVersionAgainstRealDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
-            AdminArticleService service =
-                    ignored.component(ContentComponent.class).articles();
-            CreateOrUpdateArticleResponse created = service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), article("Versioned", "versioned"));
-            UpdateArticleRequest staleUpdate = updateArticle(created.getLogId().intValue(), -1, "Stale", "stale");
+            AdminArticleService service = ignored.component(ContentComponent.class).articles();
+            CreateOrUpdateArticleResponse created =
+                    service.create(
+                            AccountServicesFixture.component(ignored.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            article("Versioned", "versioned"));
+            UpdateArticleRequest staleUpdate =
+                    updateArticle(created.getLogId().intValue(), -1, "Stale", "stale");
 
-            assertThrows(UpdateArticleExpireException.class, () -> service.update(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), staleUpdate));
+            assertThrows(
+                    UpdateArticleExpireException.class,
+                    () ->
+                            service.update(
+                                    AccountServicesFixture.component(ignored.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    staleUpdate));
         }
     }
 
@@ -372,14 +540,27 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldRejectMissingRequiredArticleFieldsBeforeWritingDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
-            AdminArticleService service =
-                    ignored.component(ContentComponent.class).articles();
+            AdminArticleService service = ignored.component(ContentComponent.class).articles();
             CreateArticleRequest missingTitle = article("", "missing-title");
             CreateArticleRequest missingType = article("Missing Type", "missing-type");
             missingType.setTypeId(0L);
 
-            assertThrows(ArticleMissingTitleException.class, () -> service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), missingTitle));
-            assertThrows(ArticleMissingTypeException.class, () -> service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), missingType));
+            assertThrows(
+                    ArticleMissingTitleException.class,
+                    () ->
+                            service.create(
+                                    AccountServicesFixture.component(ignored.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    missingTitle));
+            assertThrows(
+                    ArticleMissingTypeException.class,
+                    () ->
+                            service.create(
+                                    AccountServicesFixture.component(ignored.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    missingType));
         }
     }
 
@@ -387,10 +568,17 @@ public class AdminArticleServiceDatabaseTest {
     public void shouldBuildRecentArticleActivityDataFromRealReleaseTimes() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
-            AdminArticleService service =
-                    ignored.component(ContentComponent.class).articles();
-            service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), article("Activity One", "activity-one"));
-            service.create(AccountServicesFixture.component(ignored.dataSource()).requestIdentity().account(token()), article("Activity Two", "activity-two"));
+            AdminArticleService service = ignored.component(ContentComponent.class).articles();
+            service.create(
+                    AccountServicesFixture.component(ignored.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    article("Activity One", "activity-one"));
+            service.create(
+                    AccountServicesFixture.component(ignored.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    article("Activity Two", "activity-two"));
 
             List<ArticleActivityData> activityData =
                     ignored.component(ContentComponent.class)
@@ -408,66 +596,135 @@ public class AdminArticleServiceDatabaseTest {
     public void arrangementCanBeCreatedLoadedPreservedChangedAndCleared() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
+            AdminArticleService service = db.component(ContentComponent.class).articles();
             CreateArticleRequest create = article("Toolbox", "toolbox");
             create.setArrange_plugin("retro-runtime");
-            int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), create).getLogId().intValue();
+            int id =
+                    service.create(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    create)
+                            .getLogId()
+                            .intValue();
             assertEquals(
                     "retro-runtime",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "toolbox",
+                                    request())
                             .getArrange_plugin());
-            assertEquals("retro-runtime", db.scalar("select arrange_plugin from log where logId=?", id));
+            assertEquals(
+                    "retro-runtime", db.scalar("select arrange_plugin from log where logId=?", id));
             Gson gson = new Gson();
-            for (boolean explicitNull : new boolean[]{false, true}) {
+            for (boolean explicitNull : new boolean[] {false, true}) {
                 JsonObject body =
                         gson.toJsonTree(
                                         db.component(ContentComponent.class)
                                                 .queries()
-                                                .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request()))
+                                                .loadDetail(
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .requestIdentity()
+                                                                .current(),
+                                                        "toolbox",
+                                                        request()))
                                 .getAsJsonObject();
                 body.remove("arrange_plugin");
                 if (explicitNull) body.add("arrange_plugin", com.google.gson.JsonNull.INSTANCE);
                 body.addProperty("title", explicitNull ? "Explicit null" : "Legacy client");
-                service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), gson.fromJson(body, UpdateArticleRequest.class));
+                service.update(
+                        AccountServicesFixture.component(db.dataSource())
+                                .requestIdentity()
+                                .account(token()),
+                        gson.fromJson(body, UpdateArticleRequest.class));
                 assertEquals(
                         "retro-runtime",
                         db.component(ContentComponent.class)
                                 .queries()
-                                .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request())
+                                .loadDetail(
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .requestIdentity()
+                                                .current(),
+                                        "toolbox",
+                                        request())
                                 .getArrange_plugin());
             }
             UpdateArticleRequest update =
-                    db.component(ContentComponent.class).queries().loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request());
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "toolbox",
+                                    request());
             update.setArrange_plugin("article-arranger");
-            service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
+            service.update(
+                    AccountServicesFixture.component(db.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    update);
             assertEquals(
                     "article-arranger",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "toolbox",
+                                    request())
                             .getArrange_plugin());
             update.setArrange_plugin("");
-            assertThrows(UpdateArticleExpireException.class, () -> service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update));
+            assertThrows(
+                    UpdateArticleExpireException.class,
+                    () ->
+                            service.update(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    update));
             assertEquals(
                     "article-arranger",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "toolbox",
+                                    request())
                             .getArrange_plugin());
             update.setVersion(
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "toolbox",
+                                    request())
                             .getVersion());
-            service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
+            service.update(
+                    AccountServicesFixture.component(db.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    update);
             assertEquals(
                     "",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "toolbox", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "toolbox",
+                                    request())
                             .getArrange_plugin());
             assertEquals("", db.scalar("select arrange_plugin from log where logId=?", id));
         }
@@ -477,27 +734,56 @@ public class AdminArticleServiceDatabaseTest {
     public void arrangementHistoryRestoresPluginAndLegacyDefault() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
-            int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Layout", "layout")).getLogId().intValue();
+            AdminArticleService service = db.component(ContentComponent.class).articles();
+            int id =
+                    service.create(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    article("Layout", "layout"))
+                            .getLogId()
+                            .intValue();
             assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
             assertEquals(
                     "",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "layout",
+                                    request())
                             .getArrange_plugin());
             UpdateArticleRequest update =
-                    db.component(ContentComponent.class).queries().loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout", request());
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "layout",
+                                    request());
             update.setEditorType("markdown");
             update.setArrange_plugin("retro-runtime");
-            service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
+            service.update(
+                    AccountServicesFixture.component(db.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    update);
             ArticleVersionService versions = db.component(ContentComponent.class).versions();
             assertEquals(
                     List.of("arrange_plugin"),
                     db.component(ContentComponent.class)
                             .revisions()
-                            .compare(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), id, 0, 1, request())
+                            .compare(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    id,
+                                    0,
+                                    1,
+                                    request())
                             .getChangedFields());
             assertEquals(
                     "",
@@ -506,33 +792,68 @@ public class AdminArticleServiceDatabaseTest {
                                     0,
                                     db.component(ContentComponent.class)
                                             .queries()
-                                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), Integer.toString(id), request()))
+                                            .loadDetail(
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .requestIdentity()
+                                                            .current(),
+                                                    Integer.toString(id),
+                                                    request()))
                             .getArrange_plugin());
             ArticleVersionRollbackRequest rollback = new ArticleVersionRollbackRequest();
             rollback.setLogId(id);
             rollback.setVersion(1);
             rollback.setTargetVersion(0);
-            db.component(ContentComponent.class).revisions().rollback(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), rollback, request());
+            db.component(ContentComponent.class)
+                    .revisions()
+                    .rollback(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            rollback,
+                            request());
             assertEquals(
                     "",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "layout",
+                                    request())
                             .getArrange_plugin());
             rollback.setVersion(2);
             rollback.setTargetVersion(1);
-            db.component(ContentComponent.class).revisions().rollback(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), rollback, request());
+            db.component(ContentComponent.class)
+                    .revisions()
+                    .rollback(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(token()),
+                            rollback,
+                            request());
             assertEquals(
                     "retro-runtime",
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "layout",
+                                    request())
                             .getArrange_plugin());
             assertEquals(
                     Integer.valueOf(3),
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "layout",
+                                    request())
                             .getVersion());
         }
     }
@@ -541,33 +862,85 @@ public class AdminArticleServiceDatabaseTest {
     public void invalidArrangementIsRejectedBeforePersisting() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            AdminArticleService service =
-                    db.component(ContentComponent.class).articles();
-            int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article("Valid", "valid")).getLogId().intValue();
-            for (String invalid : List.of("../widget", "<plugin>", "a/b", "a\\b", "a b", " a", "a\n", "a".repeat(65))) {
+            AdminArticleService service = db.component(ContentComponent.class).articles();
+            int id =
+                    service.create(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .account(token()),
+                                    article("Valid", "valid"))
+                            .getLogId()
+                            .intValue();
+            for (String invalid :
+                    List.of(
+                            "../widget",
+                            "<plugin>",
+                            "a/b",
+                            "a\\b",
+                            "a b",
+                            " a",
+                            "a\n",
+                            "a".repeat(65))) {
                 CreateArticleRequest create = article("Invalid", "invalid");
                 create.setArrange_plugin(invalid);
                 assertThrows(ArgsException.class, create::doValid);
-                assertThrows(ArgsException.class, () -> service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), create));
+                assertThrows(
+                        ArgsException.class,
+                        () ->
+                                service.create(
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .requestIdentity()
+                                                .account(token()),
+                                        create));
                 UpdateArticleRequest update =
                         db.component(ContentComponent.class)
                                 .queries()
-                                .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "valid", request());
+                                .loadDetail(
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .requestIdentity()
+                                                .current(),
+                                        "valid",
+                                        request());
                 update.setArrange_plugin(invalid);
-                assertThrows(ArgsException.class, () -> service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update));
+                assertThrows(
+                        ArgsException.class,
+                        () ->
+                                service.update(
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .requestIdentity()
+                                                .account(token()),
+                                        update));
             }
             assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
             assertEquals(
                     Integer.valueOf(0),
                     db.component(ContentComponent.class)
                             .queries()
-                            .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "valid", request())
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "valid",
+                                    request())
                             .getVersion());
             UpdateArticleRequest update =
-                    db.component(ContentComponent.class).queries().loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "valid", request());
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "valid",
+                                    request());
             update.setArrange_plugin("a_1.-" + "z".repeat(59));
-            service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), update);
-            assertEquals(update.getArrange_plugin(), db.scalar("select arrange_plugin from log where logId=?", id));
+            service.update(
+                    AccountServicesFixture.component(db.dataSource())
+                            .requestIdentity()
+                            .account(token()),
+                    update);
+            assertEquals(
+                    update.getArrange_plugin(),
+                    db.scalar("select arrange_plugin from log where logId=?", id));
         }
     }
 }

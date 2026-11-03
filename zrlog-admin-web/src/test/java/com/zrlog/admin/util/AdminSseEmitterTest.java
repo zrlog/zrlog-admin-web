@@ -1,5 +1,8 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -10,36 +13,34 @@ import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.data.repository.AdminLogRepository;
-import com.zrlog.admin.data.repository.LogVersionRepository;
-import org.junit.Test;
-
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 public class AdminSseEmitterTest {
-
 
     @Test
     public void shouldWriteSseHeadersAndPayload() throws Exception {
         CapturedResponse capturedResponse = new CapturedResponse();
 
-        AdminSseEmitter.write(capturedResponse.response(), "admin-sse-test",
+        AdminSseEmitter.write(
+                capturedResponse.response(),
+                "admin-sse-test",
                 emitter -> emitter.send("admin-progress", Map.of("status", "running")));
 
         String body = capturedResponse.body();
-        assertEquals("text/event-stream;charset=UTF-8", capturedResponse.headers.get("Content-Type"));
+        assertEquals(
+                "text/event-stream;charset=UTF-8", capturedResponse.headers.get("Content-Type"));
         assertEquals("no-cache", capturedResponse.addedHeaders.get("Cache-Control"));
         assertEquals("keep-alive", capturedResponse.addedHeaders.get("Connection"));
         assertEquals("no", capturedResponse.addedHeaders.get("X-Accel-Buffering"));
@@ -51,14 +52,20 @@ public class AdminSseEmitterTest {
     public void shouldWriteSseErrorWhenWriterFails() throws Exception {
         CapturedResponse capturedResponse = new CapturedResponse();
 
-        AdminSseEmitter.write(capturedResponse.response(), "admin-sse-error-test", "admin-error",
+        AdminSseEmitter.write(
+                capturedResponse.response(),
+                "admin-sse-error-test",
+                "admin-error",
                 emitter -> {
                     throw new IllegalStateException("boom");
                 });
 
         String body = capturedResponse.body();
         assertTrue(body.contains("event: admin-error"));
-        assertTrue(body.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.common.request.error")));
+        assertTrue(
+                body.contains(
+                        com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                                "admin.common.request.error")));
         org.junit.Assert.assertFalse(body.contains("boom"));
     }
 
@@ -102,50 +109,61 @@ public class AdminSseEmitterTest {
                                     org.junit.Assert.assertThrows(
                                             PermissionErrorException.class,
                                             () ->
-                                                    new AdminArticleService(ApplicationServicesFixture
-                                                            .capability(
-                                                                    db.config(),
-                                                                    ArticleAssistant
-                                                                            .class),
-                                                            AccountServicesFixture
-                                                                    .component(
-                                                                            db.dataSource())
-                                                                    .permissions(),
-                                                            AccountServicesFixture
-                                                                    .component(
-                                                                            db.dataSource())
-                                                                    .identities(),
-                                                            AccountServicesFixture
-                                                                    .component(
-                                                                            db.dataSource())
-                                                                    .preferences(),
-                                                            new ArticleVersionService(AccountServicesFixture
-                                                                    .component(
-                                                                            db
-                                                                                    .dataSource())
-                                                                    .permissions(),
-                                                                    () ->
-                                                                            new AdminLogRepository(
-                                                                                    db
-                                                                                            .dataSource()),
-                                                                    () ->
-                                                                            new LogVersionRepository(
-                                                                                    db
-                                                                                            .dataSource())),
-                                                            new ArticlePinningService(
+                                                    new AdminArticleService(
+                                                                    ApplicationServicesFixture
+                                                                            .capability(
+                                                                                    db.config(),
+                                                                                    ArticleAssistant
+                                                                                            .class),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .identities(),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .preferences(),
+                                                                    new ArticleVersionService(
+                                                                            AccountServicesFixture
+                                                                                    .component(
+                                                                                            db
+                                                                                                    .dataSource())
+                                                                                    .permissions(),
+                                                                            () ->
+                                                                                    new AdminLogRepository(
+                                                                                            db
+                                                                                                    .dataSource()),
+                                                                            () ->
+                                                                                    new LogVersionRepository(
+                                                                                            db
+                                                                                                    .dataSource())),
+                                                                    new ArticlePinningService(
+                                                                            () ->
+                                                                                    new AdminLogRepository(
+                                                                                            db
+                                                                                                    .dataSource()),
+                                                                            ApplicationServicesFixture
+                                                                                    .locks(
+                                                                                            db
+                                                                                                    .dataSource())),
                                                                     () ->
                                                                             new AdminLogRepository(
                                                                                     db
                                                                                             .dataSource()),
                                                                     ApplicationServicesFixture
-                                                                            .locks(
-                                                                                    db
-                                                                                            .dataSource())),
-                                                            () -> new AdminLogRepository(db.dataSource()),
-                                                            ApplicationServicesFixture
-                                                                    .locks(db.dataSource()))
+                                                                            .locks(db.dataSource()))
                                                             .create(
-                                                                    AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),
+                                                                    AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .requestIdentity()
+                                                                            .account(
+                                                                                    AdminTokenThreadLocal
+                                                                                            .getUser()),
                                                                     request));
                                     emitter.send("checked", true);
                                 });
@@ -153,7 +171,11 @@ public class AdminSseEmitterTest {
                     });
             assertTrue(response.body().contains("event: checked"));
             org.junit.Assert.assertFalse(DelegatedAccess.active());
-            assertTrue(AccountServicesFixture.component(db.dataSource()).requestIdentity().current().canPublish());
+            assertTrue(
+                    AccountServicesFixture.component(db.dataSource())
+                            .requestIdentity()
+                            .current()
+                            .canPublish());
         }
     }
 
@@ -167,31 +189,33 @@ public class AdminSseEmitterTest {
         }
 
         private HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(
-                    AdminSseEmitterTest.class.getClassLoader(),
-                    new Class[]{HttpResponse.class},
-                    (proxy, method, args) -> {
-                        if ("getHeader".equals(method.getName())) {
-                            return headers;
-                        }
-                        if ("addHeader".equals(method.getName())) {
-                            addedHeaders.put(args[0].toString(), args[1].toString());
-                            return null;
-                        }
-                        if ("write".equals(method.getName())) {
-                            if (args[0] instanceof InputStream) {
-                                written = (InputStream) args[0];
-                            }
-                            return null;
-                        }
-                        if ("write".equals(method.getName()) && args[0] instanceof ByteArrayOutputStream) {
-                            return null;
-                        }
-                        if ("toString".equals(method.getName())) {
-                            return "HttpResponseProxy";
-                        }
-                        return null;
-                    });
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            AdminSseEmitterTest.class.getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                if ("getHeader".equals(method.getName())) {
+                                    return headers;
+                                }
+                                if ("addHeader".equals(method.getName())) {
+                                    addedHeaders.put(args[0].toString(), args[1].toString());
+                                    return null;
+                                }
+                                if ("write".equals(method.getName())) {
+                                    if (args[0] instanceof InputStream) {
+                                        written = (InputStream) args[0];
+                                    }
+                                    return null;
+                                }
+                                if ("write".equals(method.getName())
+                                        && args[0] instanceof ByteArrayOutputStream) {
+                                    return null;
+                                }
+                                if ("toString".equals(method.getName())) {
+                                    return "HttpResponseProxy";
+                                }
+                                return null;
+                            });
         }
     }
 }

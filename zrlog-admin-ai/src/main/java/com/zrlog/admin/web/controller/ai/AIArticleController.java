@@ -27,7 +27,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -80,18 +79,28 @@ public class AIArticleController extends BaseController {
             if (body == null || body.remaining() > AIFileService.MAX_REQUEST_BYTES)
                 throw new ArgsException();
             streamResponse =
-                    chat.start(requestIdentity.current(), getRequestBodyWithNullCheck(AIChatModels.ChatRequest.class),
-                            AdminAuditContexts.from(request, requestIdentity.current().getUserId()), AdminTokenThreadLocal.getUser());
+                    chat.start(
+                            requestIdentity.current(),
+                            getRequestBodyWithNullCheck(AIChatModels.ChatRequest.class),
+                            AdminAuditContexts.from(request, requestIdentity.current().getUserId()),
+                            AdminTokenThreadLocal.getUser());
         } else {
-            GenerateArticleFieldRequest articleContext = StringUtils.isNotEmpty(tool)
-                    ? getRequestBodyWithNullCheck(GenerateArticleFieldRequest.class)
-                    : null;
+            GenerateArticleFieldRequest articleContext =
+                    StringUtils.isNotEmpty(tool)
+                            ? getRequestBodyWithNullCheck(GenerateArticleFieldRequest.class)
+                            : null;
             if (Objects.equals(tool, "publishCheck")) {
                 publishingService.fillPublishCheckContext(articleContext);
             }
-            streamResponse = chat.startStreamResponse(requestIdentity.current(), getParamWithEmptyCheck("input"),
-                    aiContextId(), tool, articleContext, AdminAuditContexts.from(request, requestIdentity.current().getUserId()),
-                    AdminTokenThreadLocal.getUser());
+            streamResponse =
+                    chat.startStreamResponse(
+                            requestIdentity.current(),
+                            getParamWithEmptyCheck("input"),
+                            aiContextId(),
+                            tool,
+                            articleContext,
+                            AdminAuditContexts.from(request, requestIdentity.current().getUserId()),
+                            AdminTokenThreadLocal.getUser());
         }
         writeStream(streamResponse);
     }
@@ -101,8 +110,12 @@ public class AIArticleController extends BaseController {
     public void approveAiOperation() throws IOException, SQLException {
         java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
         if (body == null || body.remaining() > 4096) throw new ArgsException();
-        writeStream(chat.resume(requestIdentity.current(), getRequestBodyWithNullCheck(AIChatModels.ApprovalRequest.class),
-                AdminAuditContexts.from(request, requestIdentity.current().getUserId()), AdminTokenThreadLocal.getUser()));
+        writeStream(
+                chat.resume(
+                        requestIdentity.current(),
+                        getRequestBodyWithNullCheck(AIChatModels.ApprovalRequest.class),
+                        AdminAuditContexts.from(request, requestIdentity.current().getUserId()),
+                        AdminTokenThreadLocal.getUser()));
     }
 
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
@@ -110,8 +123,12 @@ public class AIArticleController extends BaseController {
     public void submitAiInput() throws IOException, SQLException {
         java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
         if (body == null || body.remaining() > 64 * 1024) throw new ArgsException();
-        writeStream(chat.resumeInput(requestIdentity.current(), getRequestBodyWithNullCheck(AIChatModels.InputRequest.class),
-                AdminAuditContexts.from(request, requestIdentity.current().getUserId()), AdminTokenThreadLocal.getUser()));
+        writeStream(
+                chat.resumeInput(
+                        requestIdentity.current(),
+                        getRequestBodyWithNullCheck(AIChatModels.InputRequest.class),
+                        AdminAuditContexts.from(request, requestIdentity.current().getUserId()),
+                        AdminTokenThreadLocal.getUser()));
     }
 
     @ResponseBody
@@ -122,16 +139,25 @@ public class AIArticleController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     public ApiStandardResponse<AIChatModels.RunView> aiRun() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
-        return new ApiStandardResponse<>(chat.getRun(requestIdentity.current(), Long.parseLong(request.getParaToStr("id", "0"))));
+        return new ApiStandardResponse<>(
+                chat.getRun(
+                        requestIdentity.current(),
+                        Long.parseLong(request.getParaToStr("id", "0"))));
     }
 
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.assist")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_ASSIST,
+            articleQuery = true,
+            descriptionKey = "article.assist")
     @RequestMethod(method = HttpMethod.GET)
     public void aiFile() throws SQLException, IOException {
         response.addHeader("Cache-Control", "private, no-store");
         response.addHeader("X-Content-Type-Options", "nosniff");
-        var file = chat.imageAttachment(requestIdentity.current(), Long.parseLong(request.getParaToStr("id", "0")),
-                getParamWithEmptyCheck("fileId"));
+        var file =
+                chat.imageAttachment(
+                        requestIdentity.current(),
+                        Long.parseLong(request.getParaToStr("id", "0")),
+                        getParamWithEmptyCheck("fileId"));
         byte[] bytes = this.aIFileService.read(requestIdentity.current().getUserId(), file);
         response.setContentType(file.mimeType);
         response.write(new ByteArrayInputStream(bytes));
@@ -141,9 +167,15 @@ public class AIArticleController extends BaseController {
         AdminSseEmitter.setHeaders(response);
         response.addHeader("Cache-Control", "no-store, no-transform");
         if (streamResponse.getInputStream() == null) {
-            String errorPayload = new Gson().toJson(AdminSsePayloads.error(1,
-                    Objects.requireNonNullElse(streamResponse.getErrorBody(), "")));
-            response.write(new ByteArrayInputStream(errorPayload.getBytes(StandardCharsets.UTF_8)),
+            String errorPayload =
+                    new Gson()
+                            .toJson(
+                                    AdminSsePayloads.error(
+                                            1,
+                                            Objects.requireNonNullElse(
+                                                    streamResponse.getErrorBody(), "")));
+            response.write(
+                    new ByteArrayInputStream(errorPayload.getBytes(StandardCharsets.UTF_8)),
                     streamResponse.getStatusCode());
             return;
         }
@@ -160,45 +192,71 @@ public class AIArticleController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     public ApiStandardResponse<KnowledgeModels.SearchResult> aiReferences() throws SQLException {
         response.addHeader("Cache-Control", "private, no-store");
-        return new ApiStandardResponse<>(references.search(requestIdentity.current(), request.getParaToStr("query", "")));
+        return new ApiStandardResponse<>(
+                references.search(requestIdentity.current(), request.getParaToStr("query", "")));
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.aiMessage")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_ASSIST,
+            articleQuery = true,
+            descriptionKey = "article.aiMessage")
     public ApiStandardResponse<Boolean> updateAiMessage() throws SQLException {
-        UpdateAIMessageRequest updateRequest = getRequestBodyWithNullCheck(UpdateAIMessageRequest.class);
+        UpdateAIMessageRequest updateRequest =
+                getRequestBodyWithNullCheck(UpdateAIMessageRequest.class);
         boolean updated =
-                this.conversations.captureAccount(requestIdentity.current().getUserId()).updateAIMessagePayload(
-                        aiContextId(),
-                        updateRequest.getMessageId(),
-                        updateRequest.getTool(),
-                        updateRequest.getPayload());
+                this.conversations
+                        .captureAccount(requestIdentity.current().getUserId())
+                        .updateAIMessagePayload(
+                                aiContextId(),
+                                updateRequest.getMessageId(),
+                                updateRequest.getTool(),
+                                updateRequest.getPayload());
         return new ApiStandardResponse<>(updated);
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.clearAiMessages")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_ASSIST,
+            articleQuery = true,
+            descriptionKey = "article.clearAiMessages")
     public ApiStandardResponse<Boolean> clearAiMessages() {
-        boolean cleared = this.conversations.captureAccount(requestIdentity.current().getUserId()).clearAIMessage(aiContextId());
+        boolean cleared =
+                this.conversations
+                        .captureAccount(requestIdentity.current().getUserId())
+                        .clearAIMessage(aiContextId());
         if (!cleared) throw new AIMessageSaveException();
         return new ApiStandardResponse<>(cleared);
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.exportAiMessages")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_ASSIST,
+            articleQuery = true,
+            descriptionKey = "article.exportAiMessages")
     public ApiStandardResponse<ArticleAIMessageExportResponse> exportAiMessages() {
-        return new ApiStandardResponse<>(this.conversations.captureAccount(requestIdentity.current().getUserId()).exportAIMessage(aiContextId()));
+        return new ApiStandardResponse<>(
+                this.conversations
+                        .captureAccount(requestIdentity.current().getUserId())
+                        .exportAIMessage(aiContextId()));
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.applyCover")
+    @RequiresAction(
+            value = AccountAction.ARTICLE_ASSIST,
+            articleQuery = true,
+            descriptionKey = "article.applyCover")
     public ApiStandardResponse<UploadFileResponse> applyCover() throws SQLException {
-        ApplyArticleCoverRequest coverRequest = getRequestBodyWithNullCheck(ApplyArticleCoverRequest.class);
+        ApplyArticleCoverRequest coverRequest =
+                getRequestBodyWithNullCheck(ApplyArticleCoverRequest.class);
         UploadFileResponse uploadFileResponse =
                 this.aIImageService.applyArticleCover(
-                        requestIdentity.current(), AdminTokenThreadLocal.getUser(),
-                        coverRequest, getRequest(), aiContextId(), uploadService);
+                        requestIdentity.current(),
+                        AdminTokenThreadLocal.getUser(),
+                        coverRequest,
+                        getRequest(),
+                        aiContextId(),
+                        uploadService);
         return new ApiStandardResponse<>(uploadFileResponse);
     }
-
 }

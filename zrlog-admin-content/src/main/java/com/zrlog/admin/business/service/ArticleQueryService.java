@@ -13,6 +13,8 @@ import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.data.dto.ArticleCounts;
+import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
@@ -23,15 +25,12 @@ import com.zrlog.common.vo.SocialPreviewDTO;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.util.SocialPreviewUtils;
-import com.zrlog.admin.data.dto.ArticleCounts;
-import com.zrlog.admin.data.repository.AdminLogRepository;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
 import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -132,14 +131,12 @@ public class ArticleQueryService {
                 + Constants.getArticleUri()
                 + key
                 + StaticSitePlugin.getSuffix(
-                request,
-                Boolean.TRUE.equals(
-                        cacheService.getPublicWebSiteInfo().getGenerator_html_status()));
+                        request,
+                        Boolean.TRUE.equals(
+                                cacheService.getPublicWebSiteInfo().getGenerator_html_status()));
     }
 
-    /**
-     * 将输入的分页过后的对象，转化PageableResponse的对象
-     */
+    /** 将输入的分页过后的对象，转化PageableResponse的对象 */
     private PageData<ArticleResponseEntry> convertPageable(
             PageData<ArticleBasicDTO> object, HttpRequest request) {
         List<ArticleResponseEntry> dataList = new ArrayList<>();
@@ -267,7 +264,8 @@ public class ArticleQueryService {
                                 "select releaseTime from "
                                         + AdminLogRepository.TABLE_NAME
                                         + " where releaseTime >= ? order by releaseTime desc",
-                                ArticleBasicDTO.class, ResultValueConvertUtils.formatDate(
+                                ArticleBasicDTO.class,
+                                ResultValueConvertUtils.formatDate(
                                         calendar.getTime(), "yyyy-MM-dd"));
         Map<String, Long> archives = new LinkedHashMap<>();
         for (ArticleBasicDTO row : rows) {
@@ -300,8 +298,12 @@ public class ArticleQueryService {
         Integer articleId = response.getArticle().getId();
         response =
                 Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE)
-                        .enrichEditor(response, articleId == null ? draftContextId : articleId, access.getUserId());
-        AdminPageDataResponse<ArticleGlobalResponse> standardResponse = pages.response(access, response);
+                        .enrichEditor(
+                                response,
+                                articleId == null ? draftContextId : articleId,
+                                access.getUserId());
+        AdminPageDataResponse<ArticleGlobalResponse> standardResponse =
+                pages.response(access, response);
         StringJoiner sj = new StringJoiner(AdminConstants.ADMIN_TITLE_CHAR);
         if (Objects.nonNull(response.getArticle().getTitle())) {
             sj.add(response.getArticle().getTitle());
@@ -324,15 +326,15 @@ public class ArticleQueryService {
             return AdminConstants.ADMIN_URI_BASE_PATH
                     + "/403?message="
                     + I18nUtil.getAdminBackendStringFromRes(
-                    "admin.article.preview.error.forbidden");
+                            "admin.article.preview.error.forbidden");
         }
         return ZrLogUtil.getHomeUrlWithHost(request, cacheService.getPublicWebSiteInfo().getHost())
                 + Constants.getArticleUri()
                 + key
                 + StaticSitePlugin.getSuffix(
-                request,
-                Boolean.TRUE.equals(
-                        cacheService.getPublicWebSiteInfo().getGenerator_html_status()))
+                        request,
+                        Boolean.TRUE.equals(
+                                cacheService.getPublicWebSiteInfo().getGenerator_html_status()))
                 + "?v="
                 + articleResponseEntry.getVersion();
     }
@@ -390,7 +392,8 @@ public class ArticleQueryService {
         return sj.toString();
     }
 
-    public LoadEditArticleResponse loadDetail(AccountAccess access, String id, HttpRequest request) throws SQLException {
+    public LoadEditArticleResponse loadDetail(AccountAccess access, String id, HttpRequest request)
+            throws SQLException {
         ArticleBasicDTO log = this.logProvider.get().findByIdOrAlias(id);
         if (log == null) {
             throw new NotFindDbEntryException();

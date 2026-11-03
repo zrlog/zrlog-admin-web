@@ -1,12 +1,11 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
 import java.nio.charset.StandardCharsets;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AIServiceUtilityTest {
 
@@ -43,7 +42,8 @@ public class AIServiceUtilityTest {
         assertEquals("abc", service.truncate("abc", 10));
         assertEquals("abc", service.truncate("abcdef", 3));
 
-        AIImageService.DecodedImage decoded = service.decodeDataUrl("data:image/webp;base64,YWJj", "");
+        AIImageService.DecodedImage decoded =
+                service.decodeDataUrl("data:image/webp;base64,YWJj", "");
         assertArrayEquals("abc".getBytes(StandardCharsets.UTF_8), decoded.bytes);
         assertEquals("webp", decoded.extension);
 
@@ -74,16 +74,26 @@ public class AIServiceUtilityTest {
     @Test
     public void shouldExposeWritingSkillContextPolicy() {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
 
-        assertEquals(AIWritingSkillService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));
-        assertEquals(AIWritingSkillService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));
+        assertEquals(
+                AIWritingSkillService.ToolContextPolicy.FULL_CONVERSATION,
+                service.getToolContextPolicy("title"));
+        assertEquals(
+                AIWritingSkillService.ToolContextPolicy.CHAT_ONLY,
+                service.getToolContextPolicy("seo"));
         assertEquals("short", service.truncateContext("short"));
         assertEquals(500, service.truncateContext(repeat("a", 550)).length());
     }

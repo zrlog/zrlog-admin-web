@@ -4,8 +4,7 @@ public class AdminStaticSiteSyncResponse {
 
     private Boolean synced;
 
-    public AdminStaticSiteSyncResponse() {
-    }
+    public AdminStaticSiteSyncResponse() {}
 
     public AdminStaticSiteSyncResponse(Boolean synced) {
         this.synced = synced;

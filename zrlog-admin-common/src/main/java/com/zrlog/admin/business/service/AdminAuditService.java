@@ -16,7 +16,6 @@ import com.zrlog.util.I18nUtil;
 import com.zrlog.util.UserAgentUtils;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +31,7 @@ public class AdminAuditService {
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminAuditService.class);
     private final WebsiteKvService websiteKvService;
+
     @Inject
     public AdminAuditService(WebsiteKvService websiteKvService) {
         this.websiteKvService = websiteKvService;
@@ -45,11 +45,13 @@ public class AdminAuditService {
         record(context, action, content, null);
     }
 
-    public void recordLocalized(AdminAuditContext context, AdminAuditAction action, String contentKey) {
+    public void recordLocalized(
+            AdminAuditContext context, AdminAuditAction action, String contentKey) {
         record(context, action, "", contentKey);
     }
 
-    private void record(AdminAuditContext context, AdminAuditAction action, String content, String contentKey) {
+    private void record(
+            AdminAuditContext context, AdminAuditAction action, String content, String contentKey) {
         try {
             WebsiteKvService kvService = this.websiteKvService;
             String json = kvService.getString(AUDIT_LOG_KEY);
@@ -64,7 +66,8 @@ public class AdminAuditService {
             newLog.setContent(sanitizeContent(action, content));
             if (!"security".equals(action.getType())) newLog.setContentKey(contentKey);
 
-            boolean assistantRequest = context.getUri() != null && context.getUri().startsWith("/assistant/run/");
+            boolean assistantRequest =
+                    context.getUri() != null && context.getUri().startsWith("/assistant/run/");
             if (assistantRequest) {
                 newLog.setAssistantRunId(context.getUri().substring("/assistant/run/".length()));
             }
@@ -77,7 +80,9 @@ public class AdminAuditService {
                 newLog.setCrawler(uaInfo.isCrawler());
                 newLog.setAgentName(knownDevice(uaInfo.getAgentName()));
                 newLog.setAgentVersion(knownDevice(uaInfo.getAgentVersion()));
-                if (mcpRequest && uaInfo.getAgentName() == null && !"Unknown".equals(uaInfo.getBrowser())) {
+                if (mcpRequest
+                        && uaInfo.getAgentName() == null
+                        && !"Unknown".equals(uaInfo.getBrowser())) {
                     newLog.setAgentName(uaInfo.getBrowser());
                     if (!"Unknown".equals(uaInfo.getBrowserVersion())) {
                         newLog.setAgentVersion(uaInfo.getBrowserVersion());
@@ -90,8 +95,14 @@ public class AdminAuditService {
             }
 
             // Store stable source identifiers; labels are resolved for the reader's language.
-            newLog.setSource(assistantRequest ? "assistant" : mcpRequest ? "mcp"
-                    : newLog.getBrowser() != null || newLog.getAgentName() != null ? "client" : "unknown");
+            newLog.setSource(
+                    assistantRequest
+                            ? "assistant"
+                            : mcpRequest
+                                    ? "mcp"
+                                    : newLog.getBrowser() != null || newLog.getAgentName() != null
+                                            ? "client"
+                                            : "unknown");
             logs.add(0, newLog); // Add to the beginning
 
             if (logs.size() > MAX_LOG_SIZE) {
@@ -99,13 +110,23 @@ public class AdminAuditService {
             }
 
             if (!kvService.putString(AUDIT_LOG_KEY, serializeLogs(logs))) {
-                LOGGER.warning("Record admin audit log failed: action=" + action.name()
-                        + ", uri=" + context.getUri() + ", reason=no rows affected");
+                LOGGER.warning(
+                        "Record admin audit log failed: action="
+                                + action.name()
+                                + ", uri="
+                                + context.getUri()
+                                + ", reason=no rows affected");
             }
         } catch (SQLException e) {
-            // The business operation is already saved, but an audit failure must remain diagnosable.
-            LOGGER.log(Level.WARNING, "Record admin audit log failed: action=" + action.name()
-                    + ", uri=" + context.getUri(), e);
+            // The business operation is already saved, but an audit failure must remain
+            // diagnosable.
+            LOGGER.log(
+                    Level.WARNING,
+                    "Record admin audit log failed: action="
+                            + action.name()
+                            + ", uri="
+                            + context.getUri(),
+                    e);
         }
     }
 
@@ -159,8 +180,10 @@ public class AdminAuditService {
         displayLog.setIp(log.getIp());
         displayLog.setAction(action);
         displayLog.setType(log.getType());
-        displayLog.setContent(log.getContentKey() == null ? log.getContent()
-                : I18nUtil.getAdminBackendStringFromRes(log.getContentKey()));
+        displayLog.setContent(
+                log.getContentKey() == null
+                        ? log.getContent()
+                        : I18nUtil.getAdminBackendStringFromRes(log.getContentKey()));
         displayLog.setOs(knownDevice(log.getOs()));
         displayLog.setBrowser(knownDevice(log.getBrowser()));
         displayLog.setCrawler(log.getCrawler());
@@ -169,10 +192,16 @@ public class AdminAuditService {
         displayLog.setAssistantRunId(log.getAssistantRunId());
         // Existing assistant audit entries used content for the execution reference.
         // Keep those entries readable without rewriting stored history.
-        String referencePrefix = auditAction == AdminAuditAction.EXECUTE_UPGRADE ? "assistant:"
-                : auditAction == AdminAuditAction.SYNC_ADMIN_STATIC_SITE ? "upgrade:" : null;
-        if (displayLog.getAssistantRunId() == null && "Assistant".equals(log.getBrowser())
-                && referencePrefix != null && log.getContent() != null
+        String referencePrefix =
+                auditAction == AdminAuditAction.EXECUTE_UPGRADE
+                        ? "assistant:"
+                        : auditAction == AdminAuditAction.SYNC_ADMIN_STATIC_SITE
+                                ? "upgrade:"
+                                : null;
+        if (displayLog.getAssistantRunId() == null
+                && "Assistant".equals(log.getBrowser())
+                && referencePrefix != null
+                && log.getContent() != null
                 && log.getContent().startsWith(referencePrefix)) {
             String runId = log.getContent().substring(referencePrefix.length());
             if (runId.matches("[0-9]{10}\\.[0-9]{20}\\.[0-9a-f-]{36}")) {
@@ -190,13 +219,19 @@ public class AdminAuditService {
         String source = log.getSource();
         if (displayLog.getAssistantRunId() != null) source = "assistant";
         if (source == null) {
-            source = "MCP".equals(displayLog.getBrowser()) ? "mcp"
-                    : displayLog.getBrowser() != null || displayLog.getAgentName() != null ? "client" : "unknown";
+            source =
+                    "MCP".equals(displayLog.getBrowser())
+                            ? "mcp"
+                            : displayLog.getBrowser() != null || displayLog.getAgentName() != null
+                                    ? "client"
+                                    : "unknown";
         }
         if (!List.of("assistant", "mcp", "client", "unknown").contains(source)) source = "unknown";
         displayLog.setSource(source);
-        displayLog.setSourceLabel(I18nUtil.getAdminBackendStringFromRes("admin.audit.source." + source));
-        if (auditAction == AdminAuditAction.EXECUTE_UPGRADE && "upgradeRiskAccepted".equals(log.getContent())) {
+        displayLog.setSourceLabel(
+                I18nUtil.getAdminBackendStringFromRes("admin.audit.source." + source));
+        if (auditAction == AdminAuditAction.EXECUTE_UPGRADE
+                && "upgradeRiskAccepted".equals(log.getContent())) {
             displayLog.setContent("");
         }
         if (isSecurityLog(log, auditAction)) {

@@ -2,8 +2,7 @@ package com.zrlog.admin.business.ai.dto;
 
 public final class AIStreamPayloads {
 
-    private AIStreamPayloads() {
-    }
+    private AIStreamPayloads() {}
 
     public static class Chunk {
 
@@ -137,8 +136,7 @@ public final class AIStreamPayloads {
 
         private String url;
 
-        public CoverPayload() {
-        }
+        public CoverPayload() {}
 
         public CoverPayload(String url) {
             this.url = url;

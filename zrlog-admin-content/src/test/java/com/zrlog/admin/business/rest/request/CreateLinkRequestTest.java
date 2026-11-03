@@ -1,9 +1,9 @@
 package com.zrlog.admin.business.rest.request;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.common.exception.ArgsException;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class CreateLinkRequestTest {
 

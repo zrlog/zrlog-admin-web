@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
@@ -14,8 +16,6 @@ import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.util.I18nUtil;
-import org.junit.Test;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -23,8 +23,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AIWritingSkillServiceTest {
 
@@ -78,7 +77,8 @@ public class AIWritingSkillServiceTest {
     private static ArticleStructureAdviceResponse structureResponse() {
         ArticleStructureAdviceResponse response = new ArticleStructureAdviceResponse();
         response.setSummary("Structure ok");
-        ArticleStructureAdviceResponse.StructureItem item = new ArticleStructureAdviceResponse.StructureItem();
+        ArticleStructureAdviceResponse.StructureItem item =
+                new ArticleStructureAdviceResponse.StructureItem();
         item.setName("intro");
         item.setStatus("good");
         item.setSuggestion("keep");
@@ -98,13 +98,15 @@ public class AIWritingSkillServiceTest {
         return response;
     }
 
-    private static Object invoke(Object target, String methodName, Object... args) throws Exception {
+    private static Object invoke(Object target, String methodName, Object... args)
+            throws Exception {
         Method method = findMethod(target.getClass(), methodName, args.length);
         method.setAccessible(true);
         return method.invoke(target, args);
     }
 
-    private static Throwable invokeFailure(Object target, String methodName, Object... args) throws Exception {
+    private static Throwable invokeFailure(Object target, String methodName, Object... args)
+            throws Exception {
         try {
             invoke(target, methodName, args);
         } catch (InvocationTargetException e) {
@@ -117,7 +119,8 @@ public class AIWritingSkillServiceTest {
         Class<?> current = type;
         while (current != null) {
             for (Method method : current.getDeclaredMethods()) {
-                if (method.getName().equals(methodName) && method.getParameterCount() == parameterCount) {
+                if (method.getName().equals(methodName)
+                        && method.getParameterCount() == parameterCount) {
                     return method;
                 }
             }
@@ -147,13 +150,22 @@ public class AIWritingSkillServiceTest {
         for (String language : List.of("zh_CN", "en_US")) {
             try (var ignored = AdminLanguageContext.open(language)) {
                 AIWritingSkillService service =
-                        new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                        new AIWritingSkillService(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        null),
+                                AIServiceDependencies.conversations(null)
+                                        .captureAccount(
+                                                Math.max(
+                                                        1,
+                                                        com.zrlog.admin.web.token
+                                                                .AdminTokenThreadLocal
+                                                                .getUserId())),
                                 AIServiceDependencies.tools(null),
                                 AIServiceDependencies.images(null),
-                                com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                                com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .permissions());
                 AIResponseException failure = new AIResponseException("title response is invalid");
                 var payload = service.buildStreamErrorPayload(failure, null);
                 assertEquals(
@@ -162,8 +174,11 @@ public class AIWritingSkillServiceTest {
                 assertFalse(payload.getMessage().contains("title response"));
                 assertTrue(failure.getMessage().contains("title response"));
                 assertEquals("provider_response", payload.getErrorType());
-                for (Exception error : List.of(new AIRequestException("raw provider response", 429),
-                        new IOException("internal network detail"), new RuntimeException("unexpected detail"))) {
+                for (Exception error :
+                        List.of(
+                                new AIRequestException("raw provider response", 429),
+                                new IOException("internal network detail"),
+                                new RuntimeException("unexpected detail"))) {
                     assertEquals(
                             I18nUtil.getAdminBackendStringFromRes("admin.ai.error.request"),
                             service.buildStreamErrorPayload(error, null).getMessage());
@@ -192,13 +207,22 @@ public class AIWritingSkillServiceTest {
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_model("gpt-test");
         AIStreamPayloads.ErrorPayload payload =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                        AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
+                new AIWritingSkillService(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        null),
+                                AIServiceDependencies.conversations(null)
+                                        .captureAccount(
+                                                Math.max(
+                                                        1,
+                                                        com.zrlog.admin.web.token
+                                                                .AdminTokenThreadLocal
+                                                                .getUserId())),
+                                AIServiceDependencies.tools(null),
+                                AIServiceDependencies.images(null),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .permissions())
                         .buildStreamErrorPayload(
                                 new AIIncompleteResponseException("length", 3), info);
 
@@ -211,35 +235,55 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldClassifyProviderStreamErrors() {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
 
-        assertEquals("provider_request",
-                service.buildStreamErrorPayload(new AIRequestException("429"), null).getErrorType());
-        assertEquals("provider_response",
-                service.buildStreamErrorPayload(new AIResponseException("stream chunk"), null).getErrorType());
+        assertEquals(
+                "provider_request",
+                service.buildStreamErrorPayload(new AIRequestException("429"), null)
+                        .getErrorType());
+        assertEquals(
+                "provider_response",
+                service.buildStreamErrorPayload(new AIResponseException("stream chunk"), null)
+                        .getErrorType());
     }
 
     @Test
     public void shouldClassifyUnsupportedToolStreamErrors() {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
 
-        assertEquals("unsupported_tool",
-                service.buildStreamErrorPayload(new UnsupportedAIToolException("x"), null).getErrorType());
-        assertEquals("configuration_required",
-                service.buildStreamErrorPayload(new ArgsException("ai_image_provider"), null).getErrorType());
+        assertEquals(
+                "unsupported_tool",
+                service.buildStreamErrorPayload(new UnsupportedAIToolException("x"), null)
+                        .getErrorType());
+        assertEquals(
+                "configuration_required",
+                service.buildStreamErrorPayload(new ArgsException("ai_image_provider"), null)
+                        .getErrorType());
     }
 
     @Test
@@ -251,13 +295,22 @@ public class AIWritingSkillServiceTest {
         info.setAi_image_model("gpt-image-test");
 
         AIStreamPayloads.ErrorPayload payload =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                        AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
+                new AIWritingSkillService(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        null),
+                                AIServiceDependencies.conversations(null)
+                                        .captureAccount(
+                                                Math.max(
+                                                        1,
+                                                        com.zrlog.admin.web.token
+                                                                .AdminTokenThreadLocal
+                                                                .getUserId())),
+                                AIServiceDependencies.tools(null),
+                                AIServiceDependencies.images(null),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .permissions())
                         .buildStreamErrorPayload(
                                 new UnsupportedAIImageGenerationException("model: gpt-image-test"),
                                 info,
@@ -271,18 +324,25 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldMapArticleContextToToolRequests() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
         GenerateArticleFieldRequest context = articleContext();
 
-        GenerateArticleTitleRequest titleRequest = (GenerateArticleTitleRequest) invoke(service, "toTitleRequest",
-                context);
-        ScoreArticleRequest scoreRequest = (ScoreArticleRequest) invoke(service, "toScoreRequest", context);
+        GenerateArticleTitleRequest titleRequest =
+                (GenerateArticleTitleRequest) invoke(service, "toTitleRequest", context);
+        ScoreArticleRequest scoreRequest =
+                (ScoreArticleRequest) invoke(service, "toScoreRequest", context);
 
         assertEquals("Title", titleRequest.getTitle());
         assertEquals("Markdown", titleRequest.getMarkdown());
@@ -299,21 +359,33 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldBuildToolConversationContextByPolicy() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
-        AIResponseEntry.AIContentEntry system = new AIResponseEntry.AIContentEntry("system", "system");
-        AIResponseEntry.AIContentEntry article = new AIResponseEntry.AIContentEntry("user", "article");
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
+        AIResponseEntry.AIContentEntry system =
+                new AIResponseEntry.AIContentEntry("system", "system");
+        AIResponseEntry.AIContentEntry article =
+                new AIResponseEntry.AIContentEntry("user", "article");
         article.setMessageType("articleContext");
-        AIResponseEntry.AIContentEntry user = new AIResponseEntry.AIContentEntry("user", "question");
-        AIResponseEntry.AIContentEntry tool = new AIResponseEntry.AIContentEntry("assistant", "score payload");
+        AIResponseEntry.AIContentEntry user =
+                new AIResponseEntry.AIContentEntry("user", "question");
+        AIResponseEntry.AIContentEntry tool =
+                new AIResponseEntry.AIContentEntry("assistant", "score payload");
         tool.setTool("score");
-        AIResponseEntry.AIContentEntry assistant = new AIResponseEntry.AIContentEntry("assistant", repeat("a", 550));
-        List<AIResponseEntry.AIContentEntry> messages = List.of(system, article, user, tool, assistant);
+        AIResponseEntry.AIContentEntry assistant =
+                new AIResponseEntry.AIContentEntry("assistant", repeat("a", 550));
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(system, article, user, tool, assistant);
 
         String full = (String) invoke(service, "buildToolConversationContext", "title", messages);
 
@@ -323,9 +395,19 @@ public class AIWritingSkillServiceTest {
         assertTrue(full.contains(repeat("a", 500)));
         assertFalse(full.contains("system"));
         assertFalse(full.contains("article"));
-        for (String chatOnlyTool : List.of("publishCheck", "score", "seo", "proofread", "structure",
-                "questions", "tags", "cover")) {
-            String chatOnly = (String) invoke(service, "buildToolConversationContext", chatOnlyTool, messages);
+        for (String chatOnlyTool :
+                List.of(
+                        "publishCheck",
+                        "score",
+                        "seo",
+                        "proofread",
+                        "structure",
+                        "questions",
+                        "tags",
+                        "cover")) {
+            String chatOnly =
+                    (String)
+                            invoke(service, "buildToolConversationContext", chatOnlyTool, messages);
             assertTrue(chatOnlyTool, chatOnly.contains("user: question"));
             assertFalse(chatOnlyTool, chatOnly.contains("score payload"));
         }
@@ -334,28 +416,42 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldRejectMissingToolArticleContextBeforeLoadingWebsiteConfig() {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
 
-        assertThrows(ArgsException.class, () -> service.runToolResponse("input", 1L, "score", null));
-        assertThrows(ArgsException.class, () -> service.startStreamResponse("input", 1L, "score", null));
+        assertThrows(
+                ArgsException.class, () -> service.runToolResponse("input", 1L, "score", null));
+        assertThrows(
+                ArgsException.class, () -> service.startStreamResponse("input", 1L, "score", null));
     }
 
     @Test
     public void shouldFormatToolResponsesForChatOutput() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
         GenerateArticleTitleResponse titles = new GenerateArticleTitleResponse();
         titles.setTitles(List.of("One", "Two"));
         GenerateArticleTagsResponse tags = new GenerateArticleTagsResponse();
@@ -363,7 +459,8 @@ public class AIWritingSkillServiceTest {
         GenerateArticleMarkdownResponse rewriteWithSummary = new GenerateArticleMarkdownResponse();
         rewriteWithSummary.setSummary("changed");
         rewriteWithSummary.setMarkdown("markdown");
-        GenerateArticleMarkdownResponse rewriteWithoutSummary = new GenerateArticleMarkdownResponse();
+        GenerateArticleMarkdownResponse rewriteWithoutSummary =
+                new GenerateArticleMarkdownResponse();
         rewriteWithoutSummary.setMarkdown("markdown");
         ScoreArticleResponse score = scoreResponse();
         ArticleSeoCheckResponse seo = seoResponse();
@@ -377,36 +474,56 @@ public class AIWritingSkillServiceTest {
         assertEquals("markdown", invoke(service, "formatMarkdownRewrite", rewriteWithoutSummary));
         for (String language : List.of("en_US", "zh_CN")) {
             try (var ignored = AdminLanguageContext.open(language)) {
-                assertEquals((language.equals("en_US") ? "Score" : "评分")
-                        + ": 88\n\nLooks good\n\n- SEO 80: Improve title", invoke(service, "formatScore", score));
+                assertEquals(
+                        (language.equals("en_US") ? "Score" : "评分")
+                                + ": 88\n\nLooks good\n\n- SEO 80: Improve title",
+                        invoke(service, "formatScore", score));
             }
         }
-        assertEquals("SEO: 76\n\nSEO ok\n\n- title warning: shorten", invoke(service, "formatSeo", seo));
-        assertEquals("Proofread ok\n- teh: typo -> the", invoke(service, "formatProofread", proofread));
-        assertEquals("Structure ok\n- intro good: keep", invoke(service, "formatStructure", structure));
-        assertEquals("Questions ok\n- Why?: answer it", invoke(service, "formatReaderQuestions", questions));
+        assertEquals(
+                "SEO: 76\n\nSEO ok\n\n- title warning: shorten", invoke(service, "formatSeo", seo));
+        assertEquals(
+                "Proofread ok\n- teh: typo -> the", invoke(service, "formatProofread", proofread));
+        assertEquals(
+                "Structure ok\n- intro good: keep", invoke(service, "formatStructure", structure));
+        assertEquals(
+                "Questions ok\n- Why?: answer it",
+                invoke(service, "formatReaderQuestions", questions));
     }
 
     @Test
     public void shouldBuildAndSendStreamErrorEvents() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_provider(AIProviderType.DEEP_SEEK);
         info.setAi_model("deepseek-chat");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-        AIStreamResponse response = (AIStreamResponse) invoke(service, "buildStreamErrorResponse",
-                new AIRequestException("quota"), info, null);
+        AIStreamResponse response =
+                (AIStreamResponse)
+                        invoke(
+                                service,
+                                "buildStreamErrorResponse",
+                                new AIRequestException("quota"),
+                                info,
+                                null);
         invoke(service, "sendStreamError", out, new AIResponseException("bad chunk"), info, null);
 
-        String responsePayload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        String responsePayload =
+                new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         String sentPayload = out.toString(StandardCharsets.UTF_8);
         assertEquals(200, response.getStatusCode());
         assertEquals("", response.getErrorBody());
@@ -419,21 +536,28 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldIgnoreClosedClientWhenSendingStreamError() throws Exception {
-        OutputStream closed = new OutputStream() {
-            @Override
-            public void write(int b) throws IOException {
-                throw new IOException("closed");
-            }
-        };
+        OutputStream closed =
+                new OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
+                        throw new IOException("closed");
+                    }
+                };
 
         invoke(
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
+                new AIWritingSkillService(
+                        com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+                        AIServiceDependencies.conversations(null)
+                                .captureAccount(
+                                        Math.max(
+                                                1,
+                                                com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                        .getUserId())),
                         AIServiceDependencies.tools(null),
                         AIServiceDependencies.images(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions()),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions()),
                 "sendStreamError",
                 closed,
                 new AIResponseException("bad chunk"),
@@ -444,22 +568,40 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldClassifyUnknownStreamErrorPayload() {
         AIStreamPayloads.ErrorPayload payload =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                        AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
+                new AIWritingSkillService(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        null),
+                                AIServiceDependencies.conversations(null)
+                                        .captureAccount(
+                                                Math.max(
+                                                        1,
+                                                        com.zrlog.admin.web.token
+                                                                .AdminTokenThreadLocal
+                                                                .getUserId())),
+                                AIServiceDependencies.tools(null),
+                                AIServiceDependencies.images(null),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .permissions())
                         .buildStreamErrorPayload(new RuntimeException(), null);
         AIStreamPayloads.ErrorPayload incomplete =
-                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
-
-                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
-                        AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
+                new AIWritingSkillService(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        null),
+                                AIServiceDependencies.conversations(null)
+                                        .captureAccount(
+                                                Math.max(
+                                                        1,
+                                                        com.zrlog.admin.web.token
+                                                                .AdminTokenThreadLocal
+                                                                .getUserId())),
+                                AIServiceDependencies.tools(null),
+                                AIServiceDependencies.images(null),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                        .permissions())
                         .buildStreamErrorPayload(new AIIncompleteResponseException(""), null);
 
         assertEquals("unknown", payload.getErrorType());
@@ -469,11 +611,13 @@ public class AIWritingSkillServiceTest {
     }
 
     private List<AIResponseEntry.AIContentEntry> messagesWithArticleContext() {
-        AIResponseEntry.AIContentEntry system = new AIResponseEntry.AIContentEntry("system", "prompt");
-        AIResponseEntry.AIContentEntry articleContext = new AIResponseEntry.AIContentEntry("user", "article");
+        AIResponseEntry.AIContentEntry system =
+                new AIResponseEntry.AIContentEntry("system", "prompt");
+        AIResponseEntry.AIContentEntry articleContext =
+                new AIResponseEntry.AIContentEntry("user", "article");
         articleContext.setMessageType("articleContext");
-        AIResponseEntry.AIContentEntry user = new AIResponseEntry.AIContentEntry("user", "question");
+        AIResponseEntry.AIContentEntry user =
+                new AIResponseEntry.AIContentEntry("user", "question");
         return List.of(system, articleContext, user);
     }
-
 }

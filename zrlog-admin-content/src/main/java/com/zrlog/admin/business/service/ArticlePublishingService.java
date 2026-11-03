@@ -19,7 +19,6 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -34,9 +33,10 @@ public class ArticlePublishingService {
     private final MessageCenterOperationService messageCenterOperationService;
     private final AdminArticleService articleService;
     private final ArticleQueryService queries;
-    private final java.util.function.Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler> scheduler;
+    private final java.util.function.Supplier<
+                    com.zrlog.admin.business.content.ArticlePublicationScheduler>
+            scheduler;
     private final AccountPermissionService permissions;
-
 
     private final CacheRefreshService cacheRefresh;
     private final MarkdownRenderer markdownRenderer;
@@ -49,7 +49,9 @@ public class ArticlePublishingService {
             MarkdownRenderer markdownRenderer,
             AdminAuditService adminAuditService,
             MessageCenterOperationService messageCenterOperationService,
-            java.util.function.Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler> scheduler,
+            java.util.function.Supplier<
+                            com.zrlog.admin.business.content.ArticlePublicationScheduler>
+                    scheduler,
             AccountPermissionService permissions) {
         this.scheduler = scheduler;
         this.permissions = permissions;
@@ -63,8 +65,13 @@ public class ArticlePublishingService {
     }
 
     // Standalone content consumers can publish immediately without installing the host scheduler.
-    public ArticlePublishingService(AdminArticleService articles, ArticleQueryService queries, CacheRefreshService cache,
-                                    MarkdownRenderer markdown, AdminAuditService audit, MessageCenterOperationService messages) {
+    public ArticlePublishingService(
+            AdminArticleService articles,
+            ArticleQueryService queries,
+            CacheRefreshService cache,
+            MarkdownRenderer markdown,
+            AdminAuditService audit,
+            MessageCenterOperationService messages) {
         this(articles, queries, cache, markdown, audit, messages, () -> null, null);
     }
 
@@ -72,35 +79,69 @@ public class ArticlePublishingService {
         return body.getPublishAt() != null && body.getPublishAt() > System.currentTimeMillis();
     }
 
-    private boolean preparePublication(AccountAccess actor, CreateArticleRequest body) throws SQLException {
+    private boolean preparePublication(AccountAccess actor, CreateArticleRequest body)
+            throws SQLException {
         if (!scheduled(body)) return false;
-        AccountPermissionService.requireActions(actor, List.of("article.read", "article.update", "article.publish"));
-        if (body.isRubbish() || body.isPrivacy() || scheduler.get() == null) throw new com.zrlog.common.exception.ArgsException("publishAt");
+        AccountPermissionService.requireActions(
+                actor, List.of("article.read", "article.update", "article.publish"));
+        if (body.isRubbish() || body.isPrivacy() || scheduler.get() == null)
+            throw new com.zrlog.common.exception.ArgsException("publishAt");
         if (body instanceof UpdateArticleRequest) {
-            var current = permissions.article(actor, ((UpdateArticleRequest) body).getLogId(), true);
-            if (!Boolean.TRUE.equals(current.getRubbish())) throw new com.zrlog.common.exception.ArgsException("publishAt");
+            var current =
+                    permissions.article(actor, ((UpdateArticleRequest) body).getLogId(), true);
+            if (!Boolean.TRUE.equals(current.getRubbish()))
+                throw new com.zrlog.common.exception.ArgsException("publishAt");
         }
         body.setRubbish(true);
         return true;
     }
 
-    private void schedulePublication(AccountAccess actor, CreateArticleRequest body, CreateOrUpdateArticleResponse saved,
-                                     AdminAuditContext audit, boolean scheduled) {
+    private void schedulePublication(
+            AccountAccess actor,
+            CreateArticleRequest body,
+            CreateOrUpdateArticleResponse saved,
+            AdminAuditContext audit,
+            boolean scheduled) {
         if (!scheduled) {
-            if (!Boolean.TRUE.equals(saved.getRubbish()) && !Boolean.TRUE.equals(saved.getPrivacy()) && scheduler.get() != null) {
-                try { scheduler.get().cancel(actor, saved.getLogId(), audit); }
-                catch (Exception failure) { LOGGER.log(Level.WARNING, "Could not pause the previous publication plan for article " + saved.getLogId(), failure); }
+            if (!Boolean.TRUE.equals(saved.getRubbish())
+                    && !Boolean.TRUE.equals(saved.getPrivacy())
+                    && scheduler.get() != null) {
+                try {
+                    scheduler.get().cancel(actor, saved.getLogId(), audit);
+                } catch (Exception failure) {
+                    LOGGER.log(
+                            Level.WARNING,
+                            "Could not pause the previous publication plan for article "
+                                    + saved.getLogId(),
+                            failure);
+                }
             }
             return;
         }
         try {
-            saved.setPublicationSchedule(scheduler.get().schedule(actor, saved.getLogId(), saved.getVersion(), body.getTitle(), body.getPublishAt(), audit));
+            saved.setPublicationSchedule(
+                    scheduler
+                            .get()
+                            .schedule(
+                                    actor,
+                                    saved.getLogId(),
+                                    saved.getVersion(),
+                                    body.getTitle(),
+                                    body.getPublishAt(),
+                                    audit));
         } catch (Exception failure) {
-            // The draft is durable already. Return its real ID/version so retrying cannot duplicate the article.
-            var result = new com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule();
-            result.state = "failed"; result.publishAt = body.getPublishAt(); result.articleVersion = saved.getVersion();
+            // The draft is durable already. Return its real ID/version so retrying cannot duplicate
+            // the article.
+            var result =
+                    new com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule();
+            result.state = "failed";
+            result.publishAt = body.getPublishAt();
+            result.articleVersion = saved.getVersion();
             saved.setPublicationSchedule(result);
-            LOGGER.log(Level.WARNING, "Publication schedule failed for saved draft " + saved.getLogId(), failure);
+            LOGGER.log(
+                    Level.WARNING,
+                    "Publication schedule failed for saved draft " + saved.getLogId(),
+                    failure);
         }
     }
 
@@ -115,15 +156,18 @@ public class ArticlePublishingService {
         }
     }
 
-    public DeleteResponse deleteArticles(AccountAccess actor, String ids, AdminAuditContext audit) throws SQLException {
+    public DeleteResponse deleteArticles(AccountAccess actor, String ids, AdminAuditContext audit)
+            throws SQLException {
         boolean deleted =
                 Arrays.stream(ids.split(","))
                         .allMatch(
                                 id -> {
                                     try {
-                                        boolean removed = articleService.delete(actor, Long.valueOf(id));
+                                        boolean removed =
+                                                articleService.delete(actor, Long.valueOf(id));
                                         if (removed) {
-                                            this.adminAuditService.record(audit, AdminAuditAction.DELETE_ARTICLE, id);
+                                            this.adminAuditService.record(
+                                                    audit, AdminAuditAction.DELETE_ARTICLE, id);
                                         }
                                         return removed;
                                     } catch (SQLException e) {
@@ -134,15 +178,21 @@ public class ArticlePublishingService {
     }
 
     public boolean shouldUseTransparentPublishStream(CreateArticleRequest request) {
-        return !scheduled(request) && request.isTransparentPublish() && !request.isRubbish() && !request.isPrivacy();
+        return !scheduled(request)
+                && request.isTransparentPublish()
+                && !request.isRubbish()
+                && !request.isPrivacy();
     }
 
-    public boolean isTransparentPublish(CreateArticleRequest request, CreateOrUpdateArticleResponse response) {
-        return request.isTransparentPublish() && Objects.equals(response.getRubbish(), false)
+    public boolean isTransparentPublish(
+            CreateArticleRequest request, CreateOrUpdateArticleResponse response) {
+        return request.isTransparentPublish()
+                && Objects.equals(response.getRubbish(), false)
                 && !Objects.equals(response.getPrivacy(), true);
     }
 
-    public CreateOrUpdateArticleResponse create(AccountAccess actor, CreateArticleRequest body, AdminAuditContext audit)
+    public CreateOrUpdateArticleResponse create(
+            AccountAccess actor, CreateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
         boolean scheduled = preparePublication(actor, body);
         CreateOrUpdateArticleResponse response = articleService.create(actor, body);
@@ -152,7 +202,8 @@ public class ArticlePublishingService {
         return response;
     }
 
-    public CreateOrUpdateArticleResponse update(AccountAccess actor, UpdateArticleRequest body, AdminAuditContext audit)
+    public CreateOrUpdateArticleResponse update(
+            AccountAccess actor, UpdateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
         boolean scheduled = preparePublication(actor, body);
         CreateOrUpdateArticleResponse response = articleService.update(actor, body);
@@ -161,16 +212,23 @@ public class ArticlePublishingService {
         return response;
     }
 
-    private void recordPublication(CreateArticleRequest body, CreateOrUpdateArticleResponse saved, AdminAuditContext audit) {
+    private void recordPublication(
+            CreateArticleRequest body,
+            CreateOrUpdateArticleResponse saved,
+            AdminAuditContext audit) {
         // Admin APIs, MCP and the built-in assistant share the same publication policy.
-        if (Objects.equals(saved.getRubbish(), false) && Objects.equals(saved.getPrivacy(), false)) {
+        if (Objects.equals(saved.getRubbish(), false)
+                && Objects.equals(saved.getPrivacy(), false)) {
             this.adminAuditService.record(audit, AdminAuditAction.PUBLISH_ARTICLE, body.getTitle());
         }
     }
 
-    public AdminPageDataResponse<ArticleGlobalResponse> articleResponse(AccountAccess actor, CreateOrUpdateArticleResponse saveResponse,
-                                                                        boolean refreshCache,
-                                                                        HttpRequest request) throws SQLException {
+    public AdminPageDataResponse<ArticleGlobalResponse> articleResponse(
+            AccountAccess actor,
+            CreateOrUpdateArticleResponse saveResponse,
+            boolean refreshCache,
+            HttpRequest request)
+            throws SQLException {
         AdminPageDataResponse<ArticleGlobalResponse> detail =
                 queries.loadDetailById(actor, saveResponse.getLogId() + "", request);
         if (refreshCache && saveResponse.isPublicCacheRefreshRequired()) {
@@ -180,14 +238,19 @@ public class ArticlePublishingService {
         }
         detail.getData().setPublicationSchedule(saveResponse.getPublicationSchedule());
         if (saveResponse.getPublicationSchedule() != null) {
-            detail.setMessage(I18nUtil.getAdminBackendStringFromRes("scheduled".equals(saveResponse.getPublicationSchedule().state)
-                    ? "admin.assistant.publish.success.scheduled" : "admin.assistant.publish.error.scheduleFailed"));
+            detail.setMessage(
+                    I18nUtil.getAdminBackendStringFromRes(
+                            "scheduled".equals(saveResponse.getPublicationSchedule().state)
+                                    ? "admin.assistant.publish.success.scheduled"
+                                    : "admin.assistant.publish.error.scheduleFailed"));
             return detail;
         }
-        boolean saved = Objects.equals(saveResponse.getRubbish(), true)
-                || Objects.equals(saveResponse.getPrivacy(), true);
-        detail.setMessage(I18nUtil.getAdminBackendStringFromRes(
-                saved ? "admin.article.save.success" : "admin.article.release.success"));
+        boolean saved =
+                Objects.equals(saveResponse.getRubbish(), true)
+                        || Objects.equals(saveResponse.getPrivacy(), true);
+        detail.setMessage(
+                I18nUtil.getAdminBackendStringFromRes(
+                        saved ? "admin.article.save.success" : "admin.article.release.success"));
         return detail;
     }
 
@@ -211,5 +274,4 @@ public class ArticlePublishingService {
             LOGGER.log(Level.FINE, "Record blog static sync notice failed", e);
         }
     }
-
 }

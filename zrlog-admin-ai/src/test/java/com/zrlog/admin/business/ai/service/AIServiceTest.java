@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -8,12 +10,9 @@ import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
 import java.net.http.HttpRequest;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AIServiceTest {
 
@@ -46,14 +45,17 @@ public class AIServiceTest {
         openAi.setAi_max_completion_tokens(512);
         AIWebSiteInfo qwen = info(AIProviderType.QWEN);
         qwen.setAi_max_completion_tokens(256);
-        List<AIResponseEntry.AIContentEntry> messages = List.of(message("system", "prompt"), message("user", "hi"));
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(message("system", "prompt"), message("user", "hi"));
 
-        JsonObject openAiBody = GSON.fromJson(service.body(messages, openAi, true), JsonObject.class);
+        JsonObject openAiBody =
+                GSON.fromJson(service.body(messages, openAi, true), JsonObject.class);
         JsonObject qwenBody = GSON.fromJson(service.body(messages, qwen, false), JsonObject.class);
         AIWebSiteInfo qwenWithoutReasoning = info(AIProviderType.QWEN);
         qwenWithoutReasoning.setAi_reasoning_enabled(false);
         JsonObject qwenWithoutReasoningBody =
-                GSON.fromJson(service.body(messages, qwenWithoutReasoning, false), JsonObject.class);
+                GSON.fromJson(
+                        service.body(messages, qwenWithoutReasoning, false), JsonObject.class);
 
         assertEquals("gpt-test", openAiBody.get("model").getAsString());
         assertEquals(true, openAiBody.get("stream").getAsBoolean());
@@ -79,7 +81,9 @@ public class AIServiceTest {
 
         HttpRequest request = service.request(info, "{}");
 
-        assertEquals(AIProviderType.DEEP_SEEK.getBaseUrl() + "/chat/completions", request.uri().toString());
+        assertEquals(
+                AIProviderType.DEEP_SEEK.getBaseUrl() + "/chat/completions",
+                request.uri().toString());
         assertEquals("POST", request.method());
         assertEquals("application/json", request.headers().firstValue("Content-Type").orElse(""));
         assertEquals("Bearer key", request.headers().firstValue("Authorization").orElse(""));
@@ -91,7 +95,8 @@ public class AIServiceTest {
 
         info.setAi_base_url("https://gateway.example.com/openai/chat/completions");
         HttpRequest compatibleFullUrlRequest = service.request(info, "{}");
-        assertEquals("https://gateway.example.com/openai/chat/completions",
+        assertEquals(
+                "https://gateway.example.com/openai/chat/completions",
                 compatibleFullUrlRequest.uri().toString());
 
         info.setAi_base_url("http://localhost:11434/v1");
@@ -110,8 +115,12 @@ public class AIServiceTest {
 
         assertEquals("local-model:latest", valid.getAi_model());
         assertEquals("https://gateway.example.com/v1?api-version=1", valid.getAi_base_url());
-        for (String invalidUrl : List.of("ftp://example.com/chat", "/v1/chat/completions",
-                "https://user:pass@example.com/chat", "https://example.com/chat#fragment")) {
+        for (String invalidUrl :
+                List.of(
+                        "ftp://example.com/chat",
+                        "/v1/chat/completions",
+                        "https://user:pass@example.com/chat",
+                        "https://example.com/chat#fragment")) {
             AIWebSiteInfo invalid = info(AIProviderType.OPEN_AI);
             invalid.setAi_base_url(invalidUrl);
             assertThrows(ArgsException.class, invalid::doValid);
@@ -120,18 +129,33 @@ public class AIServiceTest {
 
     @Test
     public void shouldResolveResponsesEndpointFromBaseOrFullTextUrlsWithoutLosingQuery() {
-        for (String base : List.of("https://gateway.example/v1", "https://gateway.example/v1/",
-                "https://gateway.example/v1/chat/completions", "https://gateway.example/v1/responses/")) {
-            assertEquals("https://gateway.example/v1/responses?api-version=1&route=chat%2Fcompletions",
-                    AIService.resolveEndpointUrl(base + "?api-version=1&route=chat%2Fcompletions", "unused", "/responses"));
-            assertEquals("https://gateway.example/v1/chat/completions",
+        for (String base :
+                List.of(
+                        "https://gateway.example/v1",
+                        "https://gateway.example/v1/",
+                        "https://gateway.example/v1/chat/completions",
+                        "https://gateway.example/v1/responses/")) {
+            assertEquals(
+                    "https://gateway.example/v1/responses?api-version=1&route=chat%2Fcompletions",
+                    AIService.resolveEndpointUrl(
+                            base + "?api-version=1&route=chat%2Fcompletions",
+                            "unused",
+                            "/responses"));
+            assertEquals(
+                    "https://gateway.example/v1/chat/completions",
                     AIService.resolveEndpointUrl(base, "unused", "/chat/completions"));
         }
-        assertEquals("https://api.openai.com/v1/responses", AIService.resolveEndpointUrl(null, "https://api.openai.com/v1", "/responses"));
+        assertEquals(
+                "https://api.openai.com/v1/responses",
+                AIService.resolveEndpointUrl(null, "https://api.openai.com/v1", "/responses"));
         AIWebSiteInfo info = info(AIProviderType.OPEN_AI);
         info.setAi_base_url("https://gateway.example/v1/responses?api-version=1");
         assertEquals("https://gateway.example/v1/responses?api-version=1", info.getAi_base_url());
-        for (String url : List.of("javascript:alert(1)", "https://gateway.example/v1/responses#secret", "//gateway.example/v1")) {
+        for (String url :
+                List.of(
+                        "javascript:alert(1)",
+                        "https://gateway.example/v1/responses#secret",
+                        "//gateway.example/v1")) {
             info.setAi_base_url(url);
             assertThrows(ArgsException.class, info::doValid);
         }
@@ -141,11 +165,14 @@ public class AIServiceTest {
     public void shouldParseProviderErrorDetails() {
         TestAIService service = new TestAIService();
 
-        assertEquals("status: 429, message: quota",
+        assertEquals(
+                "status: 429, message: quota",
                 service.error(429, "{\"error\":{\"message\":\"quota\"}}"));
-        assertEquals("status: 500, message: unavailable",
+        assertEquals(
+                "status: 500, message: unavailable",
                 service.error(500, "{\"error\":\"unavailable\"}"));
-        assertEquals("status: 400, message: bad request",
+        assertEquals(
+                "status: 400, message: bad request",
                 service.error(400, "{\"message\":\"bad request\"}"));
         assertEquals("status: 502, message: raw body", service.error(502, " raw body "));
         assertEquals("status: 503", service.error(503, ""));
@@ -173,15 +200,18 @@ public class AIServiceTest {
         assertEquals("", service.blank(null));
         assertEquals("value", service.blank("value"));
         assertEquals("prompt", service.selected("prompt", ""));
-        assertEquals("prompt\n\nSelected text from the current editor selection:\ntext",
+        assertEquals(
+                "prompt\n\nSelected text from the current editor selection:\ntext",
                 service.selected("prompt", " text "));
-        assertThrows(AIPromptResourceException.class,
+        assertThrows(
+                AIPromptResourceException.class,
                 () -> service.prompt("/missing/prefix-", "/missing/fallback.md"));
     }
 
     private static class TestAIService extends AIService {
 
-        private String body(List<AIResponseEntry.AIContentEntry> messages, AIWebSiteInfo info, boolean stream) {
+        private String body(
+                List<AIResponseEntry.AIContentEntry> messages, AIWebSiteInfo info, boolean stream) {
             return buildRequestBody(messages, info, stream);
         }
 

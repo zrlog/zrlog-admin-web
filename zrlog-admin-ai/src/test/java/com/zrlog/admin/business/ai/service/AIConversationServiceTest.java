@@ -1,16 +1,15 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AIConversationServiceTest {
 
@@ -18,17 +17,27 @@ public class AIConversationServiceTest {
     public void shouldFillAiMessagesFromSerializedCacheValue() throws Exception {
         AIConversationService service =
                 new AIConversationService(
-                        AccountServicesFixture.component(null).security(),
-                        ApplicationServicesFixture.websiteKv(null),
-                        () -> {
-                            throw new IllegalStateException("Database is unavailable in this test");
-                        },
-                        new AIFileService(),
-                        AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
+                                AccountServicesFixture.component(null).security(),
+                                ApplicationServicesFixture.websiteKv(null),
+                                () -> {
+                                    throw new IllegalStateException(
+                                            "Database is unavailable in this test");
+                                },
+                                new AIFileService(),
+                                AIServiceDependencies.approvals(null))
+                        .captureAccount(
+                                Math.max(
+                                        1,
+                                        com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                .getUserId()));
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
 
-        service.fillAiMessages(info, Map.of("ai_chat_message_7",
-                "[{\"role\":\"user\",\"content\":\"hello\",\"messageId\":\"m1\"}]"), "ai_chat_message_7");
+        service.fillAiMessages(
+                info,
+                Map.of(
+                        "ai_chat_message_7",
+                        "[{\"role\":\"user\",\"content\":\"hello\",\"messageId\":\"m1\"}]"),
+                "ai_chat_message_7");
 
         assertEquals(1, info.getAiMessages().size());
         assertEquals("user", info.getAiMessages().get(0).getRole());
@@ -43,13 +52,19 @@ public class AIConversationServiceTest {
     public void shouldEnsureSystemMessageOnlyWhenMissing() {
         AIConversationService service =
                 new AIConversationService(
-                        AccountServicesFixture.component(null).security(),
-                        ApplicationServicesFixture.websiteKv(null),
-                        () -> {
-                            throw new IllegalStateException("Database is unavailable in this test");
-                        },
-                        new AIFileService(),
-                        AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
+                                AccountServicesFixture.component(null).security(),
+                                ApplicationServicesFixture.websiteKv(null),
+                                () -> {
+                                    throw new IllegalStateException(
+                                            "Database is unavailable in this test");
+                                },
+                                new AIFileService(),
+                                AIServiceDependencies.approvals(null))
+                        .captureAccount(
+                                Math.max(
+                                        1,
+                                        com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                .getUserId()));
         List<AIResponseEntry.AIContentEntry> messages = new ArrayList<>();
         messages.add(new AIResponseEntry.AIContentEntry("user", "question"));
 
@@ -66,16 +81,24 @@ public class AIConversationServiceTest {
     public void shouldFillMissingAiMessageIdsAndBuildCacheKeys() throws Exception {
         AIConversationService service =
                 new AIConversationService(
-                        AccountServicesFixture.component(null).security(),
-                        ApplicationServicesFixture.websiteKv(null),
-                        () -> {
-                            throw new IllegalStateException("Database is unavailable in this test");
-                        },
-                        new AIFileService(),
-                        AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
-        AIResponseEntry.AIContentEntry existing = new AIResponseEntry.AIContentEntry("user", "existing");
+                                AccountServicesFixture.component(null).security(),
+                                ApplicationServicesFixture.websiteKv(null),
+                                () -> {
+                                    throw new IllegalStateException(
+                                            "Database is unavailable in this test");
+                                },
+                                new AIFileService(),
+                                AIServiceDependencies.approvals(null))
+                        .captureAccount(
+                                Math.max(
+                                        1,
+                                        com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                .getUserId()));
+        AIResponseEntry.AIContentEntry existing =
+                new AIResponseEntry.AIContentEntry("user", "existing");
         existing.setMessageId("existing-id");
-        AIResponseEntry.AIContentEntry missing = new AIResponseEntry.AIContentEntry("assistant", "missing");
+        AIResponseEntry.AIContentEntry missing =
+                new AIResponseEntry.AIContentEntry("assistant", "missing");
         List<AIResponseEntry.AIContentEntry> messages = List.of(existing, missing);
 
         service.fillMissingMessageIds(messages);

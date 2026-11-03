@@ -24,7 +24,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import java.util.Locale;
 import java.util.function.Supplier;
 
@@ -77,52 +76,88 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
                 .add(
                         config.getInterceptors().indexOf(AdminInterceptor.class),
                         AdminTemporaryResourceInterceptor.class);
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upload", UploadController.class);
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upload/thumbnail", UploadController.class, "thumbnail");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager", FileManagerController.class);
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/rename", FileManagerController.class, "rename");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/mkdir", FileManagerController.class, "mkdir");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/article-resource-url/replace", FileManagerController.class, "replaceArticleResourceUrl");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/reupload", FileManagerController.class, "reuploadMissingLocalResource");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/search", FileManagerController.class, "search");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/roots", FileManagerController.class, "roots");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/read", FileManagerController.class, "readContent");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/download", FileManagerController.class, "download");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upload", UploadController.class);
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upload/thumbnail",
+                UploadController.class,
+                "thumbnail");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager",
+                FileManagerController.class);
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/rename",
+                FileManagerController.class,
+                "rename");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/mkdir",
+                FileManagerController.class,
+                "mkdir");
+        router.addMapper(
+                "/api"
+                        + AdminConstants.ADMIN_URI_BASE_PATH
+                        + "/file-manager/article-resource-url/replace",
+                FileManagerController.class,
+                "replaceArticleResourceUrl");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/reupload",
+                FileManagerController.class,
+                "reuploadMissingLocalResource");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/search",
+                FileManagerController.class,
+                "search");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/roots",
+                FileManagerController.class,
+                "roots");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/read",
+                FileManagerController.class,
+                "readContent");
+        router.addMapper(
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/file-manager/download",
+                FileManagerController.class,
+                "download");
     }
 
     @Override
-    public String saveAvatar(byte[] bytes, String extension, com.hibegin.http.server.api.HttpRequest request) {
+    public String saveAvatar(
+            byte[] bytes, String extension, com.hibegin.http.server.api.HttpRequest request) {
         return components()
                 .uploads()
-                .saveAvatarBytes(components().requestIdentity().current(), bytes, extension, request, AdminTokenThreadLocal.getUser())
+                .saveAvatarBytes(
+                        components().requestIdentity().current(),
+                        bytes,
+                        extension,
+                        request,
+                        AdminTokenThreadLocal.getUser())
                 .getUrl();
     }
 
     @Override
-    public String saveAttachment(com.zrlog.data.security.AccountAccess actor, byte[] bytes, String filename,
-                                 com.hibegin.http.server.api.HttpRequest request,
-                                 com.zrlog.common.vo.AdminTokenVO credential) throws Exception {
+    public String saveAttachment(
+            com.zrlog.data.security.AccountAccess actor,
+            byte[] bytes,
+            String filename,
+            com.hibegin.http.server.api.HttpRequest request,
+            com.zrlog.common.vo.AdminTokenVO credential)
+            throws Exception {
         components().permissions().require(actor, AccountAction.ASSET_UPLOAD);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
         String extension =
                 filename.substring(filename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
         if (!extension.matches("[a-z0-9]{1,16}")) throw new ArgsException("filename");
-        java.nio.file.Path temporary = java.nio.file.Files.createTempFile("zrlog-mcp-upload-", "." + extension);
+        java.nio.file.Path temporary =
+                java.nio.file.Files.createTempFile("zrlog-mcp-upload-", "." + extension);
         try {
             java.nio.file.Files.write(temporary, bytes);
             return components()
                     .uploads()
-                    .saveUploadedFile(
-                            actor,
-                            temporary.toFile(),
-                            "mcp",
-                            null,
-                            request,
-                            credential)
+                    .saveUploadedFile(actor, temporary.toFile(), "mcp", null, request, credential)
                     .getUrl();
         } finally {
             java.nio.file.Files.deleteIfExists(temporary);
         }
     }
-
 }

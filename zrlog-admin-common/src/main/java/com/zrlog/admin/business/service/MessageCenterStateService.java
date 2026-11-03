@@ -7,7 +7,6 @@ import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Function;
@@ -23,9 +22,11 @@ public class MessageCenterStateService {
     private static final Logger LOGGER = LoggerUtil.getLogger(MessageCenterStateService.class);
     private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     private final WebsiteCacheService cacheService;
+
     @Inject
     public MessageCenterStateService(
-            WebsiteCacheService cacheService, jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
+            WebsiteCacheService cacheService,
+            jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.cacheService = cacheService;
         this.webSiteProvider = webSiteProvider;
     }
@@ -35,11 +36,16 @@ public class MessageCenterStateService {
     }
 
     public void markChanged() {
-        update(current -> new MessageCenterStatusResponse(nextRevision(current.getRevision()), current.isHasUnread()));
+        update(
+                current ->
+                        new MessageCenterStatusResponse(
+                                nextRevision(current.getRevision()), current.isHasUnread()));
     }
 
     public void markMayHaveUnread() {
-        update(current -> new MessageCenterStatusResponse(nextRevision(current.getRevision()), true));
+        update(
+                current ->
+                        new MessageCenterStatusResponse(nextRevision(current.getRevision()), true));
     }
 
     public void syncActual(boolean hasUnread) {
@@ -47,15 +53,16 @@ public class MessageCenterStateService {
     }
 
     public void syncActual(long observedRevision, boolean hasUnread) {
-        update(current -> {
-            if (!hasUnread && current.getRevision() != observedRevision) {
-                return current;
-            }
-            if (current.isHasUnread() == hasUnread) {
-                return current;
-            }
-            return new MessageCenterStatusResponse(current.getRevision(), hasUnread);
-        });
+        update(
+                current -> {
+                    if (!hasUnread && current.getRevision() != observedRevision) {
+                        return current;
+                    }
+                    if (current.isHasUnread() == hasUnread) {
+                        return current;
+                    }
+                    return new MessageCenterStatusResponse(current.getRevision(), hasUnread);
+                });
     }
 
     long nextRevision(long currentRevision) {
@@ -63,7 +70,8 @@ public class MessageCenterStateService {
         return now > currentRevision ? now : currentRevision + 1;
     }
 
-    private void update(Function<MessageCenterStatusResponse, MessageCenterStatusResponse> updater) {
+    private void update(
+            Function<MessageCenterStatusResponse, MessageCenterStatusResponse> updater) {
         for (int i = 0; i < UPDATE_RETRY_COUNT; i++) {
             String raw = cacheService.getString(STATUS_KEY);
             MessageCenterStatusResponse current = parseStatus(raw);
@@ -88,8 +96,13 @@ public class MessageCenterStateService {
         }
         try {
             return this.webSiteProvider
-                    .get()
-                    .updateValueWhere(GSON.toJson(next), "name=? AND value=?", STATUS_DB_KEY, expectedRaw) == 1;
+                            .get()
+                            .updateValueWhere(
+                                    GSON.toJson(next),
+                                    "name=? AND value=?",
+                                    STATUS_DB_KEY,
+                                    expectedRaw)
+                    == 1;
         } catch (SQLException e) {
             LOGGER.log(Level.FINE, "Update message center status failed", e);
             return false;
@@ -101,7 +114,8 @@ public class MessageCenterStateService {
             return new MessageCenterStatusResponse(0, false);
         }
         try {
-            MessageCenterStatusResponse status = GSON.fromJson(raw, MessageCenterStatusResponse.class);
+            MessageCenterStatusResponse status =
+                    GSON.fromJson(raw, MessageCenterStatusResponse.class);
             return status == null ? new MessageCenterStatusResponse(0, false) : status;
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Read message center status failed", e);

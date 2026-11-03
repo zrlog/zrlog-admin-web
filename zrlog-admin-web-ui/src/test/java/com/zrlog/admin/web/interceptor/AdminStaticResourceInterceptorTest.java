@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -14,17 +17,13 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 public class AdminStaticResourceInterceptorTest {
 
@@ -36,40 +35,49 @@ public class AdminStaticResourceInterceptorTest {
         return requestConfig;
     }
 
-    private static HttpRequest request(String uri, ServerConfig serverConfig, RequestConfig requestConfig) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminStaticResourceInterceptorTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return uri;
-                        case "getMethod":
-                            return HttpMethod.GET;
-                        case "getContextPath":
-                            return "";
-                        case "getRequestConfig":
-                            return requestConfig;
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
+    private static HttpRequest request(
+            String uri, ServerConfig serverConfig, RequestConfig requestConfig) {
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminStaticResourceInterceptorTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getUri":
+                                    return uri;
+                                case "getMethod":
+                                    return HttpMethod.GET;
+                                case "getContextPath":
+                                    return "";
+                                case "getRequestConfig":
+                                    return requestConfig;
+                                case "getServerConfig":
+                                    return serverConfig;
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     @Test
     public void shouldRenderAdminMainJsWithJavascriptContentType() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
-                request("/admin/static/js/main.missing.js", new ServerConfig(), requestConfig(new Router())),
-                response.response());
+        new AdminStaticResourceInterceptor(
+                        () ->
+                                applicationConfig.getPlugin(
+                                        com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class))
+                .doInterceptor(
+                        request(
+                                "/admin/static/js/main.missing.js",
+                                new ServerConfig(),
+                                requestConfig(new Router())),
+                        response.response());
 
         assertEquals("application/javascript;charset=UTF-8", response.headers.get("Content-Type"));
         assertArrayEquals(new byte[0], response.written);
@@ -83,9 +91,20 @@ public class AdminStaticResourceInterceptorTest {
         Router router = serverConfig.getRouter();
         router.addMapper("/admin/static/fallback", StaticFallbackController.class, "index");
 
-        withConfig(new TestZrLogConfig(), () ->
-                new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
-                        request("/admin/static/fallback", serverConfig, requestConfig(router)), response.response()));
+        withConfig(
+                new TestZrLogConfig(),
+                () ->
+                        new AdminStaticResourceInterceptor(
+                                        () ->
+                                                applicationConfig.getPlugin(
+                                                        com.zrlog.admin.web.plugin
+                                                                .AdminStaticResourcePlugin.class))
+                                .doInterceptor(
+                                        request(
+                                                "/admin/static/fallback",
+                                                serverConfig,
+                                                requestConfig(router)),
+                                        response.response()));
 
         assertEquals("fallback", ((ApiStandardResponse<?>) response.rendered).getData());
     }
@@ -113,34 +132,37 @@ public class AdminStaticResourceInterceptorTest {
         private Object rendered;
 
         private HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(
-                    AdminStaticResourceInterceptorTest.class.getClassLoader(),
-                    new Class[]{HttpResponse.class},
-                    (proxy, method, args) -> {
-                        switch (method.getName()) {
-                            case "getHeader":
-                                return headers;
-                            case "addHeader":
-                                headers.put(args[0].toString(), args[1].toString());
-                                return null;
-                            case "write":
-                                if (args[0] instanceof InputStream) {
-                                    written = ((InputStream) args[0]).readAllBytes();
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            AdminStaticResourceInterceptorTest.class.getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                switch (method.getName()) {
+                                    case "getHeader":
+                                        return headers;
+                                    case "addHeader":
+                                        headers.put(args[0].toString(), args[1].toString());
+                                        return null;
+                                    case "write":
+                                        if (args[0] instanceof InputStream) {
+                                            written = ((InputStream) args[0]).readAllBytes();
+                                        }
+                                        if (args.length > 1) {
+                                            status = (Integer) args[1];
+                                        }
+                                        return null;
+                                    case "writeFile":
+                                        written =
+                                                java.nio.file.Files.readAllBytes(
+                                                        ((File) args[0]).toPath());
+                                        return null;
+                                    case "renderJson":
+                                        rendered = args[0];
+                                        return null;
+                                    default:
+                                        return null;
                                 }
-                                if (args.length > 1) {
-                                    status = (Integer) args[1];
-                                }
-                                return null;
-                            case "writeFile":
-                                written = java.nio.file.Files.readAllBytes(((File) args[0]).toPath());
-                                return null;
-                            case "renderJson":
-                                rendered = args[0];
-                                return null;
-                            default:
-                                return null;
-                        }
-                    });
+                            });
         }
     }
 

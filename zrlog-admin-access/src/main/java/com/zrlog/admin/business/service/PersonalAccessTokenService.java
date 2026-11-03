@@ -11,24 +11,29 @@ import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.model.UserAccessToken;
 import com.zrlog.util.ZrLogUtil;
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
-
 import java.sql.SQLException;
-import com.zrlog.model.UserAccessToken;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Account-owned credentials using the account action catalog; OAuth scopes remain a protocol adapter.
+ * Account-owned credentials using the account action catalog; OAuth scopes remain a protocol
+ * adapter.
  */
 public final class PersonalAccessTokenService {
 
     public static final String PREFIX = "zrpat_";
     public static final String LEGACY_PREFIX = "zrmcp_";
-    public static final List<String> SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all");
+    public static final List<String> SCOPES =
+            List.of(
+                    "articles:read",
+                    "articles:read_drafts",
+                    "articles:read_private",
+                    "articles:all");
     private static final String INHERIT = "v2:inherit";
     private static final String CUSTOM = "v2:custom ";
     private final AccountIdentityService identities;
@@ -58,8 +63,10 @@ public final class PersonalAccessTokenService {
     }
 
     public static List<String> availablePermissions(AccountAccess account) {
-        return Arrays.stream(AccountAction.values()).filter(action -> action.allowed(account))
-                .map(AccountAction::getId).collect(Collectors.toList());
+        return Arrays.stream(AccountAction.values())
+                .filter(action -> action.allowed(account))
+                .map(AccountAction::getId)
+                .collect(Collectors.toList());
     }
 
     private String siteResource() {
@@ -75,9 +82,15 @@ public final class PersonalAccessTokenService {
         boolean legacy = request.permissionMode == null;
         if (legacy) {
             Set<String> selected = new LinkedHashSet<>(request.scopes);
-            if (!selected.contains("articles:read") || !availableScopes(account).containsAll(selected))
+            if (!selected.contains("articles:read")
+                    || !availableScopes(account).containsAll(selected))
                 throw new OAuthException("invalid_scope");
-            storedPermissions = String.join(" ", SCOPES.stream().filter(selected::contains).collect(Collectors.toList()));
+            storedPermissions =
+                    String.join(
+                            " ",
+                            SCOPES.stream()
+                                    .filter(selected::contains)
+                                    .collect(Collectors.toList()));
         } else if ("inherit".equals(request.permissionMode)) {
             // A limited credential cannot mint one that inherits its owner's broader rights.
             if (!request.permissions.isEmpty() || !authority.permitsInheritance())
@@ -87,7 +100,13 @@ public final class PersonalAccessTokenService {
             Set<String> selected = new LinkedHashSet<>(request.permissions);
             if (selected.isEmpty() || !availablePermissions(account).containsAll(selected))
                 throw new OAuthException("invalid_scope");
-            storedPermissions = CUSTOM + String.join(" ", availablePermissions(account).stream().filter(selected::contains).collect(Collectors.toList()));
+            storedPermissions =
+                    CUSTOM
+                            + String.join(
+                                    " ",
+                                    availablePermissions(account).stream()
+                                            .filter(selected::contains)
+                                            .collect(Collectors.toList()));
         }
         if (storedPermissions.length() > 512) throw new OAuthException("invalid_scope");
         Created result = new Created();
@@ -100,31 +119,49 @@ public final class PersonalAccessTokenService {
         describePermissions(info, storedPermissions, account);
         info.createdAt = System.currentTimeMillis();
         info.expiresAt = info.createdAt + request.expiresInDays * 86_400_000L;
-        store.withSession(c -> {
-            if (store.update(c,
-                    "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked,updatedAt,version) "
-                            + "select ?,?,?,?,?,?,?,?,?,?,?,0 where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    info.id, info.userId, info.name, OAuthService.hash(result.token), storedPermissions, info.resource,
-                    account.getAuthVersion(), new java.sql.Timestamp(info.createdAt).toString(), info.expiresAt, false, new java.sql.Timestamp(info.createdAt).toString(),
-                    account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1) {
-                throw new PermissionErrorException();
-            }
-            return null;
-        });
+        store.withSession(
+                c -> {
+                    if (store.update(
+                                    c,
+                                    "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked,updatedAt,version) "
+                                            + "select ?,?,?,?,?,?,?,?,?,?,?,0 where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
+                                    info.id,
+                                    info.userId,
+                                    info.name,
+                                    OAuthService.hash(result.token),
+                                    storedPermissions,
+                                    info.resource,
+                                    account.getAuthVersion(),
+                                    new java.sql.Timestamp(info.createdAt).toString(),
+                                    info.expiresAt,
+                                    false,
+                                    new java.sql.Timestamp(info.createdAt).toString(),
+                                    account.getUserId(),
+                                    account.getRole(),
+                                    true,
+                                    account.getAuthVersion())
+                            != 1) {
+                        throw new PermissionErrorException();
+                    }
+                    return null;
+                });
         result.info = info;
         return result;
     }
 
     public List<Info> list(AccountAccess actor) throws SQLException {
         AccountAccess account = authorize(actor);
-        return store.withSession(c -> {
-            List<Info> result = new ArrayList<>();
-            for (UserAccessToken row : store.entities(c, UserAccessToken.class,
-                    "WHERE userId=? ORDER BY createdAt DESC,id",
-                    account.getUserId()))
-                result.add(info(row, account));
-            return result;
-        });
+        return store.withSession(
+                c -> {
+                    List<Info> result = new ArrayList<>();
+                    for (UserAccessToken row :
+                            store.entities(
+                                    c,
+                                    UserAccessToken.class,
+                                    "WHERE userId=? ORDER BY createdAt DESC,id",
+                                    account.getUserId())) result.add(info(row, account));
+                    return result;
+                });
     }
 
     private void describePermissions(Info info, String stored, AccountAccess account) {
@@ -150,24 +187,39 @@ public final class PersonalAccessTokenService {
         info.name = (String) row.getName();
         info.resource = (String) row.getResource();
         describePermissions(info, (String) row.getScope(), account);
-        info.createdAt = com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.getCreatedAt());
+        info.createdAt =
+                com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.getCreatedAt());
         info.expiresAt = ((Number) row.getExpiresAt()).longValue();
         info.revoked = AccountAccess.truth(row.getRevoked());
         info.expired = info.expiresAt <= System.currentTimeMillis();
-        info.invalidated = !account.isEnabled() || ((Number) row.getAuthVersion()).intValue() != account.getAuthVersion()
-                || !("legacy".equals(info.permissionMode) ? resource : siteResource()).equals(info.resource);
+        info.invalidated =
+                !account.isEnabled()
+                        || ((Number) row.getAuthVersion()).intValue() != account.getAuthVersion()
+                        || !("legacy".equals(info.permissionMode) ? resource : siteResource())
+                                .equals(info.resource);
         return info;
     }
 
     public void revoke(AccountAccess actor, String id) throws SQLException {
         AccountAccess account = authorize(actor);
-        store.withSession(c -> {
-            int changed = store.update(c, "update user_access_token set updatedAt=?,version=version+1,revoked=? where id=? and userId=? "
-                            + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
-                    new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, id, account.getUserId(), account.getUserId(), account.getRole(), true, account.getAuthVersion());
-            if (changed == 0) identities.revalidate(account);
-            return null;
-        });
+        store.withSession(
+                c -> {
+                    int changed =
+                            store.update(
+                                    c,
+                                    "update user_access_token set updatedAt=?,version=version+1,revoked=? where id=? and userId=? "
+                                            + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
+                                    new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                                    true,
+                                    id,
+                                    account.getUserId(),
+                                    account.getUserId(),
+                                    account.getRole(),
+                                    true,
+                                    account.getAuthVersion());
+                    if (changed == 0) identities.revalidate(account);
+                    return null;
+                });
     }
 
     private AccountAccess authorize(AccountAccess actor) {
@@ -176,38 +228,54 @@ public final class PersonalAccessTokenService {
         return account;
     }
 
-    public Identity authenticate(String token, String requestedResource, Set<String> required) throws SQLException {
+    public Identity authenticate(String token, String requestedResource, Set<String> required)
+            throws SQLException {
         boolean legacy = token != null && token.startsWith(LEGACY_PREFIX);
         if (token == null || !token.matches("(?:zrpat_|zrmcp_)[A-Za-z0-9_-]{43}"))
             throw new OAuthException("invalid_token", 401);
-        if (legacy ? !resource.equals(requestedResource)
-                : !Set.of(resource, siteResource() + "/api/admin", siteResource() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT).contains(requestedResource)) {
+        if (legacy
+                ? !resource.equals(requestedResource)
+                : !Set.of(
+                                resource,
+                                siteResource() + "/api/admin",
+                                siteResource() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT)
+                        .contains(requestedResource)) {
             throw new OAuthException("invalid_token", 401);
         }
         String audience = legacy ? resource : siteResource();
-        return store.withSession(c -> {
-            Map<String, Object> row = store.one(c,
-                    "select u.userId,u.role,u.enabled,u.authVersion,t.scope from user_access_token t inner join user u on u.userId=t.userId "
-                            + "where t.tokenHash=? and t.revoked=? and t.expiresAt>? and t.resource=? and u.enabled=? and u.authVersion=t.authVersion",
-                    OAuthService.hash(token), false, System.currentTimeMillis(), audience, true);
-            if (row == null) throw new OAuthException("invalid_token", 401);
-            AccountAccess account = AccountAccess.fromRow(row);
-            Info info = new Info();
-            describePermissions(info, (String) row.get("scope"), account);
-            if (legacy != "legacy".equals(info.permissionMode)) throw new OAuthException("invalid_token", 401);
-            Set<String> scopes = new LinkedHashSet<>(info.scopes);
-            scopes.retainAll(account.scopes());
-            if (legacy) scopes.retainAll(SCOPES);
-            if (!scopes.containsAll(required)) throw new OAuthException("insufficient_scope", 403);
-            Identity identity = new Identity();
-            identity.userId = account.getUserId();
-            identity.authVersion = account.getAuthVersion();
-            identity.role = account.getRole();
-            identity.scopes = new ArrayList<>(scopes);
-            identity.permissionMode = info.permissionMode;
-            identity.permissions = availablePermissions(account.restrictActions(info.permissions));
-            return identity;
-        });
+        return store.withSession(
+                c -> {
+                    Map<String, Object> row =
+                            store.one(
+                                    c,
+                                    "select u.userId,u.role,u.enabled,u.authVersion,t.scope from user_access_token t inner join user u on u.userId=t.userId "
+                                            + "where t.tokenHash=? and t.revoked=? and t.expiresAt>? and t.resource=? and u.enabled=? and u.authVersion=t.authVersion",
+                                    OAuthService.hash(token),
+                                    false,
+                                    System.currentTimeMillis(),
+                                    audience,
+                                    true);
+                    if (row == null) throw new OAuthException("invalid_token", 401);
+                    AccountAccess account = AccountAccess.fromRow(row);
+                    Info info = new Info();
+                    describePermissions(info, (String) row.get("scope"), account);
+                    if (legacy != "legacy".equals(info.permissionMode))
+                        throw new OAuthException("invalid_token", 401);
+                    Set<String> scopes = new LinkedHashSet<>(info.scopes);
+                    scopes.retainAll(account.scopes());
+                    if (legacy) scopes.retainAll(SCOPES);
+                    if (!scopes.containsAll(required))
+                        throw new OAuthException("insufficient_scope", 403);
+                    Identity identity = new Identity();
+                    identity.userId = account.getUserId();
+                    identity.authVersion = account.getAuthVersion();
+                    identity.role = account.getRole();
+                    identity.scopes = new ArrayList<>(scopes);
+                    identity.permissionMode = info.permissionMode;
+                    identity.permissions =
+                            availablePermissions(account.restrictActions(info.permissions));
+                    return identity;
+                });
     }
 
     @AssistedFactory

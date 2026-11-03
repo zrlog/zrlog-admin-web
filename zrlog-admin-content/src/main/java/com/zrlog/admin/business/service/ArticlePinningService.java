@@ -6,10 +6,9 @@ import com.zrlog.admin.business.rest.response.ArticlePinningEntryResponse;
 import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
 import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.exception.UnknownException;
-import com.zrlog.data.service.DistributedLock;
 import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.service.DistributedLock;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +19,7 @@ public class ArticlePinningService {
     private static final long LOCK_WAIT_SECONDS = 20L;
     private final DistributedLock.Factory locks;
     private final jakarta.inject.Provider<LogRepository> logProvider;
+
     @Inject
     public ArticlePinningService(
             jakarta.inject.Provider<LogRepository> logProvider, DistributedLock.Factory locks) {
@@ -29,8 +29,10 @@ public class ArticlePinningService {
     }
 
     static String buildPersistSql(List<ArticlePinningEntryResponse> items) {
-        StringBuilder sql = new StringBuilder("update ").append(LogRepository.TABLE_NAME)
-                .append(" set sticky=case when rubbish=? and privacy=? then case logId");
+        StringBuilder sql =
+                new StringBuilder("update ")
+                        .append(LogRepository.TABLE_NAME)
+                        .append(" set sticky=case when rubbish=? and privacy=? then case logId");
         List<Long> logIds = new ArrayList<>(items.size());
         long priority = items.size();
         for (ArticlePinningEntryResponse item : items) {
@@ -77,49 +79,53 @@ public class ArticlePinningService {
     }
 
     public ArticlePinningResponse pin(Long logId) throws SQLException {
-        return withOrderLock(() -> {
-            ArticlePinningEntryResponse target = requirePublicArticle(logId);
-            List<ArticlePinningEntryResponse> items = queryPinnedArticles();
-            if (indexOf(items, logId) >= 0) {
-                return response(items);
-            }
-            items.add(0, target);
-            persist(items);
-            return response(queryPinnedArticles());
-        });
+        return withOrderLock(
+                () -> {
+                    ArticlePinningEntryResponse target = requirePublicArticle(logId);
+                    List<ArticlePinningEntryResponse> items = queryPinnedArticles();
+                    if (indexOf(items, logId) >= 0) {
+                        return response(items);
+                    }
+                    items.add(0, target);
+                    persist(items);
+                    return response(queryPinnedArticles());
+                });
     }
 
     public ArticlePinningResponse unpin(Long logId) throws SQLException {
-        return withOrderLock(() -> {
-            requirePublicArticle(logId);
-            List<ArticlePinningEntryResponse> items = queryPinnedArticles();
-            int index = indexOf(items, logId);
-            if (index < 0) {
-                return response(items);
-            }
-            items.remove(index);
-            persist(items);
-            return response(queryPinnedArticles());
-        });
+        return withOrderLock(
+                () -> {
+                    requirePublicArticle(logId);
+                    List<ArticlePinningEntryResponse> items = queryPinnedArticles();
+                    int index = indexOf(items, logId);
+                    if (index < 0) {
+                        return response(items);
+                    }
+                    items.remove(index);
+                    persist(items);
+                    return response(queryPinnedArticles());
+                });
     }
 
     public ArticlePinningResponse move(Long logId, String direction) throws SQLException {
-        return withOrderLock(() -> {
-            requirePublicArticle(logId);
-            List<ArticlePinningEntryResponse> items = queryPinnedArticles();
-            int index = indexOf(items, logId);
-            if (index < 0) {
-                throw new ArticleNotPinnedException();
-            }
-            int targetIndex = "UP".equals(direction.toUpperCase(Locale.ROOT)) ? index - 1 : index + 1;
-            if (targetIndex < 0 || targetIndex >= items.size()) {
-                return response(items);
-            }
-            ArticlePinningEntryResponse moved = items.remove(index);
-            items.add(targetIndex, moved);
-            persist(items);
-            return response(queryPinnedArticles());
-        });
+        return withOrderLock(
+                () -> {
+                    requirePublicArticle(logId);
+                    List<ArticlePinningEntryResponse> items = queryPinnedArticles();
+                    int index = indexOf(items, logId);
+                    if (index < 0) {
+                        throw new ArticleNotPinnedException();
+                    }
+                    int targetIndex =
+                            "UP".equals(direction.toUpperCase(Locale.ROOT)) ? index - 1 : index + 1;
+                    if (targetIndex < 0 || targetIndex >= items.size()) {
+                        return response(items);
+                    }
+                    ArticlePinningEntryResponse moved = items.remove(index);
+                    items.add(targetIndex, moved);
+                    persist(items);
+                    return response(queryPinnedArticles());
+                });
     }
 
     <T> T withOrderLock(PinningOperation<T> operation) throws SQLException {
@@ -146,17 +152,28 @@ public class ArticlePinningService {
     }
 
     private ArticlePinningEntryResponse requirePublicArticle(Long logId) throws SQLException {
-        ArticlePinningEntryResponse row = logProvider.get().queryOne(
-                "select logId,title,sticky from log where logId=? and rubbish=? and privacy=?",
-                ArticlePinningEntryResponse.class, logId, false, false);
+        ArticlePinningEntryResponse row =
+                logProvider
+                        .get()
+                        .queryOne(
+                                "select logId,title,sticky from log where logId=? and rubbish=? and privacy=?",
+                                ArticlePinningEntryResponse.class,
+                                logId,
+                                false,
+                                false);
         if (row == null) throw new ArticlePinningNotAllowedException();
         return row;
     }
 
     private List<ArticlePinningEntryResponse> queryPinnedArticles() throws SQLException {
-        return logProvider.get().queryList(
-                "select logId,title,sticky from log where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
-                ArticlePinningEntryResponse.class, false, false, 0);
+        return logProvider
+                .get()
+                .queryList(
+                        "select logId,title,sticky from log where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
+                        ArticlePinningEntryResponse.class,
+                        false,
+                        false,
+                        0);
     }
 
     private void persist(List<ArticlePinningEntryResponse> items) throws SQLException {

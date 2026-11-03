@@ -18,7 +18,6 @@ import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import jakarta.inject.Inject;
-
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -26,9 +25,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/**
- * Bearer API adapter sharing the controller action bindings and account authorization.
- */
+/** Bearer API adapter sharing the controller action bindings and account authorization. */
 public final class BearerTokenInterceptor implements HandleAbleInterceptor {
     private final UserPreferenceService userPreferenceService;
     private final WebhookService webhookService;
@@ -61,7 +58,8 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
     public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
         // This exact route has its own trigger-only credential validator in the host.
-        if (com.zrlog.admin.business.AdminConstants.ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH.equals(path)) return false;
+        if (com.zrlog.admin.business.AdminConstants.ADMIN_ASSISTANT_TASK_TRIGGER_API_URI_PATH
+                .equals(path)) return false;
         String header = request.getHeader("Authorization");
         if (header == null) return false;
         if (path.equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT)) {
@@ -71,8 +69,10 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
             // Only a currently valid legacy credential bypasses the OAuth adapter.
             return !this.webhookService.verifyToken(header.replaceFirst("(?i)^Bearer +", ""));
         }
-        return path.equals("/api/admin") || path.startsWith("/api/admin/")
-                || path.equals("/admin") || path.startsWith("/admin/");
+        return path.equals("/api/admin")
+                || path.startsWith("/api/admin/")
+                || path.equals("/admin")
+                || path.startsWith("/admin/");
     }
 
     @Override
@@ -84,11 +84,16 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
             if (authorization == null || !authorization.matches("(?i)Bearer +[^ ]+"))
                 throw new OAuthException("invalid_token", 401);
             String token = authorization.substring(authorization.indexOf(' ') + 1).trim();
-            boolean notification = request.getUri().equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT);
-            OAuthModels.Identity identity = oauth.authenticate(token, oauth.adminResource(), Set.of());
+            boolean notification =
+                    request.getUri().equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT);
+            OAuthModels.Identity identity =
+                    oauth.authenticate(token, oauth.adminResource(), Set.of());
             if (!notification && !request.getUri().startsWith("/api/admin/"))
                 throw new OAuthException("insufficient_scope", 403);
-            Method method = request.getServerConfig().getRouter().getMethod(request.getUri(), request.getMethod());
+            Method method =
+                    request.getServerConfig()
+                            .getRouter()
+                            .getMethod(request.getUri(), request.getMethod());
             AdminTokenVO actor = new AdminTokenVO();
             actor.setUserId(identity.userId);
             actor.setAuthVersion(identity.authVersion);
@@ -102,15 +107,16 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                     "inherit".equals(identity.permissionMode),
                                     () -> {
                                         try {
-                                            routeAuthorizer.checkRoute(requestIdentity.current(), method, request);
+                                            routeAuthorizer.checkRoute(
+                                                    requestIdentity.current(), method, request);
                                         } catch (PermissionErrorException denied) {
                                             throw new OAuthException("insufficient_scope", 403);
                                         }
                                         try (AdminLanguageContext ignored =
-                                                     AdminLanguageContext.open(
-                                                             this.userPreferenceService.effective(
-                                                                     identity.userId)
-                                                                     .language)) {
+                                                AdminLanguageContext.open(
+                                                        this.userPreferenceService.effective(
+                                                                        identity.userId)
+                                                                .language)) {
                                             try {
                                                 dispatcher
                                                         .get()
@@ -121,7 +127,7 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                                 int status =
                                                         failure instanceof HttpCodeException
                                                                 ? ((HttpCodeException) failure)
-                                                                .getCode()
+                                                                        .getCode()
                                                                 : 500;
                                                 var handler =
                                                         request.getServerConfig()
@@ -131,23 +137,28 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                                         request,
                                                         response,
                                                         failure
-                                                                instanceof
-                                                                java.lang.reflect
-                                                                        .InvocationTargetException
+                                                                        instanceof
+                                                                        java.lang.reflect
+                                                                                .InvocationTargetException
                                                                 ? ((java.lang.reflect
-                                                                .InvocationTargetException)
-                                                                failure)
-                                                                .getTargetException()
+                                                                                        .InvocationTargetException)
+                                                                                failure)
+                                                                        .getTargetException()
                                                                 : failure);
                                             }
                                         }
                                         return false;
                                     }));
         } catch (OAuthException error) {
-            response.addHeader("WWW-Authenticate", "Bearer error=\"" + error.getOAuthError() + "\"");
+            response.addHeader(
+                    "WWW-Authenticate", "Bearer error=\"" + error.getOAuthError() + "\"");
             response.setContentType("application/json;charset=UTF-8");
-            response.write(new ByteArrayInputStream(new Gson().toJson(new OAuthModels.Error(error.getOAuthError()))
-                    .getBytes(StandardCharsets.UTF_8)), error.getStatus());
+            response.write(
+                    new ByteArrayInputStream(
+                            new Gson()
+                                    .toJson(new OAuthModels.Error(error.getOAuthError()))
+                                    .getBytes(StandardCharsets.UTF_8)),
+                    error.getStatus());
             return false;
         }
     }

@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 
-/** Keeps last-trigger health separate from business runs; empty ticks do not fill execution history. */
+/**
+ * Keeps last-trigger health separate from business runs; empty ticks do not fill execution history.
+ */
 public final class AutomationTickService {
     private final AutomationEngine engine;
     private final AutomationStore store;
@@ -13,27 +15,47 @@ public final class AutomationTickService {
     private final AutomationDefaults defaults;
     private final Completion completion;
 
-    public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock) {
+    public AutomationTickService(
+            AutomationEngine engine, AutomationStore store, LongSupplier clock) {
         this(engine, store, clock, null);
     }
 
-    public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock, AutomationDefaults defaults) {
-        this(engine, store, clock, defaults, (budget, receipt) -> { });
+    public AutomationTickService(
+            AutomationEngine engine,
+            AutomationStore store,
+            LongSupplier clock,
+            AutomationDefaults defaults) {
+        this(engine, store, clock, defaults, (budget, receipt) -> {});
     }
 
-    public AutomationTickService(AutomationEngine engine, AutomationStore store, LongSupplier clock,
-                                 AutomationDefaults defaults, Completion completion) {
-        this.engine = engine; this.store = store; this.clock = clock; this.defaults = defaults;
+    public AutomationTickService(
+            AutomationEngine engine,
+            AutomationStore store,
+            LongSupplier clock,
+            AutomationDefaults defaults,
+            Completion completion) {
+        this.engine = engine;
+        this.store = store;
+        this.clock = clock;
+        this.defaults = defaults;
         this.completion = completion;
     }
 
-    public AutomationModels.TickResult tick(String source, String credentialId, long budgetMillis) throws SQLException {
-        if (!List.of("internal", "external").contains(source) || budgetMillis < 1 || budgetMillis > 660000)
+    public AutomationModels.TickResult tick(String source, String credentialId, long budgetMillis)
+            throws SQLException {
+        if (!List.of("internal", "external").contains(source)
+                || budgetMillis < 1
+                || budgetMillis > 660000)
             throw new IllegalArgumentException("automation.invalidTrigger");
         long deadline = Math.addExact(clock.getAsLong(), budgetMillis);
         String key = "assistant.v1.tick:" + source;
-        var initial = store.readBatch(List.of(AutomationDefaults.KEY, AutomationDefaults.PLUGIN_KEY,
-                key, AutomaticUpgradeTaskProvider.KEY));
+        var initial =
+                store.readBatch(
+                        List.of(
+                                AutomationDefaults.KEY,
+                                AutomationDefaults.PLUGIN_KEY,
+                                key,
+                                AutomaticUpgradeTaskProvider.KEY));
         if (defaults != null) defaults.initialize(initial);
         Health health = new Health();
         health.id = UUID.randomUUID().toString();
@@ -45,10 +67,16 @@ public final class AutomationTickService {
         var running = AutomationStore.Snapshot.capture(key, health, Health.class);
         boolean recorded = store.write(key, before, health);
         try {
-            completion.run(Math.max(0, deadline - clock.getAsLong()),
-                    initial.get(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+            completion.run(
+                    Math.max(0, deadline - clock.getAsLong()),
+                    initial.get(
+                            AutomaticUpgradeTaskProvider.KEY,
+                            AutomaticUpgradeTaskProvider.Receipt.class));
             long remaining = deadline - clock.getAsLong();
-            health.result = remaining > 0 ? engine.tick(source, remaining) : new AutomationModels.TickResult();
+            health.result =
+                    remaining > 0
+                            ? engine.tick(source, remaining)
+                            : new AutomationModels.TickResult();
             if (remaining <= 0) health.result.budgetExhausted = true;
             health.status = "success";
             return health.result;
@@ -63,8 +91,10 @@ public final class AutomationTickService {
     }
 
     public Health health(String source) throws SQLException {
-        if (!List.of("internal", "external").contains(source)) throw new IllegalArgumentException("automation.invalidTrigger");
-        AutomationStore.Snapshot<Health> row = store.read("assistant.v1.tick:" + source, Health.class);
+        if (!List.of("internal", "external").contains(source))
+            throw new IllegalArgumentException("automation.invalidTrigger");
+        AutomationStore.Snapshot<Health> row =
+                store.read("assistant.v1.tick:" + source, Health.class);
         return row == null ? null : row.value;
     }
 
@@ -80,6 +110,9 @@ public final class AutomationTickService {
 
     @FunctionalInterface
     public interface Completion {
-        void run(long budgetMillis, AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> receipt) throws SQLException;
+        void run(
+                long budgetMillis,
+                AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> receipt)
+                throws SQLException;
     }
 }

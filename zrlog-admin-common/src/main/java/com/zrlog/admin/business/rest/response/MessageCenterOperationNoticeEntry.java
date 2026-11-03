@@ -1,8 +1,8 @@
 package com.zrlog.admin.business.rest.response;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
 
 public class MessageCenterOperationNoticeEntry {
 
@@ -130,11 +130,10 @@ public class MessageCenterOperationNoticeEntry {
         private Integer updatedArticles;
         private Integer updatedFields;
 
-        public ReplaceArticleResourceUrlPayload() {
-        }
+        public ReplaceArticleResourceUrlPayload() {}
 
-        public ReplaceArticleResourceUrlPayload(Integer scannedArticles, Integer updatedArticles,
-                                                Integer updatedFields) {
+        public ReplaceArticleResourceUrlPayload(
+                Integer scannedArticles, Integer updatedArticles, Integer updatedFields) {
             this.scannedArticles = scannedArticles;
             this.updatedArticles = updatedArticles;
             this.updatedFields = updatedFields;
@@ -170,8 +169,7 @@ public class MessageCenterOperationNoticeEntry {
         private List<String> siteTypes;
         private Boolean synced;
 
-        public StaticSiteSyncPayload() {
-        }
+        public StaticSiteSyncPayload() {}
 
         public StaticSiteSyncPayload(List<String> siteTypes, Boolean synced) {
             this.siteTypes = siteTypes;
@@ -199,8 +197,7 @@ public class MessageCenterOperationNoticeEntry {
 
         private Boolean finish;
 
-        public UpgradePayload() {
-        }
+        public UpgradePayload() {}
 
         public UpgradePayload(Boolean finish) {
             this.finish = finish;
@@ -213,15 +210,13 @@ public class MessageCenterOperationNoticeEntry {
         public void setFinish(Boolean finish) {
             this.finish = finish;
         }
-
     }
 
     public static class UpgradeRestartPayload {
 
         private String buildId;
 
-        public UpgradeRestartPayload() {
-        }
+        public UpgradeRestartPayload() {}
 
         public UpgradeRestartPayload(String buildId) {
             this.buildId = buildId;
@@ -243,10 +238,10 @@ public class MessageCenterOperationNoticeEntry {
         private Integer score;
         private Integer itemCount;
 
-        public PublishCheckPayload() {
-        }
+        public PublishCheckPayload() {}
 
-        public PublishCheckPayload(Long articleId, String articleTitle, Integer score, Integer itemCount) {
+        public PublishCheckPayload(
+                Long articleId, String articleTitle, Integer score, Integer itemCount) {
             this.articleId = articleId;
             this.articleTitle = articleTitle;
             this.score = score;

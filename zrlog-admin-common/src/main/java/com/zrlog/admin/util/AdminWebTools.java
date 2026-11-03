@@ -8,14 +8,14 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.business.exception.MissingInstallException;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 public class AdminWebTools {
 
-    public static void blockUnLoginRequestHandler(HttpRequest request, HttpResponse response, boolean installed) {
+    public static void blockUnLoginRequestHandler(
+            HttpRequest request, HttpResponse response, boolean installed) {
         String actionKey = request.getUri();
         if (actionKey.startsWith("/api")) {
             if (!installed) {
@@ -23,8 +23,11 @@ public class AdminWebTools {
             }
             throw new AdminAuthException();
         } else {
-            String url = AdminConstants.ADMIN_LOGIN_URI_PATH + "?redirectFrom="
-                    + URLEncoder.encode(getRequestUriWithQueryString(request), StandardCharsets.UTF_8);
+            String url =
+                    AdminConstants.ADMIN_LOGIN_URI_PATH
+                            + "?redirectFrom="
+                            + URLEncoder.encode(
+                                    getRequestUriWithQueryString(request), StandardCharsets.UTF_8);
             response.addHeader("Content-Length", "0");
             response.redirect(url);
         }
@@ -41,7 +44,8 @@ public class AdminWebTools {
         return realUri + "?" + request.getQueryStr();
     }
 
-    public static String getAdminStaticResourceBaseUrl(HttpRequest request, java.util.function.Supplier<String> configuredHost) {
+    public static String getAdminStaticResourceBaseUrl(
+            HttpRequest request, java.util.function.Supplier<String> configuredHost) {
         if (BaseStaticSitePlugin.isStaticPluginRequest(request) || EnvKit.isDevMode()) {
             return request.getContextPath();
         }

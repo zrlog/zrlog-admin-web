@@ -3,10 +3,9 @@ package com.zrlog.admin.business.rest.base;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.exception.StaticHtmlConfigException;
 import com.zrlog.common.Validator;
+import java.util.Objects;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
-
-import java.util.Objects;
 
 public class BlogWebSiteInfo implements Validator {
 

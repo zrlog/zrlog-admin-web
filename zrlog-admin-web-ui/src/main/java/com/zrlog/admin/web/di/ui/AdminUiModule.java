@@ -10,14 +10,12 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import dagger.Module;
 import dagger.Provides;
 import jakarta.inject.Provider;
-
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 @Module
 public final class AdminUiModule {
-    private AdminUiModule() {
-    }
+    private AdminUiModule() {}
 
     @Provides
     static AdminStaticSiteSsePublisher publisher(Supplier<AdminStaticSiteSsePublisher> publisher) {

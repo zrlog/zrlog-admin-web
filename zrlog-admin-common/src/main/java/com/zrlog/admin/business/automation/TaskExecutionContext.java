@@ -2,7 +2,6 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.data.security.AccountAccess;
-
 import java.util.Objects;
 import java.util.function.LongSupplier;
 
@@ -15,13 +14,22 @@ public final class TaskExecutionContext {
     private final CheckedAction fence;
     private final Checkpoint checkpoint;
 
-    public TaskExecutionContext(String runId, AccountAccess actor, long deadline,
-                                LongSupplier clock, CheckedAction fence) {
-        this(runId, actor, deadline, clock, fence, result -> { });
+    public TaskExecutionContext(
+            String runId,
+            AccountAccess actor,
+            long deadline,
+            LongSupplier clock,
+            CheckedAction fence) {
+        this(runId, actor, deadline, clock, fence, result -> {});
     }
 
-    public TaskExecutionContext(String runId, AccountAccess actor, long deadline,
-                                LongSupplier clock, CheckedAction fence, Checkpoint checkpoint) {
+    public TaskExecutionContext(
+            String runId,
+            AccountAccess actor,
+            long deadline,
+            LongSupplier clock,
+            CheckedAction fence,
+            Checkpoint checkpoint) {
         this.runId = Objects.requireNonNull(runId);
         this.actor = Objects.requireNonNull(actor);
         this.deadline = deadline;
@@ -30,9 +38,18 @@ public final class TaskExecutionContext {
         this.checkpoint = Objects.requireNonNull(checkpoint);
     }
 
-    public String runId() { return runId; }
-    public AccountAccess actor() { return actor; }
-    public long remainingMillis() { return Math.max(0, deadline - clock.getAsLong()); }
+    public String runId() {
+        return runId;
+    }
+
+    public AccountAccess actor() {
+        return actor;
+    }
+
+    public long remainingMillis() {
+        return Math.max(0, deadline - clock.getAsLong());
+    }
+
     public AdminAuditContext audit() {
         return new AdminAuditContext(actor.getUserId(), "", "/assistant/run/" + runId, null);
     }
@@ -45,15 +62,22 @@ public final class TaskExecutionContext {
         fence.run();
     }
 
-    /** Persist provider-owned progress before a side effect and after its result, without completing the task. */
+    /**
+     * Persist provider-owned progress before a side effect and after its result, without completing
+     * the task.
+     */
     public void checkpoint(AutomationModels.Result progress) throws Exception {
         checkActive();
         checkpoint.save(Objects.requireNonNull(progress));
     }
 
     @FunctionalInterface
-    public interface Checkpoint { void save(AutomationModels.Result progress) throws Exception; }
+    public interface Checkpoint {
+        void save(AutomationModels.Result progress) throws Exception;
+    }
 
     @FunctionalInterface
-    public interface CheckedAction { void run() throws Exception; }
+    public interface CheckedAction {
+        void run() throws Exception;
+    }
 }

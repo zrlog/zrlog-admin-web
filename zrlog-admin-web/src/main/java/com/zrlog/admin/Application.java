@@ -1,5 +1,7 @@
 package com.zrlog.admin;
 
+import static com.zrlog.common.Constants.getZrLogHome;
+
 import com.hibegin.http.server.WebServerBuilder;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.MethodInterceptor;
@@ -12,12 +14,9 @@ import com.zrlog.plugin.Plugins;
 import com.zrlog.updater.spi.UpdateProviders;
 import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSetupLoader;
-
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
-
-import static com.zrlog.common.Constants.getZrLogHome;
 
 public class Application {
 
@@ -50,10 +49,15 @@ class DevZrLogConfig extends ZrLogConfig {
 
     protected DevZrLogConfig(Integer port, Updater updater, String contextPath) {
         super(port, updater, contextPath);
-        webSetups.addAll(WebSetupLoader.load(
-                new WebSetupContext(this, dbPropertiesFile, installLockFile, contextPath, updater),
-                provider -> provider.name().equals("data") || provider.name().equals("services")
-                        || provider.name().equals("admin") || provider.name().startsWith("admin-")));
+        webSetups.addAll(
+                WebSetupLoader.load(
+                        new WebSetupContext(
+                                this, dbPropertiesFile, installLockFile, contextPath, updater),
+                        provider ->
+                                provider.name().equals("data")
+                                        || provider.name().equals("services")
+                                        || provider.name().equals("admin")
+                                        || provider.name().startsWith("admin-")));
         initializeWebSetups();
         serverConfig.getInterceptors().add(MethodInterceptor.class);
     }

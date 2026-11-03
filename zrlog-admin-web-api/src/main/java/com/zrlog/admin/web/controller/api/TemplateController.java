@@ -25,7 +25,6 @@ import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -38,17 +37,17 @@ public class TemplateController extends BaseController {
 
     private final AdminPageDataFactory pages;
 
-
     private final TemplateService templateService;
 
     @Inject
-    public TemplateController(TemplateService templateService, AdminPageDataFactory pages,
-                              AdminRequestIdentity requestIdentity) {
+    public TemplateController(
+            TemplateService templateService,
+            AdminPageDataFactory pages,
+            AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.pages = pages;
         this.templateService = templateService;
     }
-
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
@@ -57,7 +56,8 @@ public class TemplateController extends BaseController {
     public ApiStandardResponse<Void> apply() throws SQLException {
         ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
-        if (templateService.apply(template, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()))) {
+        if (templateService.apply(
+                template, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()))) {
             Cookie cookie = new Cookie();
             cookie.setName("template");
             cookie.setValue("");
@@ -65,7 +65,8 @@ public class TemplateController extends BaseController {
             cookie.setHttpOnly(true);
             getResponse().addCookie(cookie);
         }
-        apiStandardResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.common.update.success"));
+        apiStandardResponse.setMessage(
+                I18nUtil.getAdminBackendStringFromRes("admin.common.update.success"));
         return apiStandardResponse;
     }
 
@@ -75,7 +76,9 @@ public class TemplateController extends BaseController {
         if (EnvKit.isFaaSMode()) {
             ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
             apiStandardResponse.setError(1);
-            apiStandardResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.template.preview.error.unsupported"));
+            apiStandardResponse.setMessage(
+                    I18nUtil.getAdminBackendStringFromRes(
+                            "admin.template.preview.error.unsupported"));
             return apiStandardResponse;
         }
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
@@ -93,7 +96,8 @@ public class TemplateController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.delete")
     public DeleteResponse delete() {
         String shortTemplate = getParamWithEmptyCheck("shortTemplate");
-        return templateService.delete(shortTemplate, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+        return templateService.delete(
+                shortTemplate, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
     }
 
     @ResponseBody
@@ -109,7 +113,11 @@ public class TemplateController extends BaseController {
         }
         String shortTemplate = getParamWithEmptyCheck("shortTemplate");
         boolean overwrite = Boolean.parseBoolean(request.getParaToStr("overwrite", "false"));
-        return templateService.uploadAndRecord(shortTemplate, overwrite, uploadFile, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+        return templateService.uploadAndRecord(
+                shortTemplate,
+                overwrite,
+                uploadFile,
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -118,11 +126,15 @@ public class TemplateController extends BaseController {
     @RequestLock
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.saveConfig")
     public UpdateRecordResponse config() throws SQLException, IOException {
-        UpdateTemplateConfigRequest param = getRequestBodyWithNullCheck(UpdateTemplateConfigRequest.class);
+        UpdateTemplateConfigRequest param =
+                getRequestBodyWithNullCheck(UpdateTemplateConfigRequest.class);
         String template = param.getTemplate();
         if (StringUtils.isNotEmpty(template)) {
             param.remove("template");
-            return templateService.saveAndRecord(template, param, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            return templateService.saveAndRecord(
+                    template,
+                    param,
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return new UpdateRecordResponse();
     }
@@ -131,22 +143,30 @@ public class TemplateController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.readConfig")
     public AdminPageDataResponse<TemplateVO> configParams() throws IOException {
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
-        return pages.response(requestIdentity.optional(), templateService.loadTemplateConfig(template, request), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                templateService.loadTemplateConfig(template, request),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.previewValue")
     public ApiStandardResponse<TemplateValuePreviewResponse> previewConfigValue() {
-        return new ApiStandardResponse<>(new TemplateValuePreviewResponse(
-                templateService.previewValue(request.getParaToStr("value"), request)));
+        return new ApiStandardResponse<>(
+                new TemplateValuePreviewResponse(
+                        templateService.previewValue(request.getParaToStr("value"), request)));
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.list")
     public AdminPageDataResponse<List<TemplateEntryResponse>> index() throws IOException {
         templateService.prepareTemplates();
-        return pages.response(requestIdentity.optional(), templateService.getAllTemplates(templateService.getTemplatePath(getRequest())),
-                "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                templateService.getAllTemplates(templateService.getTemplatePath(getRequest())),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
@@ -161,8 +181,9 @@ public class TemplateController extends BaseController {
                 host = getRequest().getHeader("Host");
             }
         }
-        TemplateDownloadResponse downloadResponse = templateService.templateCenter(
-                AdminTokenThreadLocal.getUserProtocol(), host, request.getContextPath());
+        TemplateDownloadResponse downloadResponse =
+                templateService.templateCenter(
+                        AdminTokenThreadLocal.getUserProtocol(), host, request.getContextPath());
         return pages.response(requestIdentity.optional(), downloadResponse, "", request.getUri());
     }
 }

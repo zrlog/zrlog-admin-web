@@ -1,13 +1,12 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.support.ApplicationServicesFixture;
-import org.junit.Test;
-
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Test;
 
 public class ArticleMarkdownPreparationTest {
     @Test

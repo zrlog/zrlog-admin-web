@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
@@ -15,47 +17,45 @@ import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminPluginInterceptorTest {
 
     private ZrLogConfig applicationConfig;
 
     private static HttpRequest request(HttpMethod method, String uri) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminPluginInterceptorTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, calledMethod, args) -> {
-                    switch (calledMethod.getName()) {
-                        case "getMethod":
-                            return method;
-                        case "getUri":
-                            return uri;
-                        case "getContextPath":
-                            return "/blog";
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                            return Map.of("X-Real-IP", "127.0.0.1");
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (calledMethod.getReturnType().isPrimitive()) {
-                                return 0;
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminPluginInterceptorTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, calledMethod, args) -> {
+                            switch (calledMethod.getName()) {
+                                case "getMethod":
+                                    return method;
+                                case "getUri":
+                                    return uri;
+                                case "getContextPath":
+                                    return "/blog";
+                                case "getHeader":
+                                    return "Host".equals(args[0]) ? "localhost:18080" : null;
+                                case "getHeaderMap":
+                                    return Map.of("X-Real-IP", "127.0.0.1");
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (calledMethod.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     private static AdminFullTokenVO token() {
@@ -70,8 +70,7 @@ public class AdminPluginInterceptorTest {
     private static TokenService tokenService(AdminFullTokenVO token) {
         return new TokenService() {
             @Override
-            public void updateSessionTimeout(long sessionTimeoutInMinutes) {
-            }
+            public void updateSessionTimeout(long sessionTimeoutInMinutes) {}
 
             @Override
             public AdminFullTokenVO getAdminTokenVO(HttpRequest request) {
@@ -79,36 +78,54 @@ public class AdminPluginInterceptorTest {
             }
 
             @Override
-            public void removeAdminToken(HttpRequest request, HttpResponse response) {
-            }
+            public void removeAdminToken(HttpRequest request, HttpResponse response) {}
 
             @Override
-            public void setAdminToken(Integer userId, String secretKey, String sessionId, String protocol,
-                                      HttpRequest request, HttpResponse response) {
-            }
+            public void setAdminToken(
+                    Integer userId,
+                    String secretKey,
+                    String sessionId,
+                    String protocol,
+                    HttpRequest request,
+                    HttpResponse response) {}
         };
     }
 
     @Test
     public void shouldTreatOnlyPluginRootPwaResourcesAsPublic() {
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.webmanifest"));
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.json"));
+        assertTrue(
+                AdminPluginInterceptor.isPluginPwaResource(
+                        "/admin/plugins/reminder/manifest.webmanifest"));
+        assertTrue(
+                AdminPluginInterceptor.isPluginPwaResource(
+                        "/admin/plugins/reminder/manifest.json"));
         assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon"));
         assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-sw.js"));
-        assertTrue(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/manifest.webmanifest?v=1"));
+        assertTrue(
+                AdminPluginInterceptor.isPluginPwaResource(
+                        "/admin/plugins/reminder/manifest.webmanifest?v=1"));
 
         assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/static/app.js"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/api/status"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/nested/manifest.json"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon/"));
-        assertFalse(AdminPluginInterceptor.isPluginPwaResource("/admin/plugin/reminder/manifest.json"));
+        assertFalse(
+                AdminPluginInterceptor.isPluginPwaResource(
+                        "/admin/plugins/reminder/static/app.js"));
+        assertFalse(
+                AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/api/status"));
+        assertFalse(
+                AdminPluginInterceptor.isPluginPwaResource(
+                        "/admin/plugins/reminder/nested/manifest.json"));
+        assertFalse(
+                AdminPluginInterceptor.isPluginPwaResource("/admin/plugins/reminder/pwa-icon/"));
+        assertFalse(
+                AdminPluginInterceptor.isPluginPwaResource("/admin/plugin/reminder/manifest.json"));
     }
 
     @Test
     public void shouldConvertAdminPluginPathToPluginCorePath() {
-        assertEquals("/reminder/manifest.webmanifest",
-                AdminPluginInterceptor.pluginCoreUri("/admin/plugins/reminder/manifest.webmanifest"));
+        assertEquals(
+                "/reminder/manifest.webmanifest",
+                AdminPluginInterceptor.pluginCoreUri(
+                        "/admin/plugins/reminder/manifest.webmanifest"));
     }
 
     @Test
@@ -116,11 +133,11 @@ public class AdminPluginInterceptorTest {
         ResponseRecorder response = new ResponseRecorder();
 
         new AdminPluginInterceptor(
-                () -> applicationConfig.getTokenService(),
-                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                ApplicationServicesFixture.installed(applicationConfig),
-                AccountServicesFixture.component(null).requestIdentity(),
-                ApplicationServicesFixture.audit(null))
+                        () -> applicationConfig.getTokenService(),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        ApplicationServicesFixture.installed(applicationConfig),
+                        AccountServicesFixture.component(null).requestIdentity(),
+                        ApplicationServicesFixture.audit(null))
                 .doInterceptor(request(HttpMethod.GET, "/admin/plugins"), response.response());
 
         assertEquals("/admin/plugins/", response.redirected);
@@ -134,11 +151,11 @@ public class AdminPluginInterceptorTest {
                 new TestZrLogConfig(tokenService(null), plugin),
                 () ->
                         new AdminPluginInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                ApplicationServicesFixture.installed(applicationConfig),
-                                AccountServicesFixture.component(null).requestIdentity(),
-                                ApplicationServicesFixture.audit(null))
+                                        () -> applicationConfig.getTokenService(),
+                                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                        ApplicationServicesFixture.installed(applicationConfig),
+                                        AccountServicesFixture.component(null).requestIdentity(),
+                                        ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
                                                 HttpMethod.GET,
@@ -158,11 +175,11 @@ public class AdminPluginInterceptorTest {
                 new TestZrLogConfig(tokenService(null), plugin),
                 () ->
                         new AdminPluginInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                ApplicationServicesFixture.installed(applicationConfig),
-                                AccountServicesFixture.component(null).requestIdentity(),
-                                ApplicationServicesFixture.audit(null))
+                                        () -> applicationConfig.getTokenService(),
+                                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                        ApplicationServicesFixture.installed(applicationConfig),
+                                        AccountServicesFixture.component(null).requestIdentity(),
+                                        ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
                                                 HttpMethod.GET,
@@ -180,11 +197,11 @@ public class AdminPluginInterceptorTest {
                 new TestZrLogConfig(tokenService(null), new FakePluginCorePlugin(true)),
                 () ->
                         new AdminPluginInterceptor(
-                                () -> applicationConfig.getTokenService(),
-                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                ApplicationServicesFixture.installed(applicationConfig),
-                                AccountServicesFixture.component(null).requestIdentity(),
-                                ApplicationServicesFixture.audit(null))
+                                        () -> applicationConfig.getTokenService(),
+                                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                        ApplicationServicesFixture.installed(applicationConfig),
+                                        AccountServicesFixture.component(null).requestIdentity(),
+                                        ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(HttpMethod.GET, "/admin/plugins/reminder/index"),
                                         response.response()));
@@ -203,13 +220,14 @@ public class AdminPluginInterceptorTest {
                     new TestZrLogConfig(tokenService(token()), new FakePluginCorePlugin(false)),
                     () ->
                             new AdminPluginInterceptor(
-                                    () -> applicationConfig.getTokenService(),
-                                    () ->
-                                            applicationConfig.getPlugin(
-                                                    PluginCorePlugin.class),
-                                    ApplicationServicesFixture.installed(applicationConfig),
-                                    AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                                    ApplicationServicesFixture.audit(db.dataSource()))
+                                            () -> applicationConfig.getTokenService(),
+                                            () ->
+                                                    applicationConfig.getPlugin(
+                                                            PluginCorePlugin.class),
+                                            ApplicationServicesFixture.installed(applicationConfig),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity(),
+                                            ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
                                                     HttpMethod.GET,
@@ -230,13 +248,14 @@ public class AdminPluginInterceptorTest {
                     new TestZrLogConfig(tokenService(token()), plugin),
                     () ->
                             new AdminPluginInterceptor(
-                                    () -> applicationConfig.getTokenService(),
-                                    () ->
-                                            applicationConfig.getPlugin(
-                                                    PluginCorePlugin.class),
-                                    ApplicationServicesFixture.installed(applicationConfig),
-                                    AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                                    ApplicationServicesFixture.audit(db.dataSource()))
+                                            () -> applicationConfig.getTokenService(),
+                                            () ->
+                                                    applicationConfig.getPlugin(
+                                                            PluginCorePlugin.class),
+                                            ApplicationServicesFixture.installed(applicationConfig),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .requestIdentity(),
+                                            ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
                                                     HttpMethod.POST,
@@ -244,8 +263,13 @@ public class AdminPluginInterceptorTest {
                                             new ResponseRecorder().response()));
 
             assertEquals("/reminder/surfaceAction", plugin.lastUri);
-            assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
-                    .get("value")).contains("PLUGIN_SURFACE_ACTION"));
+            assertTrue(
+                    String.valueOf(
+                                    db.queryOne(
+                                                    "select value from website where name=?",
+                                                    "admin_audit_log")
+                                            .get("value"))
+                            .contains("PLUGIN_SURFACE_ACTION"));
         }
     }
 
@@ -263,21 +287,22 @@ public class AdminPluginInterceptorTest {
         private Integer renderedCode;
 
         private HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(
-                    AdminPluginInterceptorTest.class.getClassLoader(),
-                    new Class[]{HttpResponse.class},
-                    (proxy, method, args) -> {
-                        switch (method.getName()) {
-                            case "redirect":
-                                redirected = args[0].toString();
-                                return null;
-                            case "renderCode":
-                                renderedCode = (Integer) args[0];
-                                return null;
-                            default:
-                                return null;
-                        }
-                    });
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            AdminPluginInterceptorTest.class.getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                switch (method.getName()) {
+                                    case "redirect":
+                                        redirected = args[0].toString();
+                                        return null;
+                                    case "renderCode":
+                                        renderedCode = (Integer) args[0];
+                                        return null;
+                                    default:
+                                        return null;
+                                }
+                            });
         }
     }
 
@@ -328,19 +353,23 @@ public class AdminPluginInterceptorTest {
         }
 
         @Override
-        public CloseResponseHandle getContext(String uri, HttpMethod method, HttpRequest request,
-                                              AdminTokenVO adminTokenVO) {
+        public CloseResponseHandle getContext(
+                String uri, HttpMethod method, HttpRequest request, AdminTokenVO adminTokenVO) {
             return null;
         }
 
         @Override
-        public <T> T requestService(HttpRequest inputRequest, Map<String, String[]> params, AdminTokenVO adminTokenVO,
-                                    Class<T> clazz) {
+        public <T> T requestService(
+                HttpRequest inputRequest,
+                Map<String, String[]> params,
+                AdminTokenVO adminTokenVO,
+                Class<T> clazz) {
             return null;
         }
 
         @Override
-        public boolean accessPlugin(String uri, HttpRequest request, HttpResponse response, AdminTokenVO adminTokenVO)
+        public boolean accessPlugin(
+                String uri, HttpRequest request, HttpResponse response, AdminTokenVO adminTokenVO)
                 throws IOException, URISyntaxException, InterruptedException {
             this.lastUri = uri;
             this.lastToken = adminTokenVO;

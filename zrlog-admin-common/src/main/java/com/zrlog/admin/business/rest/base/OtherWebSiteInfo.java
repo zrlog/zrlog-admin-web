@@ -3,18 +3,17 @@ package com.zrlog.admin.business.rest.base;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
+import java.util.regex.Pattern;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
-
-import java.util.regex.Pattern;
 
 public class OtherWebSiteInfo implements Validator {
 
     // 允许的指令
-    private static final Pattern VALID_LINE = Pattern.compile(
-            "^(User-agent|Disallow|Allow|Sitemap|Crawl-delay|Host):\\s*.+$",
-            Pattern.CASE_INSENSITIVE
-    );
+    private static final Pattern VALID_LINE =
+            Pattern.compile(
+                    "^(User-agent|Disallow|Allow|Sitemap|Crawl-delay|Host):\\s*.+$",
+                    Pattern.CASE_INSENSITIVE);
     private String icp;
     private String webCm;
     private String robotRuleContent;
@@ -77,5 +76,4 @@ public class OtherWebSiteInfo implements Validator {
     public void setRobotRuleContent(String robotRuleContent) {
         this.robotRuleContent = robotRuleContent;
     }
-
 }

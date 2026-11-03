@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -18,25 +20,21 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class AdminProxyControllerTest {
 
-    @Rule
-    public TemporaryFolder temporary = new TemporaryFolder();
+    @Rule public TemporaryFolder temporary = new TemporaryFolder();
     private ZrLogConfig applicationConfig;
     private String previousRoot;
 
@@ -62,16 +60,21 @@ public class AdminProxyControllerTest {
     public void bothProxyRoutesRequireSystemManagement() throws Exception {
         Router router = new Router();
         AdminRouters.configAdminRoute(router);
-        for (String path : new String[]{"/api/admin/system/proxy", "/api/admin/system/proxy/test"}) {
-            for (HttpMethod verb : new HttpMethod[]{HttpMethod.GET, HttpMethod.POST}) {
+        for (String path :
+                new String[] {"/api/admin/system/proxy", "/api/admin/system/proxy/test"}) {
+            for (HttpMethod verb : new HttpMethod[] {HttpMethod.GET, HttpMethod.POST}) {
                 var method = router.getMethod(path, verb);
                 assertNotNull(path, method);
                 assertEquals(AdminProxyController.class, method.getDeclaringClass());
-                assertEquals(AccountAction.SYSTEM_MANAGE, method.getAnnotation(RequiresAction.class).value());
+                assertEquals(
+                        AccountAction.SYSTEM_MANAGE,
+                        method.getAnnotation(RequiresAction.class).value());
                 assertThrows(
                         PermissionErrorException.class,
                         () ->
-                                AccountServicesFixture.component(null).routeAuthorizer().checkRoute(null, method, null));
+                                AccountServicesFixture.component(null)
+                                        .routeAuthorizer()
+                                        .checkRoute(null, method, null));
             }
         }
     }
@@ -87,13 +90,25 @@ public class AdminProxyControllerTest {
                                 ApplicationServicesFixture.messages(null)),
                         new AdminProxyService(),
                         AccountServicesFixture.component(null).requestIdentity());
-        HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
-                (proxy, method, args) -> method.getName().equals("getMethod") ? HttpMethod.DELETE : null);
-        HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("renderCode")) status.set((Integer) args[0]);
-                    return null;
-                });
+        HttpRequest request =
+                (HttpRequest)
+                        Proxy.newProxyInstance(
+                                getClass().getClassLoader(),
+                                new Class[] {HttpRequest.class},
+                                (proxy, method, args) ->
+                                        method.getName().equals("getMethod")
+                                                ? HttpMethod.DELETE
+                                                : null);
+        HttpResponse response =
+                (HttpResponse)
+                        Proxy.newProxyInstance(
+                                getClass().getClassLoader(),
+                                new Class[] {HttpResponse.class},
+                                (proxy, method, args) -> {
+                                    if (method.getName().equals("renderCode"))
+                                        status.set((Integer) args[0]);
+                                    return null;
+                                });
         set(controller, "request", request);
         set(controller, "response", response);
         assertNull(controller.index());
@@ -108,8 +123,10 @@ public class AdminProxyControllerTest {
             applicationConfig = database.config();
             database.loadAdminWebModules();
             NetworkProxy.Settings active = NetworkProxy.initialize();
-            String proxyUrl = active.getUrl().equals("http://proxy.example:3128")
-                    ? "http://proxy.example:3129" : "http://proxy.example:3128";
+            String proxyUrl =
+                    active.getUrl().equals("http://proxy.example:3128")
+                            ? "http://proxy.example:3129"
+                            : "http://proxy.example:3128";
             AdminProxyController controller =
                     new AdminProxyController(
                             new AdminPageDataFactory(
@@ -117,18 +134,30 @@ public class AdminProxyControllerTest {
                                     ApplicationServicesFixture.buildId(database.resources()),
                                     ApplicationServicesFixture.messages(database.dataSource())),
                             new AdminProxyService(),
-                            AccountServicesFixture.component(database.dataSource()).requestIdentity());
-            set(controller, "request", request(HttpMethod.POST,
-                    "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
+                            AccountServicesFixture.component(database.dataSource())
+                                    .requestIdentity());
+            set(
+                    controller,
+                    "request",
+                    request(
+                            HttpMethod.POST,
+                            "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();
             assertEquals(proxyUrl, saved.getUrl());
-            // Environment overrides may make a file edit ineffective. Saving must never apply it live.
+            // Environment overrides may make a file edit ineffective. Saving must never apply it
+            // live.
             assertSame(active, NetworkProxy.initialize());
             assertEquals(active.getUrl(), saved.getActiveUrl());
             byte[] previousFile = Files.readAllBytes(NetworkProxy.configFile());
-            assertTrue(new String(previousFile, StandardCharsets.ISO_8859_1).contains("network.proxy.url"));
-            set(controller, "request", request(HttpMethod.POST,
-                    "{\"url\":\"http://user:secret@proxy.example\",\"noProxy\":\"\"}"));
+            assertTrue(
+                    new String(previousFile, StandardCharsets.ISO_8859_1)
+                            .contains("network.proxy.url"));
+            set(
+                    controller,
+                    "request",
+                    request(
+                            HttpMethod.POST,
+                            "{\"url\":\"http://user:secret@proxy.example\",\"noProxy\":\"\"}"));
             assertThrows(ArgsException.class, controller::index);
             assertArrayEquals(previousFile, Files.readAllBytes(NetworkProxy.configFile()));
             set(controller, "request", request(HttpMethod.GET, ""));
@@ -137,13 +166,17 @@ public class AdminProxyControllerTest {
     }
 
     private HttpRequest request(HttpMethod verb, String body) {
-        return (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("getMethod")) return verb;
-                    if (method.getName().equals("getUri")) return "/api/admin/system/proxy";
-                    if (method.getName().equals("getInputStream"))
-                        return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        getClass().getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if (method.getName().equals("getMethod")) return verb;
+                            if (method.getName().equals("getUri")) return "/api/admin/system/proxy";
+                            if (method.getName().equals("getInputStream"))
+                                return new ByteArrayInputStream(
+                                        body.getBytes(StandardCharsets.UTF_8));
+                            return null;
+                        });
     }
 }

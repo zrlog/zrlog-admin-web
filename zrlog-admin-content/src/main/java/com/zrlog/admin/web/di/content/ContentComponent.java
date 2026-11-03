@@ -16,16 +16,15 @@ import com.zrlog.data.di.DataComponent;
 import dagger.BindsInstance;
 import dagger.Component;
 import jakarta.inject.Singleton;
-
 import java.util.function.Supplier;
 
 @Singleton
 @Component(
         modules = {
-                DataBindingsModule.class,
-                ServiceBindingsModule.class,
-                AccountBindingsModule.class,
-                ContentModule.class
+            DataBindingsModule.class,
+            ServiceBindingsModule.class,
+            AccountBindingsModule.class,
+            ContentModule.class
         })
 public interface ContentComponent {
     AdminArticleService articles();
@@ -69,7 +68,9 @@ public interface ContentComponent {
     @Component.Factory
     interface Factory {
         ContentComponent create(
-                @BindsInstance Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler> publicationScheduler,
+                @BindsInstance
+                        Supplier<com.zrlog.admin.business.content.ArticlePublicationScheduler>
+                                publicationScheduler,
                 @BindsInstance DataComponent data,
                 @BindsInstance ServiceComponent services,
                 @BindsInstance AccountComponent account,

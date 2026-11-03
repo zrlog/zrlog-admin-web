@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
@@ -10,15 +12,12 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.util.I18nUtil;
-import org.junit.Test;
-
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AIPublishCheckServiceTest {
     @Test
@@ -30,8 +29,12 @@ public class AIPublishCheckServiceTest {
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AIServiceDependencies.writing(db.dataSource()),
                             AIServiceDependencies.conversations(db.dataSource()),
-                            com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
-                            com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions());
+                            com.zrlog.admin.support.AccountServicesFixture.component(
+                                            db.dataSource())
+                                    .identities(),
+                            com.zrlog.admin.support.AccountServicesFixture.component(
+                                            db.dataSource())
+                                    .permissions());
             var context = new GenerateArticleFieldRequest();
             db.putWebsite("generator_html_status", "1");
             db.putWebsite("host", "blog.example");
@@ -48,7 +51,8 @@ public class AIPublishCheckServiceTest {
     }
 
     @Test
-    public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer() throws Exception {
+    public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.unitCacheService().getPublicWebSiteInfo().setLanguage("zh_CN");
             for (String language : List.of("en_US", "zh_CN")) {
@@ -60,11 +64,16 @@ public class AIPublishCheckServiceTest {
                                 ApplicationServicesFixture.operations(db.dataSource()),
                                 AIServiceDependencies.writing(db.dataSource()),
                                 AIServiceDependencies.conversations(db.dataSource()),
-                                com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
-                                com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions()) {
+                                com.zrlog.admin.support.AccountServicesFixture.component(
+                                                db.dataSource())
+                                        .identities(),
+                                com.zrlog.admin.support.AccountServicesFixture.component(
+                                                db.dataSource())
+                                        .permissions()) {
                             @Override
                             PublishCheckResponse buildPublishCheckPayload(
-                                    com.zrlog.data.security.AccountAccess actor, Long id,
+                                    com.zrlog.data.security.AccountAccess actor,
+                                    Long id,
                                     GenerateArticleFieldRequest context,
                                     PublishCheckPersistenceGuard guard,
                                     AIConversationService conversations) {
@@ -86,11 +95,18 @@ public class AIPublishCheckServiceTest {
                 detail.setPublishCheckEnabled(true);
                 AIPublishCheckService.PublishCheckTask task;
                 try (var ignored = AdminLanguageContext.open(language)) {
-                    task = service.startPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail, new CreateArticleRequest());
+                    task =
+                            service.startPublishCheck(
+                                    com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                            db.dataSource()),
+                                    detail,
+                                    new CreateArticleRequest());
                 }
                 try {
                     assertTrue(started.await(5, TimeUnit.SECONDS));
-                    try (var ignored = AdminLanguageContext.open(language.equals("en_US") ? "zh_CN" : "en_US")) {
+                    try (var ignored =
+                            AdminLanguageContext.open(
+                                    language.equals("en_US") ? "zh_CN" : "en_US")) {
                         proceed.countDown();
                         assertEquals(
                                 language, task.getFuture().get(5, TimeUnit.SECONDS).getContent());
@@ -111,12 +127,16 @@ public class AIPublishCheckServiceTest {
                         AIServiceDependencies.writing(null),
                         AIServiceDependencies.conversations(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
         Method extractScore = method("extractScore", Object.class);
         Method extractItemCount = method("extractItemCount", Object.class);
         ScoreArticleResponse response = new ScoreArticleResponse();
         response.setScore(88);
-        response.setItems(List.of(new ScoreArticleResponse.ScoreItem(), new ScoreArticleResponse.ScoreItem()));
+        response.setItems(
+                List.of(
+                        new ScoreArticleResponse.ScoreItem(),
+                        new ScoreArticleResponse.ScoreItem()));
         Map<String, Object> mapPayload = Map.of("score", "76", "items", List.of("a", "b", "c"));
 
         assertEquals(88, extractScore.invoke(service, response));
@@ -139,13 +159,14 @@ public class AIPublishCheckServiceTest {
                         AIServiceDependencies.writing(null),
                         AIServiceDependencies.conversations(null),
                         com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
-                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
+                        com.zrlog.admin.support.AccountServicesFixture.component(null)
+                                .permissions());
         Method method = method("toInteger", Object.class);
 
         assertEquals(7, method.invoke(service, 7L));
         assertEquals(8, method.invoke(service, "8"));
         assertNull(method.invoke(service, "bad"));
-        assertNull(method.invoke(service, new Object[]{null}));
+        assertNull(method.invoke(service, new Object[] {null}));
     }
 
     private Method method(String name, Class<?>... types) throws Exception {

@@ -1,12 +1,12 @@
 package com.zrlog.admin.data.repository;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.entity.OptimisticLockException;
 import com.zrlog.test.support.ZrLogTestDatabase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class AdminUserRepositoryDatabaseTest {
@@ -18,19 +18,29 @@ public class AdminUserRepositoryDatabaseTest {
 
     @Parameterized.Parameters(name = "{0}")
     public static Object[] backends() {
-        return new Object[]{"H2", "SQLITE", "WEB_API"};
+        return new Object[] {"H2", "SQLITE", "WEB_API"};
     }
 
     private ZrLogTestDatabase open() throws Exception {
-        return backend.equals("WEB_API") ? ZrLogTestDatabase.openWebApi()
+        return backend.equals("WEB_API")
+                ? ZrLogTestDatabase.openWebApi()
                 : ZrLogTestDatabase.open(ZrLogTestDatabase.DatabaseType.valueOf(backend));
     }
 
     @Test
-    public void updatesCredentialsAndProfileWithoutChangingAuthorityOrOverwritingStaleRows() throws Exception {
+    public void updatesCredentialsAndProfileWithoutChangingAuthorityOrOverwritingStaleRows()
+            throws Exception {
         try (ZrLogTestDatabase db = open()) {
-            db.update("INSERT INTO user(userId,email,password,userName,header,role,authVersion,preferences) VALUES(?,?,?,?,?,?,?,?)",
-                    1, "admin@example.com", "password", "admin", "/avatar.png", "author", 7, "{}");
+            db.update(
+                    "INSERT INTO user(userId,email,password,userName,header,role,authVersion,preferences) VALUES(?,?,?,?,?,?,?,?)",
+                    1,
+                    "admin@example.com",
+                    "password",
+                    "admin",
+                    "/avatar.png",
+                    "author",
+                    7,
+                    "{}");
             AdminUserRepository users = new AdminUserRepository(db.dataSource());
             var stale = users.getUserByUserName("admin");
             assertEquals(Long.valueOf(1), stale.getId());
@@ -63,7 +73,8 @@ public class AdminUserRepositoryDatabaseTest {
             assertNull(users.getUserByUserName("missing"));
             assertNull(users.getPasswordByUserId(1));
             assertFalse(users.updatePassword(1, "password"));
-            users.updateEmailUserNameHeaderByUserId("missing@example.com", "missing", "/avatar.png", 1);
+            users.updateEmailUserNameHeaderByUserId(
+                    "missing@example.com", "missing", "/avatar.png", 1);
             assertNull(users.loadById(1L));
         }
     }

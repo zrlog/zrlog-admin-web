@@ -1,19 +1,15 @@
 package com.zrlog.admin.business.security;
 
 import com.zrlog.data.security.AccountAccess;
-
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-/**
- * Delegation restrictions apply to the same action checks as a browser session.
- */
+/** Delegation restrictions apply to the same action checks as a browser session. */
 public final class DelegatedAccess {
     private static final ThreadLocal<Set<String>> ACTIONS = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> INHERITED = new ThreadLocal<>();
 
-    private DelegatedAccess() {
-    }
+    private DelegatedAccess() {}
 
     public static boolean active() {
         return ACTIONS.get() != null;
@@ -33,7 +29,8 @@ public final class DelegatedAccess {
         return selected == null ? task : () -> withPermissions(selected, inherited, task);
     }
 
-    public static <T> T withPermissions(Set<String> permissions, boolean inherit, Callable<T> task) throws Exception {
+    public static <T> T withPermissions(Set<String> permissions, boolean inherit, Callable<T> task)
+            throws Exception {
         Set<String> previous = ACTIONS.get();
         Boolean inherited = INHERITED.get();
         // Nested delegation must not widen an existing restriction.

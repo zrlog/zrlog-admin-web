@@ -1,5 +1,7 @@
 package com.zrlog.admin.web;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
@@ -22,46 +24,61 @@ import com.zrlog.data.di.DataComponent;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSiteInfoProvider;
-import org.jsoup.Jsoup;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.jsoup.Jsoup;
+import org.junit.Test;
 
 public class AdminResourceIsolationTest {
-    private static void assertPage(TestApplication app, String title, String version) throws Throwable {
+    private static void assertPage(TestApplication app, String title, String version)
+            throws Throwable {
         var pages = app.getServerConfig().getBindings().build().get(AdminPageRequestHandler.class);
         HttpRequest request = request(app);
         var page = pages.serverSide("/admin/index", request, response());
         assertEquals(title, page.getResourceInfo().getWebsiteTitle());
-        assertEquals(new Gson().toJson(publicResources(app)), new Gson().toJson(page.getResourceInfo()));
-        assertEquals(version, app.getServerConfig().getBindings().build()
-                .get(AdminPageDataFactory.class).metadata(null, "/admin/index").getPageBuildId());
-        String source = "<html><head><base href='/'>"
-                + "<link rel='manifest' href='/admin/manifest.json'>"
-                + "<script src='/admin/static/app.js'></script></head>"
-                + "<body><pre id='__SS_DATA__'></pre></body></html>";
-        var document = Jsoup.parse(pages.buildHtml(request, response(),
-                new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8))));
+        assertEquals(
+                new Gson().toJson(publicResources(app)), new Gson().toJson(page.getResourceInfo()));
+        assertEquals(
+                version,
+                app.getServerConfig()
+                        .getBindings()
+                        .build()
+                        .get(AdminPageDataFactory.class)
+                        .metadata(null, "/admin/index")
+                        .getPageBuildId());
+        String source =
+                "<html><head><base href='/'>"
+                        + "<link rel='manifest' href='/admin/manifest.json'>"
+                        + "<script src='/admin/static/app.js'></script></head>"
+                        + "<body><pre id='__SS_DATA__'></pre></body></html>";
+        var document =
+                Jsoup.parse(
+                        pages.buildHtml(
+                                request,
+                                response(),
+                                new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8))));
         assertTrue(document.title().contains(title));
         assertEquals(app.contextPath + "/", document.selectFirst("base").attr("href"));
-        assertEquals("https://cdn.example" + app.contextPath + "/admin/manifest.json?v=" + version,
+        assertEquals(
+                "https://cdn.example" + app.contextPath + "/admin/manifest.json?v=" + version,
                 document.selectFirst("link[rel=manifest]").attr("href"));
-        assertEquals("https://cdn.example" + app.contextPath + "/admin/static/app.js",
+        assertEquals(
+                "https://cdn.example" + app.contextPath + "/admin/static/app.js",
                 document.selectFirst("script").attr("src"));
     }
 
     private static AdminResourceInfoResponse publicResources(TestApplication app) throws Exception {
         var method = AdminPublicController.class.getMethod("adminResource");
-        var controller = (AdminPublicController) Controller.buildController(method, request(app), response());
+        var controller =
+                (AdminPublicController)
+                        Controller.buildController(method, request(app), response());
         return controller.adminResource().getData();
     }
 
-    private static void assertWorker(TestApplication app, String ownPath, String otherPath) throws Exception {
+    private static void assertWorker(TestApplication app, String ownPath, String otherPath)
+            throws Exception {
         AdminResource resources = app.ui.getAdminResource();
         assertTrue(resources.getAdminPageUris().contains(ownPath + "/admin/index"));
         assertFalse(resources.getAdminPageUris().contains(otherPath + "/admin/index"));
@@ -74,36 +91,43 @@ public class AdminResourceIsolationTest {
     }
 
     private static HttpRequest request(TestApplication app) {
-        return (HttpRequest) Proxy.newProxyInstance(AdminResourceIsolationTest.class.getClassLoader(),
-                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getContextPath":
-                            return app.contextPath;
-                        case "getUri":
-                            return "/admin/index";
-                        case "getServerConfig":
-                            return app.getServerConfig();
-                        case "getHeader":
-                            return "Host".equals(args[0]) ? "localhost:18080" : null;
-                        case "getHeaderMap":
-                            return Map.of();
-                        case "getScheme":
-                            return "http";
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        default:
-                            return null;
-                    }
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminResourceIsolationTest.class.getClassLoader(),
+                        new Class<?>[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getContextPath":
+                                    return app.contextPath;
+                                case "getUri":
+                                    return "/admin/index";
+                                case "getServerConfig":
+                                    return app.getServerConfig();
+                                case "getHeader":
+                                    return "Host".equals(args[0]) ? "localhost:18080" : null;
+                                case "getHeaderMap":
+                                    return Map.of();
+                                case "getScheme":
+                                    return "http";
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                default:
+                                    return null;
+                            }
+                        });
     }
 
     private static HttpResponse response() {
-        return (HttpResponse) Proxy.newProxyInstance(AdminResourceIsolationTest.class.getClassLoader(),
-                new Class<?>[]{HttpResponse.class}, (proxy, method, args) -> null);
+        return (HttpResponse)
+                Proxy.newProxyInstance(
+                        AdminResourceIsolationTest.class.getClassLoader(),
+                        new Class<?>[] {HttpResponse.class},
+                        (proxy, method, args) -> null);
     }
 
     @Test
-    public void otherApplicationsAndSiteRefreshCannotReplaceAnApplicationsResources() throws Throwable {
+    public void otherApplicationsAndSiteRefreshCannotReplaceAnApplicationsResources()
+            throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminTokenThreadLocal.remove();
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example");
@@ -119,8 +143,14 @@ public class AdminResourceIsolationTest {
             String secondVersion = second.ui.getAdminResource().getStaticResourceBuildId();
             TestApplication apiOnly =
                     new TestApplication(db.dataSource(), "/api-only", "API site", 200, false);
-            assertEquals("", apiOnly.getServerConfig().getBindings().build()
-                    .get(AdminPageDataFactory.class).metadata(null, "/admin/index").getPageBuildId());
+            assertEquals(
+                    "",
+                    apiOnly.getServerConfig()
+                            .getBindings()
+                            .build()
+                            .get(AdminPageDataFactory.class)
+                            .metadata(null, "/admin/index")
+                            .getPageBuildId());
             assertNull(apiOnly.getServerConfig().getRouter().getMethod("/admin", HttpMethod.GET));
             assertEquals("API site", publicResources(apiOnly).getWebsiteTitle());
 
@@ -163,8 +193,8 @@ public class AdminResourceIsolationTest {
                             DaggerDataComponent.factory()
                                     .create(() -> database, this::isInstalled));
             new ServiceWebSetup(
-                    new WebSetupContext(
-                            this, dbPropertiesFile, installLockFile, contextPath, null))
+                            new WebSetupContext(
+                                    this, dbPropertiesFile, installLockFile, contextPath, null))
                     .setup();
             new AdminWebSetup(this).setup();
             ui = withUi ? new AdminUiWebSetup(this, contextPath) : null;
@@ -183,7 +213,8 @@ public class AdminResourceIsolationTest {
 
         @Override
         public <T> T getWebSetup(Class<T> type) {
-            if (type == WebSiteInfoProvider.class) return type.cast((WebSiteInfoProvider) cache::getPublicWebSiteInfo);
+            if (type == WebSiteInfoProvider.class)
+                return type.cast((WebSiteInfoProvider) cache::getPublicWebSiteInfo);
             if (type == AdminResourceProvider.class) return type.cast(ui);
             return super.getWebSetup(type);
         }

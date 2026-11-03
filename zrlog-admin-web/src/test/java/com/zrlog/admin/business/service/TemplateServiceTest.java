@@ -1,21 +1,19 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
-import com.zrlog.admin.web.di.AdminComponent;
-import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.admin.web.di.AdminComponent;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.StaticFileCacheUtils;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,73 +25,94 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import static org.junit.Assert.*;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class TemplateServiceTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
-    public void discoveryLeavesMissingThemesAndQueuedArchivesUntouchedUntilPreparation() throws Exception {
-        withRootPath(() -> {
-            File templates = new File(temporaryFolder.getRoot(), "static/include/templates");
-            new TemplateCatalog().list(Constants.TEMPLATE_BASE_PATH + "missing", null);
-            assertFalse(templates.exists());
-            assertTrue(templates.mkdirs());
-            File archive = createThemeZip(Map.of("index.ftl", "<html>queued</html>"));
-            Path queued = templates.toPath().resolve("queued-theme.zip");
-            Files.copy(archive.toPath(), queued);
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                db.putWebsite("template", Constants.getDefaultTemplatePath());
-                TemplateService service = db.component(AdminComponent.class).templates();
-                String name = Constants.TEMPLATE_BASE_PATH + "queued-theme";
-                assertFalse(service.getAllTemplates(null).stream().anyMatch(t -> name.equals(t.getTemplate())));
-                assertTrue(Files.exists(queued));
-                assertFalse(new File(templates, "queued-theme").exists());
+    public void discoveryLeavesMissingThemesAndQueuedArchivesUntouchedUntilPreparation()
+            throws Exception {
+        withRootPath(
+                () -> {
+                    File templates =
+                            new File(temporaryFolder.getRoot(), "static/include/templates");
+                    new TemplateCatalog().list(Constants.TEMPLATE_BASE_PATH + "missing", null);
+                    assertFalse(templates.exists());
+                    assertTrue(templates.mkdirs());
+                    File archive = createThemeZip(Map.of("index.ftl", "<html>queued</html>"));
+                    Path queued = templates.toPath().resolve("queued-theme.zip");
+                    Files.copy(archive.toPath(), queued);
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        db.putWebsite("template", Constants.getDefaultTemplatePath());
+                        TemplateService service = db.component(AdminComponent.class).templates();
+                        String name = Constants.TEMPLATE_BASE_PATH + "queued-theme";
+                        assertFalse(
+                                service.getAllTemplates(null).stream()
+                                        .anyMatch(t -> name.equals(t.getTemplate())));
+                        assertTrue(Files.exists(queued));
+                        assertFalse(new File(templates, "queued-theme").exists());
 
-                service.prepareTemplates();
-                assertEquals("<html>queued</html>", Files.readString(templates.toPath().resolve("queued-theme/index.ftl")));
-                assertTrue(service.getAllTemplates(null).stream().anyMatch(t -> name.equals(t.getTemplate())));
-            }
-        });
+                        service.prepareTemplates();
+                        assertEquals(
+                                "<html>queued</html>",
+                                Files.readString(
+                                        templates.toPath().resolve("queued-theme/index.ftl")));
+                        assertTrue(
+                                service.getAllTemplates(null).stream()
+                                        .anyMatch(t -> name.equals(t.getTemplate())));
+                    }
+                });
     }
 
     @Test
     public void failedReplacementRestoresOldThemeAndRemovesStagingFiles() throws Exception {
-        withRootPath(() -> {
-            createLocalTemplate("recover-theme");
-            Path target = temporaryFolder.getRoot().toPath().resolve("static/include/templates/recover-theme");
-            File zip = createThemeZip(Map.of("index.ftl", "<html>replacement</html>"));
-            TemplatePackageInstaller installer = new TemplatePackageInstaller(new TemplateCatalog()) {
-                @Override
-                void movePath(Path source, Path destination) throws IOException {
-                    if (source.getFileName().toString().startsWith(".upload-")) {
-                        throw new IOException("Simulated installation move failure");
+        withRootPath(
+                () -> {
+                    createLocalTemplate("recover-theme");
+                    Path target =
+                            temporaryFolder
+                                    .getRoot()
+                                    .toPath()
+                                    .resolve("static/include/templates/recover-theme");
+                    File zip = createThemeZip(Map.of("index.ftl", "<html>replacement</html>"));
+                    TemplatePackageInstaller installer =
+                            new TemplatePackageInstaller(new TemplateCatalog()) {
+                                @Override
+                                void movePath(Path source, Path destination) throws IOException {
+                                    if (source.getFileName().toString().startsWith(".upload-")) {
+                                        throw new IOException(
+                                                "Simulated installation move failure");
+                                    }
+                                    super.movePath(source, destination);
+                                }
+                            };
+                    assertThrows(
+                            IOException.class, () -> installer.upload("recover-theme", true, zip));
+                    assertEquals("<html></html>", Files.readString(target.resolve("index.ftl")));
+                    assertTrue(Files.isRegularFile(target.resolve("template.properties")));
+                    try (var paths = Files.list(target.getParent())) {
+                        assertEquals(
+                                List.of("recover-theme"),
+                                paths.map(p -> p.getFileName().toString())
+                                        .collect(java.util.stream.Collectors.toList()));
                     }
-                    super.movePath(source, destination);
-                }
-            };
-            assertThrows(IOException.class, () -> installer.upload("recover-theme", true, zip));
-            assertEquals("<html></html>", Files.readString(target.resolve("index.ftl")));
-            assertTrue(Files.isRegularFile(target.resolve("template.properties")));
-            try (var paths = Files.list(target.getParent())) {
-                assertEquals(List.of("recover-theme"), paths.map(p -> p.getFileName().toString()).collect(java.util.stream.Collectors.toList()));
-            }
-        });
+                });
     }
 
     @Test
-    public void shouldDiscoverLocalTemplateAndLoadConfigOverridesFromRealDatabase() throws Exception {
+    public void shouldDiscoverLocalTemplateAndLoadConfigOverridesFromRealDatabase()
+            throws Exception {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                         db.putWebsite("template", Constants.getDefaultTemplatePath());
                         String templatePath = createLocalTemplate("local-theme");
                         db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
-                        TemplateService service =
-                                db.component(AdminComponent.class).templates();
+                        TemplateService service = db.component(AdminComponent.class).templates();
 
                         List<TemplateEntryResponse> templates =
                                 service.getAllTemplates(templatePath);
@@ -121,7 +140,8 @@ public class TemplateServiceTest {
     }
 
     @Test
-    public void shouldLocalizeThemeConfigWithoutChangingSavedValuesOrUntranslatedFields() throws Exception {
+    public void shouldLocalizeThemeConfigWithoutChangingSavedValuesOrUntranslatedFields()
+            throws Exception {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -139,11 +159,10 @@ public class TemplateServiceTest {
                                 "configForm.accent.label=\\u5f3a\\u8c03\\u8272\n"
                                         + "configForm.accent.placeholder=\\u9009\\u62e9\\u989c\\u8272\n");
                         db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
-                        TemplateService service =
-                                db.component(AdminComponent.class).templates();
+                        TemplateService service = db.component(AdminComponent.class).templates();
                         for (String language : List.of("en_US", "zh_CN", "en_US")) {
                             try (AdminLanguageContext ignored =
-                                         AdminLanguageContext.open(language)) {
+                                    AdminLanguageContext.open(language)) {
                                 TemplateVO config = service.loadTemplateConfig(templatePath);
                                 assertEquals(
                                         language.equals("en_US") ? "Accent color" : "强调色",
@@ -181,7 +200,8 @@ public class TemplateServiceTest {
                         String templatePath = createLocalTemplate("active-local-theme");
                         db.putWebsite("template", templatePath);
                         List<TemplateEntryResponse> entries =
-                                db.component(AdminComponent.class).templates()
+                                db.component(AdminComponent.class)
+                                        .templates()
                                         .getAllTemplates(templatePath);
                         TemplateEntryResponse local =
                                 entries.stream()
@@ -217,8 +237,7 @@ public class TemplateServiceTest {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                         db.putWebsite("template", Constants.getDefaultTemplatePath());
                         String templatePath = createLocalTemplate("sanitize-theme");
-                        TemplateService service =
-                                db.component(AdminComponent.class).templates();
+                        TemplateService service = db.component(AdminComponent.class).templates();
                         Map<String, Object> settings = new LinkedHashMap<>();
                         settings.put("accent", "<b>blue</b><script>bad()</script>");
                         settings.put(
@@ -230,9 +249,15 @@ public class TemplateServiceTest {
                         settings.put("pageSize", 12);
                         settings.put("unknown", "<script>ignored()</script>");
 
-                        UpdateRecordResponse response = service.saveAndRecord(templatePath, settings, new AdminAuditContext(1, "127.0.0.1", "/template/config", "test"));
+                        UpdateRecordResponse response =
+                                service.saveAndRecord(
+                                        templatePath,
+                                        settings,
+                                        new AdminAuditContext(
+                                                1, "127.0.0.1", "/template/config", "test"));
                         Map<String, Object> stored =
-                                new WebSiteRepository(db.dataSource()).getTemplateConfigMap(templatePath);
+                                new WebSiteRepository(db.dataSource())
+                                        .getTemplateConfigMap(templatePath);
 
                         assertNotNull(response.getMessage());
                         assertEquals("blue", stored.get("accent"));
@@ -340,8 +365,8 @@ public class TemplateServiceTest {
                                     .exists());
                     assertFalse(
                             new File(
-                                    temporaryFolder.getRoot(),
-                                    "static/include/templates/unsafe-theme")
+                                            temporaryFolder.getRoot(),
+                                            "static/include/templates/unsafe-theme")
                                     .exists());
                 });
     }
@@ -359,17 +384,19 @@ public class TemplateServiceTest {
                     assertEquals(1, response.getError());
                     assertFalse(
                             new File(
-                                    temporaryFolder.getRoot(),
-                                    "static/include/templates/missing-metadata")
+                                            temporaryFolder.getRoot(),
+                                            "static/include/templates/missing-metadata")
                                     .exists());
                 });
     }
 
     private String createLocalTemplate(String shortName) throws Exception {
-        File templateDir = new File(temporaryFolder.getRoot(), "static/include/templates/" + shortName);
+        File templateDir =
+                new File(temporaryFolder.getRoot(), "static/include/templates/" + shortName);
         File settingDir = new File(templateDir, "setting");
         assertTrue(settingDir.mkdirs());
-        Files.writeString(new File(templateDir, "template.properties").toPath(),
+        Files.writeString(
+                new File(templateDir, "template.properties").toPath(),
                 "name=Local Theme\n"
                         + "author=ZrLog\n"
                         + "digest=Local digest\n"
@@ -377,8 +404,12 @@ public class TemplateServiceTest {
                         + "url=https://example.com\n"
                         + "previewImages=images/preview.png\n",
                 StandardCharsets.UTF_8);
-        Files.writeString(new File(templateDir, "index.ftl").toPath(), "<html></html>", StandardCharsets.UTF_8);
-        Files.writeString(new File(settingDir, "config-form.json").toPath(),
+        Files.writeString(
+                new File(templateDir, "index.ftl").toPath(),
+                "<html></html>",
+                StandardCharsets.UTF_8);
+        Files.writeString(
+                new File(settingDir, "config-form.json").toPath(),
                 "{"
                         + "\"accent\":{\"label\":\"Accent\",\"htmlElementType\":\"input\",\"contentType\":\"text\",\"value\":\"red\"},"
                         + "\"customCss\":{\"label\":\"CSS\",\"htmlElementType\":\"textarea\",\"contentType\":\"css\",\"value\":\"\"},"
@@ -393,17 +424,20 @@ public class TemplateServiceTest {
 
     private File createThemeZip(Map<String, String> extraEntries) throws Exception {
         Map<String, String> entries = new LinkedHashMap<>();
-        entries.put("template.properties", "name=Uploaded Theme\n"
-                + "author=ZrLog\n"
-                + "digest=Uploaded digest\n"
-                + "version=2.0.0\n");
+        entries.put(
+                "template.properties",
+                "name=Uploaded Theme\n"
+                        + "author=ZrLog\n"
+                        + "digest=Uploaded digest\n"
+                        + "version=2.0.0\n");
         entries.putAll(extraEntries);
         return createZip(entries);
     }
 
     private File createZip(Map<String, String> entries) throws Exception {
         File zipFile = temporaryFolder.newFile(UUID.randomUUID() + ".zip");
-        try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(zipFile.toPath()))) {
+        try (ZipOutputStream output =
+                new ZipOutputStream(Files.newOutputStream(zipFile.toPath()))) {
             for (Map.Entry<String, String> entry : entries.entrySet()) {
                 output.putNextEntry(new ZipEntry(entry.getKey()));
                 output.write(entry.getValue().getBytes(StandardCharsets.UTF_8));

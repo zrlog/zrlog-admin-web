@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonParser;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -9,18 +11,15 @@ import com.zrlog.admin.business.knowledge.KnowledgeModels.SearchResult;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Source;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.data.security.AccountAccess;
-import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.repository.UserRepository;
-import org.junit.Test;
-
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.ArticleAccess;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
 public class KnowledgeServiceTest {
@@ -32,18 +31,20 @@ public class KnowledgeServiceTest {
 
     @org.junit.runners.Parameterized.Parameters(name = "sqlite={0}")
     public static Boolean[] databases() {
-        return new Boolean[]{false, true};
+        return new Boolean[] {false, true};
     }
 
     private InMemoryZrLogDatabase database() throws Exception {
         return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
     }
 
-    private KnowledgeService service(int user, Set<String> scopes, DataSourceWrapper testDataSource) {
+    private KnowledgeService service(
+            int user, Set<String> scopes, DataSourceWrapper testDataSource) {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.from(new UserRepository(testDataSource).loadById((long) user));
+                        return AccountAccess.from(
+                                new UserRepository(testDataSource).loadById((long) user));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -57,16 +58,30 @@ public class KnowledgeServiceTest {
     private void seed(InMemoryZrLogDatabase db) throws Exception {
         db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
         for (int id = 1; id <= 6; id++)
-            db.execute("insert into log(logId,userId,typeId,title,alias,digest,markdown,content,rubbish,privacy) values(?,?,?,?,?,?,?,?,?,?)",
-                    id, id <= 3 ? 1 : 2, 1, "article " + id, "article-" + id, "<b>digest</b>", "body 100%_literal " + id, "<p>html</p>", id == 2 || id == 5, id == 3 || id == 6);
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,alias,digest,markdown,content,rubbish,privacy) values(?,?,?,?,?,?,?,?,?,?)",
+                    id,
+                    id <= 3 ? 1 : 2,
+                    1,
+                    "article " + id,
+                    "article-" + id,
+                    "<b>digest</b>",
+                    "body 100%_literal " + id,
+                    "<p>html</p>",
+                    id == 2 || id == 5,
+                    id == 3 || id == 6);
     }
 
     private SearchResult search(KnowledgeService service, String args) throws Exception {
-        return (SearchResult) service.call("search_articles", JsonParser.parseString(args).getAsJsonObject());
+        return (SearchResult)
+                service.call("search_articles", JsonParser.parseString(args).getAsJsonObject());
     }
 
     private ArticleResult read(KnowledgeService service, int id) throws Exception {
-        return (ArticleResult) service.call("read_article", JsonParser.parseString("{\"id\":" + id + "}").getAsJsonObject());
+        return (ArticleResult)
+                service.call(
+                        "read_article",
+                        JsonParser.parseString("{\"id\":" + id + "}").getAsJsonObject());
     }
 
     @Test
@@ -82,15 +97,19 @@ public class KnowledgeServiceTest {
                             options.allArticles = all;
                             options.drafts = drafts;
                             options.privateArticles = privateArticles;
-                            KnowledgeService service = service(1, options.scopes(), db.dataSource());
+                            KnowledgeService service =
+                                    service(1, options.scopes(), db.dataSource());
                             List<Long> ids = new ArrayList<>();
                             Integer offset = 0;
                             while (offset != null) {
-                                SearchResult page = search(service, "{\"limit\":1,\"offset\":" + offset + "}");
+                                SearchResult page =
+                                        search(service, "{\"limit\":1,\"offset\":" + offset + "}");
                                 for (Source s : page.articles) ids.add(s.id);
                                 offset = page.nextOffset;
                             }
-                            AccountAccess account = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
+                            AccountAccess account =
+                                    AccountAccess.from(
+                                            new UserRepository(db.dataSource()).loadById(1L));
                             for (int id = 1; id <= 6; id++) {
                                 boolean expected =
                                         ArticleAccess.canRead(
@@ -103,7 +122,12 @@ public class KnowledgeServiceTest {
                                 if (expected) assertEquals(id, read(service, id).source.id);
                                 else {
                                     final int denied = id;
-                                    assertEquals("Article unavailable", assertThrows(IllegalArgumentException.class, () -> read(service, denied)).getMessage());
+                                    assertEquals(
+                                            "Article unavailable",
+                                            assertThrows(
+                                                            IllegalArgumentException.class,
+                                                            () -> read(service, denied))
+                                                    .getMessage());
                                 }
                             }
                         }
@@ -120,7 +144,8 @@ public class KnowledgeServiceTest {
                     new KnowledgeService(
                             () -> {
                                 try {
-                                    return AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
+                                    return AccountAccess.from(
+                                            new UserRepository(db.dataSource()).loadById(1L));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
@@ -132,7 +157,9 @@ public class KnowledgeServiceTest {
             assertEquals("https://blog.example/sub/article-1", read(service, 1).source.url);
             staticHtml.set(true);
             assertEquals("https://blog.example/sub/article-1.html", read(service, 1).source.url);
-            assertEquals("https://blog.example/sub/admin/article-edit?previewMode=true&id=2", read(service, 2).source.url);
+            assertEquals(
+                    "https://blog.example/sub/admin/article-edit?previewMode=true&id=2",
+                    read(service, 2).source.url);
         }
     }
 
@@ -145,13 +172,28 @@ public class KnowledgeServiceTest {
             assertEquals(0, search(service, "{\"query\":\"100%_missing\"}").articles.size());
             assertEquals(0, search(service, "{\"query\":\"' OR 1=1 --\"}").articles.size());
             assertEquals("digest", search(service, "{}").articles.get(0).excerpt);
-            ArticleResult part = (ArticleResult) service.call("read_article", JsonParser.parseString("{\"id\":1,\"length\":4}").getAsJsonObject());
+            ArticleResult part =
+                    (ArticleResult)
+                            service.call(
+                                    "read_article",
+                                    JsonParser.parseString("{\"id\":1,\"length\":4}")
+                                            .getAsJsonObject());
             assertEquals("body", part.content);
             assertEquals(Integer.valueOf(4), part.nextOffset);
             assertTrue(part.source.url.startsWith("https://blog.example/sub/"));
-            for (String args : List.of("{\"limit\":11}", "{\"limit\":1.1}", "{\"limit\":\"1\"}", "{\"offset\":-1}", "{\"query\":null}", "{\"sql\":\"select\"}"))
+            for (String args :
+                    List.of(
+                            "{\"limit\":11}",
+                            "{\"limit\":1.1}",
+                            "{\"limit\":\"1\"}",
+                            "{\"offset\":-1}",
+                            "{\"query\":null}",
+                            "{\"sql\":\"select\"}"))
                 assertThrows(IllegalArgumentException.class, () -> search(service, args));
-            assertEquals("Article unavailable", assertThrows(IllegalArgumentException.class, () -> read(service, 999)).getMessage());
+            assertEquals(
+                    "Article unavailable",
+                    assertThrows(IllegalArgumentException.class, () -> read(service, 999))
+                            .getMessage());
             db.execute("update user set enabled=? where userId=1", false);
             assertThrows(PermissionErrorException.class, () -> search(service, "{}"));
         }

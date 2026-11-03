@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -21,14 +23,8 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.repository.UserRepository;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
+import com.zrlog.data.security.AccountAccess;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,17 +34,17 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
-import static org.junit.Assert.*;
-
-/**
- * Explicit actors must survive worker dispatch without installing request identity.
- */
+/** Explicit actors must survive worker dispatch without installing request identity. */
 @RunWith(Parameterized.class)
 public class AIExplicitActorBoundaryTest {
     private final boolean sqlite;
-    @Rule
-    public TemporaryFolder temporary = new TemporaryFolder();
+    @Rule public TemporaryFolder temporary = new TemporaryFolder();
 
     public AIExplicitActorBoundaryTest(boolean sqlite) {
         this.sqlite = sqlite;
@@ -56,11 +52,13 @@ public class AIExplicitActorBoundaryTest {
 
     @Parameterized.Parameters(name = "sqlite={0}")
     public static Boolean[] databases() {
-        return new Boolean[]{false, true};
+        return new Boolean[] {false, true};
     }
 
     private static void knowledge(InMemoryZrLogDatabase db, String value) throws Exception {
-        db.execute("update user set preferences=? where userId=2", "{\"assistant\":{\"knowledgeScope\":\"" + value + "\"}}");
+        db.execute(
+                "update user set preferences=? where userId=2",
+                "{\"assistant\":{\"knowledgeScope\":\"" + value + "\"}}");
     }
 
     private static AccountAccess actor(InMemoryZrLogDatabase db) throws Exception {
@@ -84,7 +82,8 @@ public class AIExplicitActorBoundaryTest {
         return context;
     }
 
-    private static String read(com.zrlog.admin.business.ai.dto.AIStreamResponse response) throws IOException {
+    private static String read(com.zrlog.admin.business.ai.dto.AIStreamResponse response)
+            throws IOException {
         return new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
 
@@ -94,43 +93,73 @@ public class AIExplicitActorBoundaryTest {
 
     private static String call(String name, String args) {
         return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""
-                + name + "\",\"arguments\":" + new Gson().toJson(args) + "}}]}}";
+                + name
+                + "\",\"arguments\":"
+                + new Gson().toJson(args)
+                + "}}]}}";
     }
 
     @Test
-    public void workerAndPrivateStorageUseExplicitOwnerDespiteAnotherAmbientAccount() throws Exception {
+    public void workerAndPrivateStorageUseExplicitOwnerDespiteAnotherAmbientAccount()
+            throws Exception {
         try (var db = database()) {
             var actor = actor(db);
             var files = new AIFileService(temporary.newFolder().toPath());
             var file = new AIFileModels.Input();
             file.name = "note.txt";
-            file.data = Base64.getEncoder().encodeToString("Writer document".getBytes(StandardCharsets.UTF_8));
+            file.data =
+                    Base64.getEncoder()
+                            .encodeToString("Writer document".getBytes(StandardCharsets.UTF_8));
             var input = input();
             input.files = List.of(file);
             Model model = new Model(db, files, answer());
-            model.afterRequest = () -> {
-                assertNull(AdminTokenThreadLocal.getUser());
-                assertFalse(DelegatedAccess.active());
-                assertEquals(2, model.seenActor.getUserId());
-            };
+            model.afterRequest =
+                    () -> {
+                        assertNull(AdminTokenThreadLocal.getUser());
+                        assertFalse(DelegatedAccess.active());
+                        assertEquals(2, model.seenActor.getUserId());
+                    };
             assertEquals(1, AdminTokenThreadLocal.getUserId());
-            String wire = DelegatedAccess.withPermissions(Set.of("article.read"), false,
-                    () -> read(model.service.start(actor, input, audit(), null)));
+            String wire =
+                    DelegatedAccess.withPermissions(
+                            Set.of("article.read"),
+                            false,
+                            () -> read(model.service.start(actor, input, audit(), null)));
             assertTrue(wire, wire.contains("\"type\":\"done\""));
             assertEquals(1, AdminTokenThreadLocal.getUserId());
-            assertFalse(model.requests.get(0).has("tools")); // Explicit user's knowledge preference is off.
+            assertFalse(
+                    model.requests
+                            .get(0)
+                            .has("tools")); // Explicit user's knowledge preference is off.
             var conversations = AIServiceDependencies.conversations(db.dataSource());
             assertThrows(PermissionErrorException.class, () -> conversations.exportAIMessage(-2L));
             var stored = conversations.captureAccount(2).exportAIMessage(-2L).getMessages();
-            assertEquals(2, stored.stream().filter(message -> Set.of("user", "assistant").contains(message.getRole())).count());
-            var attachment = stored.stream().filter(message -> "user".equals(message.getRole()))
-                    .findFirst().orElseThrow().getAttachments().get(0);
-            assertEquals("Writer document", new String(files.read(2, attachment), StandardCharsets.UTF_8));
-            assertThrows(com.zrlog.admin.business.ai.exception.AIFileInputException.class,
+            assertEquals(
+                    2,
+                    stored.stream()
+                            .filter(
+                                    message ->
+                                            Set.of("user", "assistant").contains(message.getRole()))
+                            .count());
+            var attachment =
+                    stored.stream()
+                            .filter(message -> "user".equals(message.getRole()))
+                            .findFirst()
+                            .orElseThrow()
+                            .getAttachments()
+                            .get(0);
+            assertEquals(
+                    "Writer document",
+                    new String(files.read(2, attachment), StandardCharsets.UTF_8));
+            assertThrows(
+                    com.zrlog.admin.business.ai.exception.AIFileInputException.class,
                     () -> files.read(1, attachment));
-            assertTrue(conversations.captureAccount(1).exportAIMessage(-1L).getMessages().isEmpty());
+            assertTrue(
+                    conversations.captureAccount(1).exportAIMessage(-1L).getMessages().isEmpty());
             AdminTokenThreadLocal.remove();
-            assertEquals("Writer document", new String(files.read(2, attachment), StandardCharsets.UTF_8));
+            assertEquals(
+                    "Writer document",
+                    new String(files.read(2, attachment), StandardCharsets.UTF_8));
         }
     }
 
@@ -142,14 +171,15 @@ public class AIExplicitActorBoundaryTest {
                 var started = new CountDownLatch(1);
                 var proceed = new CountDownLatch(1);
                 Model model = new Model(db, new AIFileService(), answer());
-                model.afterRequest = () -> {
-                    started.countDown();
-                    try {
-                        assertTrue(proceed.await(5, TimeUnit.SECONDS));
-                    } catch (InterruptedException error) {
-                        throw new RuntimeException(error);
-                    }
-                };
+                model.afterRequest =
+                        () -> {
+                            started.countDown();
+                            try {
+                                assertTrue(proceed.await(5, TimeUnit.SECONDS));
+                            } catch (InterruptedException error) {
+                                throw new RuntimeException(error);
+                            }
+                        };
                 var response = model.service.start(actor, input(), audit(), null);
                 try {
                     assertTrue(started.await(5, TimeUnit.SECONDS));
@@ -161,10 +191,21 @@ public class AIExplicitActorBoundaryTest {
                 assertTrue(wire, wire.contains("PRIVATE ANSWER"));
                 assertTrue(wire, wire.contains("\"type\":\"done\""));
                 assertFalse(wire, wire.contains("\"error\":\"permission\""));
-                assertEquals(2, AIServiceDependencies.conversations(db.dataSource()).captureAccount(2)
-                        .exportAIMessage(-2L).getMessages().stream()
-                        .filter(message -> Set.of("user", "assistant").contains(message.getRole())).count());
-                assertThrows(PermissionErrorException.class, () -> model.service.start(actor, input(), audit(), null));
+                assertEquals(
+                        2,
+                        AIServiceDependencies.conversations(db.dataSource())
+                                .captureAccount(2)
+                                .exportAIMessage(-2L)
+                                .getMessages()
+                                .stream()
+                                .filter(
+                                        message ->
+                                                Set.of("user", "assistant")
+                                                        .contains(message.getRole()))
+                                .count());
+                assertThrows(
+                        PermissionErrorException.class,
+                        () -> model.service.start(actor, input(), audit(), null));
                 assertThrows(PermissionErrorException.class, () -> model.service.getRun(actor, 0));
             }
         }
@@ -174,20 +215,27 @@ public class AIExplicitActorBoundaryTest {
     public void toolOperationsStillRejectRevocationDuringTheRequest() throws Exception {
         try (var db = database()) {
             knowledge(db, "own_all");
-            var model = new Model(db, new AIFileService(), call("create_article",
-                    "{\"title\":\"Forbidden\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Forbidden</p>\"}"));
-            model.afterRequest = () -> {
-                try {
-                    db.execute("update user set enabled=false where userId=2");
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            };
+            var model =
+                    new Model(
+                            db,
+                            new AIFileService(),
+                            call(
+                                    "create_article",
+                                    "{\"title\":\"Forbidden\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Forbidden</p>\"}"));
+            model.afterRequest =
+                    () -> {
+                        try {
+                            db.execute("update user set enabled=false where userId=2");
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    };
             String wire = read(model.service.start(actor(db), input(), audit(), null));
             assertTrue(wire, wire.contains("\"error\":\"permission\""));
             assertFalse(wire, wire.contains("approval-required"));
             assertFalse(wire, wire.contains("\"type\":\"done\""));
-            assertEquals(0, ((Number) db.scalar("select count(*) from log where userId=2")).intValue());
+            assertEquals(
+                    0, ((Number) db.scalar("select count(*) from log where userId=2")).intValue());
         }
     }
 
@@ -196,34 +244,61 @@ public class AIExplicitActorBoundaryTest {
         try (var db = database()) {
             knowledge(db, "own_all");
             var actor = actor(db).restrictActions(Set.of("article.assist", "article.read"));
-            var model = new Model(db, new AIFileService(), call("create_article",
-                    "{\"title\":\"Forbidden\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Forbidden</p>\"}"), answer());
+            var model =
+                    new Model(
+                            db,
+                            new AIFileService(),
+                            call(
+                                    "create_article",
+                                    "{\"title\":\"Forbidden\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Forbidden</p>\"}"),
+                            answer());
             AdminTokenThreadLocal.remove();
             String wire = read(model.service.start(actor, input(), audit(), null));
             assertTrue(wire, wire.contains("\"type\":\"done\""));
-            assertFalse(model.requests.get(0).getAsJsonArray("tools").toString().contains("create_article"));
-            var toolReply = model.requests.get(1).getAsJsonArray("messages").asList().stream()
-                    .map(value -> value.getAsJsonObject()).filter(message -> "tool".equals(message.get("role").getAsString()))
-                    .findFirst().orElseThrow();
-            assertFalse(JsonParser.parseString(toolReply.get("content").getAsString()).getAsJsonObject()
-                    .get("error").getAsString().isBlank());
-            assertEquals(0, ((Number) db.scalar("select count(*) from log where userId=2")).intValue());
+            assertFalse(
+                    model.requests
+                            .get(0)
+                            .getAsJsonArray("tools")
+                            .toString()
+                            .contains("create_article"));
+            var toolReply =
+                    model.requests.get(1).getAsJsonArray("messages").asList().stream()
+                            .map(value -> value.getAsJsonObject())
+                            .filter(message -> "tool".equals(message.get("role").getAsString()))
+                            .findFirst()
+                            .orElseThrow();
+            assertFalse(
+                    JsonParser.parseString(toolReply.get("content").getAsString())
+                            .getAsJsonObject()
+                            .get("error")
+                            .getAsString()
+                            .isBlank());
+            assertEquals(
+                    0, ((Number) db.scalar("select count(*) from log where userId=2")).intValue());
             assertNull(AdminTokenThreadLocal.getUser());
             assertFalse(DelegatedAccess.active());
         }
     }
 
     @Test
-    public void pendingUploadAndCancelledPreviewRecheckEffectivePermissionsAndPreferences() throws Exception {
+    public void pendingUploadAndCancelledPreviewRecheckEffectivePermissionsAndPreferences()
+            throws Exception {
         try (var db = database()) {
             knowledge(db, "own_all");
             var actor = actor(db);
-            var model = new Model(db, new AIFileService(), call("upload_attachment",
-                    "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"));
+            var model =
+                    new Model(
+                            db,
+                            new AIFileService(),
+                            call(
+                                    "upload_attachment",
+                                    "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"));
             String wire = read(model.service.start(actor, input(), audit(), null));
             assertTrue(wire, wire.contains("approval-required"));
             assertNotNull(model.service.getRun(actor, 0).approval);
-            var restricted = model.service.getRun(actor.restrictActions(Set.of("article.assist", "article.read")), 0);
+            var restricted =
+                    model.service.getRun(
+                            actor.restrictActions(Set.of("article.assist", "article.read")), 0);
             assertEquals("permission", restricted.error);
             assertNull(restricted.input);
             assertNull(restricted.approval);
@@ -245,23 +320,31 @@ public class AIExplicitActorBoundaryTest {
             var actor = actor(db);
             var accounts = AccountServicesFixture.component(db.dataSource());
             var store = AIServiceDependencies.conversations(db.dataSource()).captureAccount(2);
-            var tools = new AIToolService(AIServiceDependencies.config(db.dataSource())) {
-                @Override
-                public GenerateArticleTitleResponse generateArticleTitles(
-                        GenerateArticleTitleRequest request, String context) {
-                    try {
-                        db.execute("update user set authVersion=1 where userId=2");
-                    } catch (Exception error) {
-                        throw new RuntimeException(error);
-                    }
-                    var result = new GenerateArticleTitleResponse();
-                    result.setTitles(List.of("Generated title"));
-                    return result;
-                }
-            };
-            var skills = new AIWritingSkillService(actor, store, tools,
-                    AIServiceDependencies.images(db.dataSource()), accounts.identities(), accounts.permissions());
-            assertThrows(PermissionErrorException.class,
+            var tools =
+                    new AIToolService(AIServiceDependencies.config(db.dataSource())) {
+                        @Override
+                        public GenerateArticleTitleResponse generateArticleTitles(
+                                GenerateArticleTitleRequest request, String context) {
+                            try {
+                                db.execute("update user set authVersion=1 where userId=2");
+                            } catch (Exception error) {
+                                throw new RuntimeException(error);
+                            }
+                            var result = new GenerateArticleTitleResponse();
+                            result.setTitles(List.of("Generated title"));
+                            return result;
+                        }
+                    };
+            var skills =
+                    new AIWritingSkillService(
+                            actor,
+                            store,
+                            tools,
+                            AIServiceDependencies.images(db.dataSource()),
+                            accounts.identities(),
+                            accounts.permissions());
+            assertThrows(
+                    PermissionErrorException.class,
                     () -> skills.runToolResponse("title", -2L, "title", context()));
             assertTrue(store.exportAIMessage(-2L).getMessages().isEmpty());
         }
@@ -270,28 +353,46 @@ public class AIExplicitActorBoundaryTest {
     @Test
     public void automaticPublishCheckKeepsActorAndRejectsRevocationBeforeCommit() throws Exception {
         try (var db = database()) {
-            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy) values(20,2,1,'Publish',false,false)");
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,rubbish,privacy) values(20,2,1,'Publish',false,false)");
             var accounts = AccountServicesFixture.component(db.dataSource());
-            AIWritingSkillService.Factory writing = (actor, store) ->
-                    new AIWritingSkillService(actor, store, AIServiceDependencies.tools(db.dataSource()),
-                            AIServiceDependencies.images(db.dataSource()), accounts.identities(), accounts.permissions()) {
-                        @Override
-                        public List<AIResponseEntry.AIContentEntry> runToolResponseWithoutPersistence(
-                                String input, Long id, String tool, GenerateArticleFieldRequest context) {
-                            assertEquals(2, actor.getUserId());
-                            assertNull(AdminTokenThreadLocal.getUser());
-                            assertFalse(DelegatedAccess.active());
-                            try {
-                                db.execute("update user set enabled=false where userId=2");
-                            } catch (Exception error) {
-                                throw new RuntimeException(error);
-                            }
-                            return List.of(new AIResponseEntry.AIContentEntry("assistant", "PRIVATE CHECK"));
-                        }
-                    };
-            var service = new AIPublishCheckService(ApplicationServicesFixture.settings(db.dataSource()),
-                    ApplicationServicesFixture.operations(db.dataSource()), writing,
-                    AIServiceDependencies.conversations(db.dataSource()), accounts.identities(), accounts.permissions());
+            AIWritingSkillService.Factory writing =
+                    (actor, store) ->
+                            new AIWritingSkillService(
+                                    actor,
+                                    store,
+                                    AIServiceDependencies.tools(db.dataSource()),
+                                    AIServiceDependencies.images(db.dataSource()),
+                                    accounts.identities(),
+                                    accounts.permissions()) {
+                                @Override
+                                public List<AIResponseEntry.AIContentEntry>
+                                        runToolResponseWithoutPersistence(
+                                                String input,
+                                                Long id,
+                                                String tool,
+                                                GenerateArticleFieldRequest context) {
+                                    assertEquals(2, actor.getUserId());
+                                    assertNull(AdminTokenThreadLocal.getUser());
+                                    assertFalse(DelegatedAccess.active());
+                                    try {
+                                        db.execute("update user set enabled=false where userId=2");
+                                    } catch (Exception error) {
+                                        throw new RuntimeException(error);
+                                    }
+                                    return List.of(
+                                            new AIResponseEntry.AIContentEntry(
+                                                    "assistant", "PRIVATE CHECK"));
+                                }
+                            };
+            var service =
+                    new AIPublishCheckService(
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()),
+                            writing,
+                            AIServiceDependencies.conversations(db.dataSource()),
+                            accounts.identities(),
+                            accounts.permissions());
             var detail = new AIArticleGlobalResponse();
             var article = new LoadEditArticleResponse();
             article.setLogId(20);
@@ -299,10 +400,17 @@ public class AIExplicitActorBoundaryTest {
             detail.setPublishCheckEnabled(true);
             detail.setAiConfigured(true);
             var task = service.startPublishCheck(actor(db), detail, new CreateArticleRequest());
-            var error = assertThrows(ExecutionException.class, () -> task.getFuture().get(5, TimeUnit.SECONDS));
+            var error =
+                    assertThrows(
+                            ExecutionException.class,
+                            () -> task.getFuture().get(5, TimeUnit.SECONDS));
             assertTrue(error.getCause() instanceof PermissionErrorException);
-            assertTrue(AIServiceDependencies.conversations(db.dataSource()).captureAccount(2)
-                    .exportAIMessage(20L).getMessages().isEmpty());
+            assertTrue(
+                    AIServiceDependencies.conversations(db.dataSource())
+                            .captureAccount(2)
+                            .exportAIMessage(20L)
+                            .getMessages()
+                            .isEmpty());
         }
     }
 
@@ -311,7 +419,8 @@ public class AIExplicitActorBoundaryTest {
         db.putWebsite("ai_provider", "OPEN_AI");
         db.putWebsite("ai_model", "gpt-4.1");
         db.putWebsite("ai_base_url", "https://provider.example/v1");
-        db.execute("insert into user(userId,userName,role,preferences) values(2,'writer','author',?)",
+        db.execute(
+                "insert into user(userId,userName,role,preferences) values(2,'writer','author',?)",
                 "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
         return db;
     }
@@ -321,26 +430,40 @@ public class AIExplicitActorBoundaryTest {
         final List<JsonObject> requests = new ArrayList<>();
         private final List<String> replies;
         AccountAccess seenActor;
-        Runnable afterRequest = () -> {
-        };
+        Runnable afterRequest = () -> {};
 
         Model(InMemoryZrLogDatabase db, AIFileService files, String... replies) {
             super(files);
-            this.service = AIServiceDependencies.chat(db.dataSource(), null, ContentToolsFixture.from(db.config()),
-                            this, files, AIServiceDependencies.writing(db.dataSource()));
+            this.service =
+                    AIServiceDependencies.chat(
+                            db.dataSource(),
+                            null,
+                            ContentToolsFixture.from(db.config()),
+                            this,
+                            files,
+                            AIServiceDependencies.writing(db.dataSource()));
             this.replies = List.of(replies);
         }
 
         @Override
-        protected AIProviderResponses.Choice complete(AccountAccess actor, AIWebSiteInfo info,
-                                                      String body, AIChatStreamReader.Progress progress) throws IOException {
+        protected AIProviderResponses.Choice complete(
+                AccountAccess actor,
+                AIWebSiteInfo info,
+                String body,
+                AIChatStreamReader.Progress progress)
+                throws IOException {
             assertNull(AdminTokenThreadLocal.getUser());
             assertFalse(DelegatedAccess.active());
             seenActor = actor;
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
-            var result = new Gson().fromJson(replies.get(requests.size() - 1), AIProviderResponses.Choice.class);
-            if (result.getMessage().getContent() != null) progress.emit("delta", result.getMessage().getContent());
+            var result =
+                    new Gson()
+                            .fromJson(
+                                    replies.get(requests.size() - 1),
+                                    AIProviderResponses.Choice.class);
+            if (result.getMessage().getContent() != null)
+                progress.emit("delta", result.getMessage().getContent());
             return result;
         }
     }

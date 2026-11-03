@@ -4,15 +4,12 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.exception.ArgsException;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/**
- * Shared authentication for requests from the running plugin-core process.
- */
+/** Shared authentication for requests from the running plugin-core process. */
 public final class PluginTokenValidator {
     private final Supplier<PluginCorePlugin> pluginCore;
 
@@ -27,8 +24,10 @@ public final class PluginTokenValidator {
         }
         PluginCorePlugin plugin = pluginCore.get();
         String expected = plugin == null ? null : plugin.getToken();
-        if (StringUtils.isEmpty(expected) || !MessageDigest.isEqual(
-                expected.getBytes(StandardCharsets.UTF_8), requestToken.getBytes(StandardCharsets.UTF_8))) {
+        if (StringUtils.isEmpty(expected)
+                || !MessageDigest.isEqual(
+                        expected.getBytes(StandardCharsets.UTF_8),
+                        requestToken.getBytes(StandardCharsets.UTF_8))) {
             throw new ArgsException("token");
         }
     }

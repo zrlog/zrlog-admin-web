@@ -1,16 +1,14 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.Gson;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -27,9 +25,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
+import org.junit.Test;
 
 public class AIToolServiceTest {
 
@@ -79,13 +78,17 @@ public class AIToolServiceTest {
     }
 
     private static String scoreJson(String summary) {
-        return "{\"score\":88,\"summary\":\"" + summary + "\",\"items\":["
+        return "{\"score\":88,\"summary\":\""
+                + summary
+                + "\",\"items\":["
                 + "{\"name\":\"SEO\",\"score\":80,\"suggestion\":\"Improve title\"}]}";
     }
 
     private static HttpResponse<String> completionResponse(String content) {
-        return stringResponse(200, GSON.toJson(Map.of("choices",
-                List.of(Map.of("message", Map.of("content", content))))));
+        return stringResponse(
+                200,
+                GSON.toJson(
+                        Map.of("choices", List.of(Map.of("message", Map.of("content", content))))));
     }
 
     private static HttpResponse<String> stringResponse(int statusCode, String body) {
@@ -137,8 +140,10 @@ public class AIToolServiceTest {
         assertEquals(expectedRequestCount, client.requestBodies.size());
         for (HttpRequest request : client.requests) {
             assertEquals("https://api.deepseek.com/chat/completions", request.uri().toString());
-            assertEquals("Bearer test-key", request.headers().firstValue("Authorization").orElse(""));
-            assertEquals("application/json", request.headers().firstValue("Content-Type").orElse(""));
+            assertEquals(
+                    "Bearer test-key", request.headers().firstValue("Authorization").orElse(""));
+            assertEquals(
+                    "application/json", request.headers().firstValue("Content-Type").orElse(""));
             assertEquals("identity", request.headers().firstValue("Accept-Encoding").orElse(""));
         }
     }
@@ -153,21 +158,23 @@ public class AIToolServiceTest {
         return collector.body();
     }
 
-    private static Object invoke(AIToolService service, String methodName, Object... args) throws Exception {
+    private static Object invoke(AIToolService service, String methodName, Object... args)
+            throws Exception {
         Method method = findMethod(methodName, args.length);
         method.setAccessible(true);
         return method.invoke(service, args);
     }
 
-    private static void assertAiResponseError(AIToolService service, String methodName, String expectedMessage,
-                                              Object... args)
+    private static void assertAiResponseError(
+            AIToolService service, String methodName, String expectedMessage, Object... args)
             throws Exception {
         Throwable error = invokeFailure(service, methodName, args);
         assertTrue(error instanceof AIResponseException);
         assertTrue(error.getMessage().contains(expectedMessage));
     }
 
-    private static Throwable invokeFailure(AIToolService service, String methodName, Object... args) throws Exception {
+    private static Throwable invokeFailure(AIToolService service, String methodName, Object... args)
+            throws Exception {
         try {
             invoke(service, methodName, args);
         } catch (InvocationTargetException e) {
@@ -178,7 +185,8 @@ public class AIToolServiceTest {
 
     private static Method findMethod(String methodName, int parameterCount) {
         for (Method method : AIToolService.class.getDeclaredMethods()) {
-            if (method.getName().equals(methodName) && method.getParameterCount() == parameterCount) {
+            if (method.getName().equals(methodName)
+                    && method.getParameterCount() == parameterCount) {
                 return method;
             }
         }
@@ -246,46 +254,57 @@ public class AIToolServiceTest {
     public void shouldRunAiToolsThroughRealWebsiteConfigAndProviderRequests() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedAiConfig(db);
-            FakeHttpClient client = new FakeHttpClient(
-                    completionResponse("Optimized description for the site."),
-                    completionResponse("\"Optimized prompt\""),
-                    completionResponse("{\"titles\":[\"One\",\"Two\",\"Three\",\"Four\"]}"),
-                    completionResponse(scoreJson("Article score")),
-                    completionResponse("{\"summary\":\"changed\",\"markdown\":\"## Rewrite\"}"),
-                    completionResponse(scoreJson("Publish ok")),
-                    completionResponse("{\"alias\":\"Hello, ZrLog 2026!\"}"),
-                    completionResponse("{\"digest\":\"Digest value\"}"),
-                    completionResponse("{\"tags\":[\"java\",\"blog\",\"java\"]}"),
-                    completionResponse("{\"score\":76,\"summary\":\"SEO ok\",\"items\":["
-                            + "{\"name\":\"title\",\"status\":\"warning\",\"suggestion\":\"shorten\"}]}"),
-                    completionResponse("{\"summary\":\"Proofread ok\",\"items\":["
-                            + "{\"original\":\"teh\",\"issue\":\"typo\",\"suggestion\":\"the\"}]}"),
-                    completionResponse("{\"summary\":\"Structure ok\",\"items\":["
-                            + "{\"name\":\"intro\",\"status\":\"good\",\"suggestion\":\"keep\"}]}"),
-                    completionResponse("{\"summary\":\"Questions ok\",\"items\":["
-                            + "{\"question\":\"Why?\",\"reason\":\"reader intent\",\"suggestion\":\"answer it\"}]}")
-            );
-            AIToolService service = new AIToolService(client, AIServiceDependencies.config(db.dataSource()));
+            FakeHttpClient client =
+                    new FakeHttpClient(
+                            completionResponse("Optimized description for the site."),
+                            completionResponse("\"Optimized prompt\""),
+                            completionResponse("{\"titles\":[\"One\",\"Two\",\"Three\",\"Four\"]}"),
+                            completionResponse(scoreJson("Article score")),
+                            completionResponse(
+                                    "{\"summary\":\"changed\",\"markdown\":\"## Rewrite\"}"),
+                            completionResponse(scoreJson("Publish ok")),
+                            completionResponse("{\"alias\":\"Hello, ZrLog 2026!\"}"),
+                            completionResponse("{\"digest\":\"Digest value\"}"),
+                            completionResponse("{\"tags\":[\"java\",\"blog\",\"java\"]}"),
+                            completionResponse(
+                                    "{\"score\":76,\"summary\":\"SEO ok\",\"items\":["
+                                            + "{\"name\":\"title\",\"status\":\"warning\",\"suggestion\":\"shorten\"}]}"),
+                            completionResponse(
+                                    "{\"summary\":\"Proofread ok\",\"items\":["
+                                            + "{\"original\":\"teh\",\"issue\":\"typo\",\"suggestion\":\"the\"}]}"),
+                            completionResponse(
+                                    "{\"summary\":\"Structure ok\",\"items\":["
+                                            + "{\"name\":\"intro\",\"status\":\"good\",\"suggestion\":\"keep\"}]}"),
+                            completionResponse(
+                                    "{\"summary\":\"Questions ok\",\"items\":["
+                                            + "{\"question\":\"Why?\",\"reason\":\"reader intent\",\"suggestion\":\"answer it\"}]}"));
+            AIToolService service =
+                    new AIToolService(client, AIServiceDependencies.config(db.dataSource()));
             GenerateArticleFieldRequest articleRequest = articleFieldRequest();
 
             OptimizeWebsiteDescriptionResponse description =
                     service.optimizeWebsiteDescription(websiteDescriptionRequest());
             OptimizeAiPromptResponse prompt = service.optimizeAiPrompt(aiPromptRequest());
-            GenerateArticleTitleResponse titles = service.generateArticleTitles(titleRequest(),
-                    "previous assistant answer");
+            GenerateArticleTitleResponse titles =
+                    service.generateArticleTitles(titleRequest(), "previous assistant answer");
             ScoreArticleResponse score = service.scoreArticle(scoreRequest(), "score context");
-            GenerateArticleMarkdownResponse markdown = service.rewriteArticleMarkdown(articleRequest,
-                    "rewrite context");
-            ScoreArticleResponse publish = service.publishCheckArticle(articleRequest, "publish context");
-            GenerateArticleAliasResponse alias = service.generateArticleAlias(articleRequest, "alias context");
-            GenerateArticleDigestResponse digest = service.generateArticleDigest(articleRequest, "digest context");
-            GenerateArticleTagsResponse tags = service.generateArticleTags(articleRequest, "tags context");
+            GenerateArticleMarkdownResponse markdown =
+                    service.rewriteArticleMarkdown(articleRequest, "rewrite context");
+            ScoreArticleResponse publish =
+                    service.publishCheckArticle(articleRequest, "publish context");
+            GenerateArticleAliasResponse alias =
+                    service.generateArticleAlias(articleRequest, "alias context");
+            GenerateArticleDigestResponse digest =
+                    service.generateArticleDigest(articleRequest, "digest context");
+            GenerateArticleTagsResponse tags =
+                    service.generateArticleTags(articleRequest, "tags context");
             ArticleSeoCheckResponse seo = service.checkArticleSeo(articleRequest, "seo context");
-            ArticleProofreadResponse proofread = service.proofreadArticle(articleRequest, "proofread context");
-            ArticleStructureAdviceResponse structure = service.adviseArticleStructure(articleRequest,
-                    "structure context");
-            ArticleReaderQuestionsResponse questions = service.generateReaderQuestions(articleRequest,
-                    "question context");
+            ArticleProofreadResponse proofread =
+                    service.proofreadArticle(articleRequest, "proofread context");
+            ArticleStructureAdviceResponse structure =
+                    service.adviseArticleStructure(articleRequest, "structure context");
+            ArticleReaderQuestionsResponse questions =
+                    service.generateReaderQuestions(articleRequest, "question context");
 
             assertEquals("Optimized description for the site.", description.getDescription());
             assertEquals("Optimized prompt", prompt.getPrompt());
@@ -302,12 +321,27 @@ public class AIToolServiceTest {
             assertEquals("Structure ok", structure.getSummary());
             assertEquals("Questions ok", questions.getSummary());
             assertProviderRequests(client, 13);
-            assertTrue(client.requestBodies.stream().allMatch(body -> body.contains("\"model\":\"deepseek-chat\"")));
-            assertTrue(client.requestBodies.stream().allMatch(body -> body.contains("\"stream\":false")));
-            assertTrue(client.requestBodies.stream().anyMatch(body -> body.contains("Selected text from the current editor selection")));
-            assertTrue(client.requestBodies.stream().anyMatch(body -> body.contains("previous assistant answer")));
-            assertTrue(client.requestBodies.stream().anyMatch(body -> body.contains("imageReferenceCount")));
-            assertTrue(client.requestBodies.stream().anyMatch(body -> body.contains("staticSyncExpected")));
+            assertTrue(
+                    client.requestBodies.stream()
+                            .allMatch(body -> body.contains("\"model\":\"deepseek-chat\"")));
+            assertTrue(
+                    client.requestBodies.stream()
+                            .allMatch(body -> body.contains("\"stream\":false")));
+            assertTrue(
+                    client.requestBodies.stream()
+                            .anyMatch(
+                                    body ->
+                                            body.contains(
+                                                    "Selected text from the current editor selection")));
+            assertTrue(
+                    client.requestBodies.stream()
+                            .anyMatch(body -> body.contains("previous assistant answer")));
+            assertTrue(
+                    client.requestBodies.stream()
+                            .anyMatch(body -> body.contains("imageReferenceCount")));
+            assertTrue(
+                    client.requestBodies.stream()
+                            .anyMatch(body -> body.contains("staticSyncExpected")));
         }
     }
 
@@ -316,16 +350,32 @@ public class AIToolServiceTest {
     public void shouldParseTitleTagMarkdownAndScoreResponses() throws Exception {
         AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
-        List<String> titles = (List<String>) invoke(service, "parseTitles",
-                "```json\n{\"titles\":[\" One \",\"\\\"Two\\\"\",\"Three\",\"Four\"]}\n```");
-        List<String> tags = (List<String>) invoke(service, "parseTags",
-                "{\"tags\":[\"java\",\"blog\",\"java\",\"\",\"zrlog\",\"ops\",\"test\",\"extra\"]}");
-        GenerateArticleMarkdownResponse markdown = (GenerateArticleMarkdownResponse) invoke(service,
-                "parseArticleMarkdown", "{\"summary\":\" \\\"changed\\\" \",\"markdown\":\"## Title\"}");
-        ScoreArticleResponse score = (ScoreArticleResponse) invoke(service, "parseArticleScore",
-                "{\"score\":101.4,\"summary\":\"Good\",\"items\":["
-                        + "{\"name\":\"SEO\",\"score\":\"88.6\",\"suggestion\":\"Fix\"},"
-                        + "\"invalid\",{\"name\":\"\",\"suggestion\":\"\"}]}");
+        List<String> titles =
+                (List<String>)
+                        invoke(
+                                service,
+                                "parseTitles",
+                                "```json\n{\"titles\":[\" One \",\"\\\"Two\\\"\",\"Three\",\"Four\"]}\n```");
+        List<String> tags =
+                (List<String>)
+                        invoke(
+                                service,
+                                "parseTags",
+                                "{\"tags\":[\"java\",\"blog\",\"java\",\"\",\"zrlog\",\"ops\",\"test\",\"extra\"]}");
+        GenerateArticleMarkdownResponse markdown =
+                (GenerateArticleMarkdownResponse)
+                        invoke(
+                                service,
+                                "parseArticleMarkdown",
+                                "{\"summary\":\" \\\"changed\\\" \",\"markdown\":\"## Title\"}");
+        ScoreArticleResponse score =
+                (ScoreArticleResponse)
+                        invoke(
+                                service,
+                                "parseArticleScore",
+                                "{\"score\":101.4,\"summary\":\"Good\",\"items\":["
+                                        + "{\"name\":\"SEO\",\"score\":\"88.6\",\"suggestion\":\"Fix\"},"
+                                        + "\"invalid\",{\"name\":\"\",\"suggestion\":\"\"}]}");
 
         assertEquals(List.of("One", "Two", "Three"), titles);
         assertEquals(List.of("java", "blog", "zrlog", "ops", "test", "extra"), tags);
@@ -343,20 +393,34 @@ public class AIToolServiceTest {
     public void shouldParseArticleReviewToolResponses() throws Exception {
         AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
-        ArticleSeoCheckResponse seo = (ArticleSeoCheckResponse) invoke(service, "parseArticleSeo",
-                "{\"score\":\"76\",\"summary\":\"SEO ok\",\"items\":["
-                        + "{\"name\":\"title\",\"status\":\"warning\",\"suggestion\":\"shorten\"}]}");
-        ArticleProofreadResponse proofread = (ArticleProofreadResponse) invoke(service, "parseArticleProofread",
-                "{\"summary\":\"Proofread ok\",\"items\":["
-                        + "{\"original\":\"teh\",\"issue\":\"typo\",\"suggestion\":\"the\"}]}");
-        ArticleStructureAdviceResponse structure = (ArticleStructureAdviceResponse) invoke(service,
-                "parseArticleStructure",
-                "{\"summary\":\"Structure ok\",\"items\":["
-                        + "{\"name\":\"intro\",\"status\":\"good\",\"suggestion\":\"keep\"}]}");
-        ArticleReaderQuestionsResponse questions = (ArticleReaderQuestionsResponse) invoke(service,
-                "parseReaderQuestions",
-                "{\"summary\":\"Questions ok\",\"items\":["
-                        + "{\"question\":\"Why?\",\"reason\":\"reader intent\",\"suggestion\":\"answer it\"}]}");
+        ArticleSeoCheckResponse seo =
+                (ArticleSeoCheckResponse)
+                        invoke(
+                                service,
+                                "parseArticleSeo",
+                                "{\"score\":\"76\",\"summary\":\"SEO ok\",\"items\":["
+                                        + "{\"name\":\"title\",\"status\":\"warning\",\"suggestion\":\"shorten\"}]}");
+        ArticleProofreadResponse proofread =
+                (ArticleProofreadResponse)
+                        invoke(
+                                service,
+                                "parseArticleProofread",
+                                "{\"summary\":\"Proofread ok\",\"items\":["
+                                        + "{\"original\":\"teh\",\"issue\":\"typo\",\"suggestion\":\"the\"}]}");
+        ArticleStructureAdviceResponse structure =
+                (ArticleStructureAdviceResponse)
+                        invoke(
+                                service,
+                                "parseArticleStructure",
+                                "{\"summary\":\"Structure ok\",\"items\":["
+                                        + "{\"name\":\"intro\",\"status\":\"good\",\"suggestion\":\"keep\"}]}");
+        ArticleReaderQuestionsResponse questions =
+                (ArticleReaderQuestionsResponse)
+                        invoke(
+                                service,
+                                "parseReaderQuestions",
+                                "{\"summary\":\"Questions ok\",\"items\":["
+                                        + "{\"question\":\"Why?\",\"reason\":\"reader intent\",\"suggestion\":\"answer it\"}]}");
 
         assertEquals(76, seo.getScore());
         assertEquals("SEO ok", seo.getSummary());
@@ -385,13 +449,16 @@ public class AIToolServiceTest {
         assertEquals(0, invoke(service, "normalizeScore", -10));
         assertEquals(0, invoke(service, "normalizeScore", "bad"));
         assertEquals(51, invoke(service, "normalizeScore", "50.6"));
-        assertEquals("", invoke(service, "valueToString", new Object[]{null}));
+        assertEquals("", invoke(service, "valueToString", new Object[] {null}));
         assertEquals("42", invoke(service, "valueToString", 42));
-        assertEquals("prompt\n\ncontext", invoke(service, "appendConversationContext", "prompt", "context"));
+        assertEquals(
+                "prompt\n\ncontext",
+                invoke(service, "appendConversationContext", "prompt", "context"));
         assertEquals("prompt", invoke(service, "appendConversationContext", "prompt", ""));
-        assertEquals("", invoke(service, "cleanPrompt", new Object[]{null}));
+        assertEquals("", invoke(service, "cleanPrompt", new Object[] {null}));
         assertEquals("quoted", invoke(service, "cleanPrompt", "\"quoted\""));
-        assertEquals(160, invoke(service, "cleanDescription", repeat("a", 200)).toString().length());
+        assertEquals(
+                160, invoke(service, "cleanDescription", repeat("a", 200)).toString().length());
         assertEquals("- none", invoke(service, "formatReferenceList", Set.of()));
     }
 
@@ -415,21 +482,39 @@ public class AIToolServiceTest {
         AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
         assertAiResponseError(service, "parseTitles", "title response is empty", "{\"titles\":[]}");
-        assertAiResponseError(service, "parseTitles", "title response is invalid", "{\"title\":\"bad\"}");
+        assertAiResponseError(
+                service, "parseTitles", "title response is invalid", "{\"title\":\"bad\"}");
         assertAiResponseError(service, "parseTags", "tags response is empty", "{\"tags\":[]}");
-        assertAiResponseError(service, "parseTags", "tags response is invalid", "{\"tag\":\"bad\"}");
-        assertAiResponseError(service, "parseArticleMarkdown", "markdown response is invalid",
+        assertAiResponseError(
+                service, "parseTags", "tags response is invalid", "{\"tag\":\"bad\"}");
+        assertAiResponseError(
+                service,
+                "parseArticleMarkdown",
+                "markdown response is invalid",
                 "{\"summary\":\"changed\"}");
         assertAiResponseError(service, "cleanAlias", "alias response is empty", "!!!");
-        assertAiResponseError(service, "parseArticleScore", "score response is invalid",
+        assertAiResponseError(
+                service,
+                "parseArticleScore",
+                "score response is invalid",
                 "{\"score\":80,\"summary\":\"\"}");
-        assertAiResponseError(service, "parseArticleSeo", "SEO response is invalid",
+        assertAiResponseError(
+                service,
+                "parseArticleSeo",
+                "SEO response is invalid",
                 "{\"score\":80,\"summary\":\"SEO ok\",\"items\":[]}");
-        assertAiResponseError(service, "parseArticleStructure", "structure response is invalid",
+        assertAiResponseError(
+                service,
+                "parseArticleStructure",
+                "structure response is invalid",
                 "{\"summary\":\"ok\",\"items\":[]}");
-        assertAiResponseError(service, "parseReaderQuestions", "reader questions response is invalid",
+        assertAiResponseError(
+                service,
+                "parseReaderQuestions",
+                "reader questions response is invalid",
                 "{\"summary\":\"ok\",\"items\":[]}");
-        assertAiResponseError(service, "parseStringField", "alias invalid", "{}", "alias", "alias invalid");
+        assertAiResponseError(
+                service, "parseStringField", "alias invalid", "{}", "alias", "alias invalid");
     }
 
     private String repeat(String value, int count) {
@@ -443,7 +528,10 @@ public class AIToolServiceTest {
     private GenerateArticleFieldRequest articleFieldRequest() {
         GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
         request.setTitle("Draft title");
-        request.setMarkdown(repeat("A long markdown body with ![cover](/cover.png) and https://zrlog.com . ", 4));
+        request.setMarkdown(
+                repeat(
+                        "A long markdown body with ![cover](/cover.png) and https://zrlog.com . ",
+                        4));
         request.setDigest("Draft digest");
         request.setKeywords("java,zrlog");
         request.setSelectedText("field selected sentence");
@@ -513,22 +601,24 @@ public class AIToolServiceTest {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
+        public <T> HttpResponse<T> send(
+                HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
             requests.add(request);
             requestBodies.add(readBody(request));
             return (HttpResponse<T>) responses.get(index++);
         }
 
         @Override
-        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request,
-                                                                HttpResponse.BodyHandler<T> responseBodyHandler) {
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request,
-                                                                HttpResponse.BodyHandler<T> responseBodyHandler,
-                                                                HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                HttpRequest request,
+                HttpResponse.BodyHandler<T> responseBodyHandler,
+                HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
             throw new UnsupportedOperationException();
         }
     }

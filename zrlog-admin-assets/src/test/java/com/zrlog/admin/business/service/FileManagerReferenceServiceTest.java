@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
@@ -10,33 +12,56 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.test.support.TestLogCapture;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class FileManagerReferenceServiceTest {
 
     private static FileReferenceVO reference(int logId, boolean thumbnail, boolean content) {
-        FileReferenceVO reference = new FileReferenceVO(logId, "Article " + logId, "alias-" + logId);
+        FileReferenceVO reference =
+                new FileReferenceVO(logId, "Article " + logId, "alias-" + logId);
         reference.setThumbnail(thumbnail);
         reference.setContent(content);
         return reference;
     }
 
-    private static void insertArticle(InMemoryZrLogDatabase db, int id, String title, String alias, String thumbnail,
-                                      String content, String markdown) throws Exception {
-        db.execute("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
+    private static void insertArticle(
+            InMemoryZrLogDatabase db,
+            int id,
+            String title,
+            String alias,
+            String thumbnail,
+            String content,
+            String markdown)
+            throws Exception {
+        db.execute(
+                "insert into log(logId, alias, canComment, click, version, content, plain_content, markdown, digest,"
                         + " keywords, thumbnail, recommended, releaseTime, last_update_date, title, typeId, userId,"
                         + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(),"
                         + " now(), ?, ?, ?, ?, ?, ?, ?)",
-                id, alias, true, 0, 0, content, "plain " + title, markdown, "Digest " + title,
-                "zrlog,asset", thumbnail, false, title, 1, 1, false, false, false, "markdown");
+                id,
+                alias,
+                true,
+                0,
+                0,
+                content,
+                "plain " + title,
+                markdown,
+                "Digest " + title,
+                "zrlog,asset",
+                thumbnail,
+                false,
+                title,
+                1,
+                1,
+                false,
+                false,
+                false,
+                "markdown");
     }
 
     private static AdminTokenVO token() {
@@ -47,8 +72,8 @@ public class FileManagerReferenceServiceTest {
         return token;
     }
 
-    private static void setRequestReferenceIndex(FileManagerReferenceService service,
-                                                 FileReferenceIndexCacheVO index) throws Exception {
+    private static void setRequestReferenceIndex(
+            FileManagerReferenceService service, FileReferenceIndexCacheVO index) throws Exception {
         Field field = FileManagerReferenceService.class.getDeclaredField("requestReferenceIndex");
         field.setAccessible(true);
         field.set(service, index);
@@ -72,7 +97,9 @@ public class FileManagerReferenceServiceTest {
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
-            assertTrue(logs.contains(Level.WARNING, "Write file-manager reference index cache failed"));
+            assertTrue(
+                    logs.contains(
+                            Level.WARNING, "Write file-manager reference index cache failed"));
         }
     }
 
@@ -94,7 +121,9 @@ public class FileManagerReferenceServiceTest {
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.clearReferenceIndexCache());
-            assertTrue(logs.contains(Level.WARNING, "Clear file-manager reference index cache failed"));
+            assertTrue(
+                    logs.contains(
+                            Level.WARNING, "Clear file-manager reference index cache failed"));
         }
     }
 
@@ -128,8 +157,11 @@ public class FileManagerReferenceServiceTest {
                             throw new IllegalStateException("Database is unavailable in this test");
                         });
 
-        assertEquals("/attached/image/a.png", service.normalizeLocalResourcePath("/blog/attached/image/a.png?v=1"));
-        assertNull(service.normalizeLocalResourcePath("https://cdn.example.com/attached/image/a.png"));
+        assertEquals(
+                "/attached/image/a.png",
+                service.normalizeLocalResourcePath("/blog/attached/image/a.png?v=1"));
+        assertNull(
+                service.normalizeLocalResourcePath("https://cdn.example.com/attached/image/a.png"));
     }
 
     @Test
@@ -162,12 +194,19 @@ public class FileManagerReferenceServiceTest {
         Map<String, List<FileReferenceVO>> references = new LinkedHashMap<>();
         references.put("/attached/images/a.png", List.of(first));
         references.put("/attached/images/nested/b.png", List.of(second));
-        List<FileEntryVO> entries = List.of(
-                new FileEntryVO("images", "/attached/images", "directory", 0, "", 0),
-                new FileEntryVO("a.png", "/attached/images/a.png?size=small", "file", 1, "image/png", 0),
-                new FileEntryVO("readme.txt", "/attached/readme.txt", "file", 1, "text/plain", 0),
-                new FileEntryVO("external", "/external", "directory", 0, "", 0)
-        );
+        List<FileEntryVO> entries =
+                List.of(
+                        new FileEntryVO("images", "/attached/images", "directory", 0, "", 0),
+                        new FileEntryVO(
+                                "a.png",
+                                "/attached/images/a.png?size=small",
+                                "file",
+                                1,
+                                "image/png",
+                                0),
+                        new FileEntryVO(
+                                "readme.txt", "/attached/readme.txt", "file", 1, "text/plain", 0),
+                        new FileEntryVO("external", "/external", "directory", 0, "", 0));
 
         List<FileEntryVO> result = service.applyReferenceInfo(entries, references);
 
@@ -193,21 +232,31 @@ public class FileManagerReferenceServiceTest {
         FileReferenceIndexCacheVO index = new FileReferenceIndexCacheVO();
         Map<String, List<FileReferenceVO>> external = new LinkedHashMap<>();
         external.put("https://cdn.example.com/a.png", List.of(reference(1, true, false)));
-        external.put("https://cdn.example.com/b.css", List.of(reference(1, false, true), reference(2, false, true)));
+        external.put(
+                "https://cdn.example.com/b.css",
+                List.of(reference(1, false, true), reference(2, false, true)));
         external.put("//static.example.com/c.js", List.of(reference(3, false, true)));
         index.setExternalReferences(external);
         index.setLocalReferences(Map.of());
         setRequestReferenceIndex(service, index);
 
-        List<FileEntryVO> disabled = service.getExternalResources(FileManagerService.EXTERNAL_ROOT, false, entry -> entry);
-        List<FileEntryVO> domains = service.getExternalResources(FileManagerService.EXTERNAL_ROOT, true, entry -> entry);
-        List<FileEntryVO> files = service.getExternalResources(FileManagerService.EXTERNAL_ROOT + "/cdn.example.com",
-                true, entry -> entry);
+        List<FileEntryVO> disabled =
+                service.getExternalResources(
+                        FileManagerService.EXTERNAL_ROOT, false, entry -> entry);
+        List<FileEntryVO> domains =
+                service.getExternalResources(
+                        FileManagerService.EXTERNAL_ROOT, true, entry -> entry);
+        List<FileEntryVO> files =
+                service.getExternalResources(
+                        FileManagerService.EXTERNAL_ROOT + "/cdn.example.com",
+                        true,
+                        entry -> entry);
 
         assertEquals(List.of(), disabled);
         assertEquals(2, domains.size());
         assertEquals("cdn.example.com", domains.get(0).getName());
-        assertEquals(FileManagerService.EXTERNAL_ROOT + "/cdn.example.com", domains.get(0).getPath());
+        assertEquals(
+                FileManagerService.EXTERNAL_ROOT + "/cdn.example.com", domains.get(0).getPath());
         assertEquals("directory", domains.get(0).getType());
         assertEquals(2, domains.get(0).getReferenceCount());
         assertEquals(2, files.size());
@@ -236,10 +285,12 @@ public class FileManagerReferenceServiceTest {
         index.setExternalReferences(Map.of());
         setRequestReferenceIndex(service, index);
 
-        List<FileEntryVO> entries = service.getMissingLocalResources(entry -> {
-            entry.setIconType("decorated");
-            return entry;
-        });
+        List<FileEntryVO> entries =
+                service.getMissingLocalResources(
+                        entry -> {
+                            entry.setIconType("decorated");
+                            return entry;
+                        });
 
         assertEquals(1, entries.size());
         FileEntryVO entry = entries.get(0);
@@ -256,7 +307,11 @@ public class FileManagerReferenceServiceTest {
     @Test
     public void shouldBuildAndCacheReferenceIndexFromRealArticleTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            insertArticle(db, 11, "Assets Article", "assets-article",
+            insertArticle(
+                    db,
+                    11,
+                    "Assets Article",
+                    "assets-article",
                     "/blog/attached/thumbs/cover.png?size=1",
                     "<p><img src=\"/blog/attached/images/a.png?x=1\">"
                             + "<a download href=\"/blog/attached/docs/a.pdf\">doc</a>"
@@ -273,8 +328,10 @@ public class FileManagerReferenceServiceTest {
 
             Map<String, List<FileReferenceVO>> local = service.buildLocalReferenceMap();
             Map<String, List<FileReferenceVO>> external = service.buildExternalReferenceMap();
-            Map<String, Object> cacheRow = db.queryOne(
-                    "select value from website where name=?", "admin_cache:file_manager_reference_index");
+            Map<String, Object> cacheRow =
+                    db.queryOne(
+                            "select value from website where name=?",
+                            "admin_cache:file_manager_reference_index");
 
             assertTrue(local.containsKey("/attached/thumbs/cover.png"));
             assertTrue(local.get("/attached/thumbs/cover.png").get(0).isThumbnail());
@@ -300,9 +357,14 @@ public class FileManagerReferenceServiceTest {
     }
 
     @Test
-    public void shouldReplaceArticleResourceReferencesThroughRealDaoAndRecordVersionPatch() throws Exception {
+    public void shouldReplaceArticleResourceReferencesThroughRealDaoAndRecordVersionPatch()
+            throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            insertArticle(db, 12, "Replace Article", "replace-article",
+            insertArticle(
+                    db,
+                    12,
+                    "Replace Article",
+                    "replace-article",
                     "/attached/images/cover.png",
                     "<p>Hero <img src=\"/attached/images/a.png\"><a download href=\"/attached/images/doc.pdf\">Doc</a></p>",
                     "![asset](/attached/images/b.png)");
@@ -320,7 +382,8 @@ public class FileManagerReferenceServiceTest {
                                     java.util.Collections::emptyList);
             var content =
                     com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
-                            .create(() -> null,
+                            .create(
+                                    () -> null,
                                     data,
                                     shared,
                                     AccountServicesFixture.component(db.dataSource()),
@@ -336,14 +399,26 @@ public class FileManagerReferenceServiceTest {
                             content::resources,
                             () -> new LogRepository(db.dataSource()));
 
-            ReplaceArticleResourceUrlResponse response = service.replaceArticleResourceReferences(
-                    AccountServicesFixture.component(db.dataSource()).identities().account(token()), "/attached/images", "/attached/media", true);
-            Map<String, Object> row = db.queryOne(
-                    "select thumbnail, content, markdown, plain_content, version from log where logId=?", 12);
-            Map<String, Object> versionRow = db.queryOne(
-                    "select article_version, from_version, user_id, title, patch_json from log_version where log_id=?", 12);
-            Map<String, Object> cacheRow = db.queryOne(
-                    "select value from website where name=?", "admin_cache:file_manager_reference_index");
+            ReplaceArticleResourceUrlResponse response =
+                    service.replaceArticleResourceReferences(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .identities()
+                                    .account(token()),
+                            "/attached/images",
+                            "/attached/media",
+                            true);
+            Map<String, Object> row =
+                    db.queryOne(
+                            "select thumbnail, content, markdown, plain_content, version from log where logId=?",
+                            12);
+            Map<String, Object> versionRow =
+                    db.queryOne(
+                            "select article_version, from_version, user_id, title, patch_json from log_version where log_id=?",
+                            12);
+            Map<String, Object> cacheRow =
+                    db.queryOne(
+                            "select value from website where name=?",
+                            "admin_cache:file_manager_reference_index");
 
             assertEquals(1, response.getScannedArticles());
             assertEquals(1, response.getUpdatedArticles());

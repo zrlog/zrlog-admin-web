@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.di;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -18,14 +20,11 @@ import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.web.WebSiteInfoProvider;
-import org.junit.Test;
-
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminComponentTest {
     private static AccountComponent accountGraph(InMemoryZrLogDatabase database) {
@@ -34,36 +33,44 @@ public class AdminComponentTest {
 
     private static Cookie issue(TokenService tokens, int userId, String secret) throws Exception {
         AtomicReference<Cookie> cookie = new AtomicReference<>();
-        HttpResponse response = (HttpResponse) Proxy.newProxyInstance(
-                AdminComponentTest.class.getClassLoader(), new Class<?>[]{HttpResponse.class},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("addCookie")) cookie.set((Cookie) args[0]);
-                    return null;
-                });
-        tokens.setAdminToken(userId, secret, "session-" + userId, "http", tokenRequest(null), response);
+        HttpResponse response =
+                (HttpResponse)
+                        Proxy.newProxyInstance(
+                                AdminComponentTest.class.getClassLoader(),
+                                new Class<?>[] {HttpResponse.class},
+                                (proxy, method, args) -> {
+                                    if (method.getName().equals("addCookie"))
+                                        cookie.set((Cookie) args[0]);
+                                    return null;
+                                });
+        tokens.setAdminToken(
+                userId, secret, "session-" + userId, "http", tokenRequest(null), response);
         return cookie.get();
     }
 
     private static HttpRequest tokenRequest(Cookie cookie) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminComponentTest.class.getClassLoader(), new Class<?>[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getCookies":
-                            return cookie == null ? new Cookie[0] : new Cookie[]{cookie};
-                        case "getContextPath":
-                            return "";
-                        case "getUri":
-                            return "/admin";
-                        case "getHeader":
-                            return null;
-                        default:
-                            throw new UnsupportedOperationException(method.getName());
-                    }
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminComponentTest.class.getClassLoader(),
+                        new Class<?>[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getCookies":
+                                    return cookie == null ? new Cookie[0] : new Cookie[] {cookie};
+                                case "getContextPath":
+                                    return "";
+                                case "getUri":
+                                    return "/admin";
+                                case "getHeader":
+                                    return null;
+                                default:
+                                    throw new UnsupportedOperationException(method.getName());
+                            }
+                        });
     }
 
-    private static void assertSession(TokenService tokens, Cookie cookie, int userId, long minutes) {
+    private static void assertSession(
+            TokenService tokens, Cookie cookie, int userId, long minutes) {
         AdminFullTokenVO token = tokens.getAdminTokenVO(tokenRequest(cookie));
         assertNotNull(token);
         assertEquals(userId, token.getUserId());
@@ -86,8 +93,12 @@ public class AdminComponentTest {
             assertThrows(IllegalStateException.class, database::unitCacheService);
             database.putWebsite("title", "Database title");
             productionCache.refreshInitData();
-            assertEquals("Database title", database.component(DataComponent.class).cache()
-                    .getPublicWebSiteInfo().getTitle());
+            assertEquals(
+                    "Database title",
+                    database.component(DataComponent.class)
+                            .cache()
+                            .getPublicWebSiteInfo()
+                            .getTitle());
             assertEquals("Unit test only", stub.getPublicWebSiteInfo().getTitle());
         }
     }
@@ -109,10 +120,15 @@ public class AdminComponentTest {
 
             database.putWebsite("title", "Refreshed application");
             data.cache().refreshInitData();
-            assertEquals("Refreshed application", database.cacheService().getPublicWebSiteInfo().getTitle());
-            assertEquals("Refreshed application", database.config()
-                    .getWebSetup(WebSiteInfoProvider.class)
-                    .getPublicWebSiteInfo().getTitle());
+            assertEquals(
+                    "Refreshed application",
+                    database.cacheService().getPublicWebSiteInfo().getTitle());
+            assertEquals(
+                    "Refreshed application",
+                    database.config()
+                            .getWebSetup(WebSiteInfoProvider.class)
+                            .getPublicWebSiteInfo()
+                            .getTitle());
 
             database.execute("update user set secretKey=? where userId=1", "shared-secret");
             database.config().getTokenService().updateSessionTimeout(23);
@@ -123,13 +139,18 @@ public class AdminComponentTest {
     @Test
     public void sharedTokensKeepAccountPreferencesAndApplicationSecretsIsolated() throws Exception {
         try (InMemoryZrLogDatabase first = InMemoryZrLogDatabase.open();
-             InMemoryZrLogDatabase second = InMemoryZrLogDatabase.open()) {
+                InMemoryZrLogDatabase second = InMemoryZrLogDatabase.open()) {
             AccountComponent firstGraph = accountGraph(first);
             AccountComponent secondGraph = accountGraph(second);
-            first.execute("update user set secretKey=?, preferences=? where userId=1",
-                    "first-app-secret", "{\"session\":{\"timeoutMinutes\":11}}");
-            first.execute("insert into user(userId,userName,role,secretKey) values(2,?,?,?)",
-                    "author", "author", "author-secret");
+            first.execute(
+                    "update user set secretKey=?, preferences=? where userId=1",
+                    "first-app-secret",
+                    "{\"session\":{\"timeoutMinutes\":11}}");
+            first.execute(
+                    "insert into user(userId,userName,role,secretKey) values(2,?,?,?)",
+                    "author",
+                    "author",
+                    "author-secret");
             second.execute("update user set secretKey=? where userId=1", "second-app-secret");
             org.junit.Assert.assertNull(DAO.getDefaultDataSource());
             TokenService firstTokens = firstGraph.tokens();
@@ -151,10 +172,10 @@ public class AdminComponentTest {
             assertSession(firstTokens, owner, 1, 11);
             assertSession(secondTokens, otherApp, 1, 31);
 
-            first.execute("update user set preferences=? where userId=1",
+            first.execute(
+                    "update user set preferences=? where userId=1",
                     "{\"session\":{\"timeoutMinutes\":13}}");
-            assertSession(firstGraph.tokens(),
-                    issue(firstTokens, 1, "first-app-secret"), 1, 13);
+            assertSession(firstGraph.tokens(), issue(firstTokens, 1, "first-app-secret"), 1, 13);
             assertSession(firstTokens, author, 2, 19);
             first.execute("update user set authVersion=1 where userId=1");
             assertNull(firstTokens.getAdminTokenVO(tokenRequest(owner)));
@@ -201,7 +222,7 @@ public class AdminComponentTest {
     public void permissionsAndAsyncConversationsRemainOnTheirApplicationDatabase()
             throws Exception {
         try (InMemoryZrLogDatabase first = InMemoryZrLogDatabase.open();
-             InMemoryZrLogDatabase second = InMemoryZrLogDatabase.open()) {
+                InMemoryZrLogDatabase second = InMemoryZrLogDatabase.open()) {
             graph(first);
             graph(second);
             first.execute("update user set role='owner' where userId=1");
@@ -218,7 +239,14 @@ public class AdminComponentTest {
             assertTrue(firstPermissions.current().isAdministrator());
 
             AIConversationService captured =
-                    firstBindings.get(AIComponent.class).conversations().captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
+                    firstBindings
+                            .get(AIComponent.class)
+                            .conversations()
+                            .captureAccount(
+                                    Math.max(
+                                            1,
+                                            com.zrlog.admin.web.token.AdminTokenThreadLocal
+                                                    .getUserId()));
             AdminTokenThreadLocal.getUser().setUserId(2);
             CompletableFuture.runAsync(
                             () -> {

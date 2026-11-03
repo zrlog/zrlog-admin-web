@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -9,21 +11,18 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.data.repository.AdminLogRepository;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.data.repository.AdminLogRepository;
-import com.zrlog.admin.data.repository.LogVersionRepository;
+import java.lang.reflect.Proxy;
+import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import java.lang.reflect.Proxy;
-import java.util.Map;
-
-import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class ArticlePublishingServiceDatabaseTest {
@@ -35,47 +34,58 @@ public class ArticlePublishingServiceDatabaseTest {
 
     @Parameterized.Parameters(name = "database={0}")
     public static String[] databases() {
-        return new String[]{"h2", "sqlite"};
+        return new String[] {"h2", "sqlite"};
     }
 
     private static JsonArray audit(InMemoryZrLogDatabase db) throws Exception {
-        return JsonParser.parseString(db.scalar("select value from website where name='admin_audit_log'").toString()).getAsJsonArray();
+        return JsonParser.parseString(
+                        db.scalar("select value from website where name='admin_audit_log'")
+                                .toString())
+                .getAsJsonArray();
     }
 
     private static HttpRequest request() {
-        return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(),
-                new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return "/api/admin/article/update";
-                        case "getRemoteHost":
-                            return "127.0.0.1";
-                        case "getHeaderMap":
-                            return Map.of();
-                        case "getHeader":
-                            return null;
-                        default:
-                            throw new UnsupportedOperationException(method.getName());
-                    }
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        HttpRequest.class.getClassLoader(),
+                        new Class<?>[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getUri":
+                                    return "/api/admin/article/update";
+                                case "getRemoteHost":
+                                    return "127.0.0.1";
+                                case "getHeaderMap":
+                                    return Map.of();
+                                case "getHeader":
+                                    return null;
+                                default:
+                                    throw new UnsupportedOperationException(method.getName());
+                            }
+                        });
     }
 
     private InMemoryZrLogDatabase open() throws Exception {
-        return database.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open();
+        return database.equals("sqlite")
+                ? InMemoryZrLogDatabase.openSqlite()
+                : InMemoryZrLogDatabase.open();
     }
 
     @Test
-    public void recordsCreationAndPublicationButNotDraftOrPrivateUpdatesOrVersionConflicts() throws Exception {
+    public void recordsCreationAndPublicationButNotDraftOrPrivateUpdatesOrVersionConflicts()
+            throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
-                            new AdminArticleService(ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
+                            new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
-                                            .permissions(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
                                             () -> new AdminLogRepository(db.dataSource()),
                                             () -> new LogVersionRepository(db.dataSource())),
                                     new ArticlePinningService(
@@ -83,7 +93,8 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
+                            new ArticleQueryService(
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -104,10 +115,22 @@ public class ArticlePublishingServiceDatabaseTest {
             create.setContent("Original content");
             create.setRubbish(true);
             create.setPreserveDraftAiMessages(true);
-            int id = publishing.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), create, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())).getLogId().intValue();
+            int id =
+                    publishing
+                            .create(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .account(AdminTokenThreadLocal.getUser()),
+                                    create,
+                                    AdminAuditContexts.from(
+                                            request(), AdminTokenThreadLocal.getUserId()))
+                            .getLogId()
+                            .intValue();
             JsonArray creationAudit = audit(db);
             assertEquals(1, creationAudit.size());
-            assertEquals("CREATE_ARTICLE", creationAudit.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "CREATE_ARTICLE",
+                    creationAudit.get(0).getAsJsonObject().get("action").getAsString());
             int publications = 0;
             String[] states = {"draft", "private", "published", "published", "draft"};
             for (int version = 0; version < states.length; version++) {
@@ -120,7 +143,12 @@ public class ArticlePublishingServiceDatabaseTest {
                 body.setRubbish(states[version].equals("draft"));
                 body.setPrivacy(states[version].equals("private"));
                 String before = audit(db).toString();
-                publishing.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), body, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
+                publishing.update(
+                        AccountServicesFixture.component(db.dataSource())
+                                .requestIdentity()
+                                .account(AdminTokenThreadLocal.getUser()),
+                        body,
+                        AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
 
                 JsonArray audit = audit(db);
                 if (states[version].equals("published")) {
@@ -135,10 +163,21 @@ public class ArticlePublishingServiceDatabaseTest {
                     assertEquals(before, audit.toString());
                 }
                 assertEquals(publications + 1, audit.size());
-                assertEquals(version + 1, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
+                assertEquals(
+                        version + 1,
+                        ((Number) db.scalar("select version from log where logId=?", id))
+                                .intValue());
 
-                assertThrows(UpdateArticleExpireException.class,
-                        () -> publishing.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), body, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
+                assertThrows(
+                        UpdateArticleExpireException.class,
+                        () ->
+                                publishing.update(
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .requestIdentity()
+                                                .account(AdminTokenThreadLocal.getUser()),
+                                        body,
+                                        AdminAuditContexts.from(
+                                                request(), AdminTokenThreadLocal.getUserId())));
                 assertEquals(audit.toString(), audit(db).toString());
             }
         }
@@ -153,41 +192,53 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setContent("Published content");
             body.setPreserveDraftAiMessages(true);
             new ArticlePublishingService(
-                    new AdminArticleService(ApplicationServicesFixture.capability(
-                            db.config(), ArticleAssistant.class),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).identities(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
-                                    .permissions(),
-                                    () -> new AdminLogRepository(db.dataSource()),
-                                    () -> new LogVersionRepository(db.dataSource())),
-                            new ArticlePinningService(
+                            new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
+                                            () -> new AdminLogRepository(db.dataSource()),
+                                            () -> new LogVersionRepository(db.dataSource())),
+                                    new ArticlePinningService(
+                                            () -> new AdminLogRepository(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new AdminLogRepository(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource())),
-                    new ArticleQueryService(db.unitCacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource())),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            () -> new AdminLogRepository(db.dataSource())),
-                    ApplicationServicesFixture.cacheRefresh(
-                            db.unitCacheService(), db.config()),
-                    markdown -> null,
-                    ApplicationServicesFixture.audit(db.dataSource()),
-                    ApplicationServicesFixture.operations(db.dataSource()))
-                    .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), body, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
+                            new ArticleQueryService(
+                                    db.unitCacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    () -> new AdminLogRepository(db.dataSource())),
+                            ApplicationServicesFixture.cacheRefresh(
+                                    db.unitCacheService(), db.config()),
+                            markdown -> null,
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()))
+                    .create(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .account(AdminTokenThreadLocal.getUser()),
+                            body,
+                            AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
             JsonArray audit = audit(db);
             assertEquals(2, audit.size());
-            assertEquals("PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
-            assertEquals("CREATE_ARTICLE", audit.get(1).getAsJsonObject().get("action").getAsString());
-            assertEquals("Direct publication", audit.get(0).getAsJsonObject().get("content").getAsString());
+            assertEquals(
+                    "PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "CREATE_ARTICLE", audit.get(1).getAsJsonObject().get("action").getAsString());
+            assertEquals(
+                    "Direct publication",
+                    audit.get(0).getAsJsonObject().get("content").getAsString());
         }
     }
 
@@ -196,19 +247,23 @@ public class ArticlePublishingServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = open()) {
             db.execute("insert into user(userId,userName,role) values(2,'other','author')");
             db.execute("update user set role='author' where userId=1");
-            for (int id : new int[]{10, 11, 12}) {
-                db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?, ?,1,'Article',true,false,0)",
-                        id, id == 12 ? 2 : 1);
+            for (int id : new int[] {10, 11, 12}) {
+                db.execute(
+                        "insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?, ?,1,'Article',true,false,0)",
+                        id,
+                        id == 12 ? 2 : 1);
             }
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
-                            new AdminArticleService(ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
+                            new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
-                                            .permissions(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
                                             () -> new AdminLogRepository(db.dataSource()),
                                             () -> new LogVersionRepository(db.dataSource())),
                                     new ArticlePinningService(
@@ -216,7 +271,8 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> new AdminLogRepository(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            new ArticleQueryService(db.unitCacheService(),
+                            new ArticleQueryService(
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -231,10 +287,30 @@ public class ArticlePublishingServiceDatabaseTest {
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
-            assertTrue(publishing.deleteArticles(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "10", AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())).getData().getDelete());
-            assertThrows(PermissionErrorException.class, () -> publishing.deleteArticles(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "11,12", AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
+            assertTrue(
+                    publishing
+                            .deleteArticles(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "10",
+                                    AdminAuditContexts.from(
+                                            request(), AdminTokenThreadLocal.getUserId()))
+                            .getData()
+                            .getDelete());
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            publishing.deleteArticles(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "11,12",
+                                    AdminAuditContexts.from(
+                                            request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
-            assertEquals(2, ((Number) db.scalar("select userId from log where logId=12")).intValue());
+            assertEquals(
+                    2, ((Number) db.scalar("select userId from log where logId=12")).intValue());
             JsonArray audit = audit(db);
             assertEquals(2, audit.size());
             for (int index = 0; index < audit.size(); index++) {
@@ -243,7 +319,16 @@ public class ArticlePublishingServiceDatabaseTest {
                 assertEquals(index == 0 ? "11" : "10", entry.get("content").getAsString());
                 assertEquals(1, entry.get("actorUserId").getAsInt());
             }
-            assertThrows(PermissionErrorException.class, () -> publishing.deleteArticles(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "12", AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            publishing.deleteArticles(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    "12",
+                                    AdminAuditContexts.from(
+                                            request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(audit.toString(), audit(db).toString());
         }
     }

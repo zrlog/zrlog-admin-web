@@ -10,7 +10,6 @@ import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.StaticFileCacheUtils;
 import jakarta.inject.Inject;
-
 import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.file.*;
@@ -47,7 +46,8 @@ public class TemplatePackageInstaller {
         }
         for (File file : catalog.files()) {
             if (!file.isDirectory() && file.getName().endsWith(".zip")) {
-                String templatePath = Constants.TEMPLATE_BASE_PATH + "/" + file.getName().replace(".zip", "");
+                String templatePath =
+                        Constants.TEMPLATE_BASE_PATH + "/" + file.getName().replace(".zip", "");
                 if (!TemplateDownloadUtils.exists(templatePath)) {
                     TemplateDownloadUtils.installByZipFile(file, templatePath);
                 }
@@ -55,7 +55,8 @@ public class TemplatePackageInstaller {
         }
     }
 
-    public UploadTemplateResponse upload(String shortTemplate, boolean overwrite, File file) throws IOException {
+    public UploadTemplateResponse upload(String shortTemplate, boolean overwrite, File file)
+            throws IOException {
         if (StringUtils.isEmpty(shortTemplate) || !shortTemplate.matches(SHORT_TEMPLATE_PATTERN)) {
             return uploadError("admin.template.upload.error.invalidName");
         }
@@ -105,8 +106,15 @@ public class TemplatePackageInstaller {
                 throw installError;
             }
 
-            String displayName = StringUtils.isEmpty(templateVO.getName()) ? shortTemplate : templateVO.getName();
-            return UploadTemplateResponse.success(shortTemplate, displayName, templateVO.getVersion(), overwritten,
+            String displayName =
+                    StringUtils.isEmpty(templateVO.getName())
+                            ? shortTemplate
+                            : templateVO.getName();
+            return UploadTemplateResponse.success(
+                    shortTemplate,
+                    displayName,
+                    templateVO.getVersion(),
+                    overwritten,
                     I18nUtil.getAdminBackendStringFromRes("admin.template.upload.success"));
         } catch (InvalidTemplatePackageException e) {
             return uploadError(e.getI18nKey());
@@ -129,42 +137,48 @@ public class TemplatePackageInstaller {
         Set<Path> extractedPaths = new HashSet<>();
         byte[] buffer = new byte[COPY_BUFFER_SIZE];
         try (InputStream inputStream = Files.newInputStream(zipFile);
-             ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+                ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
             ZipEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
                 entryCount++;
                 if (entryCount > MAX_TEMPLATE_FILE_COUNT) {
-                    throw new InvalidTemplatePackageException("admin.template.upload.error.tooManyFiles");
+                    throw new InvalidTemplatePackageException(
+                            "admin.template.upload.error.tooManyFiles");
                 }
                 Path relativePath = safeZipEntryPath(entry.getName());
                 Path outputPath = staging.resolve(relativePath).normalize();
                 if (!outputPath.startsWith(staging)) {
-                    throw new InvalidTemplatePackageException("admin.template.upload.error.invalidPackage");
+                    throw new InvalidTemplatePackageException(
+                            "admin.template.upload.error.invalidPackage");
                 }
                 if (entry.isDirectory()) {
                     Files.createDirectories(outputPath);
                     continue;
                 }
                 if (!extractedPaths.add(relativePath)) {
-                    throw new InvalidTemplatePackageException("admin.template.upload.error.invalidPackage");
+                    throw new InvalidTemplatePackageException(
+                            "admin.template.upload.error.invalidPackage");
                 }
                 Path parent = outputPath.getParent();
                 if (Objects.nonNull(parent)) {
                     Files.createDirectories(parent);
                 }
-                try (OutputStream outputStream = Files.newOutputStream(outputPath, StandardOpenOption.CREATE_NEW)) {
+                try (OutputStream outputStream =
+                        Files.newOutputStream(outputPath, StandardOpenOption.CREATE_NEW)) {
                     int length;
                     while ((length = zipInputStream.read(buffer)) != -1) {
                         totalSize += length;
                         if (totalSize > MAX_TEMPLATE_UNCOMPRESSED_SIZE) {
-                            throw new InvalidTemplatePackageException("admin.template.upload.error.tooLarge");
+                            throw new InvalidTemplatePackageException(
+                                    "admin.template.upload.error.tooLarge");
                         }
                         outputStream.write(buffer, 0, length);
                     }
                 }
             }
         } catch (ZipException e) {
-            throw new InvalidTemplatePackageException("admin.template.upload.error.invalidPackage", e);
+            throw new InvalidTemplatePackageException(
+                    "admin.template.upload.error.invalidPackage", e);
         }
         if (entryCount == 0) {
             throw new InvalidTemplatePackageException("admin.template.upload.error.invalidPackage");
@@ -179,9 +193,13 @@ public class TemplatePackageInstaller {
         try {
             path = Path.of(entryName).normalize();
         } catch (RuntimeException e) {
-            throw new InvalidTemplatePackageException("admin.template.upload.error.invalidPackage", e);
+            throw new InvalidTemplatePackageException(
+                    "admin.template.upload.error.invalidPackage", e);
         }
-        if (path.isAbsolute() || path.toString().isEmpty() || path.getNameCount() == 0 || path.startsWith("..")) {
+        if (path.isAbsolute()
+                || path.toString().isEmpty()
+                || path.getNameCount() == 0
+                || path.startsWith("..")) {
             throw new InvalidTemplatePackageException("admin.template.upload.error.invalidPackage");
         }
         return path;
@@ -202,7 +220,8 @@ public class TemplatePackageInstaller {
                                             !Objects.equals(
                                                     path.getFileName().toString(), ".DS_Store"))
                             .collect(Collectors.toList());
-            if (candidates.size() == 1 && Files.isDirectory(candidates.get(0))
+            if (candidates.size() == 1
+                    && Files.isDirectory(candidates.get(0))
                     && hasTemplateMetadata(candidates.get(0))) {
                 return candidates.get(0);
             }
@@ -257,13 +276,15 @@ public class TemplatePackageInstaller {
         }
         try (Stream<Path> stream = Files.walk(path)) {
             try {
-                stream.sorted(Comparator.reverseOrder()).forEach(item -> {
-                    try {
-                        Files.deleteIfExists(item);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
+                stream.sorted(Comparator.reverseOrder())
+                        .forEach(
+                                item -> {
+                                    try {
+                                        Files.deleteIfExists(item);
+                                    } catch (IOException e) {
+                                        throw new UncheckedIOException(e);
+                                    }
+                                });
             } catch (UncheckedIOException e) {
                 throw e.getCause();
             }
@@ -287,6 +308,4 @@ public class TemplatePackageInstaller {
             return i18nKey;
         }
     }
-
-
 }

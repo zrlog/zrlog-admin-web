@@ -1,11 +1,10 @@
 package com.zrlog.admin.business.content;
 
-import org.junit.Test;
-
-import com.zrlog.model.Log;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
+import com.zrlog.model.Log;
+import org.junit.Test;
 
 public class ArticleResourceReferencesTest {
     @Test
@@ -23,7 +22,8 @@ public class ArticleResourceReferencesTest {
         ArticleResourceReferences service = new ArticleResourceReferences("/blog");
         Log article = new Log();
         article.setThumbnail("/blog/attached/images/a.png?x=1");
-        article.setContent("<img src=\"/blog/attached/images/a.png\"><a download href=\"/blog/attached/images/doc.pdf\">doc</a>");
+        article.setContent(
+                "<img src=\"/blog/attached/images/a.png\"><a download href=\"/blog/attached/images/doc.pdf\">doc</a>");
         article.setMarkdown("![cover](/blog/attached/images/b.png)");
         article.setDigest("<img src=\"/blog/attached/images/c.png\">");
         ArticleResourceReferences.Changes updates =
@@ -41,7 +41,8 @@ public class ArticleResourceReferencesTest {
         ArticleResourceReferences service = new ArticleResourceReferences("");
         Log article = new Log();
         article.setThumbnail("https://cdn.example.com/assets/a.png?x=1#top");
-        article.setContent("<img src=\"https://cdn.example.com/assets/a.png\"><img src=\"https://cdn.example.com/other/a.png\">");
+        article.setContent(
+                "<img src=\"https://cdn.example.com/assets/a.png\"><img src=\"https://cdn.example.com/other/a.png\">");
         article.setMarkdown("![cover](https://cdn.example.com/assets/b.png)");
         article.setDigest("<img src=\"https://cdn.example.com/assets/c.png\">");
         ArticleResourceReferences.Changes updates =

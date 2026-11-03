@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.request;
 
 import com.zrlog.common.Validator;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,7 +35,5 @@ public class AdminDashboardConfigRequest implements Validator {
     }
 
     @Override
-    public void doValid() {
-
-    }
+    public void doValid() {}
 }

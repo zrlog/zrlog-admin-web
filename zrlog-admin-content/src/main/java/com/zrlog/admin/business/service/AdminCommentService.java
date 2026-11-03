@@ -7,11 +7,10 @@ import com.zrlog.admin.business.rest.request.ReadCommentRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.data.dto.CommentDTO;
+import com.zrlog.admin.data.repository.AdminCommentRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.admin.data.repository.AdminCommentRepository;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.*;
 
@@ -44,13 +43,27 @@ public class AdminCommentService {
         for (Integer id : commentIds) checkArticle(actor, id);
         String placeholders = placeholders(commentIds.size());
         AdminCommentRepository comment = this.commentProvider.get();
-        Object matchedCount = comment.queryFirstObj(
-                "select count(1) from " + AdminCommentRepository.TABLE_NAME + " where commentId in (" + placeholders + ")",
-                commentIds.toArray());
-        boolean allExists = matchedCount instanceof Number && ((Number) matchedCount).intValue() == commentIds.size();
-        boolean deleted = allExists && mutate(actor,
-                "delete from " + AdminCommentRepository.TABLE_NAME + " where commentId in (" + placeholders + ")",
-                commentIds.toArray());
+        Object matchedCount =
+                comment.queryFirstObj(
+                        "select count(1) from "
+                                + AdminCommentRepository.TABLE_NAME
+                                + " where commentId in ("
+                                + placeholders
+                                + ")",
+                        commentIds.toArray());
+        boolean allExists =
+                matchedCount instanceof Number
+                        && ((Number) matchedCount).intValue() == commentIds.size();
+        boolean deleted =
+                allExists
+                        && mutate(
+                                actor,
+                                "delete from "
+                                        + AdminCommentRepository.TABLE_NAME
+                                        + " where commentId in ("
+                                        + placeholders
+                                        + ")",
+                                commentIds.toArray());
         if (deleted) {
             messageCenterStateService.markChanged();
         }
@@ -95,18 +108,25 @@ public class AdminCommentService {
         return sj.toString();
     }
 
-    public UpdateRecordResponse read(AccountAccess actor, ReadCommentRequest commentRequest) throws SQLException {
+    public UpdateRecordResponse read(AccountAccess actor, ReadCommentRequest commentRequest)
+            throws SQLException {
         if (Objects.isNull(commentRequest)) {
             return new UpdateRecordResponse(false);
         }
         actor = authorize(actor);
         checkArticle(actor, commentRequest.getId());
-        mutate(actor, "update comment set updatedAt=?,version=version+1,have_read=? where commentId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, commentRequest.getId());
+        mutate(
+                actor,
+                "update comment set updatedAt=?,version=version+1,have_read=? where commentId=?",
+                new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                true,
+                commentRequest.getId());
         messageCenterStateService.markChanged();
         return new UpdateRecordResponse();
     }
 
-    public PageData<CommentDTO> page(AccountAccess actor, PageRequest pageable) throws SQLException {
+    public PageData<CommentDTO> page(AccountAccess actor, PageRequest pageable)
+            throws SQLException {
         actor = authorize(actor);
         return this.commentProvider
                 .get()
@@ -130,7 +150,13 @@ public class AdminCommentService {
 
     public void readAll(AccountAccess actor) throws SQLException {
         actor = authorize(actor);
-        boolean updated = mutate(actor, "update comment set updatedAt=?,version=version+1,have_read=? where have_read=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), true, false);
+        boolean updated =
+                mutate(
+                        actor,
+                        "update comment set updatedAt=?,version=version+1,have_read=? where have_read=?",
+                        new java.sql.Timestamp(System.currentTimeMillis()).toString(),
+                        true,
+                        false);
         if (updated) {
             messageCenterStateService.markChanged();
         }
@@ -142,7 +168,8 @@ public class AdminCommentService {
         return actor;
     }
 
-    private boolean mutate(AccountAccess actor, String sql, Object... parameters) throws SQLException {
+    private boolean mutate(AccountAccess actor, String sql, Object... parameters)
+            throws SQLException {
         identities.revalidate(actor);
         List<Object> values = new ArrayList<>(Arrays.asList(parameters));
         if (!actor.isAdministrator()) {
@@ -150,8 +177,9 @@ public class AdminCommentService {
             values.add(actor.getUserId());
         }
         // Keep revocation authoritative even when WebAPI executes a later independent statement.
-        sql += " and exists (select 1 from user actor where actor.userId=? and actor.role=?"
-                + " and actor.enabled=? and actor.authVersion=?)";
+        sql +=
+                " and exists (select 1 from user actor where actor.userId=? and actor.role=?"
+                        + " and actor.enabled=? and actor.authVersion=?)";
         values.add(actor.getUserId());
         values.add(actor.getRole());
         values.add(true);

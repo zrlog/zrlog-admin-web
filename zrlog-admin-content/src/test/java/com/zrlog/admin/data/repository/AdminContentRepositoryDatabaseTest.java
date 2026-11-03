@@ -1,5 +1,7 @@
 package com.zrlog.admin.data.repository;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hibegin.common.dao.ResultValueConvertUtils;
@@ -7,25 +9,22 @@ import com.hibegin.common.dao.dto.Direction;
 import com.hibegin.common.dao.dto.OrderBy;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequestImpl;
-import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.admin.data.dto.ArticleCounts;
 import com.zrlog.admin.data.dto.CommentCounts;
 import com.zrlog.admin.data.dto.CommentDTO;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.repository.TypeRepository;
 import com.zrlog.model.Comment;
 import com.zrlog.test.support.ZrLogTestDatabase;
 import com.zrlog.test.support.ZrLogTestDatabase.DatabaseType;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class AdminContentRepositoryDatabaseTest {
@@ -45,54 +44,153 @@ public class AdminContentRepositoryDatabaseTest {
     }
 
     private static void seedContent(ZrLogTestDatabase db) throws Exception {
-        db.update("insert into user(userId, email, password, userName, header) values(?, ?, ?, ?, ?)",
-                1, "admin@example.com", "password", "admin", "/avatar.png");
-        db.update("insert into type(typeId, alias, typeName, remark) values(?, ?, ?, ?)",
-                1, "tech", "Tech", "Tech posts");
-        db.update("insert into link(linkId, linkName, url, sort, alt, icon, status) values(?, ?, ?, ?, ?, ?, ?)",
-                1, "ZrLog", "https://www.zrlog.com", 1, "ZrLog", "link", true);
-        db.update("insert into lognav(navId, navName, url, sort, icon) values(?, ?, ?, ?, ?)",
-                1, "Home", "/", 1, "home");
-        insertArticle(db, 1, "first", "First", "First content", "java,zrlog",
-                "2026-01-15 10:00:00", 5, false, false);
-        insertArticle(db, 2, "second", "Second", "Second content", "java",
-                "2026-01-20 11:00:00", 7, false, false);
-        insertArticle(db, 3, "draft", "Draft", "Draft content", "draft",
-                "2026-02-01 09:00:00", 0, true, false);
-        db.update("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+        db.update(
+                "insert into user(userId, email, password, userName, header) values(?, ?, ?, ?, ?)",
+                1,
+                "admin@example.com",
+                "password",
+                "admin",
+                "/avatar.png");
+        db.update(
+                "insert into type(typeId, alias, typeName, remark) values(?, ?, ?, ?)",
+                1,
+                "tech",
+                "Tech",
+                "Tech posts");
+        db.update(
+                "insert into link(linkId, linkName, url, sort, alt, icon, status) values(?, ?, ?, ?, ?, ?, ?)",
+                1,
+                "ZrLog",
+                "https://www.zrlog.com",
+                1,
+                "ZrLog",
+                "link",
+                true);
+        db.update(
+                "insert into lognav(navId, navName, url, sort, icon) values(?, ?, ?, ?, ?)",
+                1,
+                "Home",
+                "/",
+                1,
+                "home");
+        insertArticle(
+                db,
+                1,
+                "first",
+                "First",
+                "First content",
+                "java,zrlog",
+                "2026-01-15 10:00:00",
+                5,
+                false,
+                false);
+        insertArticle(
+                db,
+                2,
+                "second",
+                "Second",
+                "Second content",
+                "java",
+                "2026-01-20 11:00:00",
+                7,
+                false,
+                false);
+        insertArticle(
+                db,
+                3,
+                "draft",
+                "Draft",
+                "Draft content",
+                "draft",
+                "2026-02-01 09:00:00",
+                0,
+                true,
+                false);
+        db.update(
+                "insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
                         + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                1, todayAt("09:00:00"), false, "Nice post", "reader@example.com", "https://reader.example.com",
-                "127.0.0.1", "Reader", false, 1, "/reader.png");
-        db.update("insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
+                1,
+                todayAt("09:00:00"),
+                false,
+                "Nice post",
+                "reader@example.com",
+                "https://reader.example.com",
+                "127.0.0.1",
+                "Reader",
+                false,
+                1,
+                "/reader.png");
+        db.update(
+                "insert into comment(commentId, commTime, have_read, userComment, userMail, userHome, userIp,"
                         + " userName, hide, logId, header) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                2, "2026-01-15 12:00:00", true, "Old post", null, "",
-                "127.0.0.2", "Old", false, 2, "");
+                2,
+                "2026-01-15 12:00:00",
+                true,
+                "Old post",
+                null,
+                "",
+                "127.0.0.2",
+                "Old",
+                false,
+                2,
+                "");
     }
 
     private static String todayAt(String time) {
         return new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + " " + time;
     }
 
-    private static void insertArticle(ZrLogTestDatabase db, int id, String alias, String title, String content,
-                                      String keywords, String releaseTime, int click, boolean rubbish,
-                                      boolean privacy) throws Exception {
-        db.update("insert into log(logId, alias, canComment, click, version, content, plain_content, markdown,"
+    private static void insertArticle(
+            ZrLogTestDatabase db,
+            int id,
+            String alias,
+            String title,
+            String content,
+            String keywords,
+            String releaseTime,
+            int click,
+            boolean rubbish,
+            boolean privacy)
+            throws Exception {
+        db.update(
+                "insert into log(logId, alias, canComment, click, version, content, plain_content, markdown,"
                         + " digest, keywords, recommended, releaseTime, last_update_date, title, typeId, userId,"
                         + " hot, rubbish, privacy, editor_type) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
                         + " ?, ?, ?, ?, ?, ?)",
-                id, alias, true, click, 1, content, content, content, "Digest", keywords, false,
-                releaseTime, releaseTime, title, 1, 1, false, rubbish, privacy, "markdown");
+                id,
+                alias,
+                true,
+                click,
+                1,
+                content,
+                content,
+                content,
+                "Digest",
+                keywords,
+                false,
+                releaseTime,
+                releaseTime,
+                title,
+                1,
+                1,
+                false,
+                rubbish,
+                privacy,
+                "markdown");
     }
 
     @Test
     public void shouldQueryAdminArticleViewsThroughRealTables() throws Exception {
         try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
             seedContent(db);
-            db.update("update log set extensions=? where logId=?",
-                    "{\"metadata\":{\"topicIds\":[\"tech\"],\"priority\":3}}", 1);
+            db.update(
+                    "update log set extensions=? where logId=?",
+                    "{\"metadata\":{\"topicIds\":[\"tech\"],\"priority\":3}}",
+                    1);
             AdminLogRepository log = new AdminLogRepository(db.dataSource());
 
-            PageData<ArticleBasicDTO> adminPublished = log.find(page(), "First", "tech", "published");
+            PageData<ArticleBasicDTO> adminPublished =
+                    log.find(page(), "First", "tech", "published");
             PageRequestImpl clickAsc = page();
             clickAsc.setOrders(List.of(new OrderBy("click", Direction.ASC)));
             PageRequestImpl defaultSortAsc = page();
@@ -124,13 +222,24 @@ public class AdminContentRepositoryDatabaseTest {
     public void shouldFilterAdminArticlesByDraftPrivateAndPublishedStatus() throws Exception {
         try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
             seedContent(db);
-            insertArticle(db, 4, "private", "Private", "Private content", "secret",
-                    "2026-02-02 10:00:00", 1, false, true);
+            insertArticle(
+                    db,
+                    4,
+                    "private",
+                    "Private",
+                    "Private content",
+                    "secret",
+                    "2026-02-02 10:00:00",
+                    1,
+                    false,
+                    true);
             AdminLogRepository log = new AdminLogRepository(db.dataSource());
 
             assertEquals(2L, log.find(page(), null, null, "published").getTotalElements());
-            assertEquals("Private", log.find(page(), null, null, "private").getRows().get(0).getTitle());
-            assertEquals("Draft", log.find(page(), null, null, "draft").getRows().get(0).getTitle());
+            assertEquals(
+                    "Private", log.find(page(), null, null, "private").getRows().get(0).getTitle());
+            assertEquals(
+                    "Draft", log.find(page(), null, null, "draft").getRows().get(0).getTitle());
             assertEquals(4L, log.find(page(), null, null, "unknown").getTotalElements());
             assertEquals("Private", log.findByIdOrAlias("private").getTitle());
         }
@@ -141,19 +250,40 @@ public class AdminContentRepositoryDatabaseTest {
         try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
             seedContent(db);
             db.update("insert into user(userId, userName) values(?, ?)", 2, "other");
-            insertArticle(db, 4, "own-private", "Own Private", "Private content", "secret",
-                    "2026-02-02 10:00:00", 1, false, true);
-            insertArticle(db, 5, "other-private", "Other Private", "Private content", "secret",
-                    "2026-02-03 10:00:00", 1, false, true);
+            insertArticle(
+                    db,
+                    4,
+                    "own-private",
+                    "Own Private",
+                    "Private content",
+                    "secret",
+                    "2026-02-02 10:00:00",
+                    1,
+                    false,
+                    true);
+            insertArticle(
+                    db,
+                    5,
+                    "other-private",
+                    "Other Private",
+                    "Private content",
+                    "secret",
+                    "2026-02-03 10:00:00",
+                    1,
+                    false,
+                    true);
             db.update("update log set userId=? where logId in (?, ?)", 2, 2, 5);
             AdminLogRepository logs = new AdminLogRepository(db.dataSource());
 
-            assertEquals(List.of("Own Private", "Draft", "First"),
+            assertEquals(
+                    List.of("Own Private", "Draft", "First"),
                     logs.find(page(), null, null, "", 1).getRows().stream()
-                            .map(ArticleBasicDTO::getTitle).collect(Collectors.toList()));
+                            .map(ArticleBasicDTO::getTitle)
+                            .collect(Collectors.toList()));
             assertEquals(4L, logs.find(page(), null, null, "", null, 1).getTotalElements());
-            assertEquals("Own Private", logs.find(page(), null, null, "private", null, 1)
-                    .getRows().get(0).getTitle());
+            assertEquals(
+                    "Own Private",
+                    logs.find(page(), null, null, "private", null, 1).getRows().get(0).getTitle());
             assertEquals(0L, logs.find(page(), null, null, "private", 2, 1).getTotalElements());
             ArticleCounts own = logs.getCounts(1, 1);
             assertEquals(3L, own.totalCount);
@@ -194,7 +324,8 @@ public class AdminContentRepositoryDatabaseTest {
     }
 
     @Test
-    public void shouldAggregateArticleAndCommentCountsForEmptyAndPopulatedTables() throws Exception {
+    public void shouldAggregateArticleAndCommentCountsForEmptyAndPopulatedTables()
+            throws Exception {
         try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
             AdminLogRepository logs = new AdminLogRepository(db.dataSource());
             AdminCommentRepository comments = new AdminCommentRepository(db.dataSource());
@@ -235,8 +366,19 @@ public class AdminContentRepositoryDatabaseTest {
             assertEquals(2L, result.getTotalElements());
             assertEquals(todayAt("09:00:00"), result.getRows().get(0).getCommTime());
             JsonObject json = new Gson().toJsonTree(result.getRows().get(0)).getAsJsonObject();
-            assertEquals(Set.of("id", "userComment", "header", "commTime", "userMail", "userHome",
-                    "userIp", "userName", "hide", "logId"), json.keySet());
+            assertEquals(
+                    Set.of(
+                            "id",
+                            "userComment",
+                            "header",
+                            "commTime",
+                            "userMail",
+                            "userHome",
+                            "userIp",
+                            "userName",
+                            "hide",
+                            "logId"),
+                    json.keySet());
             assertEquals(1L, json.get("id").getAsLong());
             assertEquals(1L, json.get("logId").getAsLong());
             assertEquals("Nice post", json.get("userComment").getAsString());
@@ -247,10 +389,13 @@ public class AdminContentRepositoryDatabaseTest {
             assertEquals("/reader.png", json.get("header").getAsString());
             assertEquals(todayAt("09:00:00"), json.get("commTime").getAsString());
             assertFalse(json.get("hide").getAsBoolean());
-            assertEquals(List.of(1L), unread.stream().map(Comment::getId).collect(Collectors.toList()));
+            assertEquals(
+                    List.of(1L), unread.stream().map(Comment::getId).collect(Collectors.toList()));
             comments.doRead(1);
-            assertTrue(ResultValueConvertUtils.toBoolean(
-                    db.queryOne("select have_read from comment where commentId=?", 1).get("have_read")));
+            assertTrue(
+                    ResultValueConvertUtils.toBoolean(
+                            db.queryOne("select have_read from comment where commentId=?", 1)
+                                    .get("have_read")));
             assertTrue(comments.findHaveReadIsFalse().isEmpty());
         }
     }
@@ -270,7 +415,8 @@ public class AdminContentRepositoryDatabaseTest {
     }
 
     @Test
-    public void shouldPaginateContentSettingsAndCountAllArticlesInAdminCategories() throws Exception {
+    public void shouldPaginateContentSettingsAndCountAllArticlesInAdminCategories()
+            throws Exception {
         try (ZrLogTestDatabase db = ZrLogTestDatabase.open(databaseType)) {
             seedContent(db);
             var links = new AdminLinkRepository(db.dataSource()).find(page());
@@ -284,7 +430,9 @@ public class AdminContentRepositoryDatabaseTest {
             assertEquals(1L, categories.getTotalElements());
             assertEquals("Tech", categories.getRows().get(0).getTypeName());
             assertEquals(Long.valueOf(3), categories.getRows().get(0).getTypeamount());
-            assertEquals(Long.valueOf(2), new TypeRepository(db.dataSource()).findAll().get(0).getTypeamount());
+            assertEquals(
+                    Long.valueOf(2),
+                    new TypeRepository(db.dataSource()).findAll().get(0).getTypeamount());
         }
     }
 }

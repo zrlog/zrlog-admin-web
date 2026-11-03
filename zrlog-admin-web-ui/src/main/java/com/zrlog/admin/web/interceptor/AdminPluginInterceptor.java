@@ -16,7 +16,6 @@ import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminTokenVO;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -26,25 +25,22 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
- * 这个类负责了对所有的插件路由的代理中转给插件服务（及 plugin-core 这个进程）
- * 目前插件服务拦截了 /admin/plugins/* （进行权限检查）
+ * 这个类负责了对所有的插件路由的代理中转给插件服务（及 plugin-core 这个进程） 目前插件服务拦截了 /admin/plugins/* （进行权限检查）
  * 如果想了解更多关于插件的实现可以浏览这篇文章 <a href="https://blog.zrlog.com/zrlog-plugin-dev.html">插件实现</a>
  */
 public class AdminPluginInterceptor implements HandleAbleInterceptor {
     private static final String notGoodAdminUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins";
     private static final String adminPluginUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins/";
-    private static final List<String> PUBLIC_PLUGIN_PWA_RESOURCES = Arrays.asList(
-            "manifest.webmanifest",
-            "manifest.json",
-            "pwa-icon",
-            "pwa-sw.js"
-    );
+    private static final List<String> PUBLIC_PLUGIN_PWA_RESOURCES =
+            Arrays.asList("manifest.webmanifest", "manifest.json", "pwa-icon", "pwa-sw.js");
     protected final Supplier<TokenService> tokenService;
     private final AdminAuditService adminAuditService;
     private final AdminRequestIdentity requestIdentity;
     private final Supplier<PluginCorePlugin> pluginCore;
     private final BooleanSupplier installed;
-    private final List<String> pluginHandlerPaths = Arrays.asList(notGoodAdminUriPath, adminPluginUriPath);
+    private final List<String> pluginHandlerPaths =
+            Arrays.asList(notGoodAdminUriPath, adminPluginUriPath);
+
     @Inject
     public AdminPluginInterceptor(
             Supplier<TokenService> tokenService,
@@ -92,7 +88,9 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
      * @param entry
      * @throws IOException
      */
-    private void adminPermission(String target, HttpRequest request, HttpResponse response, AdminTokenVO entry) throws IOException, URISyntaxException, InterruptedException {
+    private void adminPermission(
+            String target, HttpRequest request, HttpResponse response, AdminTokenVO entry)
+            throws IOException, URISyntaxException, InterruptedException {
         if (Objects.isNull(entry)) {
             AdminWebTools.blockUnLoginRequestHandler(request, response, installed.getAsBoolean());
             return;
@@ -101,7 +99,10 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             response.renderCode(403);
             return;
         }
-        if (pluginCore.get().accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
+        if (pluginCore
+                .get()
+                .accessPlugin(
+                        target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
             recordPluginSurfaceAction(request, target);
             return;
         }
@@ -112,19 +113,23 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
         if (request.getMethod() != HttpMethod.POST || !target.startsWith(adminPluginUriPath)) {
             return;
         }
-        String pluginPath = target.substring(adminPluginUriPath.length())
-                .split("\\?", 2)[0]
-                .replaceAll("^/+|/+$", "");
+        String pluginPath =
+                target.substring(adminPluginUriPath.length())
+                        .split("\\?", 2)[0]
+                        .replaceAll("^/+|/+$", "");
         if (!pluginPath.endsWith("/surfaceAction")) {
             return;
         }
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.PLUGIN_SURFACE_ACTION,
+                pluginPath);
     }
 
-    private void renderPublicPluginPwaResource(String target, HttpRequest request, HttpResponse response)
+    private void renderPublicPluginPwaResource(
+            String target, HttpRequest request, HttpResponse response)
             throws IOException, URISyntaxException, InterruptedException {
-        if (pluginCore.get()
-                .accessPlugin(pluginCoreUri(target), request, response, null)) {
+        if (pluginCore.get().accessPlugin(pluginCoreUri(target), request, response, null)) {
             return;
         }
         response.renderCode(404);

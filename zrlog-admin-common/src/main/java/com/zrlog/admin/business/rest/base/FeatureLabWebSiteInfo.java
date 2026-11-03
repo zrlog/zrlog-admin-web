@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.rest.base;
 
 import com.zrlog.common.Validator;
-
 import java.util.Objects;
 
 public class FeatureLabWebSiteInfo implements Validator {
@@ -24,7 +23,8 @@ public class FeatureLabWebSiteInfo implements Validator {
         return feature_article_extension_filter_enabled;
     }
 
-    public void setFeature_article_extension_filter_enabled(Boolean feature_article_extension_filter_enabled) {
+    public void setFeature_article_extension_filter_enabled(
+            Boolean feature_article_extension_filter_enabled) {
         this.feature_article_extension_filter_enabled = feature_article_extension_filter_enabled;
     }
 
@@ -32,7 +32,8 @@ public class FeatureLabWebSiteInfo implements Validator {
         return feature_article_arrangement_enabled;
     }
 
-    public void setFeature_article_arrangement_enabled(Boolean feature_article_arrangement_enabled) {
+    public void setFeature_article_arrangement_enabled(
+            Boolean feature_article_arrangement_enabled) {
         this.feature_article_arrangement_enabled = feature_article_arrangement_enabled;
     }
 
@@ -54,10 +55,12 @@ public class FeatureLabWebSiteInfo implements Validator {
 
     @Override
     public void doValid() {
-        feature_resource_reference_enabled = Objects.equals(feature_resource_reference_enabled, true);
+        feature_resource_reference_enabled =
+                Objects.equals(feature_resource_reference_enabled, true);
         feature_article_extension_filter_enabled =
                 Objects.equals(feature_article_extension_filter_enabled, true);
-        feature_article_arrangement_enabled = Objects.equals(feature_article_arrangement_enabled, true);
+        feature_article_arrangement_enabled =
+                Objects.equals(feature_article_arrangement_enabled, true);
         feature_webhook_enabled = Objects.equals(feature_webhook_enabled, true);
         feature_personal_data_enabled = Objects.equals(feature_personal_data_enabled, true);
     }

@@ -11,7 +11,6 @@ import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.util.*;
 
 public class AccessController extends BaseController {
@@ -19,8 +18,7 @@ public class AccessController extends BaseController {
     private final AdminPageDataFactory pages;
 
     @Inject
-    public AccessController(
-            AdminPageDataFactory pages, AdminRequestIdentity requestIdentity) {
+    public AccessController(AdminPageDataFactory pages, AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
 
         this.pages = pages;
@@ -42,16 +40,24 @@ public class AccessController extends BaseController {
             item.roles = new ArrayList<>(action.getRoles());
             item.routes = new ArrayList<>();
             item.routeDetails = new ArrayList<>();
-            request.getRequestConfig().getRouter().getRouterMap().forEach((route, method) -> {
-                RequiresAction binding = method.getAnnotation(RequiresAction.class);
-                if (binding != null && (binding.value() == action || Arrays.asList(binding.conditional()).contains(action)) && route.contains("admin")) {
-                    item.routes.add(route);
-                    AccessModels.Route detail = new AccessModels.Route();
-                    detail.path = route;
-                    detail.descriptionKey = binding.descriptionKey();
-                    item.routeDetails.add(detail);
-                }
-            });
+            request.getRequestConfig()
+                    .getRouter()
+                    .getRouterMap()
+                    .forEach(
+                            (route, method) -> {
+                                RequiresAction binding = method.getAnnotation(RequiresAction.class);
+                                if (binding != null
+                                        && (binding.value() == action
+                                                || Arrays.asList(binding.conditional())
+                                                        .contains(action))
+                                        && route.contains("admin")) {
+                                    item.routes.add(route);
+                                    AccessModels.Route detail = new AccessModels.Route();
+                                    detail.path = route;
+                                    detail.descriptionKey = binding.descriptionKey();
+                                    item.routeDetails.add(detail);
+                                }
+                            });
             Collections.sort(item.routes);
             item.routeDetails.sort(Comparator.comparing(route -> route.path));
             page.actions.add(item);

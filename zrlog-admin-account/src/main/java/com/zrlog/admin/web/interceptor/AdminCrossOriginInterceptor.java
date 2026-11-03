@@ -10,18 +10,17 @@ import com.zrlog.admin.business.exception.PasskeyVerificationException;
 import com.zrlog.admin.business.service.PasskeyRequestContext;
 import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.common.Constants;
-
 import java.util.Objects;
 
-/**
- * 支持自动处理后台的跨域请求
- */
+/** 支持自动处理后台的跨域请求 */
 public class AdminCrossOriginInterceptor implements HandleAbleInterceptor {
 
     private static final String ADMIN_API_BASE_PATH = "/api" + AdminConstants.ADMIN_URI_BASE_PATH;
     private static final String PUBLIC_PASSKEY_API_PATH_PREFIX = ADMIN_API_BASE_PATH + "/passkey/";
-    private static final String ACCOUNT_PASSKEY_API_PATH_PREFIX = ADMIN_API_BASE_PATH + "/account-security/passkey";
+    private static final String ACCOUNT_PASSKEY_API_PATH_PREFIX =
+            ADMIN_API_BASE_PATH + "/account-security/passkey";
     private final PasskeyRequestContext passkeyRequestContext;
+
     public AdminCrossOriginInterceptor(PasskeyRequestContext passkeyRequestContext) {
         this.passkeyRequestContext = Objects.requireNonNull(passkeyRequestContext);
     }
@@ -50,10 +49,16 @@ public class AdminCrossOriginInterceptor implements HandleAbleInterceptor {
         }
         response.addHeader("Access-Control-Allow-Origin", origin);
         response.addHeader("Access-Control-Allow-Credentials", "true");
-        response.addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, " + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
+        response.addHeader(
+                "Access-Control-Allow-Headers",
+                "Authorization, Content-Type, X-Requested-With, "
+                        + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
         if (request.getMethod() == HttpMethod.OPTIONS) {
             response.addHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
-            response.addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, " + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
+            response.addHeader(
+                    "Access-Control-Allow-Headers",
+                    "Authorization, Content-Type, X-Requested-With, "
+                            + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
             response.write(new LengthByteArrayInputStream(new byte[0]), 200);
             return false;
         }
@@ -61,8 +66,9 @@ public class AdminCrossOriginInterceptor implements HandleAbleInterceptor {
     }
 
     private boolean isPasskeyRequest(String uri) {
-        return uri != null && (uri.startsWith(PUBLIC_PASSKEY_API_PATH_PREFIX)
-                || uri.startsWith(ACCOUNT_PASSKEY_API_PATH_PREFIX));
+        return uri != null
+                && (uri.startsWith(PUBLIC_PASSKEY_API_PATH_PREFIX)
+                        || uri.startsWith(ACCOUNT_PASSKEY_API_PATH_PREFIX));
     }
 
     private boolean isTrustedPasskeyOrigin(HttpRequest request) {

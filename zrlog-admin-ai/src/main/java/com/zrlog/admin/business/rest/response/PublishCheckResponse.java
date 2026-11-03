@@ -9,11 +9,13 @@ public class PublishCheckResponse {
     private String messageId;
     private List<AIResponseEntry.AIContentEntry> aiMessages;
 
-    public PublishCheckResponse() {
-    }
+    public PublishCheckResponse() {}
 
-    public PublishCheckResponse(PublishCheckToolPayload toolPayload, String content, String messageId,
-                                List<AIResponseEntry.AIContentEntry> aiMessages) {
+    public PublishCheckResponse(
+            PublishCheckToolPayload toolPayload,
+            String content,
+            String messageId,
+            List<AIResponseEntry.AIContentEntry> aiMessages) {
         this.toolPayload = toolPayload;
         this.content = content;
         this.messageId = messageId;

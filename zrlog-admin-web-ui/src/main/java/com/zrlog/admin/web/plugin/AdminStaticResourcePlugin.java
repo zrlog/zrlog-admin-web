@@ -7,16 +7,15 @@ import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.LoggerUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
+import com.zrlog.business.plugin.StaticGenerationBudget;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.StaticSiteRenderer;
-import com.zrlog.business.plugin.StaticGenerationBudget;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.dto.FaviconBase64DTO;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.util.ThreadUtils;
 import jakarta.inject.Inject;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +34,8 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
     private static final String ID_CACHE_KEY = "admin_static_version";
     private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
     private final AdminResource adminResource;
-    private final Map<String, StaticSitePlugin.HandleState> handleStatusPageMap = new ConcurrentHashMap<>();
+    private final Map<String, StaticSitePlugin.HandleState> handleStatusPageMap =
+            new ConcurrentHashMap<>();
     private final String contextPath;
     private final StaticSiteRenderer renderer;
     private final Supplier<PublicWebSiteInfo> site;
@@ -77,7 +77,7 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
         lock.lock();
         try {
             cacheFiles.clear();
-            //do fetch
+            // do fetch
             doGenerator();
         } finally {
             lock.unlock();
@@ -96,8 +96,16 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
             cacheFiles.clear();
             FaviconBase64DTO icon = webSiteProvider.get().faviconBase64DTO();
             boolean cache = ResultValueConvertUtils.toBoolean(icon.getGenerator_html_status());
-            faviconWithinBudget(icon.getFavicon_png_pwa_192_base64(), AdminConstants.FAVICON_PNG_PWA_192_URI_PATH, cache, budget);
-            faviconWithinBudget(icon.getFavicon_png_pwa_512_base64(), AdminConstants.FAVICON_PNG_PWA_512_URI_PATH, cache, budget);
+            faviconWithinBudget(
+                    icon.getFavicon_png_pwa_192_base64(),
+                    AdminConstants.FAVICON_PNG_PWA_192_URI_PATH,
+                    cache,
+                    budget);
+            faviconWithinBudget(
+                    icon.getFavicon_png_pwa_512_base64(),
+                    AdminConstants.FAVICON_PNG_PWA_512_URI_PATH,
+                    cache,
+                    budget);
             handleStatusPageMap.clear();
             for (String uri : adminResource.getAdminStaticCacheUris()) {
                 budget.check();
@@ -109,7 +117,9 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
             }
             doFetchWithinBudget(renderer, budget);
             return true;
-        } finally { lock.unlock(); }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -124,8 +134,14 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
 
     private void copyFavicon() {
         FaviconBase64DTO faviconBase64DTO = this.webSiteProvider.get().faviconBase64DTO();
-        faviconHandle(faviconBase64DTO.getFavicon_png_pwa_192_base64(), AdminConstants.FAVICON_PNG_PWA_192_URI_PATH, ResultValueConvertUtils.toBoolean(faviconBase64DTO.getGenerator_html_status()));
-        faviconHandle(faviconBase64DTO.getFavicon_png_pwa_512_base64(), AdminConstants.FAVICON_PNG_PWA_512_URI_PATH, ResultValueConvertUtils.toBoolean(faviconBase64DTO.getGenerator_html_status()));
+        faviconHandle(
+                faviconBase64DTO.getFavicon_png_pwa_192_base64(),
+                AdminConstants.FAVICON_PNG_PWA_192_URI_PATH,
+                ResultValueConvertUtils.toBoolean(faviconBase64DTO.getGenerator_html_status()));
+        faviconHandle(
+                faviconBase64DTO.getFavicon_png_pwa_512_base64(),
+                AdminConstants.FAVICON_PNG_PWA_512_URI_PATH,
+                ResultValueConvertUtils.toBoolean(faviconBase64DTO.getGenerator_html_status()));
     }
 
     private void doGenerator() {
@@ -134,13 +150,19 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
         }
         copyFavicon();
         handleStatusPageMap.clear();
-        //从首页开始查找
-        adminResource.getAdminStaticCacheUris().forEach(uri -> {
-            handleStatusPageMap.put(uri, StaticSitePlugin.HandleState.NEW);
-        });
-        adminResource.getAdminStaticResourceUris().forEach(uri -> {
-            handleStatusPageMap.put(uri, StaticSitePlugin.HandleState.NEW);
-        });
+        // 从首页开始查找
+        adminResource
+                .getAdminStaticCacheUris()
+                .forEach(
+                        uri -> {
+                            handleStatusPageMap.put(uri, StaticSitePlugin.HandleState.NEW);
+                        });
+        adminResource
+                .getAdminStaticResourceUris()
+                .forEach(
+                        uri -> {
+                            handleStatusPageMap.put(uri, StaticSitePlugin.HandleState.NEW);
+                        });
         doFetch(renderer);
     }
 

@@ -2,14 +2,22 @@ package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.common.cache.dto.TagDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
-
 import java.util.List;
 
 public class ArticleGlobalResponse {
 
-    private com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule publicationSchedule;
-    public com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule getPublicationSchedule() { return publicationSchedule; }
-    public void setPublicationSchedule(com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule schedule) { this.publicationSchedule = schedule; }
+    private com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule
+            publicationSchedule;
+
+    public com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule
+            getPublicationSchedule() {
+        return publicationSchedule;
+    }
+
+    public void setPublicationSchedule(
+            com.zrlog.admin.business.content.ArticlePublicationScheduler.Schedule schedule) {
+        this.publicationSchedule = schedule;
+    }
 
     private List<TagDTO> tags;
     private List<TypeDTO> types;

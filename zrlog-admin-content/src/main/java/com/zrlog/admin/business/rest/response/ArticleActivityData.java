@@ -14,7 +14,6 @@ public class ArticleActivityData {
         return date;
     }
 
-
     public Long getCount() {
         return count;
     }

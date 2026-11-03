@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -18,60 +20,60 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class AdminInterceptorSupportTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
     private com.zrlog.common.ZrLogConfig applicationConfig;
 
     private static HttpRequest request() {
         return request("/", HttpMethod.GET, Map.of(), null);
     }
 
-    private static HttpRequest request(String uri, HttpMethod httpMethod, Map<String, String> headers,
-                                       RequestConfig requestConfig) {
+    private static HttpRequest request(
+            String uri,
+            HttpMethod httpMethod,
+            Map<String, String> headers,
+            RequestConfig requestConfig) {
         ServerConfig serverConfig = new ServerConfig();
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminInterceptorSupportTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "getUri":
-                            return uri;
-                        case "getMethod":
-                            return httpMethod;
-                        case "getHeader":
-                            return headers.get(args[0].toString());
-                        case "getHeaderMap":
-                        case "getParamMap":
-                        case "decodeParamMap":
-                            return Map.of();
-                        case "getContextPath":
-                            return "";
-                        case "getServerConfig":
-                            return serverConfig;
-                        case "getRequestConfig":
-                            return requestConfig;
-                        case "toString":
-                            return "HttpRequestProxy";
-                        default:
-                            if (method.getReturnType().isPrimitive()) {
-                                return 0;
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminInterceptorSupportTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            switch (method.getName()) {
+                                case "getUri":
+                                    return uri;
+                                case "getMethod":
+                                    return httpMethod;
+                                case "getHeader":
+                                    return headers.get(args[0].toString());
+                                case "getHeaderMap":
+                                case "getParamMap":
+                                case "decodeParamMap":
+                                    return Map.of();
+                                case "getContextPath":
+                                    return "";
+                                case "getServerConfig":
+                                    return serverConfig;
+                                case "getRequestConfig":
+                                    return requestConfig;
+                                case "toString":
+                                    return "HttpRequestProxy";
+                                default:
+                                    if (method.getReturnType().isPrimitive()) {
+                                        return 0;
+                                    }
+                                    return null;
                             }
-                            return null;
-                    }
-                });
+                        });
     }
 
     private static RequestConfig requestConfig() {
@@ -85,8 +87,7 @@ public class AdminInterceptorSupportTest {
     private static TokenService tokenService(AdminFullTokenVO token) {
         return new TokenService() {
             @Override
-            public void updateSessionTimeout(long sessionTimeoutInMinutes) {
-            }
+            public void updateSessionTimeout(long sessionTimeoutInMinutes) {}
 
             @Override
             public AdminFullTokenVO getAdminTokenVO(HttpRequest request) {
@@ -94,13 +95,16 @@ public class AdminInterceptorSupportTest {
             }
 
             @Override
-            public void removeAdminToken(HttpRequest request, HttpResponse response) {
-            }
+            public void removeAdminToken(HttpRequest request, HttpResponse response) {}
 
             @Override
-            public void setAdminToken(Integer userId, String secretKey, String sessionId, String protocol,
-                                      HttpRequest request, HttpResponse response) {
-            }
+            public void setAdminToken(
+                    Integer userId,
+                    String secretKey,
+                    String sessionId,
+                    String protocol,
+                    HttpRequest request,
+                    HttpResponse response) {}
         };
     }
 
@@ -114,22 +118,44 @@ public class AdminInterceptorSupportTest {
 
     @Test
     public void shouldReturnNullAdminTokenWhenBlogIsNotInstalled() throws Exception {
-        withConfig(new TestZrLogConfig(false, tokenService(new AdminFullTokenVO())), () ->
-                assertNull(AdminInterceptorSupport.getAdminToken(applicationConfig.isInstalled() ? applicationConfig.getTokenService() : null, request())));
+        withConfig(
+                new TestZrLogConfig(false, tokenService(new AdminFullTokenVO())),
+                () ->
+                        assertNull(
+                                AdminInterceptorSupport.getAdminToken(
+                                        applicationConfig.isInstalled()
+                                                ? applicationConfig.getTokenService()
+                                                : null,
+                                        request())));
     }
 
     @Test
     public void shouldReturnNullAdminTokenWhenTokenServiceIsMissing() throws Exception {
-        withConfig(new TestZrLogConfig(true, null), () ->
-                assertNull(AdminInterceptorSupport.getAdminToken(applicationConfig.isInstalled() ? applicationConfig.getTokenService() : null, request())));
+        withConfig(
+                new TestZrLogConfig(true, null),
+                () ->
+                        assertNull(
+                                AdminInterceptorSupport.getAdminToken(
+                                        applicationConfig.isInstalled()
+                                                ? applicationConfig.getTokenService()
+                                                : null,
+                                        request())));
     }
 
     @Test
     public void shouldReturnAdminTokenFromConfiguredTokenService() throws Exception {
         AdminFullTokenVO token = new AdminFullTokenVO();
 
-        withConfig(new TestZrLogConfig(true, tokenService(token)), () ->
-                assertSame(token, AdminInterceptorSupport.getAdminToken(applicationConfig.isInstalled() ? applicationConfig.getTokenService() : null, request())));
+        withConfig(
+                new TestZrLogConfig(true, tokenService(token)),
+                () ->
+                        assertSame(
+                                token,
+                                AdminInterceptorSupport.getAdminToken(
+                                        applicationConfig.isInstalled()
+                                                ? applicationConfig.getTokenService()
+                                                : null,
+                                        request())));
     }
 
     @Test
@@ -138,8 +164,11 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("plain");
 
-        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig).dispatch(
-                request("/plain", HttpMethod.GET, Map.of(), requestConfig), response.response(), method);
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig)
+                .dispatch(
+                        request("/plain", HttpMethod.GET, Map.of(), requestConfig),
+                        response.response(),
+                        method);
 
         assertEquals("plain", ((ApiStandardResponse<?>) response.rendered).getData());
     }
@@ -150,21 +179,31 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("refreshPostOnly");
 
-        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig).dispatch(
-                request("/refreshPostOnly", HttpMethod.GET, Map.of(), requestConfig), response.response(), method);
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig)
+                .dispatch(
+                        request("/refreshPostOnly", HttpMethod.GET, Map.of(), requestConfig),
+                        response.response(),
+                        method);
 
         assertEquals("refresh", ((ApiStandardResponse<?>) response.rendered).getData());
     }
 
     @Test
-    public void shouldFallbackToMethodInterceptorWhenSseRefreshIsGetButOnlyPostIsAllowed() throws Exception {
+    public void shouldFallbackToMethodInterceptorWhenSseRefreshIsGetButOnlyPostIsAllowed()
+            throws Exception {
         ResponseRecorder response = new ResponseRecorder();
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("refreshPostOnly");
 
-        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig).dispatch(
-                request("/refreshPostOnly", HttpMethod.GET, Map.of("Accept", "text/event-stream"), requestConfig),
-                response.response(), method);
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig)
+                .dispatch(
+                        request(
+                                "/refreshPostOnly",
+                                HttpMethod.GET,
+                                Map.of("Accept", "text/event-stream"),
+                                requestConfig),
+                        response.response(),
+                        method);
 
         assertEquals("refresh", ((ApiStandardResponse<?>) response.rendered).getData());
     }
@@ -172,7 +211,8 @@ public class AdminInterceptorSupportTest {
     private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
         String previousRootPath = System.getProperty("sws.root.path");
         try {
-            PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-admin-interceptor").getAbsolutePath());
+            PathUtil.setRootPath(
+                    temporaryFolder.newFolder("zrlog-admin-interceptor").getAbsolutePath());
             applicationConfig = config;
             runnable.run();
         } finally {
@@ -201,15 +241,16 @@ public class AdminInterceptorSupportTest {
         private Object rendered;
 
         private HttpResponse response() {
-            return (HttpResponse) Proxy.newProxyInstance(
-                    AdminInterceptorSupportTest.class.getClassLoader(),
-                    new Class[]{HttpResponse.class},
-                    (proxy, method, args) -> {
-                        if ("renderJson".equals(method.getName())) {
-                            rendered = args[0];
-                        }
-                        return null;
-                    });
+            return (HttpResponse)
+                    Proxy.newProxyInstance(
+                            AdminInterceptorSupportTest.class.getClassLoader(),
+                            new Class[] {HttpResponse.class},
+                            (proxy, method, args) -> {
+                                if ("renderJson".equals(method.getName())) {
+                                    rendered = args[0];
+                                }
+                                return null;
+                            });
         }
     }
 

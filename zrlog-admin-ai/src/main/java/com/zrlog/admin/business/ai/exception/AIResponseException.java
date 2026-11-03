@@ -8,5 +8,4 @@ public class AIResponseException extends AbstractAdminBusinessException {
     public AIResponseException(String detail) {
         super(AdminErrorCode.AI_RESPONSE_INVALID, detail);
     }
-
 }

@@ -6,7 +6,6 @@ import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
 import jakarta.inject.Inject;
-
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -16,7 +15,8 @@ import java.util.*;
 
 public class WebhookService {
 
-    public static final String MESSAGE_CENTER_NOTICE_ENDPOINT = "/api/webhook/message-center/notice";
+    public static final String MESSAGE_CENTER_NOTICE_ENDPOINT =
+            "/api/webhook/message-center/notice";
     public static final String TOKEN_HEADER = "X-ZrLog-Webhook-Token";
     private static final String CONFIG_KEY = "webhook_config";
     private static final String MESSAGE_CENTER_NOTICE_KEY = "webhook_message_center_notices";
@@ -24,10 +24,11 @@ public class WebhookService {
     private static final String NOTICE_STATUS = "notice";
     private static final int MAX_NOTICE_COUNT = 50;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final Type NOTICE_LIST_TYPE = new TypeToken<List<WebhookMessageNoticeEntry>>() {
-    }.getType();
+    private static final Type NOTICE_LIST_TYPE =
+            new TypeToken<List<WebhookMessageNoticeEntry>>() {}.getType();
     private final WebsiteCacheService cacheService;
     private final MessageCenterStateService messageCenterStateService;
+
     @Inject
     public WebhookService(
             MessageCenterStateService messageCenterStateService, WebsiteCacheService cacheService) {
@@ -35,8 +36,10 @@ public class WebhookService {
         this.cacheService = cacheService;
     }
 
-    public static MessageCenterNoticeResponse.WebhookMessagePayload webhookMessagePayload(WebhookMessageNoticeEntry notice) {
-        MessageCenterNoticeResponse.WebhookMessagePayload payload = new MessageCenterNoticeResponse.WebhookMessagePayload();
+    public static MessageCenterNoticeResponse.WebhookMessagePayload webhookMessagePayload(
+            WebhookMessageNoticeEntry notice) {
+        MessageCenterNoticeResponse.WebhookMessagePayload payload =
+                new MessageCenterNoticeResponse.WebhookMessagePayload();
         payload.setTitle(notice.getTitle());
         payload.setDescription(notice.getDescription());
         payload.setActionLabel(notice.getActionLabel());
@@ -85,15 +88,18 @@ public class WebhookService {
 
     public boolean verifyToken(String token) {
         WebhookConfigEntry config = getConfig();
-        if (!Objects.equals(Boolean.TRUE, config.getEnabled()) || StringUtils.isEmpty(config.getTokenHash())
+        if (!Objects.equals(Boolean.TRUE, config.getEnabled())
+                || StringUtils.isEmpty(config.getTokenHash())
                 || StringUtils.isEmpty(token)) {
             return false;
         }
-        return MessageDigest.isEqual(config.getTokenHash().getBytes(StandardCharsets.UTF_8),
+        return MessageDigest.isEqual(
+                config.getTokenHash().getBytes(StandardCharsets.UTF_8),
                 sha256(token).getBytes(StandardCharsets.UTF_8));
     }
 
-    public WebhookMessageNoticeCreateResponse createMessageCenterNotice(WebhookMessageNoticeRequest request) {
+    public WebhookMessageNoticeCreateResponse createMessageCenterNotice(
+            WebhookMessageNoticeRequest request) {
         long now = System.currentTimeMillis();
         WebhookMessageNoticeEntry notice = new WebhookMessageNoticeEntry();
         notice.setTaskKey(normalizeTaskKey(request.getTaskKey()));
@@ -105,7 +111,10 @@ public class WebhookService {
         notice.setStatus(NOTICE_STATUS);
         notice.setClosable(!Objects.equals(Boolean.FALSE, request.getClosable()));
         notice.setCreatedAt(now);
-        notice.setUpdatedAt(request.getUpdatedAt() != null && request.getUpdatedAt() > 0 ? request.getUpdatedAt() : now);
+        notice.setUpdatedAt(
+                request.getUpdatedAt() != null && request.getUpdatedAt() > 0
+                        ? request.getUpdatedAt()
+                        : now);
         notice.setPayload(request.getPayload());
 
         List<WebhookMessageNoticeEntry> notices = getStoredNotices();
@@ -126,13 +135,13 @@ public class WebhookService {
             if (notice.getReadAt() != null) {
                 continue;
             }
-            notices.add(MessageCenterNoticeResponse.of(
-                    notice.getTaskKey(),
-                    WEBHOOK_MESSAGE_TYPE,
-                    NOTICE_STATUS,
-                    notice.getUpdatedAt(),
-                    webhookMessagePayload(notice)
-            ));
+            notices.add(
+                    MessageCenterNoticeResponse.of(
+                            notice.getTaskKey(),
+                            WEBHOOK_MESSAGE_TYPE,
+                            NOTICE_STATUS,
+                            notice.getUpdatedAt(),
+                            webhookMessagePayload(notice)));
         }
         return notices;
     }
@@ -181,7 +190,8 @@ public class WebhookService {
     }
 
     private List<WebhookMessageNoticeEntry> getStoredNotices() {
-        List<WebhookMessageNoticeEntry> notices = cacheService.getJson(MESSAGE_CENTER_NOTICE_KEY, NOTICE_LIST_TYPE);
+        List<WebhookMessageNoticeEntry> notices =
+                cacheService.getJson(MESSAGE_CENTER_NOTICE_KEY, NOTICE_LIST_TYPE);
         return notices == null ? new ArrayList<>() : new ArrayList<>(notices);
     }
 
@@ -190,8 +200,10 @@ public class WebhookService {
     }
 
     List<WebhookMessageNoticeEntry> trimNotices(List<WebhookMessageNoticeEntry> notices) {
-        notices.sort(Comparator.comparing(WebhookMessageNoticeEntry::getUpdatedAt,
-                Comparator.nullsLast(Comparator.reverseOrder())));
+        notices.sort(
+                Comparator.comparing(
+                        WebhookMessageNoticeEntry::getUpdatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())));
         if (notices.size() <= MAX_NOTICE_COUNT) {
             return notices;
         }

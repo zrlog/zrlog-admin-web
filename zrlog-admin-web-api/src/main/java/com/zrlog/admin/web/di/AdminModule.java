@@ -5,13 +5,11 @@ import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.business.service.WebsiteKvService;
 import dagger.Module;
 import dagger.Provides;
-
 import java.util.function.Supplier;
 
 @Module
 public final class AdminModule {
-    private AdminModule() {
-    }
+    private AdminModule() {}
 
     @Provides
     static ArticleQueryService queries(Supplier<ContentComponent> content) {

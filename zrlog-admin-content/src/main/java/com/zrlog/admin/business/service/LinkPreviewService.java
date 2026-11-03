@@ -4,10 +4,6 @@ import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
 import jakarta.inject.Inject;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,6 +18,9 @@ import java.time.Duration;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 public class LinkPreviewService {
     private static final Logger LOGGER = LoggerUtil.getLogger(LinkPreviewService.class);
@@ -32,8 +31,9 @@ public class LinkPreviewService {
     private static final int MAX_URL_LENGTH = 2048;
     private static final long CACHE_TTL_MILLIS = Duration.ofHours(6).toMillis();
     private static final long EMPTY_CACHE_TTL_MILLIS = Duration.ofMinutes(10).toMillis();
-    private static final String BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    private static final String BROWSER_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     private final WebsiteCacheService websiteCacheService;
     private final HttpSender httpSender;
 
@@ -49,11 +49,12 @@ public class LinkPreviewService {
     }
 
     private static HttpSender defaultHttpSender() {
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(3))
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .version(HttpClient.Version.HTTP_1_1)
-                .build();
+        HttpClient client =
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(3))
+                        .followRedirects(HttpClient.Redirect.NEVER)
+                        .version(HttpClient.Version.HTTP_1_1)
+                        .build();
         return request -> client.send(request, HttpResponse.BodyHandlers.ofInputStream());
     }
 
@@ -70,7 +71,11 @@ public class LinkPreviewService {
             return cached.getResponse();
         }
         LinkPreviewResponse response = fetchUncached(safeUri.get(), 0, userAgent);
-        putCached(cacheKey, response, now + (response.isAvailable() ? CACHE_TTL_MILLIS : EMPTY_CACHE_TTL_MILLIS), now);
+        putCached(
+                cacheKey,
+                response,
+                now + (response.isAvailable() ? CACHE_TTL_MILLIS : EMPTY_CACHE_TTL_MILLIS),
+                now);
         return response;
     }
 
@@ -86,7 +91,8 @@ public class LinkPreviewService {
         return null;
     }
 
-    private synchronized void putCached(String cacheKey, LinkPreviewResponse response, long expiresAt, long now) {
+    private synchronized void putCached(
+            String cacheKey, LinkPreviewResponse response, long expiresAt, long now) {
         ArrayList<LinkPreviewCacheEntry> entries = readCache(now);
         entries.removeIf(entry -> cacheKey.equals(entry.getUrl()));
         entries.add(new LinkPreviewCacheEntry(cacheKey, response, expiresAt, now));
@@ -102,7 +108,9 @@ public class LinkPreviewService {
                 return entries;
             }
             for (LinkPreviewCacheEntry entry : cachedEntries) {
-                if (entry != null && entry.getResponse() != null && StringUtils.isNotEmpty(entry.getUrl())
+                if (entry != null
+                        && entry.getResponse() != null
+                        && StringUtils.isNotEmpty(entry.getUrl())
                         && entry.getExpiresAt() > now) {
                     entries.add(entry);
                 }
@@ -128,12 +136,15 @@ public class LinkPreviewService {
             if (!isSafeHost(uri.getHost())) {
                 return response;
             }
-            HttpRequest request = HttpRequest.newBuilder(uri)
-                    .timeout(Duration.ofSeconds(5))
-                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                    .header("User-Agent", normalizeUserAgent(userAgent))
-                    .GET()
-                    .build();
+            HttpRequest request =
+                    HttpRequest.newBuilder(uri)
+                            .timeout(Duration.ofSeconds(5))
+                            .header(
+                                    "Accept",
+                                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                            .header("User-Agent", normalizeUserAgent(userAgent))
+                            .GET()
+                            .build();
             HttpResponse<InputStream> httpResponse = httpSender.send(request);
             int statusCode = httpResponse.statusCode();
             if (statusCode >= 300 && statusCode < 400) {
@@ -146,7 +157,8 @@ public class LinkPreviewService {
                     closeQuietly(httpResponse.body());
                     return response;
                 }
-                Optional<URI> redirectUri = normalizeSafeUri(uri.resolve(location.get()).toString());
+                Optional<URI> redirectUri =
+                        normalizeSafeUri(uri.resolve(location.get()).toString());
                 closeQuietly(httpResponse.body());
                 if (redirectUri.isEmpty()) {
                     return response;
@@ -158,7 +170,8 @@ public class LinkPreviewService {
                 return response;
             }
             String contentType = httpResponse.headers().firstValue("content-type").orElse("");
-            if (StringUtils.isNotEmpty(contentType) && !contentType.toLowerCase(Locale.ROOT).contains("html")) {
+            if (StringUtils.isNotEmpty(contentType)
+                    && !contentType.toLowerCase(Locale.ROOT).contains("html")) {
                 closeQuietly(httpResponse.body());
                 return response;
             }
@@ -195,30 +208,33 @@ public class LinkPreviewService {
         Document document = Jsoup.parse(html, uri.toString());
         LinkPreviewResponse response = emptyResponse(uri.toString());
         response.setDomain(uri.getHost());
-        response.setTitle(firstNonEmpty(
-                attr(document, "meta[property=og:title]", "content"),
-                attr(document, "meta[name=twitter:title]", "content"),
-                document.title()
-        ));
-        response.setDescription(firstNonEmpty(
-                attr(document, "meta[property=og:description]", "content"),
-                attr(document, "meta[name=twitter:description]", "content"),
-                attr(document, "meta[name=description]", "content")
-        ));
-        response.setImage(resolveUri(uri, firstNonEmpty(
-                attr(document, "meta[property=og:image]", "content"),
-                attr(document, "meta[name=twitter:image]", "content"),
-                attr(document, "meta[property=twitter:image]", "content"),
-                favicon(document, uri)
-        )));
-        response.setSiteName(firstNonEmpty(
-                attr(document, "meta[property=og:site_name]", "content"),
-                attr(document, "meta[name=application-name]", "content"),
-                uri.getHost()
-        ));
-        response.setAvailable(StringUtils.isNotEmpty(response.getTitle())
-                || StringUtils.isNotEmpty(response.getDescription())
-                || StringUtils.isNotEmpty(response.getImage()));
+        response.setTitle(
+                firstNonEmpty(
+                        attr(document, "meta[property=og:title]", "content"),
+                        attr(document, "meta[name=twitter:title]", "content"),
+                        document.title()));
+        response.setDescription(
+                firstNonEmpty(
+                        attr(document, "meta[property=og:description]", "content"),
+                        attr(document, "meta[name=twitter:description]", "content"),
+                        attr(document, "meta[name=description]", "content")));
+        response.setImage(
+                resolveUri(
+                        uri,
+                        firstNonEmpty(
+                                attr(document, "meta[property=og:image]", "content"),
+                                attr(document, "meta[name=twitter:image]", "content"),
+                                attr(document, "meta[property=twitter:image]", "content"),
+                                favicon(document, uri))));
+        response.setSiteName(
+                firstNonEmpty(
+                        attr(document, "meta[property=og:site_name]", "content"),
+                        attr(document, "meta[name=application-name]", "content"),
+                        uri.getHost()));
+        response.setAvailable(
+                StringUtils.isNotEmpty(response.getTitle())
+                        || StringUtils.isNotEmpty(response.getDescription())
+                        || StringUtils.isNotEmpty(response.getImage()));
         return response;
     }
 
@@ -228,7 +244,8 @@ public class LinkPreviewService {
         }
         try {
             URI uri = new URI(rawUrl.trim()).normalize();
-            String scheme = Objects.requireNonNullElse(uri.getScheme(), "").toLowerCase(Locale.ROOT);
+            String scheme =
+                    Objects.requireNonNullElse(uri.getScheme(), "").toLowerCase(Locale.ROOT);
             if (!"http".equals(scheme) && !"https".equals(scheme)) {
                 return Optional.empty();
             }
@@ -310,7 +327,8 @@ public class LinkPreviewService {
     }
 
     String readLimited(InputStream inputStream) throws IOException {
-        try (InputStream in = inputStream; ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        try (InputStream in = inputStream;
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             int total = 0;
             int read;
@@ -331,7 +349,8 @@ public class LinkPreviewService {
         }
         try {
             URI uri = baseUri.resolve(value.trim()).normalize();
-            String scheme = Objects.requireNonNullElse(uri.getScheme(), "").toLowerCase(Locale.ROOT);
+            String scheme =
+                    Objects.requireNonNullElse(uri.getScheme(), "").toLowerCase(Locale.ROOT);
             if (!"http".equals(scheme) && !"https".equals(scheme)) {
                 return "";
             }
@@ -395,7 +414,8 @@ public class LinkPreviewService {
 
     @FunctionalInterface
     interface HttpSender {
-        HttpResponse<InputStream> send(HttpRequest request) throws IOException, InterruptedException;
+        HttpResponse<InputStream> send(HttpRequest request)
+                throws IOException, InterruptedException;
     }
 
     public static class LinkPreviewCacheEntry {
@@ -404,10 +424,10 @@ public class LinkPreviewService {
         private long expiresAt;
         private long accessedAt;
 
-        public LinkPreviewCacheEntry() {
-        }
+        public LinkPreviewCacheEntry() {}
 
-        private LinkPreviewCacheEntry(String url, LinkPreviewResponse response, long expiresAt, long accessedAt) {
+        private LinkPreviewCacheEntry(
+                String url, LinkPreviewResponse response, long expiresAt, long accessedAt) {
             this.url = url;
             this.response = response;
             this.expiresAt = expiresAt;

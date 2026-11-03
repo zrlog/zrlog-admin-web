@@ -1,12 +1,10 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.JsonElement;
-
 import java.util.List;
 
 public final class McpModels {
-    private McpModels() {
-    }
+    private McpModels() {}
 
     public static class InitializeResult {
         public String protocolVersion;

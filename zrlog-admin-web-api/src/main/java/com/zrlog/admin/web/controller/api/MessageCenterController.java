@@ -12,7 +12,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.util.List;
 
@@ -39,14 +38,16 @@ public class MessageCenterController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.read")
     public UpdateRecordResponse read() {
-        ReadMessageCenterNoticeRequest readRequest = getRequestBodyWithNullCheck(ReadMessageCenterNoticeRequest.class);
+        ReadMessageCenterNoticeRequest readRequest =
+                getRequestBodyWithNullCheck(ReadMessageCenterNoticeRequest.class);
         return new UpdateRecordResponse(messageCenterService.markRead(readRequest.getTaskKey()));
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.restart")
     public UpdateRecordResponse upgradeRestart() {
-        UpgradeRestartNoticeRequest noticeRequest = getRequestBodyWithNullCheck(UpgradeRestartNoticeRequest.class);
+        UpgradeRestartNoticeRequest noticeRequest =
+                getRequestBodyWithNullCheck(UpgradeRestartNoticeRequest.class);
         this.messageCenterOperationService.recordUpgradeRestart(
                 noticeRequest.getStatus(), noticeRequest.getBuildId());
         return new UpdateRecordResponse(true);

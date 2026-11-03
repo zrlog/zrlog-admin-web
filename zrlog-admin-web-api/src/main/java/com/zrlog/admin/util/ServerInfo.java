@@ -12,7 +12,6 @@ public class ServerInfo {
         this.key = key;
     }
 
-
     public String getName() {
         return name;
     }

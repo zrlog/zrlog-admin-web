@@ -20,7 +20,6 @@ import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -30,8 +29,10 @@ public class BlogNavController extends BaseController {
     private final BlogNavService blogNavService;
 
     @Inject
-    public BlogNavController(AdminPageDataFactory pages, BlogNavService blogNavService,
-                             AdminRequestIdentity requestIdentity) {
+    public BlogNavController(
+            AdminPageDataFactory pages,
+            BlogNavService blogNavService,
+            AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.blogNavService = blogNavService;
 
@@ -51,7 +52,8 @@ public class BlogNavController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.list")
     public AdminPageDataResponse<PageData<LogNavDTO>> index() throws SQLException {
-        return pages.response(requestIdentity.optional(), blogNavService.find(), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(), blogNavService.find(), "", request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -60,7 +62,8 @@ public class BlogNavController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.create")
     public UpdateRecordResponse add() throws IOException, SQLException {
-        return new UpdateRecordResponse(blogNavService.add(getRequestBodyWithNullCheck(CreateNavRequest.class)));
+        return new UpdateRecordResponse(
+                blogNavService.add(getRequestBodyWithNullCheck(CreateNavRequest.class)));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -69,6 +72,7 @@ public class BlogNavController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.update")
     public UpdateRecordResponse update() throws IOException, SQLException {
-        return new UpdateRecordResponse(blogNavService.update(getRequestBodyWithNullCheck(UpdateNavRequest.class)));
+        return new UpdateRecordResponse(
+                blogNavService.update(getRequestBodyWithNullCheck(UpdateNavRequest.class)));
     }
 }

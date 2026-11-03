@@ -1,30 +1,31 @@
 package com.zrlog.admin.business.automation;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.common.vo.Version;
-import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.repository.WebSiteRepository;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
+import com.zrlog.data.security.AccountAccess;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.junit.Assert.*;
+import org.junit.*;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class AutomaticUpgradeTaskTest {
     @Parameterized.Parameters(name = "{0}")
     public static Collection<Object[]> databases() {
-        return Arrays.asList(new Object[]{"h2"}, new Object[]{"sqlite"}, new Object[]{"web-api"});
+        return Arrays.asList(
+                new Object[] {"h2"}, new Object[] {"sqlite"}, new Object[] {"web-api"});
     }
+
     private final String backend;
     private InMemoryZrLogDatabase db;
     private AutomationStore store;
@@ -37,54 +38,86 @@ public class AutomaticUpgradeTaskTest {
     private final AtomicLong now = new AtomicLong(1_790_000_000_000L);
     private final FakeOperations operations = new FakeOperations();
 
-    public AutomaticUpgradeTaskTest(String backend) { this.backend = backend; }
+    public AutomaticUpgradeTaskTest(String backend) {
+        this.backend = backend;
+    }
 
     @Before
     public void open() throws Exception {
-        db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
-                : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
+        db =
+                backend.equals("sqlite")
+                        ? InMemoryZrLogDatabase.openSqlite()
+                        : backend.equals("web-api")
+                                ? InMemoryZrLogDatabase.openWebApi()
+                                : InMemoryZrLogDatabase.open();
         store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
-        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+        authority =
+                new TaskAuthority(
+                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
+                        () -> new UserRepository(db.dataSource()));
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
         actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         provider = new AutomaticUpgradeTaskProvider(store, operations, now::get);
         var registry = new TaskRegistry(() -> List.of(provider));
         service = new AutomationService(store, authority, registry, now::get);
         engine = new AutomationEngine(store, authority, registry, now::get);
-        ticks = new AutomationTickService(engine, store, now::get, null,
-                (budget, receipt) -> provider.completeInstalled(authority, budget, receipt));
-        new AutomationDefaults(store, () -> new UserRepository(db.dataSource()),
-                new com.zrlog.business.service.WebsiteKvService(() -> new WebSiteRepository(db.dataSource())), registry).initialize();
+        ticks =
+                new AutomationTickService(
+                        engine,
+                        store,
+                        now::get,
+                        null,
+                        (budget, receipt) ->
+                                provider.completeInstalled(authority, budget, receipt));
+        new AutomationDefaults(
+                        store,
+                        () -> new UserRepository(db.dataSource()),
+                        new com.zrlog.business.service.WebsiteKvService(
+                                () -> new WebSiteRepository(db.dataSource())),
+                        registry)
+                .initialize();
     }
 
     @After
-    public void close() throws Exception { if (db != null) db.close(); }
+    public void close() throws Exception {
+        if (db != null) db.close();
+    }
 
     private AutomationModels.Plan plan() throws Exception {
         var task = store.task(AutomationDefaults.systemId("system.auto-upgrade")).value;
-        var plan = AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationModels.Plan.class);
+        var plan =
+                AutomationStore.JSON.fromJson(
+                        AutomationStore.JSON.toJson(task), AutomationModels.Plan.class);
         plan.enabled = true;
         plan.parameters.addProperty("channel", operations.channel);
         plan.schedule = new AutomationModels.Schedule();
-        plan.schedule.kind = "interval"; plan.schedule.intervalMinutes = 60;
+        plan.schedule.kind = "interval";
+        plan.schedule.intervalMinutes = 60;
         plan.schedule.at = now.get() + 1000;
         return plan;
     }
 
     @Test
-    public void usesAccountPermissionWithoutAnExtraGrantAndRejectsUnsupportedRuntime() throws Exception {
+    public void usesAccountPermissionWithoutAnExtraGrantAndRejectsUnsupportedRuntime()
+            throws Exception {
         var plan = plan();
         var restricted = actor.restrictActions(List.of("account.session"));
-        assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> service.save(restricted, plan));
+        assertThrows(
+                com.zrlog.admin.business.exception.PermissionErrorException.class,
+                () -> service.save(restricted, plan));
         assertEquals(List.of("system.manage"), service.save(actor, plan).executionActions);
         operations.available = false;
         assertFalse(provider.definitions().get(0).available);
         assertThrows(IllegalArgumentException.class, () -> service.save(actor, plan()));
-        assertNull(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+        assertNull(
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class));
     }
 
     @Test
-    public void enablingThePolicyDoesNotRequireAPackageOrAnEarlierUpgradeAttempt() throws Exception {
+    public void enablingThePolicyDoesNotRequireAPackageOrAnEarlierUpgradeAttempt()
+            throws Exception {
         operations.failCheck = true;
         var initial = store.task(AutomationDefaults.systemId("system.auto-upgrade")).value;
         assertFalse(initial.enabled);
@@ -97,11 +130,15 @@ public class AutomaticUpgradeTaskTest {
         assertEquals(0, operations.checks);
         assertEquals(0, operations.submits);
         assertTrue(service.runs(actor, initial.id, 20, 0).isEmpty());
-        assertNull(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+        assertNull(
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class));
     }
 
     @Test
-    public void retryOptionAppearsOnlyForAnUnconfirmedAttemptAndDisappearsAfterInstallation() throws Exception {
+    public void retryOptionAppearsOnlyForAnUnconfirmedAttemptAndDisappearsAfterInstallation()
+            throws Exception {
         service.save(actor, plan());
         now.addAndGet(1000);
         engine.tick("internal", 660000);
@@ -120,7 +157,10 @@ public class AutomaticUpgradeTaskTest {
     public void aFailedAttemptOffersRetryButAStaleConfirmationCannotReplayIt() throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
-        operations.beforeSubmit = () -> { throw new IllegalStateException("submission disconnected"); };
+        operations.beforeSubmit =
+                () -> {
+                    throw new IllegalStateException("submission disconnected");
+                };
         engine.tick("internal", 660000);
         assertTrue(hasRetryField());
         var retry = plan();
@@ -134,17 +174,22 @@ public class AutomaticUpgradeTaskTest {
     }
 
     private boolean hasRetryField() {
-        return provider.definitions().get(0).fields.stream().anyMatch(field -> "retryUnconfirmed".equals(field.name));
+        return provider.definitions().get(0).fields.stream()
+                .anyMatch(field -> "retryUnconfirmed".equals(field.name));
     }
 
     @Test
-    public void externalTriggerRequiresEnoughBudgetAndConfirmsOnlyTheInstalledBuild() throws Exception {
+    public void externalTriggerRequiresEnoughBudgetAndConfirmsOnlyTheInstalledBuild()
+            throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
         var shortTick = engine.tick("external", 60000);
         assertEquals(0, shortTick.executed);
         assertEquals(0, operations.submits);
-        assertNull(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+        assertNull(
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class));
         assertEquals(1, engine.tick("external", 660000).executed);
         assertEquals("submitted", service.runs(actor, task.id, 20, 0).get(0).status);
         provider.completeInstalled(authority, 660000);
@@ -159,11 +204,16 @@ public class AutomaticUpgradeTaskTest {
     public void storesTheExactBuildBeforeSubmittingAndDoesNotSubmitTwice() throws Exception {
         var first = service.save(actor, plan());
         now.addAndGet(1000);
-        operations.beforeSubmit = () -> {
-            var receipt = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class).value;
-            assertEquals("new-build", receipt.buildId);
-            assertEquals("running", store.run(receipt.runId).value.status);
-        };
+        operations.beforeSubmit =
+                () -> {
+                    var receipt =
+                            store.read(
+                                            AutomaticUpgradeTaskProvider.KEY,
+                                            AutomaticUpgradeTaskProvider.Receipt.class)
+                                    .value;
+                    assertEquals("new-build", receipt.buildId);
+                    assertEquals("running", store.run(receipt.runId).value.status);
+                };
         assertEquals(1, engine.tick("internal", 660000).executed);
         assertEquals(1, operations.submits);
         assertEquals("submitted", store.task(first.id).value.lastStatus);
@@ -190,10 +240,14 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
-    public void upgradeNotificationAppearsOnlyAfterBuildConfirmationAndDoesNotRepeat() throws Exception {
+    public void upgradeNotificationAppearsOnlyAfterBuildConfirmationAndDoesNotRepeat()
+            throws Exception {
         now.set(System.currentTimeMillis());
         var task = service.save(actor, plan());
-        authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
+        authority =
+                new TaskAuthority(
+                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
+                        () -> new UserRepository(db.dataSource()));
         var inbox = new AutomationNotificationService(store, authority, service);
         now.addAndGet(1000);
         engine.tick("internal", 660000);
@@ -204,7 +258,8 @@ public class AutomaticUpgradeTaskTest {
         provider.completeInstalled(authority, 660000);
         var notices = inbox.list(actor);
         assertEquals(1, notices.size());
-        assertEquals(AutomationNotificationService.PREFIX + submitted.id, notices.get(0).getTaskKey());
+        assertEquals(
+                AutomationNotificationService.PREFIX + submitted.id, notices.get(0).getTaskKey());
         assertEquals(Long.valueOf(now.get()), store.run(submitted.id).value.finishedAt);
         assertTrue(inbox.markRead(actor, notices.get(0).getTaskKey()));
         provider.completeInstalled(authority, 660000);
@@ -216,10 +271,14 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
-    public void interruptedProcessCanRecoverFromInstalledBuildProofWithoutRepeatingUpgrade() throws Exception {
+    public void interruptedProcessCanRecoverFromInstalledBuildProofWithoutRepeatingUpgrade()
+            throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
-        operations.beforeSubmit = () -> { throw new SimulatedRestart(); };
+        operations.beforeSubmit =
+                () -> {
+                    throw new SimulatedRestart();
+                };
         assertThrows(SimulatedRestart.class, () -> engine.tick("internal", 660000));
         assertEquals("running", service.runs(actor, task.id, 20, 0).get(0).status);
         operations.currentBuild = "new-build";
@@ -240,7 +299,10 @@ public class AutomaticUpgradeTaskTest {
         ticks.tick("external", "fixture-trigger", 660000);
         assertEquals(0, operations.syncs);
         operations.currentBuild = "new-build";
-        operations.beforeSync = () -> { throw new IllegalStateException("delivery unavailable"); };
+        operations.beforeSync =
+                () -> {
+                    throw new IllegalStateException("delivery unavailable");
+                };
         ticks.tick("external", "fixture-trigger", 660000);
         var failed = store.run(run.id).value;
         assertEquals("submitted", failed.status);
@@ -251,7 +313,7 @@ public class AutomaticUpgradeTaskTest {
         ticks.tick("external", "fixture-trigger", 660000);
         assertEquals(1, operations.syncs);
         now.addAndGet(60000);
-        operations.beforeSync = () -> { };
+        operations.beforeSync = () -> {};
         ticks.tick("external", "fixture-trigger", 660000);
         assertEquals("success", store.run(run.id).value.status);
         assertEquals("success", store.run(run.id).value.result.children.get(1).status);
@@ -283,33 +345,48 @@ public class AutomaticUpgradeTaskTest {
         engine.tick("internal", 660000);
         operations.currentBuild = "new-build";
         var otherProcess = new AutomaticUpgradeTaskProvider(store, operations, now::get);
-        operations.beforeSync = () -> {
-            assertEquals("submitted", service.runs(actor, task.id, 20, 0).get(0).status);
-            otherProcess.completeInstalled(authority, 660000);
-            assertEquals(1, operations.syncs);
-        };
+        operations.beforeSync =
+                () -> {
+                    assertEquals("submitted", service.runs(actor, task.id, 20, 0).get(0).status);
+                    otherProcess.completeInstalled(authority, 660000);
+                    assertEquals(1, operations.syncs);
+                };
         ticks.tick("external", "fixture-trigger", 660000);
-        assertEquals("confirmed", store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class).value.state);
+        assertEquals(
+                "confirmed",
+                store.read(
+                                AutomaticUpgradeTaskProvider.KEY,
+                                AutomaticUpgradeTaskProvider.Receipt.class)
+                        .value
+                        .state);
         assertEquals(1, operations.syncs);
     }
 
     @Test
-    public void unfinishedResourcesDoNotCreateAnotherRunWhenTheNextScheduleArrives() throws Exception {
+    public void unfinishedResourcesDoNotCreateAnotherRunWhenTheNextScheduleArrives()
+            throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
         engine.tick("internal", 660000);
         operations.currentBuild = "new-build";
-        operations.beforeSync = () -> { throw new IllegalStateException("delivery unavailable"); };
+        operations.beforeSync =
+                () -> {
+                    throw new IllegalStateException("delivery unavailable");
+                };
         now.addAndGet(3600000);
         assertEquals(0, ticks.tick("external", "fixture-trigger", 660000).executed);
         assertEquals(1, service.runs(actor, task.id, 20, 0).size());
-        assertThrows(IllegalStateException.class, () -> engine.runNow(actor, task.id, task.revision, 660000));
+        assertThrows(
+                IllegalStateException.class,
+                () -> engine.runNow(actor, task.id, task.revision, 660000));
         assertEquals(1, service.runs(actor, task.id, 20, 0).size());
-        operations.beforeSync = () -> { };
+        operations.beforeSync = () -> {};
         now.addAndGet(60000);
         ticks.tick("external", "fixture-trigger", 660000);
         assertEquals(1, service.runs(actor, task.id, 20, 0).size());
-        assertTrue(service.runs(actor, task.id, 20, 0).stream().allMatch(run -> "success".equals(run.status)));
+        assertTrue(
+                service.runs(actor, task.id, 20, 0).stream()
+                        .allMatch(run -> "success".equals(run.status)));
         assertEquals("success", store.task(task.id).value.lastStatus);
         assertEquals(1, operations.submits);
     }
@@ -320,14 +397,22 @@ public class AutomaticUpgradeTaskTest {
         now.addAndGet(1000);
         engine.tick("internal", 660000);
         operations.currentBuild = "new-build";
-        operations.beforeSync = () -> {
-            now.addAndGet(600001);
-            operations.beforeSync = () -> { };
-            new AutomaticUpgradeTaskProvider(store, operations, now::get).completeInstalled(authority, 660000);
-        };
+        operations.beforeSync =
+                () -> {
+                    now.addAndGet(600001);
+                    operations.beforeSync = () -> {};
+                    new AutomaticUpgradeTaskProvider(store, operations, now::get)
+                            .completeInstalled(authority, 660000);
+                };
         provider.completeInstalled(authority, 660000);
         assertEquals("success", service.runs(actor, task.id, 20, 0).get(0).status);
-        assertEquals("success", store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class).value.resourceStatus);
+        assertEquals(
+                "success",
+                store.read(
+                                AutomaticUpgradeTaskProvider.KEY,
+                                AutomaticUpgradeTaskProvider.Receipt.class)
+                        .value
+                        .resourceStatus);
         assertEquals(2, operations.syncs);
         assertEquals(1, operations.submits);
     }
@@ -338,10 +423,17 @@ public class AutomaticUpgradeTaskTest {
         now.addAndGet(1000);
         engine.tick("internal", 660000);
         operations.currentBuild = "new-build";
-        operations.beforeSync = () -> db.execute("UPDATE user SET authVersion=authVersion+1 WHERE userId=?", 1);
+        operations.beforeSync =
+                () -> db.execute("UPDATE user SET authVersion=authVersion+1 WHERE userId=?", 1);
         provider.completeInstalled(authority, 660000);
         assertEquals("submitted", store.task(task.id).value.lastStatus);
-        assertEquals("failed", store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class).value.resourceStatus);
+        assertEquals(
+                "failed",
+                store.read(
+                                AutomaticUpgradeTaskProvider.KEY,
+                                AutomaticUpgradeTaskProvider.Receipt.class)
+                        .value
+                        .resourceStatus);
         now.addAndGet(60000);
         operations.beforeSync = () -> now.addAndGet(60000);
         var exhausted = ticks.tick("external", "fixture-trigger", 60000);
@@ -354,10 +446,16 @@ public class AutomaticUpgradeTaskTest {
     public void aDeliveryCheckpointRepairsBookkeepingWithoutRepeatingEffects() throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
-        operations.beforeSubmit = () -> { throw new SimulatedRestart(); };
+        operations.beforeSubmit =
+                () -> {
+                    throw new SimulatedRestart();
+                };
         assertThrows(SimulatedRestart.class, () -> engine.tick("internal", 660000));
         operations.currentBuild = "new-build";
-        var row = store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
+        var row =
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class);
         var synced = row.copy(AutomaticUpgradeTaskProvider.Receipt.class);
         synced.phase = "resources_synced";
         synced.resourceStatus = "success";
@@ -365,14 +463,23 @@ public class AutomaticUpgradeTaskTest {
         ticks.tick("external", "fixture-trigger", 660000);
         assertEquals("success", store.task(task.id).value.lastStatus);
         assertNull(store.task(task.id).value.activeRun);
-        assertEquals("confirmed", store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class).value.state);
+        assertEquals(
+                "confirmed",
+                store.read(
+                                AutomaticUpgradeTaskProvider.KEY,
+                                AutomaticUpgradeTaskProvider.Receipt.class)
+                        .value
+                        .state);
         assertEquals(0, operations.syncs);
         assertEquals(1, operations.submits);
     }
 
     @Test
-    public void aManualUpgradeIsNotResynchronizedAndDoesNotBlockFutureAutomaticChecks() throws Exception {
-        var coordinator = new UpgradeExecutionCoordinator(store, authority, now::get, () -> operations.currentBuild);
+    public void aManualUpgradeIsNotResynchronizedAndDoesNotBlockFutureAutomaticChecks()
+            throws Exception {
+        var coordinator =
+                new UpgradeExecutionCoordinator(
+                        store, authority, now::get, () -> operations.currentBuild);
         var target = new Version();
         target.setBuildId("new-build");
         target.setVersion("4.0.2-SNAPSHOT");
@@ -407,7 +514,10 @@ public class AutomaticUpgradeTaskTest {
     public void unknownSubmissionRequiresReviewBeforeRetryingTheSharedPlan() throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
-        operations.beforeSubmit = () -> { throw new IllegalStateException("connection lost after submission"); };
+        operations.beforeSubmit =
+                () -> {
+                    throw new IllegalStateException("connection lost after submission");
+                };
         engine.tick("internal", 660000);
         assertEquals("uncertain", store.task(task.id).value.lastStatus);
         now.addAndGet(3600000);
@@ -417,20 +527,23 @@ public class AutomaticUpgradeTaskTest {
         edited.revision = task.revision;
         edited.parameters.addProperty("retryUnconfirmed", true);
         var reviewed = service.save(actor, edited);
-        operations.beforeSubmit = () -> { };
-        assertEquals("submitted", engine.runNow(actor, reviewed.id, reviewed.revision, 660000).status);
+        operations.beforeSubmit = () -> {};
+        assertEquals(
+                "submitted", engine.runNow(actor, reviewed.id, reviewed.revision, 660000).status);
         assertEquals(2, operations.submits);
     }
 
     @Test
-    public void aStalledAcceptedUpgradeRequiresAReviewedRetryAfterTheConfirmationWindow() throws Exception {
+    public void aStalledAcceptedUpgradeRequiresAReviewedRetryAfterTheConfirmationWindow()
+            throws Exception {
         var task = service.save(actor, plan());
         now.addAndGet(1000);
         engine.tick("internal", 660000);
         var retry = new JsonObject();
         retry.addProperty("channel", operations.channel);
         retry.addProperty("retryUnconfirmed", true);
-        assertThrows(IllegalArgumentException.class, () -> provider.prepare(task.type, retry, actor));
+        assertThrows(
+                IllegalArgumentException.class, () -> provider.prepare(task.type, retry, actor));
         now.addAndGet(3600000);
         engine.tick("internal", 660000);
         assertEquals("needs_attention", store.task(task.id).value.lastStatus);
@@ -444,13 +557,17 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
-    public void changingTheChannelRequiresReviewAndNetworkFailureDoesNotDisableFutureChecks() throws Exception {
+    public void changingTheChannelRequiresReviewAndNetworkFailureDoesNotDisableFutureChecks()
+            throws Exception {
         var task = service.save(actor, plan());
         operations.channel = "preview";
         now.addAndGet(1000);
         assertEquals(1, engine.tick("internal", 660000).needsAttention);
         assertEquals(0, operations.submits);
-        assertNull(store.read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class));
+        assertNull(
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class));
         var fresh = service.save(actor, plan());
         operations.failCheck = true;
         now.addAndGet(1000);
@@ -461,22 +578,36 @@ public class AutomaticUpgradeTaskTest {
     }
 
     @Test
-    public void anotherAdministratorCanReviewASharedFailedUpgradeWithoutReplayingIt() throws Exception {
+    public void anotherAdministratorCanReviewASharedFailedUpgradeWithoutReplayingIt()
+            throws Exception {
         var task = service.save(actor, plan());
-        operations.beforeSubmit = () -> { throw new IllegalStateException("unknown submission outcome"); };
-        now.addAndGet(1000); engine.tick("internal", 660000);
-        db.execute("INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)", 2, "admin-two", "admin", true, 0);
+        operations.beforeSubmit =
+                () -> {
+                    throw new IllegalStateException("unknown submission outcome");
+                };
+        now.addAndGet(1000);
+        engine.tick("internal", 660000);
+        db.execute(
+                "INSERT INTO user(userId,userName,role,enabled,authVersion) VALUES(?,?,?,?,?)",
+                2,
+                "admin-two",
+                "admin",
+                true,
+                0);
         var admin = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
-        assertThrows(IllegalStateException.class, () -> service.setEnabled(admin, task.id, task.revision, true));
-        var review = plan(); review.parameters.addProperty("retryUnconfirmed", true);
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.setEnabled(admin, task.id, task.revision, true));
+        var review = plan();
+        review.parameters.addProperty("retryUnconfirmed", true);
         var saved = service.save(admin, review);
         assertEquals(1, operations.submits);
-        operations.beforeSubmit = () -> { };
+        operations.beforeSubmit = () -> {};
         assertEquals("submitted", engine.runNow(admin, saved.id, saved.revision, 660000).status);
         assertEquals(2, operations.submits);
     }
 
-    private static class SimulatedRestart extends Error { }
+    private static class SimulatedRestart extends Error {}
 
     private static class FakeOperations implements AutomaticUpgradeTaskProvider.Operations {
         boolean available = true;
@@ -486,11 +617,21 @@ public class AutomaticUpgradeTaskTest {
         int checks;
         int submits;
         int syncs;
-        TaskExecutionContext.CheckedAction beforeSync = () -> { };
-        TaskExecutionContext.CheckedAction beforeSubmit = () -> { };
-        public boolean available() { return available; }
-        public String channel() { return channel; }
-        public String currentBuildId() { return currentBuild; }
+        TaskExecutionContext.CheckedAction beforeSync = () -> {};
+        TaskExecutionContext.CheckedAction beforeSubmit = () -> {};
+
+        public boolean available() {
+            return available;
+        }
+
+        public String channel() {
+            return channel;
+        }
+
+        public String currentBuildId() {
+            return currentBuild;
+        }
+
         public PreCheckVersionResponse check() {
             checks++;
             if (failCheck) throw new IllegalStateException("offline");
@@ -503,11 +644,13 @@ public class AutomaticUpgradeTaskTest {
             result.setVersion(version);
             return result;
         }
+
         public void synchronizeResources(TaskExecutionContext context) throws Exception {
             syncs++;
             beforeSync.run();
             context.checkActive();
         }
+
         public boolean submit(Version target, TaskExecutionContext context) throws Exception {
             submits++;
             beforeSubmit.run();

@@ -2,7 +2,6 @@ package com.zrlog.admin.util;
 
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.LoggerUtil;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.logging.Logger;
@@ -47,7 +46,8 @@ public class SystemLoad {
             Process process = processBuilder.start();
 
             // 读取命令输出
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             if ((line = reader.readLine()) != null) {
                 return parseLine(line);
@@ -56,7 +56,8 @@ public class SystemLoad {
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 // 如果命令执行失败，输出错误信息
-                BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                BufferedReader errorReader =
+                        new BufferedReader(new InputStreamReader(process.getErrorStream()));
                 String errorLine;
                 while ((errorLine = errorReader.readLine()) != null) {
                     LOGGER.warning("Exec uptime error -> " + errorLine);

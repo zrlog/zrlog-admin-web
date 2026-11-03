@@ -56,15 +56,20 @@ public class WebhookController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.configure")
     public StandardResponse config() {
         if (request.getMethod() == HttpMethod.POST) {
-            WebhookConfigRequest configRequest = getRequestBodyWithNullCheck(WebhookConfigRequest.class);
+            WebhookConfigRequest configRequest =
+                    getRequestBodyWithNullCheck(WebhookConfigRequest.class);
             WebhookConfigResponse response = webhookService.updateConfig(configRequest);
-            this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_WEBHOOK_CONFIG);
+            this.adminAuditService.record(
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                    AdminAuditAction.UPDATE_WEBHOOK_CONFIG);
             return new ApiStandardResponse<>(
-                    response,
-                    I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
-            );
+                    response, I18nUtil.getAdminBackendStringFromRes("admin.common.update.success"));
         }
-        return pages.response(requestIdentity.optional(), webhookService.getConfigResponse(), "", request.getUri());
+        return pages.response(
+                requestIdentity.optional(),
+                webhookService.getConfigResponse(),
+                "",
+                request.getUri());
     }
 
     @ResponseBody
@@ -72,7 +77,9 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookTokenResponse> token() {
         requirePost();
         WebhookTokenResponse response = webhookService.rotateToken();
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.ROTATE_WEBHOOK_TOKEN);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.ROTATE_WEBHOOK_TOKEN);
         return new ApiStandardResponse<>(response);
     }
 
@@ -81,21 +88,28 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookConfigResponse> revokeToken() {
         requirePost();
         WebhookConfigResponse response = webhookService.revokeToken();
-        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.REVOKE_WEBHOOK_TOKEN);
+        this.adminAuditService.record(
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                AdminAuditAction.REVOKE_WEBHOOK_TOKEN);
         return new ApiStandardResponse<>(response);
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.NOTIFICATION_CREATE, descriptionKey = "webhook.createNotice")
+    @RequiresAction(
+            value = AccountAction.NOTIFICATION_CREATE,
+            descriptionKey = "webhook.createNotice")
     public ApiStandardResponse<WebhookMessageNoticeCreateResponse> messageCenterNotice() {
         requirePost();
         boolean personal = DelegatedAccess.active();
-        if (personal) permissionService.require(requestIdentity.current(), AccountAction.NOTIFICATION_CREATE);
-        if (!webhookService.getConfigResponse().getEnabled() || (!personal && !webhookService.verifyToken(readToken()))) {
+        if (personal)
+            permissionService.require(requestIdentity.current(), AccountAction.NOTIFICATION_CREATE);
+        if (!webhookService.getConfigResponse().getEnabled()
+                || (!personal && !webhookService.verifyToken(readToken()))) {
             throw new PermissionErrorException();
         }
-        WebhookMessageNoticeRequest noticeRequest = getRequestBodyWithNullCheck(WebhookMessageNoticeRequest.class);
+        WebhookMessageNoticeRequest noticeRequest =
+                getRequestBodyWithNullCheck(WebhookMessageNoticeRequest.class);
         return new ApiStandardResponse<>(webhookService.createMessageCenterNotice(noticeRequest));
     }
 

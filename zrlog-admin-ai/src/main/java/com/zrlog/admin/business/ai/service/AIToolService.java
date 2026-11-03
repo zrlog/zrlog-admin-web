@@ -11,7 +11,6 @@ import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ArgsException;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.util.*;
@@ -25,8 +24,8 @@ public class AIToolService extends AIService {
             Pattern.compile("!\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+[\"'][^\"']*[\"'])?\\)");
     private static final Pattern MARKDOWN_INLINE_LINK_PATTERN =
             Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+[\"'][^\"']*[\"'])?\\)");
-    private static final Pattern BARE_URL_PATTERN = Pattern.compile("\\bhttps?://[^\\s<>\"')]+",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern BARE_URL_PATTERN =
+            Pattern.compile("\\bhttps?://[^\\s<>\"')]+", Pattern.CASE_INSENSITIVE);
     private final AIConfigService aIConfigService;
 
     @Inject
@@ -39,14 +38,17 @@ public class AIToolService extends AIService {
         this.aIConfigService = aIConfigService;
     }
 
-    public OptimizeWebsiteDescriptionResponse optimizeWebsiteDescription(OptimizeWebsiteDescriptionRequest optimizeRequest)
+    public OptimizeWebsiteDescriptionResponse optimizeWebsiteDescription(
+            OptimizeWebsiteDescriptionRequest optimizeRequest)
             throws IOException, InterruptedException {
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
-        List<AIResponseEntry.AIContentEntry> messages = List.of(
-                new AIResponseEntry.AIContentEntry("system", buildWebsiteDescriptionSystemPrompt(info.getAi_prompt())),
-                new AIResponseEntry.AIContentEntry("user", buildWebsiteDescriptionUserPrompt(optimizeRequest))
-        );
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(
+                        new AIResponseEntry.AIContentEntry(
+                                "system", buildWebsiteDescriptionSystemPrompt(info.getAi_prompt())),
+                        new AIResponseEntry.AIContentEntry(
+                                "user", buildWebsiteDescriptionUserPrompt(optimizeRequest)));
         String content = requestCompletion(info, messages);
         OptimizeWebsiteDescriptionResponse response = new OptimizeWebsiteDescriptionResponse();
         response.setDescription(cleanDescription(content));
@@ -57,126 +59,190 @@ public class AIToolService extends AIService {
             throws IOException, InterruptedException {
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
-        List<AIResponseEntry.AIContentEntry> messages = List.of(
-                new AIResponseEntry.AIContentEntry("system", loadPromptResource(AIPromptVO.getByToolKey("ai-prompt-optimize").getPromptPrefix(), AIPromptVO.getByToolKey("ai-prompt-optimize").getPromptFallback())),
-                new AIResponseEntry.AIContentEntry("user", buildOptimizeAiPromptUserPrompt(optimizeRequest))
-        );
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(
+                        new AIResponseEntry.AIContentEntry(
+                                "system",
+                                loadPromptResource(
+                                        AIPromptVO.getByToolKey("ai-prompt-optimize")
+                                                .getPromptPrefix(),
+                                        AIPromptVO.getByToolKey("ai-prompt-optimize")
+                                                .getPromptFallback())),
+                        new AIResponseEntry.AIContentEntry(
+                                "user", buildOptimizeAiPromptUserPrompt(optimizeRequest)));
         String content = requestCompletion(info, messages);
         OptimizeAiPromptResponse response = new OptimizeAiPromptResponse();
         response.setPrompt(cleanPrompt(content));
         return response;
     }
 
-    public GenerateArticleTitleResponse generateArticleTitles(GenerateArticleTitleRequest generateRequest,
-                                                              String conversationContext)
+    public GenerateArticleTitleResponse generateArticleTitles(
+            GenerateArticleTitleRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
-        List<AIResponseEntry.AIContentEntry> messages = List.of(
-                new AIResponseEntry.AIContentEntry("system", loadPromptResource(AIPromptVO.getByToolKey("article-title-generate").getPromptPrefix(), AIPromptVO.getByToolKey("article-title-generate").getPromptFallback())),
-                new AIResponseEntry.AIContentEntry("user",
-                        buildGenerateArticleTitleUserPrompt(generateRequest, conversationContext))
-        );
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(
+                        new AIResponseEntry.AIContentEntry(
+                                "system",
+                                loadPromptResource(
+                                        AIPromptVO.getByToolKey("article-title-generate")
+                                                .getPromptPrefix(),
+                                        AIPromptVO.getByToolKey("article-title-generate")
+                                                .getPromptFallback())),
+                        new AIResponseEntry.AIContentEntry(
+                                "user",
+                                buildGenerateArticleTitleUserPrompt(
+                                        generateRequest, conversationContext)));
         String content = requestCompletion(info, messages);
         GenerateArticleTitleResponse response = new GenerateArticleTitleResponse();
         response.setTitles(parseTitles(content));
         return response;
     }
 
-    public ScoreArticleResponse scoreArticle(ScoreArticleRequest scoreRequest, String conversationContext)
+    public ScoreArticleResponse scoreArticle(
+            ScoreArticleRequest scoreRequest, String conversationContext)
             throws IOException, InterruptedException {
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
-        List<AIResponseEntry.AIContentEntry> messages = List.of(
-                new AIResponseEntry.AIContentEntry("system", loadPromptResource(AIPromptVO.getByToolKey("article-score").getPromptPrefix(), AIPromptVO.getByToolKey("article-score").getPromptFallback())),
-                new AIResponseEntry.AIContentEntry("user", buildScoreArticleUserPrompt(scoreRequest, conversationContext))
-        );
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(
+                        new AIResponseEntry.AIContentEntry(
+                                "system",
+                                loadPromptResource(
+                                        AIPromptVO.getByToolKey("article-score").getPromptPrefix(),
+                                        AIPromptVO.getByToolKey("article-score")
+                                                .getPromptFallback())),
+                        new AIResponseEntry.AIContentEntry(
+                                "user",
+                                buildScoreArticleUserPrompt(scoreRequest, conversationContext)));
         String content = requestCompletion(info, messages);
         return parseArticleScore(content);
     }
 
-    public GenerateArticleMarkdownResponse rewriteArticleMarkdown(GenerateArticleFieldRequest generateRequest,
-                                                                  String conversationContext)
+    public GenerateArticleMarkdownResponse rewriteArticleMarkdown(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
         if (generateRequest.getMarkdown() == null
                 || generateRequest.getMarkdown().trim().length() < REWRITE_MIN_MARKDOWN_LENGTH) {
             throw new ArgsException("markdown");
         }
-        String content = requestArticleFieldCompletion(generateRequest,
-                AIPromptVO.getByToolKey("article-markdown-rewrite"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-markdown-rewrite"),
+                        conversationContext);
         return parseArticleMarkdown(content);
     }
 
-    public ScoreArticleResponse publishCheckArticle(GenerateArticleFieldRequest generateRequest,
-                                                    String conversationContext)
+    public ScoreArticleResponse publishCheckArticle(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-publish-check"),
-                conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-publish-check"),
+                        conversationContext);
         return parseArticleScore(content);
     }
 
-    public GenerateArticleAliasResponse generateArticleAlias(GenerateArticleFieldRequest generateRequest,
-                                                             String conversationContext)
+    public GenerateArticleAliasResponse generateArticleAlias(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-alias-generate"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-alias-generate"),
+                        conversationContext);
         GenerateArticleAliasResponse response = new GenerateArticleAliasResponse();
-        response.setAlias(cleanAlias(parseStringField(content, "alias", "AI alias response is invalid")));
+        response.setAlias(
+                cleanAlias(parseStringField(content, "alias", "AI alias response is invalid")));
         return response;
     }
 
-    public GenerateArticleDigestResponse generateArticleDigest(GenerateArticleFieldRequest generateRequest,
-                                                               String conversationContext)
+    public GenerateArticleDigestResponse generateArticleDigest(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-digest-generate"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-digest-generate"),
+                        conversationContext);
         GenerateArticleDigestResponse response = new GenerateArticleDigestResponse();
-        response.setDigest(cleanPrompt(parseStringField(content, "digest", "AI digest response is invalid")));
+        response.setDigest(
+                cleanPrompt(parseStringField(content, "digest", "AI digest response is invalid")));
         return response;
     }
 
-    public GenerateArticleTagsResponse generateArticleTags(GenerateArticleFieldRequest generateRequest,
-                                                           String conversationContext)
+    public GenerateArticleTagsResponse generateArticleTags(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-tags-generate"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-tags-generate"),
+                        conversationContext);
         GenerateArticleTagsResponse response = new GenerateArticleTagsResponse();
         response.setTags(parseTags(content));
         return response;
     }
 
-    public ArticleSeoCheckResponse checkArticleSeo(GenerateArticleFieldRequest generateRequest,
-                                                   String conversationContext)
+    public ArticleSeoCheckResponse checkArticleSeo(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-seo-check"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-seo-check"),
+                        conversationContext);
         return parseArticleSeo(content);
     }
 
-    public ArticleProofreadResponse proofreadArticle(GenerateArticleFieldRequest generateRequest,
-                                                     String conversationContext)
+    public ArticleProofreadResponse proofreadArticle(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-proofread"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-proofread"),
+                        conversationContext);
         return parseArticleProofread(content);
     }
 
-    public ArticleStructureAdviceResponse adviseArticleStructure(GenerateArticleFieldRequest generateRequest,
-                                                                 String conversationContext)
+    public ArticleStructureAdviceResponse adviseArticleStructure(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-structure-advice"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-structure-advice"),
+                        conversationContext);
         return parseArticleStructure(content);
     }
 
-    public ArticleReaderQuestionsResponse generateReaderQuestions(GenerateArticleFieldRequest generateRequest,
-                                                                  String conversationContext)
+    public ArticleReaderQuestionsResponse generateReaderQuestions(
+            GenerateArticleFieldRequest generateRequest, String conversationContext)
             throws IOException, InterruptedException {
-        String content = requestArticleFieldCompletion(generateRequest, AIPromptVO.getByToolKey("article-reader-questions"), conversationContext);
+        String content =
+                requestArticleFieldCompletion(
+                        generateRequest,
+                        AIPromptVO.getByToolKey("article-reader-questions"),
+                        conversationContext);
         return parseReaderQuestions(content);
     }
 
     private String buildWebsiteDescriptionSystemPrompt(String globalPrompt) {
         String basePrompt = StringUtils.isNotEmpty(globalPrompt) ? globalPrompt + "\n\n" : "";
-        return basePrompt + loadPromptResource(AIPromptVO.getByToolKey("website-description").getPromptPrefix(), AIPromptVO.getByToolKey("website-description").getPromptFallback());
+        return basePrompt
+                + loadPromptResource(
+                        AIPromptVO.getByToolKey("website-description").getPromptPrefix(),
+                        AIPromptVO.getByToolKey("website-description").getPromptFallback());
     }
 
     private String buildWebsiteDescriptionUserPrompt(OptimizeWebsiteDescriptionRequest request) {
-        return loadPromptResource(AIPromptVO.getByToolKey("website-description").getInputPrefix(), AIPromptVO.getByToolKey("website-description").getInputFallback())
+        return loadPromptResource(
+                        AIPromptVO.getByToolKey("website-description").getInputPrefix(),
+                        AIPromptVO.getByToolKey("website-description").getInputFallback())
                 .replace("{{title}}", emptyToBlank(request.getTitle()))
                 .replace("{{second_title}}", emptyToBlank(request.getSecond_title()))
                 .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
@@ -185,66 +251,94 @@ public class AIToolService extends AIService {
     }
 
     private String buildOptimizeAiPromptUserPrompt(OptimizeAiPromptRequest request) {
-        return loadPromptResource(AIPromptVO.getByToolKey("ai-prompt-optimize").getInputPrefix(), AIPromptVO.getByToolKey("ai-prompt-optimize").getInputFallback())
+        return loadPromptResource(
+                        AIPromptVO.getByToolKey("ai-prompt-optimize").getInputPrefix(),
+                        AIPromptVO.getByToolKey("ai-prompt-optimize").getInputFallback())
                 .replace("{{prompt}}", emptyToBlank(request.getPrompt()));
     }
 
-    private String buildGenerateArticleTitleUserPrompt(GenerateArticleTitleRequest request, String conversationContext) {
-        String prompt = loadPromptResource(AIPromptVO.getByToolKey("article-title-generate").getInputPrefix(), AIPromptVO.getByToolKey("article-title-generate").getInputFallback())
-                .replace("{{title}}", emptyToBlank(request.getTitle()))
-                .replace("{{digest}}", emptyToBlank(request.getDigest()))
-                .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
-                .replace("{{markdown}}", emptyToBlank(request.getMarkdown()));
-        return appendConversationContext(appendSelectedTextContext(prompt, request.getSelectedText()),
-                conversationContext);
+    private String buildGenerateArticleTitleUserPrompt(
+            GenerateArticleTitleRequest request, String conversationContext) {
+        String prompt =
+                loadPromptResource(
+                                AIPromptVO.getByToolKey("article-title-generate").getInputPrefix(),
+                                AIPromptVO.getByToolKey("article-title-generate")
+                                        .getInputFallback())
+                        .replace("{{title}}", emptyToBlank(request.getTitle()))
+                        .replace("{{digest}}", emptyToBlank(request.getDigest()))
+                        .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
+                        .replace("{{markdown}}", emptyToBlank(request.getMarkdown()));
+        return appendConversationContext(
+                appendSelectedTextContext(prompt, request.getSelectedText()), conversationContext);
     }
 
-    private String buildScoreArticleUserPrompt(ScoreArticleRequest request, String conversationContext) {
-        String prompt = loadPromptResource(AIPromptVO.getByToolKey("article-score").getInputPrefix(), AIPromptVO.getByToolKey("article-score").getInputFallback())
-                .replace("{{title}}", emptyToBlank(request.getTitle()))
-                .replace("{{digest}}", emptyToBlank(request.getDigest()))
-                .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
-                .replace("{{markdown}}", emptyToBlank(request.getMarkdown()));
-        return appendConversationContext(appendSelectedTextContext(prompt, request.getSelectedText()),
-                conversationContext);
+    private String buildScoreArticleUserPrompt(
+            ScoreArticleRequest request, String conversationContext) {
+        String prompt =
+                loadPromptResource(
+                                AIPromptVO.getByToolKey("article-score").getInputPrefix(),
+                                AIPromptVO.getByToolKey("article-score").getInputFallback())
+                        .replace("{{title}}", emptyToBlank(request.getTitle()))
+                        .replace("{{digest}}", emptyToBlank(request.getDigest()))
+                        .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
+                        .replace("{{markdown}}", emptyToBlank(request.getMarkdown()));
+        return appendConversationContext(
+                appendSelectedTextContext(prompt, request.getSelectedText()), conversationContext);
     }
 
-    private String requestArticleFieldCompletion(GenerateArticleFieldRequest request, AIPromptVO promptVO, String conversationContext)
+    private String requestArticleFieldCompletion(
+            GenerateArticleFieldRequest request, AIPromptVO promptVO, String conversationContext)
             throws IOException, InterruptedException {
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
-        List<AIResponseEntry.AIContentEntry> messages = List.of(
-                new AIResponseEntry.AIContentEntry("system", loadPromptResource(promptVO.getPromptPrefix(), promptVO.getPromptFallback())),
-                new AIResponseEntry.AIContentEntry("user",
-                        buildArticleFieldUserPrompt(request, promptVO, conversationContext))
-        );
+        List<AIResponseEntry.AIContentEntry> messages =
+                List.of(
+                        new AIResponseEntry.AIContentEntry(
+                                "system",
+                                loadPromptResource(
+                                        promptVO.getPromptPrefix(), promptVO.getPromptFallback())),
+                        new AIResponseEntry.AIContentEntry(
+                                "user",
+                                buildArticleFieldUserPrompt(
+                                        request, promptVO, conversationContext)));
         return requestCompletion(info, messages);
     }
 
-    private String buildArticleFieldUserPrompt(GenerateArticleFieldRequest request, AIPromptVO promptVO, String conversationContext) {
-        String prompt = loadPromptResource(promptVO.getInputPrefix(), promptVO.getInputFallback())
-                .replace("{{title}}", emptyToBlank(request.getTitle()))
-                .replace("{{digest}}", emptyToBlank(request.getDigest()))
-                .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
-                .replace("{{markdown}}", emptyToBlank(request.getMarkdown()))
-                .replace("{{resourceSummary}}", buildMarkdownReferenceSummary(request.getMarkdown()))
-                .replace("{{publishContext}}", buildPublishContextSummary(request));
-        return appendConversationContext(appendSelectedTextContext(prompt, request.getSelectedText()),
-                conversationContext);
+    private String buildArticleFieldUserPrompt(
+            GenerateArticleFieldRequest request, AIPromptVO promptVO, String conversationContext) {
+        String prompt =
+                loadPromptResource(promptVO.getInputPrefix(), promptVO.getInputFallback())
+                        .replace("{{title}}", emptyToBlank(request.getTitle()))
+                        .replace("{{digest}}", emptyToBlank(request.getDigest()))
+                        .replace("{{keywords}}", emptyToBlank(request.getKeywords()))
+                        .replace("{{markdown}}", emptyToBlank(request.getMarkdown()))
+                        .replace(
+                                "{{resourceSummary}}",
+                                buildMarkdownReferenceSummary(request.getMarkdown()))
+                        .replace("{{publishContext}}", buildPublishContextSummary(request));
+        return appendConversationContext(
+                appendSelectedTextContext(prompt, request.getSelectedText()), conversationContext);
     }
 
     String buildPublishContextSummary(GenerateArticleFieldRequest request) {
         boolean hasAlias = StringUtils.isNotEmpty(request.getAlias());
         boolean hasCover = StringUtils.isNotEmpty(request.getThumbnail());
         boolean staticSiteEnabled = Objects.equals(request.getStaticSiteEnabled(), true);
-        boolean staticSitePluginEnabled = Objects.equals(request.getStaticSitePluginEnabled(), true);
+        boolean staticSitePluginEnabled =
+                Objects.equals(request.getStaticSitePluginEnabled(), true);
         boolean transparentPublish = Objects.equals(request.getTransparentPublish(), true);
-        return "aliasStatus: " + (hasAlias ? "present" : "empty")
-                + "\ncoverStatus: " + (hasCover ? "present" : "empty")
-                + "\ntransparentPublish: " + transparentPublish
-                + "\nstaticSiteEnabled: " + staticSiteEnabled
-                + "\nstaticSitePluginEnabled: " + staticSitePluginEnabled
-                + "\nstaticSyncExpected: " + (transparentPublish && staticSiteEnabled && staticSitePluginEnabled)
+        return "aliasStatus: "
+                + (hasAlias ? "present" : "empty")
+                + "\ncoverStatus: "
+                + (hasCover ? "present" : "empty")
+                + "\ntransparentPublish: "
+                + transparentPublish
+                + "\nstaticSiteEnabled: "
+                + staticSiteEnabled
+                + "\nstaticSitePluginEnabled: "
+                + staticSitePluginEnabled
+                + "\nstaticSyncExpected: "
+                + (transparentPublish && staticSiteEnabled && staticSitePluginEnabled)
                 + "\nstructuredDataBoundary: theme-owned-public-output"
                 + "\nstructuredDataInputs: title,digest,keywords,cover,articleBody"
                 + "\naiPublishCheckUsesConfiguredProvider: true"
@@ -256,19 +350,23 @@ public class AIToolService extends AIService {
         Set<String> imageReferences = collectReferences(content, MARKDOWN_IMAGE_LINK_PATTERN);
         Set<String> linkReferences = collectReferences(content, MARKDOWN_INLINE_LINK_PATTERN);
         Set<String> externalLinks = new LinkedHashSet<>();
-        linkReferences.stream()
-                .filter(this::isExternalLink)
-                .forEach(externalLinks::add);
+        linkReferences.stream().filter(this::isExternalLink).forEach(externalLinks::add);
         Matcher bareUrlMatcher = BARE_URL_PATTERN.matcher(content);
         while (bareUrlMatcher.find()) {
             externalLinks.add(bareUrlMatcher.group());
         }
-        return "imageReferenceCount: " + imageReferences.size()
-                + "\nimageReferences:\n" + formatReferenceList(imageReferences)
-                + "\nlinkReferenceCount: " + linkReferences.size()
-                + "\nlinkReferences:\n" + formatReferenceList(linkReferences)
-                + "\nexternalLinkCount: " + externalLinks.size()
-                + "\nexternalLinks:\n" + formatReferenceList(externalLinks);
+        return "imageReferenceCount: "
+                + imageReferences.size()
+                + "\nimageReferences:\n"
+                + formatReferenceList(imageReferences)
+                + "\nlinkReferenceCount: "
+                + linkReferences.size()
+                + "\nlinkReferences:\n"
+                + formatReferenceList(linkReferences)
+                + "\nexternalLinkCount: "
+                + externalLinks.size()
+                + "\nexternalLinks:\n"
+                + formatReferenceList(externalLinks);
     }
 
     private Set<String> collectReferences(String markdown, Pattern pattern) {
@@ -292,7 +390,9 @@ public class AIToolService extends AIService {
         int index = 0;
         for (String reference : references) {
             if (index >= PUBLISH_CHECK_REFERENCE_LIMIT) {
-                sb.append("- ... ").append(references.size() - PUBLISH_CHECK_REFERENCE_LIMIT).append(" more");
+                sb.append("- ... ")
+                        .append(references.size() - PUBLISH_CHECK_REFERENCE_LIMIT)
+                        .append(" more");
                 break;
             }
             sb.append("- ").append(reference).append("\n");
@@ -326,7 +426,8 @@ public class AIToolService extends AIService {
     }
 
     private List<String> parseTitles(String content) {
-        AIToolResponsePayloads.Titles payload = parseToolPayload(content, AIToolResponsePayloads.Titles.class);
+        AIToolResponsePayloads.Titles payload =
+                parseToolPayload(content, AIToolResponsePayloads.Titles.class);
         List<String> rawTitles = payload.getTitles();
         if (rawTitles == null) {
             throw new AIResponseException("title response is invalid");
@@ -357,7 +458,8 @@ public class AIToolService extends AIService {
     }
 
     private GenerateArticleMarkdownResponse parseArticleMarkdown(String content) {
-        AIToolResponsePayloads.Markdown payload = parseToolPayload(content, AIToolResponsePayloads.Markdown.class);
+        AIToolResponsePayloads.Markdown payload =
+                parseToolPayload(content, AIToolResponsePayloads.Markdown.class);
         GenerateArticleMarkdownResponse response = new GenerateArticleMarkdownResponse();
         response.setSummary(cleanPrompt(payload.getSummary()));
         response.setMarkdown(cleanPrompt(payload.getMarkdown()));
@@ -368,7 +470,8 @@ public class AIToolService extends AIService {
     }
 
     private List<String> parseTags(String content) {
-        AIToolResponsePayloads.Tags payload = parseToolPayload(content, AIToolResponsePayloads.Tags.class);
+        AIToolResponsePayloads.Tags payload =
+                parseToolPayload(content, AIToolResponsePayloads.Tags.class);
         List<String> rawTags = payload.getTags();
         if (rawTags == null) {
             throw new AIResponseException("tags response is invalid");
@@ -392,10 +495,12 @@ public class AIToolService extends AIService {
     }
 
     private String cleanAlias(String alias) {
-        String cleaned = cleanPrompt(alias).toLowerCase()
-                .replaceAll("[^a-z0-9-]+", "-")
-                .replaceAll("-+", "-")
-                .replaceAll("^-|-$", "");
+        String cleaned =
+                cleanPrompt(alias)
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9-]+", "-")
+                        .replaceAll("-+", "-")
+                        .replaceAll("^-|-$", "");
         if (StringUtils.isEmpty(cleaned)) {
             throw new AIResponseException("alias response is empty");
         }
@@ -419,7 +524,8 @@ public class AIToolService extends AIService {
             item.setName(cleanPrompt(itemPayload.getName()));
             item.setScore(normalizeScore(itemPayload.getScore()));
             item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
-            if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+            if (StringUtils.isNotEmpty(item.getName())
+                    || StringUtils.isNotEmpty(item.getSuggestion())) {
                 items.add(item);
             }
         }
@@ -447,7 +553,8 @@ public class AIToolService extends AIService {
             item.setName(cleanPrompt(itemPayload.getName()));
             item.setStatus(cleanPrompt(itemPayload.getStatus()));
             item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
-            if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+            if (StringUtils.isNotEmpty(item.getName())
+                    || StringUtils.isNotEmpty(item.getSuggestion())) {
                 items.add(item);
             }
         }
@@ -470,11 +577,13 @@ public class AIToolService extends AIService {
             if (itemPayload == null) {
                 continue;
             }
-            ArticleProofreadResponse.ProofreadItem item = new ArticleProofreadResponse.ProofreadItem();
+            ArticleProofreadResponse.ProofreadItem item =
+                    new ArticleProofreadResponse.ProofreadItem();
             item.setOriginal(cleanPrompt(itemPayload.getOriginal()));
             item.setIssue(cleanPrompt(itemPayload.getIssue()));
             item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
-            if (StringUtils.isNotEmpty(item.getOriginal()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+            if (StringUtils.isNotEmpty(item.getOriginal())
+                    || StringUtils.isNotEmpty(item.getSuggestion())) {
                 items.add(item);
             }
         }
@@ -502,7 +611,8 @@ public class AIToolService extends AIService {
             item.setName(cleanPrompt(itemPayload.getName()));
             item.setStatus(cleanPrompt(itemPayload.getStatus()));
             item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
-            if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+            if (StringUtils.isNotEmpty(item.getName())
+                    || StringUtils.isNotEmpty(item.getSuggestion())) {
                 items.add(item);
             }
         }

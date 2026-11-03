@@ -2,12 +2,9 @@ package com.zrlog.admin.business.security;
 
 import java.util.List;
 
-/**
- * OAuth wire names deliberately follow the OAuth specifications.
- */
+/** OAuth wire names deliberately follow the OAuth specifications. */
 public final class OAuthModels {
-    private OAuthModels() {
-    }
+    private OAuthModels() {}
 
     public static class Client implements com.zrlog.common.Validator {
         public String clientId;
@@ -16,7 +13,8 @@ public final class OAuthModels {
         public boolean enabled = true;
 
         public void doValid() {
-            if (name == null || redirectUris == null) throw new com.zrlog.common.exception.ArgsException();
+            if (name == null || redirectUris == null)
+                throw new com.zrlog.common.exception.ArgsException();
         }
     }
 
@@ -56,7 +54,8 @@ public final class OAuthModels {
         public List<String> scopes;
 
         public void doValid() {
-            if (requestId == null || csrf == null) throw new com.zrlog.common.exception.ArgsException();
+            if (requestId == null || csrf == null)
+                throw new com.zrlog.common.exception.ArgsException();
         }
     }
 

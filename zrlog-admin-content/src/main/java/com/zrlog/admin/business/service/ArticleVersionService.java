@@ -8,32 +8,43 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.exception.NotFindDbEntryException;
-import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.repository.LogRepository;
-import com.zrlog.admin.data.repository.LogVersionRepository;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
 import jakarta.inject.Inject;
-
 import java.lang.reflect.Type;
 import java.sql.SQLException;
-import com.zrlog.model.LogVersion;
-import com.zrlog.model.Log;
-import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class ArticleVersionService {
     private static final Gson GSON = new Gson();
-    private static final Type PATCH_TYPE = new TypeToken<Map<String, Object>>() {
-    }.getType();
-    private static final List<String> SNAPSHOT_FIELDS = List.of(
-            "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail", "arrange_plugin",
-            "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
-    );
+    private static final Type PATCH_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
+    private static final List<String> SNAPSHOT_FIELDS =
+            List.of(
+                    "title",
+                    "content",
+                    "markdown",
+                    "digest",
+                    "keywords",
+                    "alias",
+                    "thumbnail",
+                    "arrange_plugin",
+                    "typeId",
+                    "canComment",
+                    "recommended",
+                    "privacy",
+                    "rubbish",
+                    "editorType");
     private final jakarta.inject.Provider<LogRepository> logProvider;
     private final jakarta.inject.Provider<LogVersionRepository> logVersionProvider;
     private final AccountPermissionService permissionService;
+
     @Inject
     public ArticleVersionService(
             AccountPermissionService permissionService,
@@ -80,7 +91,9 @@ public class ArticleVersionService {
         if (prefix + suffix > current.length()) {
             return current;
         }
-        return current.substring(0, prefix) + oldMiddle + current.substring(current.length() - suffix);
+        return current.substring(0, prefix)
+                + oldMiddle
+                + current.substring(current.length() - suffix);
     }
 
     private static int commonPrefixLength(String oldStr, String newStr) {
@@ -95,8 +108,9 @@ public class ArticleVersionService {
     private static int commonSuffixLength(String oldStr, String newStr, int prefixLength) {
         int max = Math.min(oldStr.length(), newStr.length()) - prefixLength;
         int index = 0;
-        while (index < max &&
-                oldStr.charAt(oldStr.length() - 1 - index) == newStr.charAt(newStr.length() - 1 - index)) {
+        while (index < max
+                && oldStr.charAt(oldStr.length() - 1 - index)
+                        == newStr.charAt(newStr.length() - 1 - index)) {
             index++;
         }
         return index;
@@ -137,7 +151,10 @@ public class ArticleVersionService {
             id = article.getId();
             version = article.getVersion();
             title = article.getTitle();
-            values = SNAPSHOT_FIELDS.stream().map(field -> getLogFieldValue(article, field)).toArray();
+            values =
+                    SNAPSHOT_FIELDS.stream()
+                            .map(field -> getLogFieldValue(article, field))
+                            .toArray();
         }
     }
 
@@ -146,29 +163,51 @@ public class ArticleVersionService {
     }
 
     void recordReversePatch(Revision before, Log article, Integer userId) throws SQLException {
-        if (!Objects.equals(before.id, article.getId()) || before.version == null
+        if (!Objects.equals(before.id, article.getId())
+                || before.version == null
                 || article.getVersion() != Math.addExact(before.version, 1)) {
-            throw new IllegalArgumentException("History requires the confirmed next article version");
+            throw new IllegalArgumentException(
+                    "History requires the confirmed next article version");
         }
         Map<String, Object> patch = buildReversePatch(before, article);
         if (patch.isEmpty()) return;
-        logVersionProvider.get().savePatch(Math.toIntExact(article.getId()), Math.toIntExact(article.getVersion()),
-                GSON.toJson(patch), userId, Objects.toString(before.title, ""), new Date(), Math.toIntExact(before.version));
+        logVersionProvider
+                .get()
+                .savePatch(
+                        Math.toIntExact(article.getId()),
+                        Math.toIntExact(article.getVersion()),
+                        GSON.toJson(patch),
+                        userId,
+                        Objects.toString(before.title, ""),
+                        new Date(),
+                        Math.toIntExact(before.version));
     }
 
-    public void recordKeywordPatch(int logId, int version, String title, String before, String after, int userId) throws SQLException {
+    public void recordKeywordPatch(
+            int logId, int version, String title, String before, String after, int userId)
+            throws SQLException {
         Map<String, Object> patch = buildFieldReversePatch(before, after);
         if (patch == null) return;
-        logVersionProvider.get().savePatch(logId, version, GSON.toJson(Map.of("keywords", patch)), userId,
-                Objects.toString(title, ""), new Date(), version - 1);
+        logVersionProvider
+                .get()
+                .savePatch(
+                        logId,
+                        version,
+                        GSON.toJson(Map.of("keywords", patch)),
+                        userId,
+                        Objects.toString(title, ""),
+                        new Date(),
+                        version - 1);
     }
 
-    public List<ArticleVersionResponse> listVersions(AccountAccess actor, Integer logId) throws SQLException {
+    public List<ArticleVersionResponse> listVersions(AccountAccess actor, Integer logId)
+            throws SQLException {
         permissionService.readArticle(actor, logId);
         List<ArticleVersionResponse> responses = new ArrayList<>();
         responses.add(loadCurrentVersion(logId));
 
-        List<LogVersionRepository.Summary> rows = this.logVersionProvider.get().findVersionList(logId);
+        List<LogVersionRepository.Summary> rows =
+                this.logVersionProvider.get().findVersionList(logId);
         for (LogVersionRepository.Summary row : rows) {
             ArticleVersionResponse item = new ArticleVersionResponse();
             item.setVersion(toInteger(row.fromVersion));
@@ -182,7 +221,12 @@ public class ArticleVersionService {
         }
         return responses.stream()
                 .filter(e -> e.getVersion() != null)
-                .collect(Collectors.toMap(ArticleVersionResponse::getVersion, e -> e, (a, b) -> a, LinkedHashMap::new))
+                .collect(
+                        Collectors.toMap(
+                                ArticleVersionResponse::getVersion,
+                                e -> e,
+                                (a, b) -> a,
+                                LinkedHashMap::new))
                 .values()
                 .stream()
                 .sorted(Comparator.comparing(ArticleVersionResponse::getVersion).reversed())
@@ -190,8 +234,13 @@ public class ArticleVersionService {
     }
 
     private ArticleVersionResponse loadCurrentVersion(Integer logId) throws SQLException {
-        ArticleBasicDTO row = logProvider.get().queryOne(
-                "select version,title,last_update_date as lastUpdateDate from log where logId=?", ArticleBasicDTO.class, logId);
+        ArticleBasicDTO row =
+                logProvider
+                        .get()
+                        .queryOne(
+                                "select version,title,last_update_date as lastUpdateDate from log where logId=?",
+                                ArticleBasicDTO.class,
+                                logId);
         if (row == null) throw new NotFindDbEntryException();
         ArticleVersionResponse currentVersion = new ArticleVersionResponse();
         currentVersion.setVersion(row.getVersion().intValue());
@@ -208,7 +257,9 @@ public class ArticleVersionService {
         if (logId == null || targetVersion == null) {
             throw new ArgsException("logId/targetVersion");
         }
-        if (current.getVersion() == null || targetVersion > current.getVersion() || targetVersion < 0) {
+        if (current.getVersion() == null
+                || targetVersion > current.getVersion()
+                || targetVersion < 0) {
             throw new NotFindDbEntryException();
         }
         if (Objects.equals(current.getVersion(), targetVersion)) {
@@ -374,21 +425,36 @@ public class ArticleVersionService {
 
     private static Object getLogFieldValue(Log article, String field) {
         switch (field) {
-            case "title": return article.getTitle();
-            case "content": return article.getContent();
-            case "markdown": return article.getMarkdown();
-            case "digest": return article.getDigest();
-            case "keywords": return article.getKeywords();
-            case "alias": return article.getAlias();
-            case "thumbnail": return article.getThumbnail();
-            case "arrange_plugin": return Objects.toString(article.getArrangePlugin(), "");
-            case "typeId": return article.getTypeId();
-            case "canComment": return article.getCanComment();
-            case "recommended": return article.getRecommended();
-            case "privacy": return article.getPrivacy();
-            case "rubbish": return article.getRubbish();
-            case "editorType": return article.getEditorType();
-            default: throw new IllegalArgumentException(field);
+            case "title":
+                return article.getTitle();
+            case "content":
+                return article.getContent();
+            case "markdown":
+                return article.getMarkdown();
+            case "digest":
+                return article.getDigest();
+            case "keywords":
+                return article.getKeywords();
+            case "alias":
+                return article.getAlias();
+            case "thumbnail":
+                return article.getThumbnail();
+            case "arrange_plugin":
+                return Objects.toString(article.getArrangePlugin(), "");
+            case "typeId":
+                return article.getTypeId();
+            case "canComment":
+                return article.getCanComment();
+            case "recommended":
+                return article.getRecommended();
+            case "privacy":
+                return article.getPrivacy();
+            case "rubbish":
+                return article.getRubbish();
+            case "editorType":
+                return article.getEditorType();
+            default:
+                throw new IllegalArgumentException(field);
         }
     }
 }

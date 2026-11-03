@@ -6,11 +6,10 @@ import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.service.WebsiteKvService;
-import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.util.WebSiteUtils;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -18,36 +17,55 @@ import java.util.Objects;
 
 @Singleton
 public class WebSiteService {
-    public static final String ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY = "article_editor_link_preview_enabled";
+    public static final String ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY =
+            "article_editor_link_preview_enabled";
     public static final String ARTICLE_PUBLISH_CHECK_ENABLED_KEY = "article_publish_check_enabled";
     public static final String ARTICLE_COVER_ASPECT_RATIO_KEY = "article_cover_aspect_ratio";
-    public static final String ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY = "article_edit_auto_save_interval";
-    public static final String FEATURE_RESOURCE_REFERENCE_ENABLED_KEY = "feature_resource_reference_enabled";
+    public static final String ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY =
+            "article_edit_auto_save_interval";
+    public static final String FEATURE_RESOURCE_REFERENCE_ENABLED_KEY =
+            "feature_resource_reference_enabled";
     public static final String FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY =
             "feature_article_extension_filter_enabled";
     public static final String FEATURE_WEBHOOK_ENABLED_KEY = "feature_webhook_enabled";
     public static final String FEATURE_PERSONAL_DATA_ENABLED_KEY = "feature_personal_data_enabled";
-    public static final String FEATURE_ARTICLE_ARRANGEMENT_ENABLED_KEY = "feature_article_arrangement_enabled";
-    private static final List<String> ARTICLE_EDIT_WEBSITE_INFO_KEYS = Arrays.asList(WebSiteRepository.article_auto_digest_length,
-            ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY, ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
-            ARTICLE_COVER_ASPECT_RATIO_KEY, ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);
+    public static final String FEATURE_ARTICLE_ARRANGEMENT_ENABLED_KEY =
+            "feature_article_arrangement_enabled";
+    private static final List<String> ARTICLE_EDIT_WEBSITE_INFO_KEYS =
+            Arrays.asList(
+                    WebSiteRepository.article_auto_digest_length,
+                    ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY,
+                    ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
+                    ARTICLE_COVER_ASPECT_RATIO_KEY,
+                    ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);
     private final WebsiteKvService websiteKvService;
     private final jakarta.inject.Provider<WebSiteRepository> webSiteProvider;
+
     @Inject
     public WebSiteService(
-            WebsiteKvService websiteKvService, jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
+            WebsiteKvService websiteKvService,
+            jakarta.inject.Provider<WebSiteRepository> webSiteProvider) {
         this.websiteKvService = websiteKvService;
         this.webSiteProvider = webSiteProvider;
     }
 
-    static ArticleEditWebSiteInfo normalizeArticleEditWebSiteInfo(ArticleEditWebSiteInfo articleEdit) {
-        if (Objects.isNull(articleEdit.getArticle_auto_digest_length()) || articleEdit.getArticle_auto_digest_length() < -1 || articleEdit.getArticle_auto_digest_length() > 99999) {
+    static ArticleEditWebSiteInfo normalizeArticleEditWebSiteInfo(
+            ArticleEditWebSiteInfo articleEdit) {
+        if (Objects.isNull(articleEdit.getArticle_auto_digest_length())
+                || articleEdit.getArticle_auto_digest_length() < -1
+                || articleEdit.getArticle_auto_digest_length() > 99999) {
             articleEdit.setArticle_auto_digest_length(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH);
         }
-        articleEdit.setArticle_edit_auto_save_interval(ArticleEditWebSiteInfo.normalizeArticleEditAutoSaveInterval(articleEdit.getArticle_edit_auto_save_interval()));
-        articleEdit.setArticle_editor_link_preview_enabled(Objects.equals(articleEdit.getArticle_editor_link_preview_enabled(), true));
-        articleEdit.setArticle_publish_check_enabled(!Objects.equals(articleEdit.getArticle_publish_check_enabled(), false));
-        articleEdit.setArticle_cover_aspect_ratio(ArticleEditWebSiteInfo.normalizeArticleCoverAspectRatio(articleEdit.getArticle_cover_aspect_ratio()));
+        articleEdit.setArticle_edit_auto_save_interval(
+                ArticleEditWebSiteInfo.normalizeArticleEditAutoSaveInterval(
+                        articleEdit.getArticle_edit_auto_save_interval()));
+        articleEdit.setArticle_editor_link_preview_enabled(
+                Objects.equals(articleEdit.getArticle_editor_link_preview_enabled(), true));
+        articleEdit.setArticle_publish_check_enabled(
+                !Objects.equals(articleEdit.getArticle_publish_check_enabled(), false));
+        articleEdit.setArticle_cover_aspect_ratio(
+                ArticleEditWebSiteInfo.normalizeArticleCoverAspectRatio(
+                        articleEdit.getArticle_cover_aspect_ratio()));
         return articleEdit;
     }
 
@@ -56,15 +74,33 @@ public class WebSiteService {
     }
 
     public boolean isFeatureResourceReferenceEnabled() {
-        return Objects.equals(true, queryToMap(List.of(FEATURE_RESOURCE_REFERENCE_ENABLED_KEY), FeatureLabWebSiteInfo.class).getFeature_resource_reference_enabled());
+        return Objects.equals(
+                true,
+                queryToMap(
+                                List.of(FEATURE_RESOURCE_REFERENCE_ENABLED_KEY),
+                                FeatureLabWebSiteInfo.class)
+                        .getFeature_resource_reference_enabled());
     }
 
     public boolean isFeatureArticleExtensionFilterEnabled() {
-        return Objects.equals(true, queryToMap(List.of(FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY), FeatureLabWebSiteInfo.class).getFeature_article_extension_filter_enabled());
+        return Objects.equals(
+                true,
+                queryToMap(
+                                List.of(FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY),
+                                FeatureLabWebSiteInfo.class)
+                        .getFeature_article_extension_filter_enabled());
     }
 
     public BlogWebSiteInfo blogWebSiteInfo() {
-        BlogWebSiteInfo blog = queryToMap(Arrays.asList(WebSiteRepository.generator_html_status, WebSiteRepository.host, WebSiteRepository.disable_comment_status, WebSiteRepository.article_thumbnail_status, WebSiteRepository.system_notification), BlogWebSiteInfo.class);
+        BlogWebSiteInfo blog =
+                queryToMap(
+                        Arrays.asList(
+                                WebSiteRepository.generator_html_status,
+                                WebSiteRepository.host,
+                                WebSiteRepository.disable_comment_status,
+                                WebSiteRepository.article_thumbnail_status,
+                                WebSiteRepository.system_notification),
+                        BlogWebSiteInfo.class);
         blog.setGenerator_html_status(Objects.equals(blog.getGenerator_html_status(), true));
         blog.setDisable_comment_status(Objects.equals(blog.getDisable_comment_status(), true));
         blog.setArticle_thumbnail_status(Objects.equals(blog.getArticle_thumbnail_status(), true));
@@ -72,7 +108,15 @@ public class WebSiteService {
     }
 
     public BasicWebSiteInfo basicWebSiteInfo() {
-        return queryToMap(Arrays.asList(WebSiteRepository.title, WebSiteRepository.second_title, WebSiteRepository.description, WebSiteRepository.keywords, "favicon_ico_base64", WebSiteRepository.author), BasicWebSiteInfo.class);
+        return queryToMap(
+                Arrays.asList(
+                        WebSiteRepository.title,
+                        WebSiteRepository.second_title,
+                        WebSiteRepository.description,
+                        WebSiteRepository.keywords,
+                        "favicon_ico_base64",
+                        WebSiteRepository.author),
+                BasicWebSiteInfo.class);
     }
 
     public AdminWebSiteInfo adminWebSiteInfo() {
@@ -99,7 +143,9 @@ public class WebSiteService {
         long parsedSize = 10;
         try {
             if (StringUtils.isNotEmpty(pageSize)) parsedSize = Long.parseLong(pageSize);
-        } catch (NumberFormatException ignored) { /* Invalid legacy values use the default. */ }
+        } catch (NumberFormatException ignored) {
+            /* Invalid legacy values use the default. */
+        }
         admin.setAdmin_article_page_size(parsedSize > 0 ? parsedSize : 10L);
         if (Objects.isNull(admin.getSession_timeout()) || admin.getSession_timeout() <= 0) {
             admin.setSession_timeout(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60 / 1000);
@@ -108,21 +154,30 @@ public class WebSiteService {
     }
 
     public ArticleEditWebSiteInfo articleEditWebSiteInfo() {
-        ArticleEditWebSiteInfo articleEdit = queryToMap(ARTICLE_EDIT_WEBSITE_INFO_KEYS, ArticleEditWebSiteInfo.class);
+        ArticleEditWebSiteInfo articleEdit =
+                queryToMap(ARTICLE_EDIT_WEBSITE_INFO_KEYS, ArticleEditWebSiteInfo.class);
         return normalizeArticleEditWebSiteInfo(articleEdit);
     }
 
     public ContentProtectorWebSiteInfo contentProtector() {
-        ContentProtectorWebSiteInfo contentProtector = queryToMap(Arrays.asList(WebSiteRepository.content_protector_enabled,
-                        WebSiteRepository.content_protector_license_type, WebSiteRepository.content_protector_template),
-                ContentProtectorWebSiteInfo.class);
+        ContentProtectorWebSiteInfo contentProtector =
+                queryToMap(
+                        Arrays.asList(
+                                WebSiteRepository.content_protector_enabled,
+                                WebSiteRepository.content_protector_license_type,
+                                WebSiteRepository.content_protector_template),
+                        ContentProtectorWebSiteInfo.class);
         contentProtector.doValid();
         return contentProtector;
     }
 
     public boolean isAdminLinkPreviewEnabled() {
-        return Objects.equals(Boolean.TRUE, queryToMap(Arrays.asList(ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY),
-                ArticleEditWebSiteInfo.class).getArticle_editor_link_preview_enabled());
+        return Objects.equals(
+                Boolean.TRUE,
+                queryToMap(
+                                Arrays.asList(ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY),
+                                ArticleEditWebSiteInfo.class)
+                        .getArticle_editor_link_preview_enabled());
     }
 
     private <T> T queryToMap(List<String> names, Class<T> clazz) {
@@ -131,6 +186,11 @@ public class WebSiteService {
     }
 
     public OtherWebSiteInfo other() {
-        return queryToMap(Arrays.asList(WebSiteRepository.icp, WebSiteRepository.webCm, WebSiteRepository.robotRuleContent), OtherWebSiteInfo.class);
+        return queryToMap(
+                Arrays.asList(
+                        WebSiteRepository.icp,
+                        WebSiteRepository.webCm,
+                        WebSiteRepository.robotRuleContent),
+                OtherWebSiteInfo.class);
     }
 }

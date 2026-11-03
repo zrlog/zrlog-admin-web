@@ -4,8 +4,7 @@ public class TemplateValuePreviewResponse {
 
     private String previewValue;
 
-    public TemplateValuePreviewResponse() {
-    }
+    public TemplateValuePreviewResponse() {}
 
     public TemplateValuePreviewResponse(String previewValue) {
         this.previewValue = previewValue;

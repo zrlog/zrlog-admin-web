@@ -12,26 +12,23 @@ import com.zrlog.admin.business.knowledge.ContentToolModels.TaxonomyList;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
+import com.zrlog.data.repository.TagRepository;
+import com.zrlog.data.repository.TypeRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.data.repository.TagRepository;
-import com.zrlog.data.repository.TypeRepository;
+import com.zrlog.model.Log;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
-import com.zrlog.model.Log;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/**
- * Content operations for tools, using the existing publishing, audit and version chain.
- */
+/** Content operations for tools, using the existing publishing, audit and version chain. */
 @Singleton
 public final class ContentToolService {
     private final jakarta.inject.Provider<TagRepository> tagProvider;
@@ -95,11 +92,16 @@ public final class ContentToolService {
         return new IllegalArgumentException(I18nUtil.getAdminBackendStringFromRes(key));
     }
 
-    public ArticleDetails details(AccountAccess account, int id, Set<String> scopes) throws SQLException {
+    public ArticleDetails details(AccountAccess account, int id, Set<String> scopes)
+            throws SQLException {
         permissionService.require(account, AccountAction.ARTICLE_READ);
         Log row = permissionService.article(account, id, false);
-        if (!ArticleAccess.canRead(account, scopes, Objects.requireNonNullElse(row.getUserId(), 0), Boolean.TRUE.equals(row.getRubbish()), Boolean.TRUE.equals(row.getPrivacy())))
-            throw new PermissionErrorException();
+        if (!ArticleAccess.canRead(
+                account,
+                scopes,
+                Objects.requireNonNullElse(row.getUserId(), 0),
+                Boolean.TRUE.equals(row.getRubbish()),
+                Boolean.TRUE.equals(row.getPrivacy()))) throw new PermissionErrorException();
         ArticleDetails details = new ArticleDetails();
         details.id = id;
         details.version = Objects.requireNonNullElse(row.getVersion(), 0L).intValue();
@@ -112,31 +114,62 @@ public final class ContentToolService {
         details.editorType = Objects.toString(row.getEditorType(), "");
         details.canComment = Boolean.TRUE.equals(row.getCanComment());
         details.recommended = Boolean.TRUE.equals(row.getRecommended());
-        details.status = status(Boolean.TRUE.equals(row.getRubbish()), Boolean.TRUE.equals(row.getPrivacy()));
+        details.status =
+                status(
+                        Boolean.TRUE.equals(row.getRubbish()),
+                        Boolean.TRUE.equals(row.getPrivacy()));
         return details;
     }
 
-    public TaxonomyList taxonomy(AccountAccess account, boolean categories, int offset, int limit) throws SQLException {
+    public TaxonomyList taxonomy(AccountAccess account, boolean categories, int offset, int limit)
+            throws SQLException {
         permissionService.require(account, AccountAction.TAXONOMY_READ);
-        List<TaxonomyEntry> rows = categories
-                ? typeProvider.get().queryList("select typeId as id,typeName as name,alias,remark as description from type order by typeId limit ? offset ?", TaxonomyEntry.class, limit + 1, offset)
-                : tagProvider.get().queryList("select tagId as id,text as name from tag order by tagId limit ? offset ?", TaxonomyEntry.class, limit + 1, offset);
+        List<TaxonomyEntry> rows =
+                categories
+                        ? typeProvider
+                                .get()
+                                .queryList(
+                                        "select typeId as id,typeName as name,alias,remark as description from type order by typeId limit ? offset ?",
+                                        TaxonomyEntry.class,
+                                        limit + 1,
+                                        offset)
+                        : tagProvider
+                                .get()
+                                .queryList(
+                                        "select tagId as id,text as name from tag order by tagId limit ? offset ?",
+                                        TaxonomyEntry.class,
+                                        limit + 1,
+                                        offset);
         TaxonomyList result = new TaxonomyList();
         if (rows.size() > limit) result.nextOffset = offset + limit;
         result.items.addAll(rows.subList(0, Math.min(rows.size(), limit)));
         return result;
     }
 
-    public SavedArticle save(AccountAccess account, String operation,
-                             JsonObject args, Set<String> scopes, HttpRequest request, AdminAuditContext audit) throws SQLException {
-        return saveWithRefresh(account, operation, args, scopes, audit, () -> refresh.accept(request));
+    public SavedArticle save(
+            AccountAccess account,
+            String operation,
+            JsonObject args,
+            Set<String> scopes,
+            HttpRequest request,
+            AdminAuditContext audit)
+            throws SQLException {
+        return saveWithRefresh(
+                account, operation, args, scopes, audit, () -> refresh.accept(request));
     }
 
     /** Non-HTTP callers supply their own bounded refresh operation. */
-    public SavedArticle saveWithRefresh(AccountAccess account, String operation, JsonObject args, Set<String> scopes,
-                                        AdminAuditContext audit, Runnable refreshOperation) throws SQLException {
+    public SavedArticle saveWithRefresh(
+            AccountAccess account,
+            String operation,
+            JsonObject args,
+            Set<String> scopes,
+            AdminAuditContext audit,
+            Runnable refreshOperation)
+            throws SQLException {
         boolean create = operation.equals("create_article");
-        permissionService.require(account, create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
+        permissionService.require(
+                account, create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
         Log old = null;
         CreateArticleRequest body;
@@ -150,7 +183,8 @@ public final class ContentToolService {
             int id = args.get("id").getAsInt();
             old = permissionService.article(account, id, false);
             version = args.get("version").getAsInt();
-            if (version != Objects.requireNonNullElse(old.getVersion(), 0L).intValue()) throw new UpdateArticleExpireException();
+            if (version != Objects.requireNonNullElse(old.getVersion(), 0L).intValue())
+                throw new UpdateArticleExpireException();
             UpdateArticleRequest update = new UpdateArticleRequest();
             update.setLogId(id);
             update.setVersion(version);
@@ -162,26 +196,38 @@ public final class ContentToolService {
             body.setRubbish(false);
             body.setPrivacy(false);
         }
-        int author = old == null ? account.getUserId() : Objects.requireNonNullElse(old.getUserId(), 0);
-        if (!ArticleAccess.canWrite(account, scopes, author, old == null || Boolean.TRUE.equals(old.getRubbish()),
-                old != null && Boolean.TRUE.equals(old.getPrivacy()), body.isRubbish(), body.isPrivacy()))
-            throw new PermissionErrorException();
+        int author =
+                old == null ? account.getUserId() : Objects.requireNonNullElse(old.getUserId(), 0);
+        if (!ArticleAccess.canWrite(
+                account,
+                scopes,
+                author,
+                old == null || Boolean.TRUE.equals(old.getRubbish()),
+                old != null && Boolean.TRUE.equals(old.getPrivacy()),
+                body.isRubbish(),
+                body.isPrivacy())) throw new PermissionErrorException();
         body.setPreserveDraftAiMessages(true);
         body.doValid();
         body.doClean();
         if (this.typeProvider.get().loadById((long) (body.getTypeId())) == null)
             throw invalid("admin.mcp.validation.category");
         publishing.prepareRequest(body);
-        if (body.getMarkdown() != null && !body.getMarkdown().isBlank() && (body.getContent() == null || body.getContent().isBlank())) {
+        if (body.getMarkdown() != null
+                && !body.getMarkdown().isBlank()
+                && (body.getContent() == null || body.getContent().isBlank())) {
             throw invalid("admin.mcp.validation.htmlRequired");
         }
-        CreateOrUpdateArticleResponse saved = create
-                ? publishing.create(account, body, audit)
-                : publishing.update(account, (UpdateArticleRequest) body, audit);
+        CreateOrUpdateArticleResponse saved =
+                create
+                        ? publishing.create(account, body, audit)
+                        : publishing.update(account, (UpdateArticleRequest) body, audit);
         SavedArticle result = new SavedArticle();
         result.id = saved.getLogId();
         result.version = create ? 0 : version + 1;
-        result.status = status(Boolean.TRUE.equals(saved.getRubbish()), Boolean.TRUE.equals(saved.getPrivacy()));
+        result.status =
+                status(
+                        Boolean.TRUE.equals(saved.getRubbish()),
+                        Boolean.TRUE.equals(saved.getPrivacy()));
         if (saved.isPublicCacheRefreshRequired()) {
             try {
                 refreshOperation.run();

@@ -18,16 +18,13 @@ import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.util.BlogBuildInfoUtil;
 import jakarta.inject.Inject;
-
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 
-/**
- * Executes an authenticated action with its request lock and cache/publication policy.
- */
+/** Executes an authenticated action with its request lock and cache/publication policy. */
 public final class AdminActionDispatcher {
     private final DistributedLock.Factory locks;
 
@@ -76,7 +73,8 @@ public final class AdminActionDispatcher {
                         + userFlag);
     }
 
-    public void dispatch(HttpRequest request, HttpResponse response, Method method) throws Exception {
+    public void dispatch(HttpRequest request, HttpResponse response, Method method)
+            throws Exception {
         Lock lock = getLock(method, request);
         if (Objects.nonNull(lock)) {
             if (!lock.tryLock()) {
@@ -107,7 +105,8 @@ public final class AdminActionDispatcher {
         cacheRefresh.updateCache(async, request, Arrays.asList(annotation.updateStaticSites()));
     }
 
-    private void doSseRefreshCache(HttpRequest request, HttpResponse response, Method method) throws Exception {
+    private void doSseRefreshCache(HttpRequest request, HttpResponse response, Method method)
+            throws Exception {
         RefreshCache annotation = method.getAnnotation(RefreshCache.class);
         if (annotation.onlyOnPostMethod() && request.getMethod() != HttpMethod.POST) {
             new MethodInterceptor().doInterceptor(request, response);
@@ -124,15 +123,16 @@ public final class AdminActionDispatcher {
                 siteTypes,
                 emitter -> emitter.send("response", invoke),
                 () -> cacheRefresh.updateCacheSynchronouslyOrThrow(request, siteTypes),
-                emitter -> emitter.send("refresh-complete", invoke)
-        );
+                emitter -> emitter.send("refresh-complete", invoke));
     }
 
-    private void doRefreshAwareMethodInterceptor(HttpRequest request, HttpResponse response, Method method) throws Exception {
+    private void doRefreshAwareMethodInterceptor(
+            HttpRequest request, HttpResponse response, Method method) throws Exception {
         if (isSseRefreshCacheRequest(request, method)) {
             doSseRefreshCache(request, response, method);
             return;
         }
-        new MethodInterceptor(() -> doRefreshCache(request, method)).doInterceptor(request, response);
+        new MethodInterceptor(() -> doRefreshCache(request, method))
+                .doInterceptor(request, response);
     }
 }

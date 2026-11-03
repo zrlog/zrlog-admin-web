@@ -8,7 +8,6 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
-
 import java.io.IOException;
 import java.util.function.Supplier;
 

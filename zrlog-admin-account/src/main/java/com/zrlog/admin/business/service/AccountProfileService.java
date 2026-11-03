@@ -6,12 +6,9 @@ import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.sql.SQLException;
 
-/**
- * Assembles account details from user data and registered passkeys.
- */
+/** Assembles account details from user data and registered passkeys. */
 @Singleton
 public class AccountProfileService {
     private final UserService users;
@@ -23,7 +20,8 @@ public class AccountProfileService {
         this.passkeys = passkeys;
     }
 
-    public UserBasicInfoResponse getBasicUserInfo(int userId, String sessionId) throws SQLException {
+    public UserBasicInfoResponse getBasicUserInfo(int userId, String sessionId)
+            throws SQLException {
         UserBasicInfoResponse profile = users.getBasicUserInfo(userId, sessionId);
         profile.setPasskeys(passkeys.list(userId));
         return profile;
@@ -34,7 +32,8 @@ public class AccountProfileService {
             String sessionId,
             UpdateAdminRequest input,
             HttpRequest request,
-            AvatarStorage storage) throws SQLException {
+            AvatarStorage storage)
+            throws SQLException {
         users.update(userId, input, request, storage);
         return getBasicUserInfo(userId, sessionId);
     }

@@ -15,12 +15,20 @@ public class UserInfoResponse {
     private boolean mfaEnabled;
     private String language;
     private UserPreferences.Appearance appearance;
-    public UserInfoResponse() {
-    }
-    public UserInfoResponse(String userName, String header, String key, CheckVersionResponse lastVersion) {
+
+    public UserInfoResponse() {}
+
+    public UserInfoResponse(
+            String userName, String header, String key, CheckVersionResponse lastVersion) {
         this(userName, header, key, lastVersion, false);
     }
-    public UserInfoResponse(String userName, String header, String key, CheckVersionResponse lastVersion, boolean mfaEnabled) {
+
+    public UserInfoResponse(
+            String userName,
+            String header,
+            String key,
+            CheckVersionResponse lastVersion,
+            boolean mfaEnabled) {
         this.userName = userName;
         this.header = header;
         this.key = key;
@@ -46,7 +54,11 @@ public class UserInfoResponse {
 
     public void setRole(String role) {
         this.role = role;
-        this.actions = java.util.Arrays.stream(com.zrlog.data.security.AccountAction.values()).filter(a -> a.getRoles().contains(role)).map(com.zrlog.data.security.AccountAction::getId).collect(java.util.stream.Collectors.toList());
+        this.actions =
+                java.util.Arrays.stream(com.zrlog.data.security.AccountAction.values())
+                        .filter(a -> a.getRoles().contains(role))
+                        .map(com.zrlog.data.security.AccountAction::getId)
+                        .collect(java.util.stream.Collectors.toList());
     }
 
     public String getLanguage() {

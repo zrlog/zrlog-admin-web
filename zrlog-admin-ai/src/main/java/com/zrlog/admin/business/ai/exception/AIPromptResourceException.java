@@ -8,5 +8,4 @@ public class AIPromptResourceException extends AbstractAdminBusinessException {
     public AIPromptResourceException(String detail) {
         super(AdminErrorCode.AI_PROMPT_RESOURCE_UNAVAILABLE, detail);
     }
-
 }

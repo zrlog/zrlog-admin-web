@@ -1,5 +1,7 @@
 package com.zrlog.admin.web;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -20,15 +22,12 @@ import com.zrlog.admin.web.interceptor.McpInterceptor;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.repository.LogRepository;
-import org.junit.Test;
-
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class AdminModuleSwitchTest {
 
@@ -49,18 +48,25 @@ public class AdminModuleSwitchTest {
             assertEquals(ui, config.getWebSetup(AdminUiWebSetup.class) != null);
             assertEquals(ui, router.getMethod("/admin", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/system/proxy", HttpMethod.GET) != null);
-            for (String removed : java.util.List.of("/admin/system/runtime", "/admin/system/resources",
-                    "/api/admin/system/runtime", "/api/admin/system/resources")) {
+            for (String removed :
+                    java.util.List.of(
+                            "/admin/system/runtime",
+                            "/admin/system/resources",
+                            "/api/admin/system/runtime",
+                            "/api/admin/system/resources")) {
                 assertNull(router.getMethod(removed, HttpMethod.GET));
             }
             assertEquals(ui, router.getMethod("/admin/system/upgrade", HttpMethod.GET) != null);
-            assertEquals(admin, router.getMethod("/api/admin/system/upgrade", HttpMethod.GET) != null);
+            assertEquals(
+                    admin, router.getMethod("/api/admin/system/upgrade", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/system/version", HttpMethod.GET) != null);
-            assertEquals(admin, router.getMethod("/api/admin/system/version", HttpMethod.GET) != null);
+            assertEquals(
+                    admin, router.getMethod("/api/admin/system/version", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/dev", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/dev/ui", HttpMethod.GET) != null);
             if (ui) {
-                for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
+                for (String page :
+                        java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
                     assertTrue(
                             config
                                     .getWebSetup(AdminResourceProvider.class)
@@ -89,35 +95,66 @@ public class AdminModuleSwitchTest {
                     else assertEquals("", page.getPageBuildId());
                 }
             }
-            assertEquals(admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
+            assertEquals(
+                    admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
             assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
             assertEquals(assets, config.getWebSetup(AttachmentStorage.class) != null);
-            assertEquals(mcp, config.getServerConfig().getInterceptors().contains(McpInterceptor.class));
-            assertEquals(access, config.getServerConfig().getInterceptors().contains(OAuthInterceptor.class));
-            assertEquals(access, config.getServerConfig().getInterceptors().contains(BearerTokenInterceptor.class));
-            assertEquals(admin, config.getServerConfig().getInterceptors().contains(AdminLoginInterceptor.class));
+            assertEquals(
+                    mcp, config.getServerConfig().getInterceptors().contains(McpInterceptor.class));
+            assertEquals(
+                    access,
+                    config.getServerConfig().getInterceptors().contains(OAuthInterceptor.class));
+            assertEquals(
+                    access,
+                    config.getServerConfig()
+                            .getInterceptors()
+                            .contains(BearerTokenInterceptor.class));
+            assertEquals(
+                    admin,
+                    config.getServerConfig()
+                            .getInterceptors()
+                            .contains(AdminLoginInterceptor.class));
             assertEquals(access, router.getMethod("/api/admin/oauth", HttpMethod.GET) != null);
-            assertEquals(access, router.getMethod("/api/webhook/message-center/notice", HttpMethod.POST) != null);
-            for (String path : new String[]{"/api/admin/article/ai",
-                    "/api/admin/article/ai/approval",
-                    "/api/admin/article/clearAiMessages",
-                    "/api/admin/article/cover/apply", "/api/admin/website/ai", "/api/admin/website/optimizeAiPrompt"}) {
+            assertEquals(
+                    access,
+                    router.getMethod("/api/webhook/message-center/notice", HttpMethod.POST)
+                            != null);
+            for (String path :
+                    new String[] {
+                        "/api/admin/article/ai",
+                        "/api/admin/article/ai/approval",
+                        "/api/admin/article/clearAiMessages",
+                        "/api/admin/article/cover/apply",
+                        "/api/admin/website/ai",
+                        "/api/admin/website/optimizeAiPrompt"
+                    }) {
                 var method = router.getMethod(path, HttpMethod.POST);
                 if (ai) assertNotNull(path, method);
                 else assertNull(path, method);
             }
             assertEquals(ai, router.getMethod("/api/admin/article/ai/run", HttpMethod.GET) != null);
-            assertEquals(ai, router.getMethod("/api/admin/article/ai/file", HttpMethod.GET) != null);
+            assertEquals(
+                    ai, router.getMethod("/api/admin/article/ai/file", HttpMethod.GET) != null);
             assertNull(router.getMethod("/api/admin/article/ai/file", HttpMethod.POST));
             assertEquals(account, router.getMethod("/api/admin/login", HttpMethod.POST) != null);
-            assertEquals(content, router.getMethod("/api/admin/article/create", HttpMethod.POST) != null);
+            assertEquals(
+                    content,
+                    router.getMethod("/api/admin/article/create", HttpMethod.POST) != null);
             assertEquals(assets, router.getMethod("/api/admin/upload", HttpMethod.POST) != null);
             if (!admin) return;
             var services = config.getServerConfig().getBindings().build();
             {
                 if (access) {
                     var oauth = services.get(OAuthService.class);
-                    assertEquals(mcp, oauth.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()).mcpResource != null);
+                    assertEquals(
+                            mcp,
+                            oauth.page(
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .requestIdentity()
+                                                            .current())
+                                            .mcpResource
+                                    != null);
                     var token = new OAuthModels.TokenRequest();
                     token.resource = oauth.mcpResource();
                     token.grant_type = "authorization_code";
@@ -129,8 +166,11 @@ public class AdminModuleSwitchTest {
                 }
             }
             if (!content) return;
-            if (ai) assertEquals(AIArticleController.class,
-                    router.getMethod("/api/admin/article/ai", HttpMethod.POST).getDeclaringClass());
+            if (ai)
+                assertEquals(
+                        AIArticleController.class,
+                        router.getMethod("/api/admin/article/ai", HttpMethod.POST)
+                                .getDeclaringClass());
             assertNotNull(router.getMethod("/api/admin/article/create", HttpMethod.POST));
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "unreachable-model");
@@ -141,16 +181,24 @@ public class AdminModuleSwitchTest {
             article.setTypeId(1L);
             article.setContent("<p>Saved without invoking a model</p>");
             article.setRubbish(true);
-            HttpRequest request = (HttpRequest) Proxy.newProxyInstance(AdminModuleSwitchTest.class.getClassLoader(),
-                    new Class<?>[]{HttpRequest.class}, (proxy, method, values) -> {
-                        if (method.getName().equals("getUri")) return "/api/admin/article-edit";
-                        if (method.getName().equals("getContextPath")) return "";
-                        if (method.getName().equals("getRemoteHost")) return "127.0.0.1";
-                        if (method.getName().equals("getScheme")) return "http";
-                        if (method.getName().equals("getHeader"))
-                            return "Host".equals(values[0]) ? "localhost:18080" : null;
-                        return null;
-                    });
+            HttpRequest request =
+                    (HttpRequest)
+                            Proxy.newProxyInstance(
+                                    AdminModuleSwitchTest.class.getClassLoader(),
+                                    new Class<?>[] {HttpRequest.class},
+                                    (proxy, method, values) -> {
+                                        if (method.getName().equals("getUri"))
+                                            return "/api/admin/article-edit";
+                                        if (method.getName().equals("getContextPath")) return "";
+                                        if (method.getName().equals("getRemoteHost"))
+                                            return "127.0.0.1";
+                                        if (method.getName().equals("getScheme")) return "http";
+                                        if (method.getName().equals("getHeader"))
+                                            return "Host".equals(values[0])
+                                                    ? "localhost:18080"
+                                                    : null;
+                                        return null;
+                                    });
             var resources = services.get(AdminResourceService.class);
             var features = services.get(FeatureLabService.class);
             {
@@ -165,20 +213,39 @@ public class AdminModuleSwitchTest {
                 assertFalse(features.featureLab().getFeature_webhook_enabled());
             }
             var articles = services.get(ArticleQueryService.class);
-            var saved = services.get(ArticlePublishingService.class).create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), article,
-                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
-            var detail = articles.loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), saved.getLogId().toString(), request);
+            var saved =
+                    services.get(ArticlePublishingService.class)
+                            .create(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .account(AdminTokenThreadLocal.getUser()),
+                                    article,
+                                    AdminAuditContexts.from(
+                                            request, AdminTokenThreadLocal.getUserId()));
+            var detail =
+                    articles.loadDetailById(
+                            AccountServicesFixture.component(db.dataSource())
+                                    .requestIdentity()
+                                    .current(),
+                            saved.getLogId().toString(),
+                            request);
             var tools =
                     services.get(ContentToolFactory.class)
                             .create(
-                                    AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
                                     java.util.Set.of("articles:read", "articles:read_drafts"),
                                     request,
                                     "en_US",
-                                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                                    AdminAuditContexts.from(
+                                            request, AdminTokenThreadLocal.getUserId()),
                                     AdminTokenThreadLocal.getUser());
             {
-                assertEquals(assets, tools.definitions("en_US").stream().anyMatch(tool -> "upload_attachment".equals(tool.name)));
+                assertEquals(
+                        assets,
+                        tools.definitions("en_US").stream()
+                                .anyMatch(tool -> "upload_attachment".equals(tool.name)));
                 var arguments = new com.google.gson.JsonObject();
                 arguments.addProperty("id", saved.getLogId());
                 var toolArticle =
@@ -189,7 +256,8 @@ public class AdminModuleSwitchTest {
             // The same article tools serve MCP without AI, and internal AI without external access.
             var knowledge =
                     new KnowledgeService(
-                            AccountServicesFixture.component(db.dataSource()).requestIdentity()::current,
+                            AccountServicesFixture.component(db.dataSource()).requestIdentity()
+                                    ::current,
                             java.util.Set.of("articles:read", "articles:read_drafts"),
                             () -> "https://blog.example",
                             () -> false,
@@ -219,15 +287,25 @@ public class AdminModuleSwitchTest {
                         Objects.requireNonNullElse(
                                         config.getWebSetup(ArticleAssistant.class),
                                         ArticleAssistant.NONE)
-                                .beginPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail.getData(), article, null));
+                                .beginPublishCheck(
+                                        com.zrlog.admin.business.ai.service.AIServiceDependencies
+                                                .actor(db.dataSource()),
+                                        detail.getData(),
+                                        article,
+                                        null));
             assertTrue(
                     services.get(com.zrlog.admin.business.service.AdminArticleService.class)
-                            .delete(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), saved.getLogId()));
+                            .delete(
+                                    AccountServicesFixture.component(db.dataSource())
+                                            .requestIdentity()
+                                            .current(),
+                                    saved.getLogId()));
         }
     }
 
     @Test
-    public void realDiscoveryEnablesAiAndCanDisableItWithoutDisablingContentOrMcp() throws Exception {
+    public void realDiscoveryEnablesAiAndCanDisableItWithoutDisablingContentOrMcp()
+            throws Exception {
         probe("");
         probe("admin-ai");
         probe("admin-access");
@@ -242,14 +320,21 @@ public class AdminModuleSwitchTest {
 
     private void probe(String disabled) throws Exception {
         Path output = Files.createTempFile("zrlog-module-probe-", ".log");
-        ProcessBuilder builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                "-cp", System.getProperty("java.class.path"), getClass().getName(), disabled)
-                .redirectErrorStream(true).redirectOutput(output.toFile());
+        ProcessBuilder builder =
+                new ProcessBuilder(
+                                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                                "-cp",
+                                System.getProperty("java.class.path"),
+                                getClass().getName(),
+                                disabled)
+                        .redirectErrorStream(true)
+                        .redirectOutput(output.toFile());
         builder.environment().put("DISABLE_MODULES", disabled);
         builder.environment().put("WEB_SETUP_STRICT", "true");
         Process process = builder.start();
         try {
-            assertTrue("Module startup timed out: " + disabled, process.waitFor(30, TimeUnit.SECONDS));
+            assertTrue(
+                    "Module startup timed out: " + disabled, process.waitFor(30, TimeUnit.SECONDS));
             assertEquals(Files.readString(output), 0, process.exitValue());
         } finally {
             process.destroyForcibly();

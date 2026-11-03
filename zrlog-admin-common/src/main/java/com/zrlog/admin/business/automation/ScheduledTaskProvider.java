@@ -2,13 +2,21 @@ package com.zrlog.admin.business.automation;
 
 import com.google.gson.JsonObject;
 import com.zrlog.data.security.AccountAccess;
-
 import java.util.List;
 
-/** Optional capability of an application plugin; registration also works without a resident timer. */
+/**
+ * Optional capability of an application plugin; registration also works without a resident timer.
+ */
 public interface ScheduledTaskProvider {
-    /** Stable registration metadata. Override to avoid loading runtime settings just to locate a provider. */
-    default List<String> types() { return definitions().stream().map(definition -> definition.type).collect(java.util.stream.Collectors.toList()); }
+    /**
+     * Stable registration metadata. Override to avoid loading runtime settings just to locate a
+     * provider.
+     */
+    default List<String> types() {
+        return definitions().stream()
+                .map(definition -> definition.type)
+                .collect(java.util.stream.Collectors.toList());
+    }
 
     List<AutomationModels.Definition> definitions();
 
@@ -16,16 +24,32 @@ public interface ScheduledTaskProvider {
     JsonObject prepare(String type, JsonObject parameters, AccountAccess actor) throws Exception;
 
     /** Optional cohesive identity: one plan per account and business object. */
-    default String instanceKey(String type, JsonObject parameters) { return null; }
+    default String instanceKey(String type, JsonObject parameters) {
+        return null;
+    }
 
-    /** Read-only guard while a submitted execution is being completed outside its original process. */
-    default boolean awaitingCompletion(String type, JsonObject parameters) throws java.sql.SQLException { return false; }
+    /**
+     * Read-only guard while a submitted execution is being completed outside its original process.
+     */
+    default boolean awaitingCompletion(String type, JsonObject parameters)
+            throws java.sql.SQLException {
+        return false;
+    }
 
-    /** The provider owns its cohesive workflow, child steps and final outcome; the scheduler executes only this task. */
-    AutomationModels.Result execute(String type, JsonObject parameters, TaskExecutionContext context) throws Exception;
+    /**
+     * The provider owns its cohesive workflow, child steps and final outcome; the scheduler
+     * executes only this task.
+     */
+    AutomationModels.Result execute(
+            String type, JsonObject parameters, TaskExecutionContext context) throws Exception;
 
-    /** Read-only proof after interruption. Never repeat the action; null means the outcome is unknown. */
-    default AutomationModels.Result recover(String type, JsonObject parameters, String runId, AccountAccess actor) throws Exception {
+    /**
+     * Read-only proof after interruption. Never repeat the action; null means the outcome is
+     * unknown.
+     */
+    default AutomationModels.Result recover(
+            String type, JsonObject parameters, String runId, AccountAccess actor)
+            throws Exception {
         return null;
     }
 }

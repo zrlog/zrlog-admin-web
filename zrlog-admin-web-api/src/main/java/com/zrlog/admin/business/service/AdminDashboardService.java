@@ -7,16 +7,15 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.service.WebsiteKvService;
-import com.zrlog.data.security.AccountAccess;
-import com.zrlog.data.security.AccountAction;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.lang.reflect.Type;
 import java.sql.SQLException;
 import java.util.*;
@@ -34,7 +33,8 @@ public class AdminDashboardService {
     private static final String FIRST_USE_CHECKLIST_DISMISSED = "dismissed";
     private static final String ITEM_KIND_CARD = "card";
     private static final Gson GSON = new Gson();
-    private static final Type CONFIG_TYPE = new TypeToken<AdminDashboardConfigResponse>() {}.getType();
+    private static final Type CONFIG_TYPE =
+            new TypeToken<AdminDashboardConfigResponse>() {}.getType();
     private static final Logger LOGGER = Logger.getLogger(AdminDashboardService.class.getName());
     private final UserPreferenceService userPreferenceService;
     private final WebsiteKvService kvService;
@@ -44,10 +44,13 @@ public class AdminDashboardService {
     private final DashboardLayoutPolicy layout;
 
     @Inject
-    public AdminDashboardService(WebsiteKvService kvService, AdminStatisticsService statisticsService,
-                                 ArticleQueryService articleService, DashboardPluginLoader plugins,
-                                 UserPreferenceService userPreferenceService,
-                                 DashboardLayoutPolicy layout) {
+    public AdminDashboardService(
+            WebsiteKvService kvService,
+            AdminStatisticsService statisticsService,
+            ArticleQueryService articleService,
+            DashboardPluginLoader plugins,
+            UserPreferenceService userPreferenceService,
+            DashboardLayoutPolicy layout) {
         this.kvService = Objects.requireNonNull(kvService);
         this.statisticsService = statisticsService;
         this.articleService = articleService;
@@ -56,7 +59,8 @@ public class AdminDashboardService {
         this.layout = layout;
     }
 
-    public AdminDashboardConfigResponse getConfig(AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO) {
+    public AdminDashboardConfigResponse getConfig(
+            AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO) {
         return getConfig(actor, request, adminTokenVO, false);
     }
 
@@ -64,7 +68,8 @@ public class AdminDashboardService {
         if (!FIRST_USE_CHECKLIST_PENDING.equals(kvService.getString(FIRST_USE_CHECKLIST_KEY))) {
             return null;
         }
-        return new FirstUseChecklistResponse(FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_PENDING);
+        return new FirstUseChecklistResponse(
+                FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_PENDING);
     }
 
     public FirstUseChecklistResponse dismissFirstUseChecklist(int version) throws SQLException {
@@ -74,10 +79,12 @@ public class AdminDashboardService {
         if (!kvService.putString(FIRST_USE_CHECKLIST_KEY, FIRST_USE_CHECKLIST_DISMISSED)) {
             throw new SQLException("Unable to persist first-use checklist status");
         }
-        return new FirstUseChecklistResponse(FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_DISMISSED);
+        return new FirstUseChecklistResponse(
+                FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_DISMISSED);
     }
 
-    public IndexResponse loadIndex(AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO) {
+    public IndexResponse loadIndex(
+            AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO) {
         List<String> tips = loadWelcomeTips();
         Collections.shuffle(tips);
         AdminDashboardConfigResponse config = getConfig(actor, request, adminTokenVO, true);
@@ -87,22 +94,31 @@ public class AdminDashboardService {
         try {
             CompletableFuture<StatisticsInfoResponse> statistics =
                     statisticsService.statisticsInfo(executor, auditTrailEnabled, actor);
-            CompletableFuture<List<ArticleActivityData>> activity = activityEnabled
-                    ? articleService.activityDataList(executor)
-                    : CompletableFuture.completedFuture(Collections.emptyList());
+            CompletableFuture<List<ArticleActivityData>> activity =
+                    activityEnabled
+                            ? articleService.activityDataList(executor)
+                            : CompletableFuture.completedFuture(Collections.emptyList());
             CompletableFuture.allOf(statistics, activity).join();
-            attachCardData(config, statistics.join(),
+            attachCardData(
+                    config,
+                    statistics.join(),
                     I18nUtil.getAdminBackendStringFromRes("admin.index.welcomeTip"),
-                    Collections.singletonList(tips.get(0)), BlogBuildInfoUtil.getVersionInfo(), activity.join());
+                    Collections.singletonList(tips.get(0)),
+                    BlogBuildInfoUtil.getVersionInfo(),
+                    activity.join());
             return new IndexResponse(config, getFirstUseChecklist());
         } finally {
             executor.shutdown();
         }
     }
 
-    void attachCardData(AdminDashboardConfigResponse config, StatisticsInfoResponse statistics,
-                        String welcomeTip, List<String> tips, String versionInfo,
-                        List<ArticleActivityData> activity) {
+    void attachCardData(
+            AdminDashboardConfigResponse config,
+            StatisticsInfoResponse statistics,
+            String welcomeTip,
+            List<String> tips,
+            String versionInfo,
+            List<ArticleActivityData> activity) {
         if (config == null || config.getCards() == null) {
             return;
         }
@@ -119,9 +135,12 @@ public class AdminDashboardService {
             } else if (Objects.equals("activity", item.getId())) {
                 item.setData(activity);
             } else if (Objects.equals("auditTrail", item.getId())) {
-                item.setData(new AdminDashboardAuditTrailDataResponse(statistics.getAuditLogs(), false));
+                item.setData(
+                        new AdminDashboardAuditTrailDataResponse(statistics.getAuditLogs(), false));
             } else if (Objects.equals("dataInsights", item.getId())) {
-                item.setData(new AdminDashboardDataInsightsResponse(statistics.getTypeData(), statistics.getTagData()));
+                item.setData(
+                        new AdminDashboardDataInsightsResponse(
+                                statistics.getTypeData(), statistics.getTagData()));
             }
         }
     }
@@ -138,13 +157,19 @@ public class AdminDashboardService {
         return tips;
     }
 
-    public AdminDashboardConfigResponse getConfig(AccountAccess actor, HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {
-        AdminDashboardConfigResponse savedConfig =
-                this.userPreferenceService.dashboard(actor);
+    public AdminDashboardConfigResponse getConfig(
+            AccountAccess actor,
+            HttpRequest request,
+            AdminTokenVO adminTokenVO,
+            boolean preloadSurfaces) {
+        AdminDashboardConfigResponse savedConfig = this.userPreferenceService.dashboard(actor);
         if (savedConfig == null) savedConfig = readSavedConfig();
-        List<AdminDashboardCardConfigResponse> cards = layout.mergeCards(layout.extractCardItems(savedConfig.getCards()));
-        List<AdminDashboardCardResponse> pluginPanels = layout.mergePluginPanels(
-                layout.extractPluginItems(savedConfig.getCards()), plugins.loadStandardPluginPanels(request, adminTokenVO));
+        List<AdminDashboardCardConfigResponse> cards =
+                layout.mergeCards(layout.extractCardItems(savedConfig.getCards()));
+        List<AdminDashboardCardResponse> pluginPanels =
+                layout.mergePluginPanels(
+                        layout.extractPluginItems(savedConfig.getCards()),
+                        plugins.loadStandardPluginPanels(request, adminTokenVO));
         if (preloadSurfaces) {
             plugins.preloadSurfaceData(pluginPanels, request, adminTokenVO);
         }
@@ -157,12 +182,18 @@ public class AdminDashboardService {
         return config;
     }
 
-    public AdminDashboardConfigResponse saveConfig(AccountAccess actor, AdminDashboardConfigRequest request, HttpRequest httpRequest,
-                                                   AdminTokenVO adminTokenVO) {
+    public AdminDashboardConfigResponse saveConfig(
+            AccountAccess actor,
+            AdminDashboardConfigRequest request,
+            HttpRequest httpRequest,
+            AdminTokenVO adminTokenVO) {
         List<AdminDashboardCardResponse> requestCards = layout.toCardResponses(request.getCards());
-        List<AdminDashboardCardConfigResponse> cards = layout.mergeCards(layout.extractCardItems(requestCards));
-        List<AdminDashboardCardResponse> pluginPanels = layout.mergePluginPanels(
-                layout.extractPluginItems(requestCards), plugins.loadStandardPluginPanels(httpRequest, adminTokenVO));
+        List<AdminDashboardCardConfigResponse> cards =
+                layout.mergeCards(layout.extractCardItems(requestCards));
+        List<AdminDashboardCardResponse> pluginPanels =
+                layout.mergePluginPanels(
+                        layout.extractPluginItems(requestCards),
+                        plugins.loadStandardPluginPanels(httpRequest, adminTokenVO));
         List<AdminDashboardCardResponse> dashboardCards = layout.toItems(cards, pluginPanels);
         layout.clearRuntimeData(dashboardCards);
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
@@ -185,5 +216,4 @@ public class AdminDashboardService {
             return new AdminDashboardConfigResponse();
         }
     }
-
 }

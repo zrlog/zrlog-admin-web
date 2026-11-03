@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public enum AIProviderType {
-
     DEEP_SEEK("https://api.deepseek.com"),
     OPEN_AI("https://api.openai.com/v1"),
     QWEN("https://dashscope.aliyuncs.com/compatible-mode/v1"),

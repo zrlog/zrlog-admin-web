@@ -54,7 +54,9 @@ public class GenerateArticleTitleRequest implements Validator {
 
     @Override
     public void doValid() {
-        if (StringUtils.isEmpty(title) && StringUtils.isEmpty(markdown) && StringUtils.isEmpty(digest)
+        if (StringUtils.isEmpty(title)
+                && StringUtils.isEmpty(markdown)
+                && StringUtils.isEmpty(digest)
                 && StringUtils.isEmpty(selectedText)) {
             throw new ArgsException("markdown");
         }

@@ -2,7 +2,6 @@ package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.common.cache.dto.TagDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
-
 import java.util.List;
 
 public class AdminDashboardDataInsightsResponse {
@@ -10,8 +9,7 @@ public class AdminDashboardDataInsightsResponse {
     private List<TypeDTO> typeData;
     private List<TagDTO> tagData;
 
-    public AdminDashboardDataInsightsResponse() {
-    }
+    public AdminDashboardDataInsightsResponse() {}
 
     public AdminDashboardDataInsightsResponse(List<TypeDTO> typeData, List<TagDTO> tagData) {
         this.typeData = typeData;

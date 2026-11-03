@@ -1,12 +1,11 @@
 package com.zrlog.admin.business.automation;
 
 import com.zrlog.common.Validator;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public final class AutomationViews {
-    private AutomationViews() { }
+    private AutomationViews() {}
 
     public static class Task extends AutomationModels.Plan {
         public boolean systemTask;
@@ -67,7 +66,8 @@ public final class AutomationViews {
 
         @Override
         public void doValid() {
-            if (revision == null || revision < 0) throw new IllegalArgumentException("automation.invalidPlan");
+            if (revision == null || revision < 0)
+                throw new IllegalArgumentException("automation.invalidPlan");
         }
     }
 }

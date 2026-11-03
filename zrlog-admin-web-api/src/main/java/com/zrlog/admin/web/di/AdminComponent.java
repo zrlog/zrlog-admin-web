@@ -21,17 +21,16 @@ import dagger.BindsInstance;
 import dagger.Component;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 @Singleton
 @Component(
         modules = {
-                DataBindingsModule.class,
-                ServiceBindingsModule.class,
-                AccountBindingsModule.class,
-                AdminModule.class
+            DataBindingsModule.class,
+            ServiceBindingsModule.class,
+            AccountBindingsModule.class,
+            AdminModule.class
         })
 public interface AdminComponent {
     AdminDevController adminDevController();
