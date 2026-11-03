@@ -72,6 +72,8 @@ export type ChildResult = {
     children?: ChildResult[];
 };
 export type Run = {
+    version: number;
+    ownerId: number;
     id: string;
     taskId: string;
     taskName: string;

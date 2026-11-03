@@ -31,8 +31,16 @@ public final class AutomationService {
     }
 
     public List<AutomationModels.Definition> definitions(AccountAccess actor) {
-        AccountAccess current = authority.current(actor);
-        return registry.definitions().stream()
+        return definitionsFor(authority.current(actor), definitions());
+    }
+
+    List<AutomationModels.Definition> definitions() {
+        return registry.definitions();
+    }
+
+    List<AutomationModels.Definition> definitionsFor(
+            AccountAccess current, List<AutomationModels.Definition> definitions) {
+        return definitions.stream()
                 .filter(
                         definition -> {
                             try {
@@ -46,12 +54,11 @@ public final class AutomationService {
                 .collect(Collectors.toList());
     }
 
-    List<String> requiredActions(String type) {
-        return registry.require(type).definition.requiredActions;
+    public List<StoredTask> tasks(AccountAccess actor, int offset) throws SQLException {
+        return tasksFor(authority.current(actor), offset);
     }
 
-    public List<StoredTask> tasks(AccountAccess actor, int offset) throws SQLException {
-        actor = authority.current(actor);
+    List<StoredTask> tasksFor(AccountAccess actor, int offset) throws SQLException {
         return store.tasks(actor.getUserId(), 100, offset).stream()
                 .map(row -> row.value)
                 .collect(Collectors.toList());
@@ -202,7 +209,7 @@ public final class AutomationService {
     public List<AutomationModels.Run> runs(
             AccountAccess actor, String taskId, int limit, int offset) throws SQLException {
         actor = authority.current(actor);
-        // Owner prefix also protects historical runs after their task has been deleted.
+        // Recorded ownership also protects runs after their task has been deleted.
         return store
                 .visibleRuns(actor.getUserId(), systemTaskIds(actor), taskId, limit, offset)
                 .stream()
@@ -213,17 +220,42 @@ public final class AutomationService {
     public AutomationModels.Run run(AccountAccess actor, String id) throws SQLException {
         actor = authority.current(actor);
         AutomationStore.Snapshot<AutomationModels.Run> row = store.run(id);
+        var systemIds = systemTaskIds(actor);
         if (row == null
                 || (row.value.ownerId != actor.getUserId()
-                        && !systemTaskIds(actor).contains(row.value.taskId)))
+                        && !systemIds.contains(row.value.taskId)))
             throw new PermissionErrorException();
-        if (registry.definitions().stream()
+        if (registry.systemDefinitions().stream()
                         .anyMatch(
                                 definition ->
                                         definition.systemTask
                                                 && definition.type.equals(row.value.taskType))
-                && !systemTaskIds(actor).contains(row.value.taskId))
+                && !systemIds.contains(row.value.taskId)) throw new PermissionErrorException();
+        return row.value;
+    }
+
+    public AutomationModels.Run deleteRun(AccountAccess actor, String id, long version)
+            throws SQLException {
+        actor = authority.current(actor);
+        var row = store.run(id);
+        if (row == null
+                || row.value.ownerId != actor.getUserId()
+                        && !(row.value.ownerId == 0
+                                && systemTaskIds(actor).contains(row.value.taskId)))
             throw new PermissionErrorException();
+        if (row.value.ownerId == 0)
+            TaskAuthority.require(
+                    actor, com.zrlog.data.security.AccountAction.SYSTEM_MANAGE.getId());
+        var receipt =
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class);
+        if (receipt != null
+                && !"confirmed".equals(receipt.value.state)
+                && id.equals(receipt.value.runId))
+            throw new IllegalStateException("automation.reviewRequired");
+        if (row.version != version || !store.deleteRun(row, actor))
+            throw new IllegalStateException("automation.runChanged");
         return row.value;
     }
 
@@ -235,27 +267,19 @@ public final class AutomationService {
     }
 
     public List<StoredTask> systemTasks(AccountAccess actor) throws SQLException {
-        List<StoredTask> result = new java.util.ArrayList<>();
-        var keys =
-                definitions(actor).stream()
-                        .filter(definition -> definition.systemTask)
-                        .map(
-                                definition ->
-                                        AutomationStore.TASK_PREFIX
-                                                + AutomationDefaults.systemId(definition.type))
-                        .collect(java.util.stream.Collectors.toList());
-        var batch = store.readBatch(keys);
-        for (String key : keys) {
-            var row = batch.get(key, StoredTask.class);
-            if (row != null) result.add(row.value);
-        }
-        return result;
+        return store.systemTasks(systemTaskIds(authority.current(actor)));
     }
 
-    List<String> systemTaskIds(AccountAccess actor) throws SQLException {
+    /** Caller has validated the actor for this operation; IDs follow the registered definitions. */
+    List<String> systemTaskIds(AccountAccess actor) {
         List<String> result = new java.util.ArrayList<>();
-        for (var task : systemTasks(actor)) {
-            result.add(task.id);
+        for (var definition : registry.systemDefinitions()) {
+            try {
+                definition.requiredActions.forEach(action -> TaskAuthority.require(actor, action));
+                result.add(AutomationDefaults.systemId(definition.type));
+            } catch (PermissionErrorException ignored) {
+                /* Hidden unless all current permissions match. */
+            }
         }
         return result;
     }

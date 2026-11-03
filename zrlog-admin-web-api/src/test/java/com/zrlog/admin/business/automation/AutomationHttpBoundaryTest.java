@@ -55,6 +55,9 @@ public class AutomationHttpBoundaryTest {
             run.scheduledAt = run.startedAt;
             run.trigger = "external";
             run.status = "running";
+            if (run.taskName == null) run.taskName = "Task";
+            if (run.taskType == null) run.taskType = "assistant.reminder";
+            if (run.trigger == null) run.trigger = "internal";
             store.insertRun(run);
             var active = task.copy(StoredTask.class);
             active.activeRun = run;
@@ -123,6 +126,9 @@ public class AutomationHttpBoundaryTest {
                 run.taskName = "History " + i;
                 run.status = "success";
                 run.startedAt = now + i;
+                if (run.taskName == null) run.taskName = "Task";
+                if (run.taskType == null) run.taskType = "assistant.reminder";
+                if (run.trigger == null) run.trigger = "internal";
                 store.insertRun(run);
             }
             var first = history(db, "?page=1&taskId=");
@@ -145,6 +151,50 @@ public class AutomationHttpBoundaryTest {
         }
     }
 
+    @Test
+    public void deletingACompletedRunUsesTheHttpRouteAndLeavesItsTaskIntact() throws Exception {
+        try (var db = InMemoryZrLogDatabase.openWebApi()) {
+            var component = db.component(AutomationComponent.class);
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
+            var plan = new AutomationModels.Plan();
+            plan.name = "Review draft";
+            plan.type = "assistant.reminder";
+            plan.schedule = new AutomationModels.Schedule();
+            plan.schedule.at = System.currentTimeMillis() + 60000;
+            plan.parameters.addProperty("text", "Review the draft");
+            var task = component.tasks().save(actor, plan);
+            var run = component.engine().runNow(actor, task.id, task.revision, 10000);
+            String body = "{\"id\":\"" + run.id + "\",\"version\":" + run.version + "}";
+            var config = db.config().getServerConfig();
+            var requestConfig = new RequestConfig();
+            requestConfig.setMaxRequestBodySize(1024);
+            var decoder =
+                    new HttpRequestDecoderImpl(requestConfig, new ApplicationContext(config), null);
+            assertTrue(
+                    decoder.doDecode(
+                                    ByteBuffer.wrap(
+                                            ("POST /api/admin/assistant/deleteRun HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: "
+                                                            + body.getBytes(StandardCharsets.UTF_8)
+                                                                    .length
+                                                            + "\r\n\r\n"
+                                                            + body)
+                                                    .getBytes(StandardCharsets.UTF_8)))
+                            .getKey());
+            var route =
+                    config.getRouter().getMethod("/api/admin/assistant/deleteRun", HttpMethod.POST);
+            var controller =
+                    (com.zrlog.admin.web.controller.api.AutomationController)
+                            Controller.buildController(route, decoder.getRequest(), null);
+            var result = controller.deleteRun();
+            assertEquals(0, result.getError());
+            assertEquals(true, result.getData());
+            assertNull(component.store().run(run.id));
+            assertNotNull(component.store().task(task.id));
+            assertNull(
+                    config.getRouter().getMethod("/api/admin/assistant/deleteRun", HttpMethod.GET));
+        }
+    }
+
     private AutomationViews.Runs history(InMemoryZrLogDatabase db, String query) throws Exception {
         var config = db.config().getServerConfig();
         var decoder =
@@ -164,6 +214,45 @@ public class AutomationHttpBoundaryTest {
                 (com.zrlog.admin.web.controller.api.AutomationController)
                         Controller.buildController(route, request, null);
         return controller.runs().getData();
+    }
+
+    @Test
+    public void existingTaskKeepsItsDeclaredPermissionsAfterAccountDowngrade() throws Exception {
+        try (var db = InMemoryZrLogDatabase.openWebApi()) {
+            var component = db.component(AutomationComponent.class);
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
+            var definition = component.registry().require("article.publish").definition;
+            var task = new StoredTask();
+            task.id = AutomationStore.ownerPrefix(1) + UUID.randomUUID();
+            task.ownerId = 1;
+            task.name = "Publish reviewed article";
+            task.type = definition.type;
+            task.revision = 1L;
+            task.schedule = new AutomationModels.Schedule();
+            task.schedule.at = System.currentTimeMillis() + 60000;
+            task.executionActions = definition.requiredActions;
+            component.store().insertTask(task, actor);
+            db.execute("UPDATE user SET role=? WHERE userId=?", "contributor", 1);
+
+            var config = db.config().getServerConfig();
+            var decoder =
+                    new HttpRequestDecoderImpl(
+                            new RequestConfig(), new ApplicationContext(config), null);
+            assertTrue(
+                    decoder.doDecode(
+                                    ByteBuffer.wrap(
+                                            "GET /api/admin/assistant HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                                                    .getBytes(StandardCharsets.UTF_8)))
+                            .getKey());
+            var route = config.getRouter().getMethod("/api/admin/assistant", HttpMethod.GET);
+            var controller =
+                    (com.zrlog.admin.web.controller.api.AutomationController)
+                            Controller.buildController(route, decoder.getRequest(), null);
+            var overview = controller.index().getData();
+            assertTrue(
+                    overview.definitions.stream().noneMatch(item -> item.type.equals(task.type)));
+            assertEquals(definition.requiredActions, overview.tasks.get(0).requiredActions);
+        }
     }
 
     @Test

@@ -18,6 +18,13 @@ public interface ScheduledTaskProvider {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    /** Site task visibility uses permission metadata, without probing personal/AI capabilities. */
+    default List<AutomationModels.Definition> systemDefinitions() {
+        return definitions().stream()
+                .filter(definition -> definition.systemTask)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     List<AutomationModels.Definition> definitions();
 
     /** Validate and normalize provider parameters with the user's current permissions. */

@@ -36,6 +36,11 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
+    public List<AutomationModels.Definition> systemDefinitions() {
+        return List.of();
+    }
+
+    @Override
     public List<String> types() {
         return List.of("article.publish");
     }

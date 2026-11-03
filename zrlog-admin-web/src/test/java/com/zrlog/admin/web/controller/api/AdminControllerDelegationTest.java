@@ -77,10 +77,25 @@ public class AdminControllerDelegationTest {
 
     private static UpgradeExecutionCoordinator upgradeExecutions(InMemoryZrLogDatabase db) {
         return new UpgradeExecutionCoordinator(
-                new AutomationStore(() -> new WebSiteRepository(db.dataSource())),
+                new AutomationStore(
+                        () -> new WebSiteRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantNoticeReadRepository(
+                                        db.dataSource())),
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource())));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource())));
     }
 
     private static void setControllerRequest(Controller controller, HttpRequest request)
@@ -1765,9 +1780,19 @@ public class AdminControllerDelegationTest {
             assertFalse(conflict.headers.containsKey("X-Accel-Buffering"));
 
             var previous =
-                    new AutomationStore(() -> new WebSiteRepository(db.dataSource()))
+                    new AutomationStore(
+                                    () -> new WebSiteRepository(db.dataSource()),
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AssistantTaskRepository(db.dataSource()),
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AssistantTaskRunRepository(db.dataSource()),
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AssistantNoticeReadRepository(db.dataSource()))
                             .read(
-                                    "assistant.v1.upgrade",
+                                    "assistant.v2.upgrade",
                                     com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider
                                             .Receipt.class)
                             .value;

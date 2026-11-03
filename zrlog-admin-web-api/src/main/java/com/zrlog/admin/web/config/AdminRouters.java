@@ -17,6 +17,7 @@ public class AdminRouters {
         router.addMapper("/api/admin/assistant/delete", AutomationController.class, "delete");
         router.addMapper("/api/admin/assistant/run", AutomationController.class, "run");
         router.addMapper("/api/admin/assistant/runs", AutomationController.class, "runs");
+        router.addMapper("/api/admin/assistant/deleteRun", AutomationController.class, "deleteRun");
         router.addMapper("/api/admin/assistant/detail", AutomationController.class, "detail");
         router.addMapper("/api/admin/assistant/notices", AutomationController.class, "notices");
         router.addMapper(

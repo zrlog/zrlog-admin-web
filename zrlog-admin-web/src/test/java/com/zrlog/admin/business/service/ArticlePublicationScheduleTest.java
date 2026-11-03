@@ -93,8 +93,13 @@ public class ArticlePublicationScheduleTest {
         return new AutomationEngine(
                 automations.store(),
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource())),
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource())),
                 automations.registry(),
                 () -> later + 1000);
     }

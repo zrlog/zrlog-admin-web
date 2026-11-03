@@ -53,11 +53,27 @@ public class AutomationEngineTest {
                         : backend.equals("web-api")
                                 ? InMemoryZrLogDatabase.openWebApi()
                                 : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        store =
+                new AutomationStore(
+                        () -> new WebSiteRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantNoticeReadRepository(
+                                        db.dataSource()));
         authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         definition.type = "test.reminder";
         definition.titleKey = "reminder";
@@ -240,7 +256,7 @@ public class AutomationEngineTest {
     }
 
     @Test
-    public void retentionPreservesActiveRunsAndOtherAccountsWhileLimitingFinishedHistory()
+    public void retentionUsesAgeWithoutACountLimitAndPreservesActiveRunsAndOtherAccounts()
             throws Exception {
         long time = now.get();
         String taskId = AutomationStore.ownerPrefix(1) + java.util.UUID.randomUUID();
@@ -256,6 +272,9 @@ public class AutomationEngineTest {
             run.startedAt = time + index;
             run.finishedAt = time + index;
             run.status = "success";
+            if (run.taskName == null) run.taskName = "Task";
+            if (run.taskType == null) run.taskType = "assistant.reminder";
+            if (run.trigger == null) run.trigger = "internal";
             store.insertRun(run);
         }
         var active = new AutomationModels.Run();
@@ -267,9 +286,12 @@ public class AutomationEngineTest {
         active.taskId = taskId;
         active.ownerId = 1;
         active.status = "running";
+        if (active.taskName == null) active.taskName = "Task";
+        if (active.taskType == null) active.taskType = "assistant.reminder";
+        if (active.trigger == null) active.trigger = "internal";
         store.insertRun(active);
-        assertEquals(5, store.pruneRuns(1, now.get()));
-        assertEquals(501, store.runCount(1, null));
+        assertEquals(0, store.pruneRuns(1, now.get()));
+        assertEquals(506, store.runCount(1, null));
         assertNotNull(store.run(active.id));
         assertEquals(0, store.pruneRuns(2, now.get() + java.time.Duration.ofDays(100).toMillis()));
         assertEquals(64, store.pruneRuns(1, now.get() + java.time.Duration.ofDays(100).toMillis()));
@@ -364,12 +386,10 @@ public class AutomationEngineTest {
         AtomicBoolean paused = new AtomicBoolean();
         db.beforeWebApiUpdate(
                 (sql, args) -> {
-                    if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")
+                    if (sql.startsWith("UPDATE `assistant_task`")
                             && !sql.contains("FROM user")
-                            && (AutomationStore.TASK_PREFIX + task.id).equals(args[3])
-                            && AutomationStore.JSON.fromJson(args[0].toString(), StoredTask.class)
-                                            .activeRun
-                                    == null
+                            && java.util.Arrays.asList(args).contains(task.id)
+                            && args[13] == null
                             && paused.compareAndSet(false, true)) {
                         try {
                             service.setEnabled(actor, task.id, task.revision, false);
@@ -482,7 +502,7 @@ public class AutomationEngineTest {
         AtomicBoolean changed = new AtomicBoolean();
         db.beforeWebApiUpdate(
                 (sql, args) -> {
-                    if (sql.startsWith("UPDATE `website` SET `value`=?, `remark`=?")
+                    if (sql.startsWith("UPDATE `assistant_task`")
                             && changed.compareAndSet(false, true)) {
                         db.execute("UPDATE user SET enabled=? WHERE userId=?", false, 1);
                     }

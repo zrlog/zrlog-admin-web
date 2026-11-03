@@ -1,4 +1,16 @@
-import { Alert, Button, Descriptions, Drawer, Pagination, Select, Space, Tabs, Typography, Tooltip } from "antd";
+import {
+    Alert,
+    Button,
+    Popconfirm,
+    Descriptions,
+    Drawer,
+    Pagination,
+    Select,
+    Space,
+    Tabs,
+    Typography,
+    Tooltip,
+} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -15,6 +27,8 @@ import RunChildren from "./RunChildren";
 import RunHistory from "./RunHistory";
 import { useAssistantRequest } from "./use-assistant-request";
 import { canAccessPage } from "../../utils/account-access";
+import { removeBackgroundTaskByKey } from "../../utils/background-task-store";
+import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
 import ProposalForm from "./ProposalForm";
 import type { Overview, Plan, Run, Runs, Task } from "./types";
 
@@ -33,6 +47,7 @@ export default function Automations({
     const [filter, setFilter] = useState<string>();
     const [detail, setDetail] = useState<Run>();
     const historyTrigger = useRef<HTMLElement | null>(null);
+    const historyPanel = useRef<HTMLElement | null>(null);
     useEffect(() => {
         if (detail || !historyTrigger.current) return;
         const trigger = historyTrigger.current;
@@ -132,7 +147,7 @@ export default function Automations({
         />
     );
     const history = (
-        <section className={cx(styles.panel, styles.goals)} aria-label={res.history}>
+        <section ref={historyPanel} tabIndex={-1} className={cx(styles.panel, styles.goals)} aria-label={res.history}>
             <div className={styles.toolbar}>
                 <Select
                     allowClear
@@ -152,7 +167,10 @@ export default function Automations({
                 onDetail={(run) => {
                     historyTrigger.current =
                         document.activeElement instanceof HTMLElement ? document.activeElement : null;
-                    setDetail(run);
+                    setSearchParams((params) => {
+                        params.set("runId", run.id);
+                        return params;
+                    });
                 }}
                 renderStatus={status}
             />
@@ -259,6 +277,47 @@ export default function Automations({
             )}
             <Drawer
                 title={res.detail}
+                extra={
+                    detail &&
+                    detail.finishedAt &&
+                    detail.status !== "running" &&
+                    (detail.ownerId !== 0 || overview.canManageScheduler) ? (
+                        <Popconfirm
+                            title={res.deleteRun}
+                            description={res.deleteRunHelp}
+                            okText={res.deleteRun}
+                            cancelText={getRes().cancel}
+                            okButtonProps={{ danger: true, loading: busy }}
+                            onConfirm={async () => {
+                                if (disabled) return;
+                                setBusy(true);
+                                try {
+                                    await request("deleteRun", { id: detail.id, version: detail.version });
+                                    removeBackgroundTaskByKey(ASSISTANT_NOTICE_PREFIX + detail.id);
+                                    historyTrigger.current = historyPanel.current;
+                                    setDetail(undefined);
+                                    setSearchParams(
+                                        (params) => {
+                                            params.delete("runId");
+                                            return params;
+                                        },
+                                        { replace: true }
+                                    );
+                                    const lastPage = Math.max(1, Math.ceil((runs.total - 1) / runs.pageSize));
+                                    await loadRuns(Math.min(runs.page, lastPage));
+                                } catch {
+                                    /* The request boundary displays the error. */
+                                } finally {
+                                    setBusy(false);
+                                }
+                            }}
+                        >
+                            <Button danger disabled={disabled}>
+                                {res.deleteRun}
+                            </Button>
+                        </Popconfirm>
+                    ) : undefined
+                }
                 open={!!detail}
                 focusable={{ focusTriggerAfterClose: !historyTrigger.current }}
                 onClose={() => {

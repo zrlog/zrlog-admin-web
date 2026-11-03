@@ -40,51 +40,33 @@ public final class AutomationNotificationService {
         TaskAuthority.require(actor, AccountAction.SESSION.getId());
         List<String> systemIds = tasks == null ? List.of() : tasks.systemTaskIds(actor);
         List<MessageCenterNoticeResponse> notices = new ArrayList<>();
-        // Same bounded recent-history window as retention; no unbounded scan on a FaaS request.
-        long oldest = System.currentTimeMillis() - java.time.Duration.ofDays(90).toMillis();
-        for (int offset = 0; offset < 1000 && notices.size() < 50; offset += 100) {
-            var rows = store.visibleRuns(actor.getUserId(), systemIds, null, 100, offset);
-            List<String> readKeys = new ArrayList<>();
-            for (var row : rows) {
-                var run = row.value;
-                if (systemIds.contains(run.taskId) && isNotice(run) && run.finishedAt >= oldest)
-                    readKeys.add(readKey(actor, run.id));
+        for (var row : store.unreadNotices(actor.getUserId(), systemIds, 50)) {
+            AutomationModels.Run run = row.value;
+            AutomationViews.Run view = AutomationDashboard.run(run);
+            MessageCenterNoticeResponse.OperationTaskPayload payload =
+                    new MessageCenterNoticeResponse.OperationTaskPayload();
+            payload.setTitle(view.taskName);
+            String description = Objects.toString(view.summary, "");
+            if (run.result != null && run.result.text != null && !run.result.text.isBlank()) {
+                description += (description.isEmpty() ? "" : "\n") + run.result.text;
             }
-            var readStates = store.readBatch(readKeys);
-            for (var row : rows) {
-                AutomationModels.Run run = row.value;
-                boolean shared = systemIds.contains(run.taskId);
-                if (!isNotice(run) || run.finishedAt < oldest) continue;
-                if (shared
-                        ? readStates.get(readKey(actor, run.id), Long.class) != null
-                        : run.noticeReadAt != null) continue;
-                AutomationViews.Run view = AutomationDashboard.run(run);
-                MessageCenterNoticeResponse.OperationTaskPayload payload =
-                        new MessageCenterNoticeResponse.OperationTaskPayload();
-                payload.setTitle(view.taskName);
-                String description = Objects.toString(view.summary, "");
-                if (run.result != null && run.result.text != null && !run.result.text.isBlank()) {
-                    description += (description.isEmpty() ? "" : "\n") + run.result.text;
-                }
-                payload.setDescription(
-                        description.length() > 1000
-                                ? description.substring(0, 1000) + "…"
-                                : description);
-                payload.setSource(I18nUtil.getAdminBackendStringFromRes("admin.assistant.manage"));
-                payload.setActionLabel(
-                        I18nUtil.getAdminBackendStringFromRes("admin.assistant.notice.detail"));
-                payload.setActionPath("/assistant?runId=" + run.id);
-                payload.setClosable(true);
-                String status =
-                        "failed".equals(run.status)
-                                ? "error"
-                                : ATTENTION.contains(run.status) ? "warning" : "notice";
-                notices.add(
-                        MessageCenterNoticeResponse.of(
-                                PREFIX + run.id, "operationTask", status, run.finishedAt, payload));
-                if (notices.size() == 50) break;
-            }
-            if (rows.size() < 100) break;
+            payload.setDescription(
+                    description.length() > 1000
+                            ? description.substring(0, 1000) + "…"
+                            : description);
+            payload.setSource(I18nUtil.getAdminBackendStringFromRes("admin.assistant.manage"));
+            payload.setActionLabel(
+                    I18nUtil.getAdminBackendStringFromRes("admin.assistant.notice.detail"));
+            payload.setActionPath("/assistant?runId=" + run.id);
+            payload.setClosable(true);
+            String status =
+                    "failed".equals(run.status)
+                            ? "error"
+                            : ATTENTION.contains(run.status) ? "warning" : "notice";
+            notices.add(
+                    MessageCenterNoticeResponse.of(
+                            PREFIX + run.id, "operationTask", status, run.finishedAt, payload));
+            if (notices.size() == 50) break;
         }
         return notices;
     }
@@ -97,33 +79,15 @@ public final class AutomationNotificationService {
         String id = taskKey.substring(PREFIX.length());
         AutomationStore.requireRunId(id);
         List<String> systemIds = tasks == null ? List.of() : tasks.systemTaskIds(actor);
-        var shared = store.run(id);
-        if (shared != null && systemIds.contains(shared.value.taskId)) {
-            if (!isNotice(shared.value)) return false;
-            String key = readKey(actor, id);
-            var previous = store.read(key, Long.class);
-            return previous != null
-                    || store.markRunRead(shared, actor)
-                    || store.read(key, Long.class) != null;
-        }
-        if (!id.startsWith(AutomationStore.ownerPrefix(actor.getUserId())))
+        var row = store.run(id);
+        if (row == null) return true;
+        if (row.value.ownerId != actor.getUserId()
+                && !(row.value.ownerId == 0 && systemIds.contains(row.value.taskId)))
             throw new PermissionErrorException();
-        for (int attempt = 0; attempt < 3; attempt++) {
-            var row = store.run(id);
-            if (row == null) return true; // A retained notice may expire before it is dismissed.
-            if (row.value.ownerId != actor.getUserId()) throw new PermissionErrorException();
-            if (!isNotice(row.value)) return false;
-            if (row.value.noticeReadAt != null) return true;
-            var next = row.copy(AutomationModels.Run.class);
-            next.noticeReadAt = System.currentTimeMillis();
-            if (store.writeAuthorized(row.key, row, next, actor)) return true;
-            actor = authority.current(actor);
-        }
-        throw new IllegalStateException("automation.runChanged");
-    }
-
-    private static String readKey(AccountAccess actor, String runId) {
-        return AutomationStore.noticeReadKey(actor.getUserId(), runId);
+        if (!isNotice(row.value)) return false;
+        if (!store.markRunRead(row, actor))
+            throw new IllegalStateException("automation.runChanged");
+        return true;
     }
 
     private static boolean isNotice(AutomationModels.Run run) {

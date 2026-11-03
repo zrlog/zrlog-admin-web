@@ -2,7 +2,7 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountIdentityService;
-import com.zrlog.data.repository.UserRepository;
+import com.zrlog.admin.data.repository.AccountIdentityRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
@@ -17,10 +17,11 @@ import java.util.Set;
 @Singleton
 public final class TaskAuthority {
     private final AccountIdentityService identities;
-    private final Provider<UserRepository> users;
+    private final Provider<AccountIdentityRepository> users;
 
     @Inject
-    public TaskAuthority(AccountIdentityService identities, Provider<UserRepository> users) {
+    public TaskAuthority(
+            AccountIdentityService identities, Provider<AccountIdentityRepository> users) {
         this.identities = identities;
         this.users = users;
     }
@@ -35,9 +36,7 @@ public final class TaskAuthority {
         // Site configuration is independent of its editor. Use the current real owner account,
         // so all existing data-layer permission and conditional-write checks still apply.
         AccountAccess actor =
-                task.ownerId == 0
-                        ? siteActor()
-                        : AccountAccess.from(users.get().loadById((long) task.ownerId));
+                task.ownerId == 0 ? siteActor() : users.get().accessById(task.ownerId);
         if (!actor.isEnabled()) throw new PermissionErrorException();
         return actor.restrictActions(task.executionActions);
     }

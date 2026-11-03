@@ -45,12 +45,28 @@ public class UpgradeExecutionCoordinatorTest {
                         : backend.equals("web-api")
                                 ? InMemoryZrLogDatabase.openWebApi()
                                 : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        store =
+                new AutomationStore(
+                        () -> new WebSiteRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantNoticeReadRepository(
+                                        db.dataSource()));
         actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         var authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         coordinator = new UpgradeExecutionCoordinator(store, authority, now::get, installed::get);
     }
 

@@ -1,8 +1,8 @@
 package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.data.repository.AccountIdentityRepository;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -12,18 +12,17 @@ import java.sql.SQLException;
 /** Revalidates explicit credentials against the application's current account state. */
 @Singleton
 public final class AccountIdentityService {
-    private final Provider<UserRepository> users;
+    private final Provider<AccountIdentityRepository> users;
 
     @Inject
-    public AccountIdentityService(Provider<UserRepository> users) {
+    public AccountIdentityService(Provider<AccountIdentityRepository> users) {
         this.users = users;
     }
 
     public AccountAccess account(AdminTokenVO token) {
         try {
             if (token == null) throw new PermissionErrorException();
-            AccountAccess account =
-                    AccountAccess.from(users.get().loadById((long) (token.getUserId())));
+            AccountAccess account = users.get().accessById(token.getUserId());
             if (!account.isEnabled() || token.getAuthVersion() != account.getAuthVersion()) {
                 throw new PermissionErrorException();
             }
@@ -37,8 +36,7 @@ public final class AccountIdentityService {
     public AccountAccess revalidate(AccountAccess actor) {
         try {
             if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
-            AccountAccess current =
-                    AccountAccess.from(users.get().loadById((long) (actor.getUserId())));
+            AccountAccess current = users.get().accessById(actor.getUserId());
             return requireUnchanged(actor, current);
         } catch (SQLException e) {
             throw new PermissionErrorException();

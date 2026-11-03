@@ -75,11 +75,27 @@ public class AutomationProposalTest {
     @Test
     public void realRequestUsesAuthorizedCatalogAndDoesNotSaveOrExecuteTasks() throws Exception {
         try (var db = InMemoryZrLogDatabase.openWebApi()) {
-            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var store =
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             var authority =
                     new TaskAuthority(
-                            new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                            () -> new UserRepository(db.dataSource()));
+                            new AccountIdentityService(
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AccountIdentityRepository(db.dataSource())),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                            db.dataSource()));
             var actor =
                     AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L))
                             .restrictActions(

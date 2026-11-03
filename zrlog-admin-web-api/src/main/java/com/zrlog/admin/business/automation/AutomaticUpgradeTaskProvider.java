@@ -14,7 +14,7 @@ import java.util.function.LongSupplier;
  * Submits a confirmed upgrade policy and records the exact target before touching the application.
  */
 public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider {
-    static final String KEY = "assistant.v1.upgrade";
+    static final String KEY = "assistant.v2.upgrade";
     private final AutomationStore store;
     private final Operations operations;
     private final LongSupplier clock;
@@ -32,7 +32,11 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
     }
 
     @Override
-    public List<AutomationModels.Definition> definitions() {
+    public List<AutomationModels.Definition> systemDefinitions() {
+        return List.of(identityDefinition());
+    }
+
+    private static AutomationModels.Definition identityDefinition() {
         var definition = new AutomationModels.Definition();
         definition.type = "system.auto-upgrade";
         definition.titleKey = "admin.assistant.upgrade.title";
@@ -41,6 +45,12 @@ public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider
         definition.systemTask = true;
         definition.enabledByDefault = false;
         definition.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
+        return definition;
+    }
+
+    @Override
+    public List<AutomationModels.Definition> definitions() {
+        var definition = identityDefinition();
         definition.timeoutSeconds = 600;
         definition.available = operations.available();
         definition.unavailableReasonKey = "admin.assistant.upgrade.status.unsupported";

@@ -5,6 +5,7 @@ public enum AdminAuditAction {
     ENABLE_ASSISTANT_TASK("admin.audit.action.enableAssistantTask", "system"),
     PAUSE_ASSISTANT_TASK("admin.audit.action.pauseAssistantTask", "system"),
     DELETE_ASSISTANT_TASK("admin.audit.action.deleteAssistantTask", "system"),
+    DELETE_ASSISTANT_RUN("admin.audit.action.deleteAssistantRun", "system"),
     RUN_ASSISTANT_TASK("admin.audit.action.runAssistantTask", "system"),
     UPDATE_ASSISTANT_SETTINGS("admin.audit.action.updateAssistantSettings", "system"),
     ROTATE_ASSISTANT_TOKEN("admin.audit.action.rotateAssistantToken", "security"),

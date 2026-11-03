@@ -15,11 +15,27 @@ public class AutomationSettingsTest {
     public void requestBudgetsArePersistedAndValidatedWithFaasManualRunsUsingTheSameLimit()
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var store =
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             var authority =
                     new TaskAuthority(
-                            new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                            () -> new UserRepository(db.dataSource()));
+                            new AccountIdentityService(
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AccountIdentityRepository(db.dataSource())),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                            db.dataSource()));
             AccountAccess actor =
                     AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var service = new AutomationSettingsService(store, authority, () -> 1000, () -> true);
@@ -46,11 +62,26 @@ public class AutomationSettingsTest {
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AutomationStore store =
-                    new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             TaskAuthority authority =
                     new TaskAuthority(
-                            new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                            () -> new UserRepository(db.dataSource()));
+                            new AccountIdentityService(
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AccountIdentityRepository(db.dataSource())),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                            db.dataSource()));
             AccountAccess actor =
                     AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             AutomationSettingsService service =
@@ -97,11 +128,26 @@ public class AutomationSettingsTest {
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AutomationStore store =
-                    new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             TaskAuthority authority =
                     new TaskAuthority(
-                            new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                            () -> new UserRepository(db.dataSource()));
+                            new AccountIdentityService(
+                                    () ->
+                                            new com.zrlog.admin.data.repository
+                                                    .AccountIdentityRepository(db.dataSource())),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                            db.dataSource()));
             AccountAccess actor =
                     AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             AutomationSettingsService service =

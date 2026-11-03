@@ -1,7 +1,11 @@
 package com.zrlog.admin.business.automation;
 
+import static com.zrlog.admin.business.automation.AssistantRecordMapper.*;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.zrlog.admin.data.entity.*;
+import com.zrlog.admin.data.repository.*;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.WebSite;
@@ -9,85 +13,66 @@ import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.sql.Timestamp;
+import java.util.*;
 
-/** One row per task/run, conditional single-statement writes on both JDBC and WebAPI databases. */
+/** Typed assistant persistence. Only bounded global configuration remains in website. */
 @Singleton
 public final class AutomationStore {
-    static final String TASK_PREFIX = "assistant.v1.task:";
-    static final String RUN_PREFIX = "assistant.v1.run:";
     static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String ACTOR =
             " EXISTS (SELECT 1 FROM user WHERE userId=? AND role=? AND enabled=? AND authVersion=?)";
     private final Provider<WebSiteRepository> websites;
+    private final Provider<AssistantTaskRepository> tasks;
+    private final Provider<AssistantTaskRunRepository> runs;
+    private final Provider<AssistantNoticeReadRepository> notices;
 
     @Inject
-    public AutomationStore(Provider<WebSiteRepository> websites) {
-        this.websites = Objects.requireNonNull(websites);
+    public AutomationStore(
+            Provider<WebSiteRepository> websites,
+            Provider<AssistantTaskRepository> tasks,
+            Provider<AssistantTaskRunRepository> runs,
+            Provider<AssistantNoticeReadRepository> notices) {
+        this.websites = websites;
+        this.tasks = tasks;
+        this.runs = runs;
+        this.notices = notices;
     }
 
     public Snapshot<StoredTask> task(String id) throws SQLException {
         requireId(id);
-        return read(TASK_PREFIX + id, StoredTask.class);
+        var row = tasks.get().loadById(id);
+        return row == null ? null : taskSnapshot(row);
     }
 
-    ExecutionState executionState(String taskId, int userId) throws SQLException {
-        requireId(taskId);
-        var row =
-                websites.get()
-                        .queryOne(
-                                "SELECT w.name,w.value,u.userId,u.role,u.enabled,u.authVersion FROM website w"
-                                        + " LEFT JOIN user u ON u.userId=? WHERE w.name=?",
-                                ExecutionProjection.class,
-                                userId,
-                                TASK_PREFIX + taskId);
-        return row == null
-                ? null
-                : new ExecutionState(
-                        snapshot(row.name, row.value, StoredTask.class),
-                        AccountAccess.fromSnapshot(row));
+    /** Ownership checks do not reload parameters, snapshots or result bodies. */
+    ExecutionProjection executionState(String taskId, int userId) throws SQLException {
+        return tasks.get()
+                .queryOne(
+                        "SELECT t.id,t.version,t.activeRunId,t.leaseUntil,u.userId,u.role,u.enabled,u.authVersion"
+                                + " FROM assistant_task t LEFT JOIN user u ON u.userId=? WHERE t.id=?",
+                        ExecutionProjection.class,
+                        userId,
+                        taskId);
     }
 
-    static final class ExecutionProjection extends AccountAccess.Snapshot {
-        String name;
-        String value;
+    public static final class ExecutionProjection extends AccountAccess.Snapshot {
+        public String id;
+        public long version;
+        public String activeRunId;
+        public Timestamp leaseUntil;
     }
 
-    static final class ExecutionState {
-        private final Snapshot<StoredTask> task;
-        private final AccountAccess actor;
-
-        ExecutionState(Snapshot<StoredTask> task, AccountAccess actor) {
-            this.task = task;
-            this.actor = actor;
-        }
-
-        Snapshot<StoredTask> task() {
-            return task;
-        }
-
-        AccountAccess actor() {
-            return actor;
-        }
-    }
-
-    /** Bounded reads shared only by the operation that requested these exact keys. */
     public ReadBatch readBatch(Collection<String> requested) throws SQLException {
         var keys = requested.stream().distinct().collect(java.util.stream.Collectors.toList());
         if (keys.size() > 100) throw new IllegalArgumentException("automation.invalidBatch");
         Map<String, WebSite> found = new LinkedHashMap<>();
         if (!keys.isEmpty()) {
-            var placeholders = String.join(",", java.util.Collections.nCopies(keys.size(), "?"));
             for (var row :
-                    websites.get().select("WHERE name IN (" + placeholders + ")", keys.toArray())) {
-                found.put(Objects.toString(row.getName()), row);
-            }
+                    websites.get()
+                            .select(
+                                    "WHERE name IN (" + placeholders(keys.size()) + ")",
+                                    keys.toArray())) found.put(row.getName(), row);
         }
         return new ReadBatch(keys, found);
     }
@@ -110,88 +95,98 @@ public final class AutomationStore {
 
     public List<Snapshot<StoredTask>> tasks(int ownerId, int limit, int offset)
             throws SQLException {
-        return list(TASK_PREFIX + ownerPrefix(ownerId), StoredTask.class, limit, offset, false);
+        return taskSnapshots(
+                tasks.get()
+                        .select(
+                                "WHERE ownerId=? ORDER BY id LIMIT ? OFFSET ?",
+                                ownerId,
+                                pageSize(limit),
+                                Math.max(0, offset)));
+    }
+
+    public List<StoredTask> systemTasks(List<String> ids) throws SQLException {
+        if (ids.isEmpty()) return List.of();
+        List<StoredTask> result = new ArrayList<>();
+        for (var row :
+                tasks.get()
+                        .select(
+                                "WHERE ownerId=0 AND id IN ("
+                                        + placeholders(ids.size())
+                                        + ") ORDER BY id",
+                                ids.toArray())) result.add(taskValue(row));
+        return result;
     }
 
     public List<Snapshot<StoredTask>> due(long now, int limit) throws SQLException {
-        return rows(
-                websites.get()
+        return taskSnapshots(
+                tasks.get()
                         .select(
-                                "WHERE name>=? AND name<? AND remark<=? ORDER BY remark,name LIMIT ?",
-                                TASK_PREFIX,
-                                end(TASK_PREFIX),
-                                timeKey(now),
-                                Math.min(64, Math.max(1, limit))),
-                StoredTask.class);
+                                "WHERE dueAt<=? ORDER BY dueAt,id LIMIT ?",
+                                new Timestamp(now),
+                                Math.min(64, Math.max(1, limit))));
     }
 
     public void insertTask(StoredTask task, AccountAccess actor) throws SQLException {
         requireId(task.id);
         if (task.ownerId != actor.getUserId())
             throw new IllegalArgumentException("automation.ownerMismatch");
-        boolean inserted =
-                websites.get()
-                        .insertWhen(
-                                WebSiteRepository.entry(
-                                        TASK_PREFIX + task.id, JSON.toJson(task), dueKey(task)),
-                                ACTOR,
-                                actor.getUserId(),
-                                actor.getRole(),
-                                true,
-                                actor.getAuthVersion());
-        if (!inserted) throw new IllegalStateException("automation.permissionChanged");
+        if (!tasks.get()
+                .insertWhen(
+                        taskEntity(task),
+                        ACTOR,
+                        actor.getUserId(),
+                        actor.getRole(),
+                        true,
+                        actor.getAuthVersion()))
+            throw new IllegalStateException("automation.permissionChanged");
     }
 
     public boolean replaceTask(
             Snapshot<StoredTask> expected, StoredTask replacement, AccountAccess actor)
             throws SQLException {
         if (!expected.value.id.equals(replacement.id)
-                || expected.value.ownerId != replacement.ownerId) {
-            throw new IllegalArgumentException("automation.ownerMismatch");
-        }
-        String predicate = "name=? AND value=?";
-        List<Object> parameters = new ArrayList<>(List.of(expected.key, expected.raw));
+                || expected.value.ownerId != replacement.ownerId)
+            throw new IllegalArgumentException("automation.taskChanged");
+        var row = taskEntity(replacement);
+        row.setId(null);
+        String predicate = "id=? AND version=?";
+        List<Object> params = new ArrayList<>(List.of(expected.value.id, expected.version));
         if (actor != null) {
             predicate += " AND" + ACTOR;
-            parameters.add(actor.getUserId());
-            parameters.add(actor.getRole());
-            parameters.add(true);
-            parameters.add(actor.getAuthVersion());
+            addActor(params, actor);
         }
-        return websites.get()
-                        .updateContentWhere(
-                                JSON.toJson(replacement),
-                                dueKey(replacement),
+        return tasks.get()
+                        .updateWhere(
+                                row,
+                                AssistantTaskRepository.CONTENT_FIELDS,
                                 predicate,
-                                parameters.toArray())
+                                params.toArray())
                 == 1;
     }
 
-    /** Insert-only initialization cannot reset an existing site configuration. */
     void insertDefaultTask(StoredTask task, AccountAccess actor) throws SQLException {
-        String key = TASK_PREFIX + task.id;
         try {
-            websites.get()
+            tasks.get()
                     .insertWhen(
-                            WebSiteRepository.entry(key, JSON.toJson(task), dueKey(task)),
-                            ACTOR + " AND NOT EXISTS (SELECT 1 FROM website WHERE name=?)",
+                            taskEntity(task),
+                            ACTOR + " AND NOT EXISTS (SELECT 1 FROM assistant_task WHERE id=?)",
                             actor.getUserId(),
                             actor.getRole(),
                             true,
                             actor.getAuthVersion(),
-                            key);
+                            task.id);
         } catch (SQLException error) {
-            if (read(key, StoredTask.class) == null) throw error;
+            if (task(task.id) == null) throw error;
         }
     }
 
     public boolean deleteTask(Snapshot<StoredTask> expected, AccountAccess actor)
             throws SQLException {
-        return websites.get()
+        return tasks.get()
                         .deleteWhere(
-                                "name=? AND value=? AND" + ACTOR,
-                                expected.key,
-                                expected.raw,
+                                "id=? AND version=? AND" + ACTOR,
+                                expected.value.id,
+                                expected.version,
                                 actor.getUserId(),
                                 actor.getRole(),
                                 true,
@@ -201,14 +196,16 @@ public final class AutomationStore {
 
     public Snapshot<AutomationModels.Run> run(String id) throws SQLException {
         requireRunId(id);
-        return read(RUN_PREFIX + id, AutomationModels.Run.class);
+        var row = runs.get().loadById(id);
+        return row == null
+                ? null
+                : Snapshot.capture(
+                        row.getId(), runValue(row), AutomationModels.Run.class, row.getVersion());
     }
 
     public void insertRun(AutomationModels.Run run) throws SQLException {
         requireRunId(run.id);
-        // Only a task's successful claimant calls this before any business action.
-        websites.get()
-                .insert(WebSiteRepository.entry(RUN_PREFIX + run.id, JSON.toJson(run), run.taskId));
+        runs.get().insert(runEntity(run));
     }
 
     public boolean replaceRun(
@@ -216,192 +213,245 @@ public final class AutomationStore {
             throws SQLException {
         if (!expected.value.id.equals(replacement.id))
             throw new IllegalArgumentException("automation.runMismatch");
-        return websites.get()
-                        .updateValueWhere(
-                                JSON.toJson(replacement),
-                                "name=? AND value=?",
-                                expected.key,
-                                expected.raw)
-                == 1;
+        var row = runEntity(replacement);
+        row.setId(null);
+        boolean changed =
+                runs.get()
+                                .updateWhere(
+                                        row,
+                                        AssistantTaskRunRepository.CONTENT_FIELDS,
+                                        "id=? AND version=?",
+                                        expected.value.id,
+                                        expected.version)
+                        == 1;
+        if (changed) replacement.version = expected.version + 1;
+        return changed;
     }
 
     public List<Snapshot<AutomationModels.Run>> runs(
             int ownerId, String taskId, int limit, int offset) throws SQLException {
-        if (taskId == null || taskId.isBlank()) {
-            return list(
-                    RUN_PREFIX + ownerPrefix(ownerId),
-                    AutomationModels.Run.class,
-                    limit,
-                    offset,
-                    true);
-        }
-        requireId(taskId);
-        String prefix = RUN_PREFIX + ownerPrefix(ownerId);
-        return rows(
-                websites.get()
+        var query = visibleRunQuery(ownerId, List.of(), taskId);
+        query.parameters.add(pageSize(limit));
+        query.parameters.add(Math.max(0, offset));
+        List<Snapshot<AutomationModels.Run>> result = new ArrayList<>();
+        for (var row :
+                runs.get()
                         .select(
-                                "WHERE name>=? AND name<? AND remark=? ORDER BY name DESC LIMIT ? OFFSET ?",
-                                prefix,
-                                end(prefix),
-                                taskId,
-                                pageSize(limit),
-                                Math.max(0, offset)),
-                AutomationModels.Run.class);
+                                "WHERE "
+                                        + query.where.replace("r.", "")
+                                        + " ORDER BY startedAt DESC,id DESC LIMIT ? OFFSET ?",
+                                query.parameters.toArray()))
+            result.add(
+                    Snapshot.capture(
+                            row.getId(),
+                            runValue(row),
+                            AutomationModels.Run.class,
+                            row.getVersion()));
+        return result;
     }
 
     public List<Snapshot<AutomationModels.Run>> visibleRuns(
             int ownerId, List<String> systemIds, String taskId, int limit, int offset)
             throws SQLException {
         var query = visibleRunQuery(ownerId, systemIds, taskId);
+        return summaries(query, limit, offset);
+    }
+
+    public List<Snapshot<AutomationModels.Run>> unreadNotices(
+            int ownerId, List<String> systemIds, int limit) throws SQLException {
+        var query = visibleRunQuery(ownerId, systemIds, null);
+        query.where +=
+                " AND r.notifyOwner=? AND r.finishedAt IS NOT NULL AND NOT EXISTS (SELECT 1 FROM assistant_notice_read n WHERE n.userId=? AND n.runId=r.id)";
+        query.parameters.add(true);
+        query.parameters.add(ownerId);
+        query.order = "r.finishedAt DESC,r.id DESC";
+        return summaries(query, limit, 0);
+    }
+
+    private List<Snapshot<AutomationModels.Run>> summaries(RunQuery query, int limit, int offset)
+            throws SQLException {
         query.parameters.add(pageSize(limit));
         query.parameters.add(Math.max(0, offset));
-        return rows(
-                websites.get()
-                        .select(
-                                "WHERE "
+        List<Snapshot<AutomationModels.Run>> result = new ArrayList<>();
+        for (var row :
+                runs.get()
+                        .queryList(
+                                "SELECT "
+                                        + RunSummary.COLUMNS
+                                        + " FROM assistant_task_run r WHERE "
                                         + query.where
-                                        + " ORDER BY SUBSTR(name,"
-                                        + (RUN_PREFIX.length() + 12)
-                                        + ") DESC LIMIT ? OFFSET ?",
-                                query.parameters.toArray()),
-                AutomationModels.Run.class);
+                                        + " ORDER BY "
+                                        + query.order
+                                        + " LIMIT ? OFFSET ?",
+                                RunSummary.class,
+                                query.parameters.toArray()))
+            result.add(
+                    Snapshot.capture(row.id, row.value(), AutomationModels.Run.class, row.version));
+        return result;
     }
 
     public long visibleRunCount(int ownerId, List<String> systemIds, String taskId)
             throws SQLException {
         var query = visibleRunQuery(ownerId, systemIds, taskId);
         return ((Number)
-                        websites.get()
+                        runs.get()
                                 .queryFirstObj(
-                                        "SELECT count(*) FROM website WHERE " + query.where,
+                                        "SELECT count(*) FROM assistant_task_run r WHERE "
+                                                + query.where,
                                         query.parameters.toArray()))
                 .longValue();
     }
 
     private static RunQuery visibleRunQuery(int ownerId, List<String> systemIds, String taskId) {
-        String prefix = RUN_PREFIX + ownerPrefix(ownerId);
         RunQuery query = new RunQuery();
-        query.where = "((name>=? AND name<?)";
-        query.parameters.add(prefix);
-        query.parameters.add(end(prefix));
+        query.where = "(r.ownerId=?";
+        query.parameters.add(ownerId);
         if (!systemIds.isEmpty()) {
             query.where +=
-                    " OR (name>=? AND name<? AND remark IN ("
-                            + String.join(",", java.util.Collections.nCopies(systemIds.size(), "?"))
-                            + "))";
-            query.parameters.add(RUN_PREFIX);
-            query.parameters.add(end(RUN_PREFIX));
+                    " OR (r.ownerId=0 AND r.taskId IN (" + placeholders(systemIds.size()) + "))";
             query.parameters.addAll(systemIds);
         }
         query.where += ")";
         if (taskId != null && !taskId.isBlank()) {
             requireId(taskId);
-            query.where += " AND remark=?";
+            query.where += " AND r.taskId=?";
             query.parameters.add(taskId);
         }
         return query;
     }
 
-    private static class RunQuery {
+    private static final class RunQuery {
+        String order = "r.startedAt DESC,r.id DESC";
         String where;
         List<Object> parameters = new ArrayList<>();
     }
 
     public long taskCount(int ownerId) throws SQLException {
-        String prefix = TASK_PREFIX + ownerPrefix(ownerId);
         return ((Number)
-                        websites.get()
+                        tasks.get()
                                 .queryFirstObj(
-                                        "SELECT count(*) FROM website WHERE name>=? AND name<?",
-                                        prefix,
-                                        end(prefix)))
+                                        "SELECT count(*) FROM assistant_task WHERE ownerId=?",
+                                        ownerId))
                 .longValue();
     }
 
     public long runCount(int ownerId, String taskId) throws SQLException {
-        String prefix = RUN_PREFIX + ownerPrefix(ownerId);
-        Object value =
-                taskId == null || taskId.isBlank()
-                        ? websites.get()
-                                .queryFirstObj(
-                                        "SELECT count(*) FROM website WHERE name>=? AND name<?",
-                                        prefix,
-                                        end(prefix))
-                        : websites.get()
-                                .queryFirstObj(
-                                        "SELECT count(*) FROM website WHERE name>=? AND name<? AND remark=?",
-                                        prefix,
-                                        end(prefix),
-                                        taskId);
-        return ((Number) value).longValue();
+        return visibleRunCount(ownerId, List.of(), taskId);
     }
 
-    /**
-     * Bounded retention sweep; active executions and another account's history are never removed.
-     */
-    public int pruneRuns(int ownerId, long now) throws SQLException {
-        var upgrade =
-                read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
-        String pendingUpgrade =
-                upgrade != null && !"confirmed".equals(upgrade.value.state)
-                        ? upgrade.value.runId
-                        : null;
-        String prefix = RUN_PREFIX + ownerPrefix(ownerId);
-        List<Snapshot<AutomationModels.Run>> candidates =
-                rows(
-                        websites.get()
-                                .select(
-                                        "WHERE name>=? AND name<? ORDER BY name DESC LIMIT ?",
-                                        prefix,
-                                        end(prefix),
-                                        1000),
-                        AutomationModels.Run.class);
-        int completed = 0;
+    /** Only successful, completed executions expire. Failures and unresolved outcomes never do. */
+    int pruneRuns(int ownerId, long now) throws SQLException {
+        return pruneRuns(ownerId, now, null);
+    }
+
+    int pruneRuns(Integer ownerId, long now, String pendingUpgrade) throws SQLException {
+        String predicate =
+                "r.status='success' AND r.finishedAt<? AND NOT EXISTS (SELECT 1 FROM assistant_task t WHERE t.activeRunId=r.id)";
+        List<Object> params = new ArrayList<>();
+        params.add(dateParameter(now - java.time.Duration.ofDays(90).toMillis()));
+        if (ownerId != null) {
+            predicate += " AND r.ownerId=?";
+            params.add(ownerId);
+        }
+        if (pendingUpgrade != null) {
+            predicate += " AND r.id<>?";
+            params.add(pendingUpgrade);
+        }
+        var candidates =
+                runs.get()
+                        .queryList(
+                                "SELECT r.id,r.version FROM assistant_task_run r WHERE "
+                                        + predicate
+                                        + " ORDER BY r.finishedAt,r.id LIMIT 64",
+                                RunKey.class,
+                                params.toArray());
         int removed = 0;
-        long oldest = now - java.time.Duration.ofDays(90).toMillis();
-        for (Snapshot<AutomationModels.Run> row : candidates) {
-            if ("running".equals(row.value.status)
-                    || row.value.finishedAt == null
-                    || Objects.equals(row.value.id, pendingUpgrade)) continue;
-            completed++;
-            if (completed <= 500 && row.value.finishedAt >= oldest) continue;
-            if (websites.get().deleteWhere("name=? AND value=?", row.key, row.raw) == 1) {
-                String reads = readKeyPrefix(row.value.id);
-                websites.get().deleteWhere("name>=? AND name<?", reads, end(reads));
+        for (var row : candidates) {
+            if (runs.get()
+                            .deleteWhere(
+                                    "id=? AND version=? AND status='success' AND NOT EXISTS (SELECT 1 FROM assistant_task t WHERE t.activeRunId=assistant_task_run.id)",
+                                    row.id,
+                                    row.version)
+                    == 1) {
+                notices.get().deleteWhere("runId=?", row.id);
                 removed++;
             }
-            if (removed >= 64) break;
         }
         return removed;
     }
 
-    static String noticeReadKey(int userId, String runId) {
-        return readKeyPrefix(runId) + userId;
-    }
-
-    private static String readKeyPrefix(String runId) {
-        return "assistant.v1.notice-read:" + runId + ":";
+    public static final class RunKey {
+        public String id;
+        public long version;
     }
 
     boolean markRunRead(Snapshot<AutomationModels.Run> run, AccountAccess actor)
             throws SQLException {
-        String key = noticeReadKey(actor.getUserId(), run.value.id);
+        AssistantNoticeRead row = new AssistantNoticeRead();
+        row.setId(noticeReadKey(actor.getUserId(), run.value.id));
+        row.setRunId(run.value.id);
+        row.setUserId(actor.getUserId());
+        row.setReadAt(new Timestamp(System.currentTimeMillis()));
         try {
-            return websites.get()
-                    .insertWhen(
-                            WebSiteRepository.entry(
-                                    key, JSON.toJson(System.currentTimeMillis()), null),
-                            ACTOR + " AND EXISTS (SELECT 1 FROM website WHERE name=? AND value=?)",
-                            actor.getUserId(),
-                            actor.getRole(),
-                            true,
-                            actor.getAuthVersion(),
-                            run.key,
-                            run.raw);
+            boolean inserted =
+                    notices.get()
+                            .insertWhen(
+                                    row,
+                                    ACTOR
+                                            + " AND EXISTS (SELECT 1 FROM assistant_task_run WHERE id=? AND version=?) AND NOT EXISTS (SELECT 1 FROM assistant_notice_read WHERE id=?)",
+                                    actor.getUserId(),
+                                    actor.getRole(),
+                                    true,
+                                    actor.getAuthVersion(),
+                                    run.value.id,
+                                    run.version,
+                                    row.getId());
+            return inserted || notices.get().loadById(row.getId()) != null;
         } catch (SQLException error) {
-            if (read(key, Long.class) == null) throw error;
+            if (notices.get().loadById(row.getId()) == null) throw error;
             return true;
         }
+    }
+
+    static String noticeReadKey(int userId, String runId) {
+        return runId + ":" + userId;
+    }
+
+    boolean deleteRun(Snapshot<AutomationModels.Run> run, AccountAccess actor) throws SQLException {
+        int deleted =
+                runs.get()
+                        .deleteWhere(
+                                "id=? AND version=? AND status<>'running' AND finishedAt IS NOT NULL AND NOT EXISTS (SELECT 1 FROM assistant_task t WHERE t.activeRunId=assistant_task_run.id) AND"
+                                        + ACTOR,
+                                run.value.id,
+                                run.version,
+                                actor.getUserId(),
+                                actor.getRole(),
+                                true,
+                                actor.getAuthVersion());
+        if (deleted == 1) notices.get().deleteWhere("runId=?", run.value.id);
+        return deleted == 1;
+    }
+
+    private static void addActor(List<Object> params, AccountAccess actor) {
+        params.add(actor.getUserId());
+        params.add(actor.getRole());
+        params.add(true);
+        params.add(actor.getAuthVersion());
+    }
+
+    private static String placeholders(int count) {
+        return String.join(",", Collections.nCopies(count, "?"));
+    }
+
+    private static List<Snapshot<StoredTask>> taskSnapshots(List<AssistantTask> rows) {
+        List<Snapshot<StoredTask>> result = new ArrayList<>();
+        for (var row : rows) result.add(taskSnapshot(row));
+        return result;
+    }
+
+    private static Snapshot<StoredTask> taskSnapshot(AssistantTask row) {
+        return Snapshot.capture(row.getId(), taskValue(row), StoredTask.class, row.getVersion());
     }
 
     public <T> Snapshot<T> read(String key, Class<T> type) throws SQLException {
@@ -455,42 +505,11 @@ public final class AutomationStore {
         }
     }
 
-    private <T> List<Snapshot<T>> list(
-            String prefix, Class<T> type, int limit, int offset, boolean newest)
-            throws SQLException {
-        return rows(
-                websites.get()
-                        .select(
-                                "WHERE name>=? AND name<? ORDER BY name "
-                                        + (newest ? "DESC" : "ASC")
-                                        + " LIMIT ? OFFSET ?",
-                                prefix,
-                                end(prefix),
-                                pageSize(limit),
-                                Math.max(0, offset)),
-                type);
-    }
-
-    private static <T> List<Snapshot<T>> rows(List<WebSite> rows, Class<T> type) {
-        List<Snapshot<T>> result = new ArrayList<>();
-        for (WebSite row : rows) result.add(snapshot(row, type));
-        return result;
-    }
-
     private static <T> Snapshot<T> snapshot(WebSite row, Class<T> type) {
-        return snapshot(row.getName(), row.getValue(), type);
-    }
-
-    private static <T> Snapshot<T> snapshot(String name, String rawValue, Class<T> type) {
-        String raw = Objects.toString(rawValue, "");
+        String raw = Objects.toString(row.getValue(), "");
         T value = JSON.fromJson(raw, type);
         if (value == null) throw new IllegalStateException("automation.invalidStoredRecord");
-        return new Snapshot<>(name, raw, value);
-    }
-
-    static String dueKey(StoredTask task) {
-        if (task.activeRun != null) return timeKey(task.leaseUntil);
-        return task.enabled && task.nextRunAt != null ? timeKey(task.nextRunAt) : "~";
+        return new Snapshot<>(row.getName(), raw, value, row.getVersion());
     }
 
     static String ownerPrefix(int ownerId) {
@@ -501,11 +520,6 @@ public final class AutomationStore {
     static String timeKey(long millis) {
         if (millis < 0) throw new IllegalArgumentException("automation.invalidTime");
         return String.format(Locale.ROOT, "%020d", millis);
-    }
-
-    private static String end(String prefix) {
-        return prefix.substring(0, prefix.length() - 1)
-                + (char) (prefix.charAt(prefix.length() - 1) + 1);
     }
 
     private static int pageSize(int requested) {
@@ -526,11 +540,13 @@ public final class AutomationStore {
         public final String key;
         public final String raw;
         public final T value;
+        public final long version;
 
-        Snapshot(String key, String raw, T value) {
+        Snapshot(String key, String raw, T value, long version) {
             this.key = key;
             this.raw = raw;
             this.value = value;
+            this.version = version;
         }
 
         public T copy(Class<T> type) {
@@ -538,8 +554,12 @@ public final class AutomationStore {
         }
 
         static <T> Snapshot<T> capture(String key, T value, Class<T> type) {
+            return capture(key, value, type, 0);
+        }
+
+        static <T> Snapshot<T> capture(String key, T value, Class<T> type, long version) {
             String raw = JSON.toJson(value);
-            return new Snapshot<>(key, raw, JSON.fromJson(raw, type));
+            return new Snapshot<>(key, raw, JSON.fromJson(raw, type), version);
         }
     }
 }
