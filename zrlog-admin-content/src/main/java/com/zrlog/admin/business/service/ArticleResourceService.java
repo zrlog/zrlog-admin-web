@@ -11,8 +11,8 @@ import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Content owns all article mutations, including those initiated by file operations.
@@ -43,19 +43,19 @@ public class ArticleResourceService {
         actor = identities.revalidate(actor);
         if (!AccountAction.FILE_MANAGE.allowed(actor))
             throw new PermissionErrorException();
-        List<Map<String, Object>> candidates =
+        List<ArticleBasicDTO> candidates =
                 logs.get()
-                        .queryListWithParams(
+                        .queryList(
                                 "select logId, thumbnail, content, markdown, digest from "
-                                        + LogRepository.TABLE_NAME);
+                                        + LogRepository.TABLE_NAME, ArticleBasicDTO.class);
         ReplaceArticleResourceUrlResponse result = new ReplaceArticleResourceUrlResponse();
         result.setScannedArticles(candidates.size());
-        for (Map<String, Object> candidate : candidates) {
+        for (ArticleBasicDTO candidate : candidates) {
             if (references.replace(candidate, from, to, prefix).isEmpty()) continue;
             int fields =
                     articles.replaceResourceReferences(
                             actor,
-                            ((Number) candidate.get("logId")).intValue(),
+                            candidate.getLogId().intValue(),
                             from,
                             to,
                             prefix,

@@ -1,6 +1,8 @@
 package com.zrlog.admin.business.content;
 
 import com.hibegin.common.util.StringUtils;
+import com.zrlog.model.Log;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -19,8 +21,6 @@ public final class ArticleResourceReferences {
     private static final Pattern RESOURCE_URL_PATTERN =
             Pattern.compile(
                     "(?i)(https?://[^\\s\"'<>)]*|//[^\\s\"'<>)]*|/(?:[^\\s\"'<>)]*/)?attached/[^\\s\"'<>)]*)");
-    private static final List<String> ARTICLE_RESOURCE_FIELDS =
-            List.of("thumbnail", "content", "markdown", "digest");
     private static final Set<String> RESOURCE_FILE_EXTENSIONS =
             new HashSet<>(
                     Arrays.asList(
@@ -144,28 +144,58 @@ public final class ArticleResourceReferences {
         return value.substring(0, endIndex);
     }
 
-    public Map<String, Object> replace(
-            Map<String, Object> article, String fromUrl, String toUrl, boolean prefix) {
-        Map<String, Object> updates = new LinkedHashMap<>();
+    public Changes replace(Log article, String fromUrl, String toUrl, boolean prefix) {
+        return replace(article.getThumbnail(), article.getContent(), article.getMarkdown(), article.getDigest(),
+                fromUrl, toUrl, prefix);
+    }
+
+    public Changes replace(ArticleBasicDTO article, String fromUrl, String toUrl, boolean prefix) {
+        return replace(article.getThumbnail(), article.getContent(), article.getMarkdown(), article.getDigest(),
+                fromUrl, toUrl, prefix);
+    }
+
+    /** A null field means no replacement; resource rewriting never clears a field. */
+    public static final class Changes {
+        private String thumbnail;
+        private String content;
+        private String markdown;
+        private String digest;
+
+        public String getThumbnail() { return thumbnail; }
+        public String getContent() { return content; }
+        public String getMarkdown() { return markdown; }
+        public String getDigest() { return digest; }
+        public int size() {
+            return (thumbnail == null ? 0 : 1) + (content == null ? 0 : 1)
+                    + (markdown == null ? 0 : 1) + (digest == null ? 0 : 1);
+        }
+        public boolean isEmpty() { return size() == 0; }
+        public void applyTo(Log article) {
+            if (thumbnail != null) article.setThumbnail(thumbnail);
+            if (content != null) article.setContent(content);
+            if (markdown != null) article.setMarkdown(markdown);
+            if (digest != null) article.setDigest(digest);
+        }
+    }
+
+    private Changes replace(String thumbnail, String content, String markdown, String digest,
+                            String fromUrl, String toUrl, boolean prefix) {
+        Changes changes = new Changes();
         ResourceReplacement replacement = buildResourceReplacement(fromUrl, toUrl, prefix);
-        if (replacement == null) {
-            return updates;
+        if (replacement != null) {
+            changes.thumbnail = replaceField("thumbnail", thumbnail, replacement);
+            changes.content = replaceField("content", content, replacement);
+            changes.markdown = replaceField("markdown", markdown, replacement);
+            changes.digest = replaceField("digest", digest, replacement);
         }
-        for (String field : ARTICLE_RESOURCE_FIELDS) {
-            String value = (String) article.get(field);
-            Set<String> replaceableMatchKeys =
-                    getReplaceableExternalResourceMatchKeys(field, value);
-            if (replaceableMatchKeys.isEmpty()) {
-                continue;
-            }
-            String replaced =
-                    replaceExternalResourceReferences(value, replacement, replaceableMatchKeys);
-            if (Objects.equals(value, replaced)) {
-                continue;
-            }
-            updates.put(field, replaced);
-        }
-        return updates;
+        return changes;
+    }
+
+    private String replaceField(String field, String value, ResourceReplacement replacement) {
+        Set<String> keys = getReplaceableExternalResourceMatchKeys(field, value);
+        if (keys.isEmpty()) return null;
+        String replaced = replaceExternalResourceReferences(value, replacement, keys);
+        return Objects.equals(value, replaced) ? null : replaced;
     }
 
     private ResourceReplacement buildResourceReplacement(

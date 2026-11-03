@@ -30,7 +30,7 @@ public class AutomationQueryCountTest {
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
         component = db.component(AutomationComponent.class);
         component.plugin().stop();
-        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         component.defaults().initialize();
         component.defaults().initializePluginTrigger();
         db.execute("UPDATE website SET remark=? WHERE name>=? AND name<?", "~", AutomationStore.TASK_PREFIX, "assistant.v1.task;");
@@ -104,7 +104,7 @@ public class AutomationQueryCountTest {
         assertTrue(notices.list(actor).isEmpty());
         assertEquals(8, reads.get());
         db.execute("INSERT INTO user(userId,userName,role) VALUES(?,?,?)", 2, "other-admin", "admin");
-        var other = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2));
+        var other = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
         assertEquals(50, notices.list(other).size());
     }
 

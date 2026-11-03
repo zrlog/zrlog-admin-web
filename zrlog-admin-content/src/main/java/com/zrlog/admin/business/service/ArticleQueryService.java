@@ -32,6 +32,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import com.zrlog.data.dto.ArticleCounts;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -66,28 +67,6 @@ public class ArticleQueryService {
         this.permissionService = permissionService;
         this.userPreferenceService = userPreferenceService;
         this.logProvider = logProvider;
-    }
-
-    private static long toLong(Map<String, Object> row, String key) {
-        if (row == null) {
-            return 0L;
-        }
-        Object value = row.get(key);
-        if (value == null) {
-            value = row.get(key.toLowerCase(Locale.ROOT));
-        }
-        if (value == null) {
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                    value = entry.getValue();
-                    break;
-                }
-            }
-        }
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return 0L;
     }
 
     private static String formatDateValue(Object date, String format) {
@@ -198,8 +177,8 @@ public class ArticleQueryService {
                 countParams.add(false);
                 countParams.add(privateOwnerId);
             }
-            Map<String, Object> row =
-                    log.queryFirstWithParams(
+            ArticleCounts row =
+                    log.queryOne(
                             "SELECT "
                                     + "count(1) AS totalCount,"
                                     + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
@@ -215,11 +194,11 @@ public class ArticleQueryService {
                                     + (privateOwnerId == null
                                     ? ""
                                     : " and (l.privacy=? or l.userId=?)"),
-                            countParams.toArray());
-            counts.setTotal(toLong(row, "totalCount"));
-            counts.setPublished(toLong(row, "publishedCount"));
-            counts.setPrivateCount(toLong(row, "privateCount"));
-            counts.setDraft(toLong(row, "draftCount"));
+                            ArticleCounts.class, countParams.toArray());
+            counts.setTotal(row.totalCount);
+            counts.setPublished(row.publishedCount);
+            counts.setPrivateCount(row.privateCount);
+            counts.setDraft(row.draftCount);
         } catch (SQLException e) {
             LOGGER.warning("Query article counts error: " + e.getMessage());
         }
@@ -305,18 +284,18 @@ public class ArticleQueryService {
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.YEAR, -1);
         calendar.set(Calendar.DAY_OF_MONTH, 1);
-        List<Map<String, Object>> rows =
+        List<ArticleBasicDTO> rows =
                 this.logProvider
                         .get()
-                        .queryListWithParams(
+                        .queryList(
                                 "select releaseTime from "
                                         + LogRepository.TABLE_NAME
                                         + " where releaseTime >= ? order by releaseTime desc",
-                                ResultValueConvertUtils.formatDate(
+                                ArticleBasicDTO.class, ResultValueConvertUtils.formatDate(
                                         calendar.getTime(), "yyyy-MM-dd"));
         Map<String, Long> archives = new LinkedHashMap<>();
-        for (Map<String, Object> row : rows) {
-            Object value = row.get("releaseTime");
+        for (ArticleBasicDTO row : rows) {
+            Object value = row.getReleaseTime();
             if (Objects.isNull(value)) {
                 continue;
             }

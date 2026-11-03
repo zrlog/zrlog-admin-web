@@ -23,8 +23,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import com.zrlog.model.Log;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -71,32 +71,20 @@ public final class ContentToolService {
         this.refresh = refresh;
     }
 
-    private static void copy(Map<String, Object> row, CreateArticleRequest body) {
-        body.setTitle(text(row, "title"));
-        body.setTypeId((long) number(row, "typeId"));
-        body.setAlias(text(row, "alias"));
-        body.setMarkdown(text(row, "markdown"));
-        body.setContent(text(row, "content"));
-        body.setDigest(text(row, "digest"));
-        body.setKeywords(text(row, "keywords"));
-        body.setThumbnail(text(row, "thumbnail"));
-        body.setEditorType(text(row, "editor_type"));
-        body.setCanComment(bool(row, "canComment"));
-        body.setRecommended(bool(row, "recommended"));
-        body.setPrivacy(bool(row, "privacy"));
-        body.setRubbish(bool(row, "rubbish"));
-    }
-
-    private static int number(Map<String, Object> row, String key) {
-        return row.get(key) instanceof Number ? ((Number) row.get(key)).intValue() : 0;
-    }
-
-    private static String text(Map<String, Object> row, String key) {
-        return Objects.toString(row.get(key), "");
-    }
-
-    private static boolean bool(Map<String, Object> row, String key) {
-        return AccountAccess.truth(row.get(key));
+    private static void copy(Log row, CreateArticleRequest body) {
+        body.setTitle(Objects.toString(row.getTitle(), ""));
+        body.setTypeId((long) Objects.requireNonNullElse(row.getTypeId(), 0));
+        body.setAlias(Objects.toString(row.getAlias(), ""));
+        body.setMarkdown(Objects.toString(row.getMarkdown(), ""));
+        body.setContent(Objects.toString(row.getContent(), ""));
+        body.setDigest(Objects.toString(row.getDigest(), ""));
+        body.setKeywords(Objects.toString(row.getKeywords(), ""));
+        body.setThumbnail(Objects.toString(row.getThumbnail(), ""));
+        body.setEditorType(Objects.toString(row.getEditorType(), ""));
+        body.setCanComment(Boolean.TRUE.equals(row.getCanComment()));
+        body.setRecommended(Boolean.TRUE.equals(row.getRecommended()));
+        body.setPrivacy(Boolean.TRUE.equals(row.getPrivacy()));
+        body.setRubbish(Boolean.TRUE.equals(row.getRubbish()));
     }
 
     private static String status(boolean draft, boolean privateArticle) {
@@ -109,53 +97,33 @@ public final class ContentToolService {
 
     public ArticleDetails details(AccountAccess account, int id, Set<String> scopes) throws SQLException {
         permissionService.require(account, AccountAction.ARTICLE_READ);
-        Map<String, Object> row = permissionService.article(account, id, false);
-        if (!ArticleAccess.canRead(account, scopes, number(row, "userId"), bool(row, "rubbish"), bool(row, "privacy")))
+        Log row = permissionService.article(account, id, false);
+        if (!ArticleAccess.canRead(account, scopes, Objects.requireNonNullElse(row.getUserId(), 0), Boolean.TRUE.equals(row.getRubbish()), Boolean.TRUE.equals(row.getPrivacy())))
             throw new PermissionErrorException();
         ArticleDetails details = new ArticleDetails();
         details.id = id;
-        details.version = number(row, "version");
-        details.typeId = number(row, "typeId");
-        details.title = text(row, "title");
-        details.alias = text(row, "alias");
-        details.digest = text(row, "digest");
-        details.keywords = text(row, "keywords");
-        details.thumbnail = text(row, "thumbnail");
-        details.editorType = text(row, "editor_type");
-        details.canComment = bool(row, "canComment");
-        details.recommended = bool(row, "recommended");
-        details.status = status(bool(row, "rubbish"), bool(row, "privacy"));
+        details.version = Objects.requireNonNullElse(row.getVersion(), 0L).intValue();
+        details.typeId = Objects.requireNonNullElse(row.getTypeId(), 0);
+        details.title = Objects.toString(row.getTitle(), "");
+        details.alias = Objects.toString(row.getAlias(), "");
+        details.digest = Objects.toString(row.getDigest(), "");
+        details.keywords = Objects.toString(row.getKeywords(), "");
+        details.thumbnail = Objects.toString(row.getThumbnail(), "");
+        details.editorType = Objects.toString(row.getEditorType(), "");
+        details.canComment = Boolean.TRUE.equals(row.getCanComment());
+        details.recommended = Boolean.TRUE.equals(row.getRecommended());
+        details.status = status(Boolean.TRUE.equals(row.getRubbish()), Boolean.TRUE.equals(row.getPrivacy()));
         return details;
     }
 
     public TaxonomyList taxonomy(AccountAccess account, boolean categories, int offset, int limit) throws SQLException {
         permissionService.require(account, AccountAction.TAXONOMY_READ);
-        List<Map<String, Object>> rows =
-                categories
-                        ? this.typeProvider
-                        .get()
-                        .queryListWithParams(
-                                "select typeId,typeName,alias,remark from type order by typeId limit ? offset ?",
-                                limit + 1,
-                                offset)
-                        : this.tagProvider
-                        .get()
-                        .queryListWithParams(
-                                "select tagId,text from tag order by tagId limit ? offset ?",
-                                limit + 1,
-                                offset);
+        List<TaxonomyEntry> rows = categories
+                ? typeProvider.get().queryList("select typeId as id,typeName as name,alias,remark as description from type order by typeId limit ? offset ?", TaxonomyEntry.class, limit + 1, offset)
+                : tagProvider.get().queryList("select tagId as id,text as name from tag order by tagId limit ? offset ?", TaxonomyEntry.class, limit + 1, offset);
         TaxonomyList result = new TaxonomyList();
         if (rows.size() > limit) result.nextOffset = offset + limit;
-        for (Map<String, Object> row : rows.subList(0, Math.min(rows.size(), limit))) {
-            TaxonomyEntry item = new TaxonomyEntry();
-            item.id = number(row, categories ? "typeId" : "tagId");
-            item.name = text(row, categories ? "typeName" : "text");
-            if (categories) {
-                item.alias = text(row, "alias");
-                item.description = text(row, "remark");
-            }
-            result.items.add(item);
-        }
+        result.items.addAll(rows.subList(0, Math.min(rows.size(), limit)));
         return result;
     }
 
@@ -170,7 +138,7 @@ public final class ContentToolService {
         boolean create = operation.equals("create_article");
         permissionService.require(account, create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
-        Map<String, Object> old = null;
+        Log old = null;
         CreateArticleRequest body;
         int version = 0;
         if (create) {
@@ -182,7 +150,7 @@ public final class ContentToolService {
             int id = args.get("id").getAsInt();
             old = permissionService.article(account, id, false);
             version = args.get("version").getAsInt();
-            if (version != number(old, "version")) throw new UpdateArticleExpireException();
+            if (version != Objects.requireNonNullElse(old.getVersion(), 0L).intValue()) throw new UpdateArticleExpireException();
             UpdateArticleRequest update = new UpdateArticleRequest();
             update.setLogId(id);
             update.setVersion(version);
@@ -194,14 +162,14 @@ public final class ContentToolService {
             body.setRubbish(false);
             body.setPrivacy(false);
         }
-        int author = old == null ? account.getUserId() : number(old, "userId");
-        if (!ArticleAccess.canWrite(account, scopes, author, old == null || bool(old, "rubbish"),
-                old != null && bool(old, "privacy"), body.isRubbish(), body.isPrivacy()))
+        int author = old == null ? account.getUserId() : Objects.requireNonNullElse(old.getUserId(), 0);
+        if (!ArticleAccess.canWrite(account, scopes, author, old == null || Boolean.TRUE.equals(old.getRubbish()),
+                old != null && Boolean.TRUE.equals(old.getPrivacy()), body.isRubbish(), body.isPrivacy()))
             throw new PermissionErrorException();
         body.setPreserveDraftAiMessages(true);
         body.doValid();
         body.doClean();
-        if (this.typeProvider.get().loadById(body.getTypeId()) == null)
+        if (this.typeProvider.get().loadById((long) (body.getTypeId())) == null)
             throw invalid("admin.mcp.validation.category");
         publishing.prepareRequest(body);
         if (body.getMarkdown() != null && !body.getMarkdown().isBlank() && (body.getContent() == null || body.getContent().isBlank())) {

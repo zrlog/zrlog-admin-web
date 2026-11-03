@@ -17,6 +17,7 @@ import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 
 import java.sql.SQLException;
+import com.zrlog.model.UserAccessToken;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -118,8 +119,8 @@ public final class PersonalAccessTokenService {
         AccountAccess account = authorize(actor);
         return store.withSession(c -> {
             List<Info> result = new ArrayList<>();
-            for (Map<String, Object> row : store.list(c,
-                    "select id,userId,name,scope,resource,authVersion,createdAt,expiresAt,revoked from user_access_token where userId=? order by createdAt desc,id",
+            for (UserAccessToken row : store.entities(c, UserAccessToken.class,
+                    "WHERE userId=? ORDER BY createdAt DESC,id",
                     account.getUserId()))
                 result.add(info(row, account));
             return result;
@@ -142,18 +143,18 @@ public final class PersonalAccessTokenService {
         }
     }
 
-    private Info info(Map<String, Object> row, AccountAccess account) {
+    private Info info(UserAccessToken row, AccountAccess account) {
         Info info = new Info();
-        info.id = (String) row.get("id");
-        info.userId = ((Number) row.get("userId")).intValue();
-        info.name = (String) row.get("name");
-        info.resource = (String) row.get("resource");
-        describePermissions(info, (String) row.get("scope"), account);
-        info.createdAt = com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.get("createdAt"));
-        info.expiresAt = ((Number) row.get("expiresAt")).longValue();
-        info.revoked = AccountAccess.truth(row.get("revoked"));
+        info.id = (String) row.getId();
+        info.userId = ((Number) row.getUserId()).intValue();
+        info.name = (String) row.getName();
+        info.resource = (String) row.getResource();
+        describePermissions(info, (String) row.getScope(), account);
+        info.createdAt = com.hibegin.common.dao.ResultValueConvertUtils.parseDate(row.getCreatedAt());
+        info.expiresAt = ((Number) row.getExpiresAt()).longValue();
+        info.revoked = AccountAccess.truth(row.getRevoked());
         info.expired = info.expiresAt <= System.currentTimeMillis();
-        info.invalidated = !account.isEnabled() || ((Number) row.get("authVersion")).intValue() != account.getAuthVersion()
+        info.invalidated = !account.isEnabled() || ((Number) row.getAuthVersion()).intValue() != account.getAuthVersion()
                 || !("legacy".equals(info.permissionMode) ? resource : siteResource()).equals(info.resource);
         return info;
     }
@@ -190,7 +191,7 @@ public final class PersonalAccessTokenService {
                             + "where t.tokenHash=? and t.revoked=? and t.expiresAt>? and t.resource=? and u.enabled=? and u.authVersion=t.authVersion",
                     OAuthService.hash(token), false, System.currentTimeMillis(), audience, true);
             if (row == null) throw new OAuthException("invalid_token", 401);
-            AccountAccess account = AccountAccess.from(row);
+            AccountAccess account = AccountAccess.fromRow(row);
             Info info = new Info();
             describePermissions(info, (String) row.get("scope"), account);
             if (legacy != "legacy".equals(info.permissionMode)) throw new OAuthException("invalid_token", 401);

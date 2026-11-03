@@ -61,7 +61,7 @@ public class AIScheduledTaskTest {
         db.putWebsite("ai_base_url", "http://127.0.0.1:" + provider.getAddress().getPort());
         db.execute("insert into type(typeId,typeName,alias) values(?,?,?)", 301, "Writing", "writing-301");
         db.loadAdminWebModules();
-        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         component = db.component(AutomationComponent.class);
     }
 

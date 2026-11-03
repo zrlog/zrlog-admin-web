@@ -15,6 +15,7 @@ import jakarta.inject.Named;
 import org.jsoup.Jsoup;
 
 import java.sql.SQLException;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -171,20 +172,20 @@ public final class KnowledgeService implements ToolProvider {
         }
         params.add(limit + 1);
         params.add(offset);
-        List<Map<String, Object>> rows =
+        List<ArticleBasicDTO> rows =
                 this.logProvider
                         .get()
-                        .queryListWithParams(
+                        .queryList(
                                 "select logId,userId,title,alias,digest,rubbish,privacy,last_update_date from log"
                                         + where
                                         + " order by last_update_date desc,logId desc limit ? offset ?",
-                                params.toArray());
+                                ArticleBasicDTO.class, params.toArray());
         SearchResult result = new SearchResult();
         if (rows.size() > limit && offset + limit <= 1000) result.nextOffset = offset + limit;
-        for (Map<String, Object> row : rows.subList(0, Math.min(rows.size(), limit))) {
+        for (ArticleBasicDTO row : rows.subList(0, Math.min(rows.size(), limit))) {
             SearchHit hit = new SearchHit();
             fillSource(hit, row);
-            String excerpt = Jsoup.parse(Objects.toString(row.get("digest"), "")).text();
+            String excerpt = Jsoup.parse(Objects.toString(row.getDigest(), "")).text();
             hit.excerpt = excerpt.substring(0, Math.min(400, excerpt.length()));
             result.articles.add(hit);
         }
@@ -196,22 +197,22 @@ public final class KnowledgeService implements ToolProvider {
         List<Object> params = new ArrayList<>();
         String where = filter(account, params);
         params.add(id);
-        Map<String, Object> row =
+        ArticleBasicDTO row =
                 this.logProvider
                         .get()
-                        .queryFirstWithParams(
+                        .queryOne(
                                 "select logId,userId,title,alias,rubbish,privacy,last_update_date,markdown,content from log"
                                         + where
                                         + " and logId=?",
-                                params.toArray());
-        if (row == null || !ArticleAccess.canRead(account, scopes, ((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("rubbish")), AccountAccess.truth(row.get("privacy"))))
+                                ArticleBasicDTO.class, params.toArray());
+        if (row == null || !ArticleAccess.canRead(account, scopes, ((Number) row.getUserId()).intValue(), AccountAccess.truth(row.getRubbish()), AccountAccess.truth(row.getPrivacy())))
             throw new IllegalArgumentException(messages.get("admin.knowledge.error.articleUnavailable"));
-        String content = Objects.toString(row.get("markdown"), "");
+        String content = Objects.toString(row.getMarkdown(), "");
         ArticleResult result = new ArticleResult();
         result.source = new Source();
         fillSource(result.source, row);
         result.format = content.isEmpty() ? "text" : "markdown";
-        if (content.isEmpty()) content = Jsoup.parse(Objects.toString(row.get("content"), "")).text();
+        if (content.isEmpty()) content = Jsoup.parse(Objects.toString(row.getContent(), "")).text();
         if (offset > content.length()) throw invalid();
         if (offset > 0 && offset < content.length() && Character.isLowSurrogate(content.charAt(offset)) && Character.isHighSurrogate(content.charAt(offset - 1)))
             throw invalid();
@@ -224,13 +225,13 @@ public final class KnowledgeService implements ToolProvider {
         return result;
     }
 
-    private void fillSource(Source source, Map<String, Object> row) {
-        source.id = ((Number) row.get("logId")).longValue();
-        source.title = Objects.toString(row.get("title"), "");
-        source.draft = AccountAccess.truth(row.get("rubbish"));
-        source.privateArticle = AccountAccess.truth(row.get("privacy"));
-        source.updatedAt = Objects.toString(row.get("last_update_date"), "");
-        String alias = Objects.toString(row.get("alias"), "");
+    private void fillSource(Source source, ArticleBasicDTO row) {
+        source.id = ((Number) row.getLogId()).longValue();
+        source.title = Objects.toString(row.getTitle(), "");
+        source.draft = AccountAccess.truth(row.getRubbish());
+        source.privateArticle = AccountAccess.truth(row.getPrivacy());
+        source.updatedAt = Objects.toString(row.getLast_update_date(), "");
+        String alias = Objects.toString(row.getAlias(), "");
         String key = alias.isBlank() ? Long.toString(source.id) : java.net.URLEncoder.encode(alias, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
         source.url = siteUrl.get() + (source.draft || source.privateArticle ? "/admin/article-edit?previewMode=true&id=" + source.id : "/" + key + (staticHtml.getAsBoolean() ? ".html" : ""));
     }

@@ -9,15 +9,14 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
+import com.zrlog.model.User;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Singleton
 public final class MemberService {
@@ -53,13 +52,13 @@ public final class MemberService {
         if (password == null || password.length() < 12 || password.length() > 256) throw new ArgsException("password");
     }
 
-    private static Member member(Map<String, Object> row) {
+    private static Member member(User row) {
         Member member = new Member();
-        member.userId = ((Number) row.get("userId")).intValue();
-        member.userName = Objects.toString(row.get("userName"), "");
-        member.email = Objects.toString(row.get("email"), "");
-        member.role = Objects.toString(row.get("role"), "");
-        member.enabled = AccountAccess.truth(row.get("enabled"));
+        member.userId = ((Number) row.getId()).intValue();
+        member.userName = Objects.toString(row.getUserName(), "");
+        member.email = Objects.toString(row.getEmail(), "");
+        member.role = Objects.toString(row.getRole(), "");
+        member.enabled = AccountAccess.truth(row.getEnabled());
         return member;
     }
 
@@ -67,8 +66,7 @@ public final class MemberService {
         permissionService.require(actor, AccountAction.MEMBER_MANAGE);
         Page page = new Page();
         page.currentRole = actor.getRole();
-        page.members = store.withSession(c -> store.list(c, "select userId,userName,email,role,enabled from user order by userId"))
-                .stream().map(MemberService::member).collect(Collectors.toList());
+        page.members = store.withSession(c -> store.list(c, "select userId,userName,email,role,enabled from user order by userId", Member.class));
         return page;
     }
 
@@ -84,7 +82,7 @@ public final class MemberService {
         String hash = PasswordHashUtils.hash(SecurityUtils.md5(body.password));
         return store.withSession(c -> {
             lockMembership(c, actor);
-            if (store.one(c, "select userId from user where lower(userName)=?", name) != null)
+            if (store.scalar(c, "select userId from user where lower(userName)=?", name) != null)
                 throw new ArgsException("userName");
             // Persist an unset avatar as "" for older NOT NULL schemas; UserService supplies the default image on read.
             if (c.isWebApi()) {
@@ -95,10 +93,17 @@ public final class MemberService {
                         actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), name) != 1)
                     throw new PermissionErrorException();
             } else {
-                store.update(c, "insert into user (createdAt,updatedAt,version,userName,email,header,password,secretKey,role,enabled,authVersion) values (?,?,0,?,?,?,?,?,?,?,?)", new java.sql.Timestamp(System.currentTimeMillis()).toString(), new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                        name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0);
+                User user = new User();
+                user.setUserName(name);
+                user.setEmail(Objects.toString(body.email, ""));
+                user.setHeader("");
+                user.setPassword(hash);
+                user.setSecretKey(UUID.randomUUID().toString());
+                user.setRole(body.role);
+                store.repository(c, User.class).insert(user);
+                return member(user);
             }
-            return member(store.one(c, "select userId,userName,email,role,enabled from user where userName=?", name));
+            return member(store.entities(c, User.class, "WHERE userName=? LIMIT 1", name).get(0));
         });
     }
 
@@ -111,20 +116,19 @@ public final class MemberService {
         return store.withSession(
                 c -> {
                     lockMembership(c, actor);
-                    Map<String, Object> row =
-                            store.one(c, "select * from user where userId=?", body.userId);
+                    User row = store.entity(c, User.class, body.userId.longValue());
                     if (row == null
-                            || "owner".equals(row.get("role"))
+                            || "owner".equals(row.getRole())
                             || body.userId == actor.getUserId())
                         throw new PermissionErrorException();
                     // Administrators cannot edit other administrators or grant their own rank.
                     if (!AccountAction.ADMIN_APPOINT.allowed(actor)
-                            && ("admin".equals(row.get("role")) || "admin".equals(body.role)))
+                            && ("admin".equals(row.getRole()) || "admin".equals(body.role)))
                         throw new PermissionErrorException();
                     if (c.isWebApi()) {
                         String password =
                                 body.password == null || body.password.isEmpty()
-                                        ? (String) row.get("password")
+                                        ? (String) row.getPassword()
                                         : PasswordHashUtils.hash(SecurityUtils.md5(body.password));
                         if (store.update(
                                 c,
@@ -135,8 +139,8 @@ public final class MemberService {
                                 body.enabled,
                                 password,
                                 body.userId,
-                                row.get("role"),
-                                row.get("authVersion"),
+                                row.getRole(),
+                                row.getAuthVersion(),
                                 actor.getUserId(),
                                 actor.getRole(),
                                 true,
@@ -145,35 +149,21 @@ public final class MemberService {
                         // authVersion invalidates both OAuth grants and personal tokens in the same
                         // statement.
                         return member(
-                                store.one(
-                                        c,
-                                        "select userId,userName,email,role,enabled from user where userId=?",
-                                        body.userId));
+                                store.entity(c, User.class, body.userId.longValue()));
                     }
-                    store.update(
-                            c,
-                            "update user set updatedAt=?,version=version+1,role=?,enabled=?,authVersion=authVersion+1 where userId=? and role<>?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                            body.role,
-                            body.enabled,
-                            body.userId,
-                            "owner");
+                    row.setRole(body.role);
+                    row.setEnabled(body.enabled);
+                    row.setAuthVersion(Math.addExact(row.getAuthVersion(), 1));
                     if (body.password != null && !body.password.isEmpty())
-                        store.update(
-                                c,
-                                "update user set updatedAt=?,version=version+1,password=? where userId=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
-                                PasswordHashUtils.hash(SecurityUtils.md5(body.password)),
-                                body.userId);
+                        row.setPassword(PasswordHashUtils.hash(SecurityUtils.md5(body.password)));
+                    store.repository(c, User.class).update(row);
                     store.update(
                             c,
                             "update oauth_grant set updatedAt=?,version=version+1,revoked=? where userId=?",
                             new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                             true,
                             body.userId);
-                    return member(
-                            store.one(
-                                    c,
-                                    "select userId,userName,email,role,enabled from user where userId=?",
-                                    body.userId));
+                    return member(row);
                 });
     }
 
@@ -197,7 +187,7 @@ public final class MemberService {
                 return null;
             }
             lockMembership(c, actor);
-            Map<String, Object> target = store.one(c, "select * from user where userId=?", body.userId);
+            User target = store.entity(c, User.class, body.userId.longValue());
             if (!AccountAccess.from(target).isEnabled()) throw new PermissionErrorException();
             if (store.update(c, "update user set updatedAt=?,version=version+1,role=?,authVersion=authVersion+1 where userId=? and role=?", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "admin", actor.getUserId(), "owner") != 1)
                 throw new PermissionErrorException();
@@ -211,7 +201,7 @@ public final class MemberService {
     private void lockMembership(SecurityStore.Session c, AccountAccess actor) throws SQLException {
         // A single owner row gives all member mutations a consistent lock order.
         store.lock(c, "update user set authVersion=authVersion where role=?", "owner");
-        AccountAccess current = AccountAccess.from(store.one(c, "select * from user where userId=?", actor.getUserId()));
+        AccountAccess current = AccountAccess.from(store.entity(c, User.class, (long) actor.getUserId()));
         if (!current.isAdministrator() || current.getAuthVersion() != actor.getAuthVersion())
             throw new PermissionErrorException();
     }

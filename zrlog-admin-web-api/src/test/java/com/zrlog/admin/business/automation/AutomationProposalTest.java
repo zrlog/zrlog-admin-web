@@ -51,7 +51,7 @@ public class AutomationProposalTest {
         try (var db = InMemoryZrLogDatabase.openWebApi()) {
             var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
             var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1)).restrictActions(List.of(
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L)).restrictActions(List.of(
                     AccountAction.SESSION.getId(), AccountAction.ARTICLE_ASSIST.getId()));
             var privileged = definition(); privileged.type = "system.upgrade"; privileged.requiredActions = List.of(AccountAction.SYSTEM_MANAGE.getId());
             ScheduledTaskProvider provider = new ScheduledTaskProvider() {

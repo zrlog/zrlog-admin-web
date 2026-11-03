@@ -67,7 +67,7 @@ public final class AutomationIntegrationApplication {
         };
         // Exercise external ticks first; enable the real resident timer later through the settings API.
         var automations = config.getServerConfig().getBindings().build().get(AutomationComponent.class);
-        var actor = AccountAccess.from(config.getServerConfig().getBindings().build().get(DataComponent.class).user().loadById(1));
+        var actor = AccountAccess.from(config.getServerConfig().getBindings().build().get(DataComponent.class).user().loadById(1L));
         automations.settings().save(actor, automations.settings().read(actor).revision, false, false);
         new WebServerBuilder.Builder().config(config).build().start();
     }

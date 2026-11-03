@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.model.WebSite;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
@@ -36,11 +37,16 @@ public final class AutomationStore {
 
     ExecutionState executionState(String taskId, int userId) throws SQLException {
         requireId(taskId);
-        var row = websites.get().queryFirstWithParams(
+        var row = websites.get().queryOne(
                 "SELECT w.name,w.value,u.userId,u.role,u.enabled,u.authVersion FROM website w"
-                        + " LEFT JOIN user u ON u.userId=? WHERE w.name=?", userId, TASK_PREFIX + taskId);
-        return row == null ? null : new ExecutionState(snapshot(row, StoredTask.class),
-                AccountAccess.from(row.get("userId") == null ? null : row));
+                        + " LEFT JOIN user u ON u.userId=? WHERE w.name=?", ExecutionProjection.class, userId, TASK_PREFIX + taskId);
+        return row == null ? null : new ExecutionState(snapshot(row.name, row.value, StoredTask.class),
+                AccountAccess.fromSnapshot(row));
+    }
+
+    static final class ExecutionProjection extends AccountAccess.Snapshot {
+        String name;
+        String value;
     }
 
     static final class ExecutionState {
@@ -60,12 +66,12 @@ public final class AutomationStore {
     public ReadBatch readBatch(Collection<String> requested) throws SQLException {
         var keys = requested.stream().distinct().collect(java.util.stream.Collectors.toList());
         if (keys.size() > 100) throw new IllegalArgumentException("automation.invalidBatch");
-        Map<String, Map<String, Object>> found = new LinkedHashMap<>();
+        Map<String, WebSite> found = new LinkedHashMap<>();
         if (!keys.isEmpty()) {
             var placeholders = String.join(",", java.util.Collections.nCopies(keys.size(), "?"));
-            for (var row : websites.get().queryListWithParams(
-                    "SELECT name,value FROM website WHERE name IN (" + placeholders + ")", keys.toArray())) {
-                found.put(Objects.toString(row.get("name")), row);
+            for (var row : websites.get().select(
+                    "WHERE name IN (" + placeholders + ")", keys.toArray())) {
+                found.put(Objects.toString(row.getName()), row);
             }
         }
         return new ReadBatch(keys, found);
@@ -73,9 +79,9 @@ public final class AutomationStore {
 
     public static final class ReadBatch {
         private final List<String> keys;
-        private final Map<String, Map<String, Object>> rows;
+        private final Map<String, WebSite> rows;
 
-        private ReadBatch(List<String> keys, Map<String, Map<String, Object>> rows) {
+        private ReadBatch(List<String> keys, Map<String, WebSite> rows) {
             this.keys = keys; this.rows = rows;
         }
 
@@ -91,8 +97,8 @@ public final class AutomationStore {
     }
 
     public List<Snapshot<StoredTask>> due(long now, int limit) throws SQLException {
-        return rows(websites.get().queryListWithParams(
-                "SELECT name,value FROM website WHERE name>=? AND name<? AND remark<=? ORDER BY remark,name LIMIT ?",
+        return rows(websites.get().select(
+                "WHERE name>=? AND name<? AND remark<=? ORDER BY remark,name LIMIT ?",
                 TASK_PREFIX, end(TASK_PREFIX), timeKey(now), Math.min(64, Math.max(1, limit))), StoredTask.class);
     }
 
@@ -164,15 +170,15 @@ public final class AutomationStore {
         }
         requireId(taskId);
         String prefix = RUN_PREFIX + ownerPrefix(ownerId);
-        return rows(websites.get().queryListWithParams(
-                "SELECT name,value FROM website WHERE name>=? AND name<? AND remark=? ORDER BY name DESC LIMIT ? OFFSET ?",
+        return rows(websites.get().select(
+                "WHERE name>=? AND name<? AND remark=? ORDER BY name DESC LIMIT ? OFFSET ?",
                 prefix, end(prefix), taskId, pageSize(limit), Math.max(0, offset)), AutomationModels.Run.class);
     }
 
     public List<Snapshot<AutomationModels.Run>> visibleRuns(int ownerId, List<String> systemIds, String taskId, int limit, int offset) throws SQLException {
         var query = visibleRunQuery(ownerId, systemIds, taskId);
         query.parameters.add(pageSize(limit)); query.parameters.add(Math.max(0, offset));
-        return rows(websites.get().queryListWithParams("SELECT name,value FROM website WHERE " + query.where
+        return rows(websites.get().select("WHERE " + query.where
                 + " ORDER BY SUBSTR(name," + (RUN_PREFIX.length() + 12) + ") DESC LIMIT ? OFFSET ?", query.parameters.toArray()), AutomationModels.Run.class);
     }
 
@@ -220,8 +226,8 @@ public final class AutomationStore {
         var upgrade = read(AutomaticUpgradeTaskProvider.KEY, AutomaticUpgradeTaskProvider.Receipt.class);
         String pendingUpgrade = upgrade != null && !"confirmed".equals(upgrade.value.state) ? upgrade.value.runId : null;
         String prefix = RUN_PREFIX + ownerPrefix(ownerId);
-        List<Snapshot<AutomationModels.Run>> candidates = rows(websites.get().queryListWithParams(
-                "SELECT name,value FROM website WHERE name>=? AND name<? ORDER BY name DESC LIMIT ?",
+        List<Snapshot<AutomationModels.Run>> candidates = rows(websites.get().select(
+                "WHERE name>=? AND name<? ORDER BY name DESC LIMIT ?",
                 prefix, end(prefix), 1000), AutomationModels.Run.class);
         int completed = 0;
         int removed = 0;
@@ -258,7 +264,7 @@ public final class AutomationStore {
     }
 
     public <T> Snapshot<T> read(String key, Class<T> type) throws SQLException {
-        Map<String, Object> row = websites.get().queryFirstWithParams("SELECT name,value FROM website WHERE name=?", key);
+        WebSite row = websites.get().findByName(key);
         return row == null ? null : snapshot(row, type);
     }
 
@@ -291,22 +297,26 @@ public final class AutomationStore {
     }
 
     private <T> List<Snapshot<T>> list(String prefix, Class<T> type, int limit, int offset, boolean newest) throws SQLException {
-        return rows(websites.get().queryListWithParams(
-                "SELECT name,value FROM website WHERE name>=? AND name<? ORDER BY name " + (newest ? "DESC" : "ASC")
+        return rows(websites.get().select(
+                "WHERE name>=? AND name<? ORDER BY name " + (newest ? "DESC" : "ASC")
                         + " LIMIT ? OFFSET ?", prefix, end(prefix), pageSize(limit), Math.max(0, offset)), type);
     }
 
-    private static <T> List<Snapshot<T>> rows(List<Map<String, Object>> rows, Class<T> type) {
+    private static <T> List<Snapshot<T>> rows(List<WebSite> rows, Class<T> type) {
         List<Snapshot<T>> result = new ArrayList<>();
-        for (Map<String, Object> row : rows) result.add(snapshot(row, type));
+        for (WebSite row : rows) result.add(snapshot(row, type));
         return result;
     }
 
-    private static <T> Snapshot<T> snapshot(Map<String, Object> row, Class<T> type) {
-        String raw = Objects.toString(row.get("value"), "");
+    private static <T> Snapshot<T> snapshot(WebSite row, Class<T> type) {
+        return snapshot(row.getName(), row.getValue(), type);
+    }
+
+    private static <T> Snapshot<T> snapshot(String name, String rawValue, Class<T> type) {
+        String raw = Objects.toString(rawValue, "");
         T value = JSON.fromJson(raw, type);
         if (value == null) throw new IllegalStateException("automation.invalidStoredRecord");
-        return new Snapshot<>(Objects.toString(row.get("name")), raw, value);
+        return new Snapshot<>(name, raw, value);
     }
 
     static String dueKey(StoredTask task) {

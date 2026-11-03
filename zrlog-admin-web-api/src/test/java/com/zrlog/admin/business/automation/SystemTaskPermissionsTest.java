@@ -68,7 +68,7 @@ public class SystemTaskPermissionsTest {
         assertTrue(defaults.initialize());
     }
     @After public void close() throws Exception { if (db != null) db.close(); }
-    private AccountAccess actor(int id) throws Exception { return AccountAccess.from(new UserRepository(db.dataSource()).loadById(id)); }
+    private AccountAccess actor(int id) throws Exception { return AccountAccess.from(new UserRepository(db.dataSource()).loadById((long) id)); }
     private StoredTask task() throws Exception { return service.systemTasks(actor(1)).get(0); }
     private AutomationModels.Plan plan(StoredTask task) { return AutomationStore.JSON.fromJson(AutomationStore.JSON.toJson(task), AutomationModels.Plan.class); }
 

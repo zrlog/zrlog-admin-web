@@ -29,6 +29,12 @@ public class UserPreferenceConcurrencyTest {
         return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
     }
 
+    private static boolean isPreferenceUpdate(String sql) {
+        String normalized = sql.replace("`", "").toLowerCase(java.util.Locale.ROOT);
+        return normalized.startsWith("update user set ")
+                && normalized.substring(0, normalized.indexOf(" where ")).contains("preferences=?");
+    }
+
     @Test
     public void personalSaveSurvivesConcurrentDashboardUpdates() throws Exception {
         savesAfterCompetingWrites(true);
@@ -44,7 +50,7 @@ public class UserPreferenceConcurrencyTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competing = new AtomicInteger();
             db.beforeWebApiUpdate((sql, args) -> {
-                if (!sql.startsWith("update user set updatedAt=?,version=version+1,preferences=") || competing.getAndIncrement() != 0) return;
+                if (!isPreferenceUpdate(sql) || competing.getAndIncrement() != 0) return;
                 db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
             });
             new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
@@ -62,7 +68,7 @@ public class UserPreferenceConcurrencyTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competingWrites = new AtomicInteger();
             db.beforeWebApiUpdate((sql, args) -> {
-                if (!sql.startsWith("update user set updatedAt=?,version=version+1,preferences=") || competingWrites.get() >= 12) return;
+                if (!isPreferenceUpdate(sql) || competingWrites.get() >= 12) return;
                 int revision = competingWrites.incrementAndGet();
                 // Commit another instance's change between our read and conditional write.
                 JsonObject latest = stored(db);
@@ -93,7 +99,7 @@ public class UserPreferenceConcurrencyTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competingWrites = new AtomicInteger();
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("update user set updatedAt=?,version=version+1,preferences=")) {
+                if (isPreferenceUpdate(sql)) {
                     db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(),
                             "{\"future\":{\"revision\":" + competingWrites.incrementAndGet() + "}}");
                 }
@@ -116,7 +122,7 @@ public class UserPreferenceConcurrencyTest {
     public void interruptedRetryPreservesInterruptAndCompetingUpdate() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("update user set updatedAt=?,version=version+1,preferences=")) {
+                if (isPreferenceUpdate(sql)) {
                     db.execute("update user set updatedAt=?,version=version+1,preferences=? where userId=1", new java.sql.Timestamp(System.currentTimeMillis()).toString(), "{\"future\":{\"key\":1}}");
                     Thread.currentThread().interrupt();
                 }
@@ -144,7 +150,7 @@ public class UserPreferenceConcurrencyTest {
             AtomicInteger writes = new AtomicInteger();
             SQLException unavailable = new SQLException("Database unavailable");
             db.beforeWebApiUpdate((sql, args) -> {
-                if (sql.startsWith("update user set updatedAt=?,version=version+1,preferences=")) {
+                if (isPreferenceUpdate(sql)) {
                     writes.incrementAndGet();
                     throw unavailable;
                 }

@@ -12,15 +12,17 @@ import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 public class LogVersionRepository extends BaseRepository<LogVersion, Long> {
+
+    private final DataSourceWrapper database;
 
     public static final String TABLE_NAME = "log_version";
 
     @Inject
     public LogVersionRepository(DataSourceWrapper database) {
         super(LogVersion.class, database);
+        this.database = database;
     }
 
     public boolean deleteByLogIdAndArticleVersion(Integer logId, Integer articleVersion) throws SQLException {
@@ -29,24 +31,32 @@ public class LogVersionRepository extends BaseRepository<LogVersion, Long> {
 
     public boolean savePatch(Integer logId, Integer articleVersion, String patchJson, Integer userId, String title, Date createdAt,
                              Integer fromVersion) throws SQLException {
-        return execute("insert into " + tableName
-                        + " (log_id, article_version, patch_json, user_id, title, created_at, from_version, updatedAt, version)"
-                        + " values (?, ?, ?, ?, ?, ?, ?, ?, 0)",
-                logId, articleVersion, patchJson, userId, title, new java.sql.Timestamp(createdAt.getTime()).toString(), fromVersion, new java.sql.Timestamp(createdAt.getTime()).toString());
+        LogVersion history = new LogVersion();
+        history.setLogId(logId);
+        history.setArticleVersion(articleVersion);
+        history.setPatchJson(patchJson);
+        history.setUserId(userId);
+        history.setTitle(title);
+        history.setFromVersion(fromVersion);
+        new com.hibegin.common.dao.entity.EntityRepository<>(LogVersion.class, database,
+                java.time.Clock.fixed(java.time.Instant.ofEpochMilli(createdAt.getTime()), java.time.ZoneOffset.UTC)).insert(history);
+        return true;
     }
 
-    public List<Map<String, Object>> findVersionList(Integer logId) throws SQLException {
-        return queryListWithParams(
-                "select article_version, from_version, created_at, user_id, title from " + tableName
-                        + " where log_id=? order by article_version desc",
-                logId
-        );
+    public static final class Summary {
+        public Integer articleVersion;
+        public Integer fromVersion;
+        public java.sql.Timestamp createdAt;
+        public Integer userId;
+        public String title;
     }
 
-    public List<Map<String, Object>> findReversePatchesGreaterThanVersion(Integer logId, Integer targetVersion) throws SQLException {
-        return queryListWithParams(
-                "select article_version, patch_json from " + tableName
-                        + " where log_id=? and article_version>? order by article_version desc",
+    public List<Summary> findVersionList(Integer logId) throws SQLException {
+        return queryList("SELECT article_version AS articleVersion,from_version AS fromVersion,created_at AS createdAt,user_id AS userId,title FROM log_version WHERE log_id=? ORDER BY article_version DESC", Summary.class, logId);
+    }
+
+    public List<LogVersion> findReversePatchesGreaterThanVersion(Integer logId, Integer targetVersion) throws SQLException {
+        return select("WHERE log_id=? AND article_version>? ORDER BY article_version DESC",
                 logId, targetVersion
         );
     }

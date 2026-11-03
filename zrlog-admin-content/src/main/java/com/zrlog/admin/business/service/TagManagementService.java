@@ -17,6 +17,7 @@ import com.zrlog.data.security.AccountAction;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -99,13 +100,13 @@ public class TagManagementService {
         String sourceTag = normalizeTag(request.getSourceTag());
         String targetTag = normalizeTag(request.getTargetTag());
         boolean remove = Objects.equals(operation, "delete");
-        List<Map<String, Object>> rows =
+        List<ArticleBasicDTO> rows =
                 this.logProvider
                         .get()
-                        .queryListWithParams(
+                        .queryList(
                                 "select logId,title,keywords,version from "
                                         + LogRepository.TABLE_NAME
-                                        + " where keywords is not null and keywords <> ''");
+                                        + " where keywords is not null and keywords <> ''", ArticleBasicDTO.class);
         TagManagementPreviewResponse response = new TagManagementPreviewResponse();
         response.setSourceTag(sourceTag);
         response.setTargetTag(remove ? "" : targetTag);
@@ -113,8 +114,8 @@ public class TagManagementService {
         LogRepository logDao = this.logProvider.get();
         long affected = 0;
         long updated = 0;
-        for (Map<String, Object> row : rows) {
-            String beforeKeywords = Objects.toString(row.get("keywords"), "");
+        for (ArticleBasicDTO row : rows) {
+            String beforeKeywords = Objects.toString(row.getKeywords(), "");
             List<String> tags = parseTags(beforeKeywords);
             if (!tags.contains(sourceTag)) {
                 continue;
@@ -128,16 +129,14 @@ public class TagManagementService {
                 response.getArticles().add(toImpact(row, beforeKeywords, afterKeywords));
             }
             if (execute) {
-                Number logId = (Number) row.get("logId");
-                int version = ((Number) row.get("version")).intValue();
+                Number logId = (Number) row.getLogId();
+                int version = ((Number) row.getVersion()).intValue();
                 // This explicit projection supports a conditional bulk edit without loading article bodies.
                 if (version == Integer.MAX_VALUE || !logDao.execute("UPDATE log SET keywords=?,last_update_date=?,version=version+1 WHERE logId=? AND keywords=? AND version=?",
                         afterKeywords.isEmpty() ? null : afterKeywords,
                         new java.sql.Timestamp(System.currentTimeMillis()).toString(), logId, beforeKeywords, version)) continue;
-                Map<String, Object> saved = new HashMap<>(row);
-                saved.put("keywords", afterKeywords.isEmpty() ? null : afterKeywords);
-                saved.put("version", version + 1);
-                versions.recordReversePatch(row, saved, actor.getUserId());
+                versions.recordKeywordPatch(logId.intValue(), version + 1, row.getTitle(),
+                        beforeKeywords, afterKeywords.isEmpty() ? null : afterKeywords, actor.getUserId());
                 updated += 1;
             }
         }
@@ -148,12 +147,12 @@ public class TagManagementService {
         return response;
     }
 
-    TagManagementArticleImpactResponse toImpact(Map<String, Object> row, String beforeKeywords,
+    TagManagementArticleImpactResponse toImpact(ArticleBasicDTO row, String beforeKeywords,
                                                 String afterKeywords) {
         TagManagementArticleImpactResponse impact = new TagManagementArticleImpactResponse();
-        Number logId = (Number) row.get("logId");
+        Number logId = (Number) row.getLogId();
         impact.setId(logId == null ? null : logId.longValue());
-        impact.setTitle(Objects.toString(row.get("title"), ""));
+        impact.setTitle(Objects.toString(row.getTitle(), ""));
         impact.setBeforeKeywords(beforeKeywords);
         impact.setAfterKeywords(afterKeywords);
         return impact;

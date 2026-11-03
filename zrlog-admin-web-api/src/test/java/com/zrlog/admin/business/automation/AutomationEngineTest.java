@@ -49,7 +49,7 @@ public class AutomationEngineTest {
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
         store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
         authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
-        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         definition.type = "test.reminder";
         definition.titleKey = "reminder";
         definition.requiredActions = List.of("account.session");

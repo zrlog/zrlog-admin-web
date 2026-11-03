@@ -11,14 +11,18 @@ import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.Map;
+import com.hibegin.common.dao.entity.OptimisticLockException;
 
 public class UserPasskeyChallengeRepository extends BaseRepository<UserPasskeyChallenge, Long> {
+
+    private final DataSourceWrapper database;
 
     public static final String TABLE_NAME = "user_passkey_challenge";
 
     @Inject
     public UserPasskeyChallengeRepository(DataSourceWrapper database) {
         super(UserPasskeyChallenge.class, database);
+        this.database = database;
     }
 
     public boolean save(String requestId, String ceremony, Integer userId, String requestJson,
@@ -38,20 +42,27 @@ public class UserPasskeyChallengeRepository extends BaseRepository<UserPasskeyCh
 
     public boolean insert(String requestId, String ceremony, Integer userId, String requestJson,
                           long expiresAt, long createdAt) throws SQLException {
-        return execute("insert into " + tableName
-                        + " (requestId,ceremony,userId,requestJson,expiresAt,createdAt,updatedAt,version) values (?,?,?,?,?,?,?,0)",
-                requestId, ceremony, userId, requestJson, expiresAt, new java.sql.Timestamp(createdAt).toString(), new java.sql.Timestamp(createdAt).toString());
+        UserPasskeyChallenge challenge = new UserPasskeyChallenge();
+        challenge.setRequestId(requestId);
+        challenge.setCeremony(ceremony);
+        challenge.setUserId(userId);
+        challenge.setRequestJson(requestJson);
+        challenge.setExpiresAt(expiresAt);
+        new com.hibegin.common.dao.entity.EntityRepository<>(UserPasskeyChallenge.class, database,
+                java.time.Clock.fixed(java.time.Instant.ofEpochMilli(createdAt), java.time.ZoneOffset.UTC)).insert(challenge);
+        return true;
     }
 
-    public Map<String, Object> consume(String requestId, String ceremony, long now) throws SQLException {
-        Map<String, Object> challenge = queryFirstWithParams(
-                "select * from " + tableName + " where requestId=? and ceremony=?", requestId, ceremony);
-        if (challenge == null) {
+    public UserPasskeyChallenge consume(String requestId, String ceremony, long now) throws SQLException {
+        UserPasskeyChallenge challenge = findMatching(Map.of("requestId", requestId, "ceremony", ceremony), 1)
+                .stream().findFirst().orElse(null);
+        if (challenge == null || challenge.getExpiresAt() < now) return null;
+        try {
+            // The loaded expiry was checked above; version CAS consumes precisely that challenge once.
+            delete(challenge, Map.of("requestId", requestId, "ceremony", ceremony, "expiresAt", challenge.getExpiresAt()));
+            return challenge;
+        } catch (OptimisticLockException consumedOrChanged) {
             return null;
         }
-        boolean consumed = execute("delete from " + tableName
-                        + " where requestId=? and ceremony=? and expiresAt>=?",
-                requestId, ceremony, now);
-        return consumed ? challenge : null;
     }
 }

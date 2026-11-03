@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class AIChatModelDeadlineTest {
-    private final AccountAccess actor = AccountAccess.from(Map.of("userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
+    private final AccountAccess actor = AccountAccess.fromRow(Map.of("userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
 
     @Test(timeout = 10000)
     public void continuationSharesTheBudgetAndAnIncompleteBodyCannotKeepTheRequestAlive() throws Exception {

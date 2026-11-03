@@ -39,7 +39,7 @@ public class AutomationProposalAssemblyTest {
             db.putWebsite("ai_base_url", "http://127.0.0.1:" + provider.getAddress().getPort());
             db.loadAdminWebModules();
             var component = db.component(AutomationComponent.class);
-            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             assertTrue(component.proposals().available(actor));
             long before = component.store().taskCount(actor.getUserId());
             var input = new AutomationAssistant.Request(); input.input = "Remind me to plan weekly writing on Friday at 5pm";

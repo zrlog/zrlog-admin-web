@@ -17,6 +17,9 @@ import jakarta.inject.Inject;
 
 import java.lang.reflect.Type;
 import java.sql.SQLException;
+import com.zrlog.model.LogVersion;
+import com.zrlog.model.Log;
+import com.zrlog.data.dto.ArticleBasicDTO;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -123,42 +126,41 @@ public class ArticleVersionService {
         return value == null ? null : value.toString();
     }
 
-    private static Object getIgnoreCase(Map<String, Object> row, String key) {
-        Object value = row.get(key);
-        if (value != null) {
-            return value;
+    /** Immutable document values used only to construct the persisted reverse patch. */
+    static final class Revision {
+        private final Long id;
+        private final Long version;
+        private final String title;
+        private final Object[] values;
+
+        private Revision(Log article) {
+            id = article.getId();
+            version = article.getVersion();
+            title = article.getTitle();
+            values = SNAPSHOT_FIELDS.stream().map(field -> getLogFieldValue(article, field)).toArray();
         }
-        for (Map.Entry<String, Object> entry : row.entrySet()) {
-            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
     }
 
-    public void recordReversePatch(Map<String, Object> oldLog, Map<String, Object> newLog, Integer userId) throws SQLException {
-        if (oldLog == null || newLog == null) {
-            return;
+    Revision beforeUpdate(Log article) {
+        return new Revision(article);
+    }
+
+    void recordReversePatch(Revision before, Log article, Integer userId) throws SQLException {
+        if (!Objects.equals(before.id, article.getId()) || before.version == null
+                || article.getVersion() != Math.addExact(before.version, 1)) {
+            throw new IllegalArgumentException("History requires the confirmed next article version");
         }
-        Integer logId = toInteger(newLog.get("logId"));
-        Integer articleVersion = toInteger(newLog.get("version"));
-        if (logId == null || articleVersion == null || articleVersion <= 0) {
-            return;
-        }
-        Map<String, Object> patch = buildReversePatch(oldLog, newLog);
-        if (patch.isEmpty()) {
-            return;
-        }
-        this.logVersionProvider
-                .get()
-                .savePatch(
-                        logId,
-                        articleVersion,
-                        GSON.toJson(patch),
-                        userId,
-                        Objects.toString(oldLog.get("title"), ""),
-                        new Date(),
-                        articleVersion - 1);
+        Map<String, Object> patch = buildReversePatch(before, article);
+        if (patch.isEmpty()) return;
+        logVersionProvider.get().savePatch(Math.toIntExact(article.getId()), Math.toIntExact(article.getVersion()),
+                GSON.toJson(patch), userId, Objects.toString(before.title, ""), new Date(), Math.toIntExact(before.version));
+    }
+
+    public void recordKeywordPatch(int logId, int version, String title, String before, String after, int userId) throws SQLException {
+        Map<String, Object> patch = buildFieldReversePatch(before, after);
+        if (patch == null) return;
+        logVersionProvider.get().savePatch(logId, version, GSON.toJson(Map.of("keywords", patch)), userId,
+                Objects.toString(title, ""), new Date(), version - 1);
     }
 
     public List<ArticleVersionResponse> listVersions(AccountAccess actor, Integer logId) throws SQLException {
@@ -166,13 +168,13 @@ public class ArticleVersionService {
         List<ArticleVersionResponse> responses = new ArrayList<>();
         responses.add(loadCurrentVersion(logId));
 
-        List<Map<String, Object>> rows = this.logVersionProvider.get().findVersionList(logId);
-        for (Map<String, Object> row : rows) {
+        List<LogVersionRepository.Summary> rows = this.logVersionProvider.get().findVersionList(logId);
+        for (LogVersionRepository.Summary row : rows) {
             ArticleVersionResponse item = new ArticleVersionResponse();
-            item.setVersion(toInteger(row.get("from_version")));
-            item.setCreatedAt(ResultValueConvertUtils.parseDate(row.get("created_at")));
-            item.setUserId(toInteger(row.get("user_id")));
-            item.setTitle(Objects.toString(row.get("title"), ""));
+            item.setVersion(toInteger(row.fromVersion));
+            item.setCreatedAt(ResultValueConvertUtils.parseDate(row.createdAt));
+            item.setUserId(toInteger(row.userId));
+            item.setTitle(Objects.toString(row.title, ""));
             item.setCurrent(false);
             if (item.getVersion() != null) {
                 responses.add(item);
@@ -188,22 +190,14 @@ public class ArticleVersionService {
     }
 
     private ArticleVersionResponse loadCurrentVersion(Integer logId) throws SQLException {
-        Map<String, Object> row =
-                this.logProvider
-                        .get()
-                        .queryFirstWithParams(
-                                "select version, title, last_update_date as lastUpdateDate from "
-                                        + LogRepository.TABLE_NAME
-                                        + " where logId=?",
-                                logId);
-        if (row == null || row.isEmpty()) {
-            throw new NotFindDbEntryException();
-        }
+        ArticleBasicDTO row = logProvider.get().queryOne(
+                "select version,title,last_update_date as lastUpdateDate from log where logId=?", ArticleBasicDTO.class, logId);
+        if (row == null) throw new NotFindDbEntryException();
         ArticleVersionResponse currentVersion = new ArticleVersionResponse();
-        currentVersion.setVersion(toInteger(getIgnoreCase(row, "version")));
-        currentVersion.setCreatedAt(ResultValueConvertUtils.parseDate(getIgnoreCase(row, "lastUpdateDate")));
+        currentVersion.setVersion(row.getVersion().intValue());
+        currentVersion.setCreatedAt(ResultValueConvertUtils.parseDate(row.getLastUpdateDate()));
         currentVersion.setUserId(null);
-        currentVersion.setTitle(Objects.toString(getIgnoreCase(row, "title"), ""));
+        currentVersion.setTitle(Objects.toString(row.getTitle(), ""));
         currentVersion.setCurrent(true);
         return currentVersion;
     }
@@ -220,17 +214,17 @@ public class ArticleVersionService {
         if (Objects.equals(current.getVersion(), targetVersion)) {
             return current;
         }
-        List<Map<String, Object>> rows =
+        List<LogVersion> rows =
                 this.logVersionProvider
                         .get()
                         .findReversePatchesGreaterThanVersion(logId, targetVersion);
         LoadEditArticleResponse snapshot = cloneArticle(current);
-        for (Map<String, Object> row : rows) {
-            Integer version = toInteger(row.get("article_version"));
+        for (LogVersion row : rows) {
+            Integer version = toInteger(row.getArticleVersion());
             if (version == null || version > snapshot.getVersion()) {
                 continue;
             }
-            applyReversePatch(snapshot, Objects.toString(row.get("patch_json"), ""));
+            applyReversePatch(snapshot, Objects.toString(row.getPatchJson(), ""));
             snapshot.setVersion(version - 1);
             if (Objects.equals(snapshot.getVersion(), targetVersion)) {
                 return snapshot;
@@ -342,11 +336,12 @@ public class ArticleVersionService {
         }
     }
 
-    private Map<String, Object> buildReversePatch(Map<String, Object> oldLog, Map<String, Object> newLog) {
+    private Map<String, Object> buildReversePatch(Revision before, Log article) {
         Map<String, Object> patch = new LinkedHashMap<>();
-        for (String field : SNAPSHOT_FIELDS) {
-            Object oldValue = getLogFieldValue(oldLog, field);
-            Object newValue = getLogFieldValue(newLog, field);
+        for (int i = 0; i < SNAPSHOT_FIELDS.size(); i++) {
+            String field = SNAPSHOT_FIELDS.get(i);
+            Object oldValue = before.values[i];
+            Object newValue = getLogFieldValue(article, field);
             Map<String, Object> fieldPatch = buildFieldReversePatch(oldValue, newValue);
             if (fieldPatch != null) {
                 patch.put(field, fieldPatch);
@@ -377,16 +372,23 @@ public class ArticleVersionService {
         return patch;
     }
 
-    private Object getLogFieldValue(Map<String, Object> log, String field) {
+    private static Object getLogFieldValue(Log article, String field) {
         switch (field) {
-            case "typeId":
-                return log.get("typeId");
-            case "editorType":
-                return log.get("editor_type");
-            case "arrange_plugin":
-                return Objects.toString(log.get(field), "");
-            default:
-                return log.get(field);
+            case "title": return article.getTitle();
+            case "content": return article.getContent();
+            case "markdown": return article.getMarkdown();
+            case "digest": return article.getDigest();
+            case "keywords": return article.getKeywords();
+            case "alias": return article.getAlias();
+            case "thumbnail": return article.getThumbnail();
+            case "arrange_plugin": return Objects.toString(article.getArrangePlugin(), "");
+            case "typeId": return article.getTypeId();
+            case "canComment": return article.getCanComment();
+            case "recommended": return article.getRecommended();
+            case "privacy": return article.getPrivacy();
+            case "rubbish": return article.getRubbish();
+            case "editorType": return article.getEditorType();
+            default: throw new IllegalArgumentException(field);
         }
     }
 }

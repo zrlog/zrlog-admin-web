@@ -9,10 +9,7 @@ import com.zrlog.data.repository.UserRepository;
 import org.junit.Test;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -38,18 +35,11 @@ public class PersonalDataServiceTest {
         }, () -> {
             throw new IllegalStateException("Database is unavailable in this test");
         });
-        Map<String, Object> row = new HashMap<>();
-        row.put("id", 9L);
-        row.put("userComment", "hello");
-        row.put("userMail", null);
-        row.put("userHome", "https://example.com");
-        row.put("userIp", "127.0.0.1");
-        row.put("userName", "Alice");
-        row.put("commTime", Timestamp.valueOf("2024-01-02 03:04:05"));
-        row.put("logId", 12);
-        List<Map<String, Object>> rows = new ArrayList<>();
-        rows.add(row);
-        rows.add(new HashMap<>());
+        PersonalDataCommentExportResponse.CommentEntry row = new PersonalDataCommentExportResponse.CommentEntry();
+        row.setId(9L); row.setUserComment("hello"); row.setUserHome("https://example.com");
+        row.setUserIp("127.0.0.1"); row.setUserName("Alice");
+        row.setCommTime("2024-01-02 03:04:05"); row.setLogId(12);
+        List<PersonalDataCommentExportResponse.CommentEntry> rows = List.of(row, new PersonalDataCommentExportResponse.CommentEntry());
 
         List<PersonalDataCommentExportResponse.CommentEntry> entries =
                 service.toCommentEntries(rows);

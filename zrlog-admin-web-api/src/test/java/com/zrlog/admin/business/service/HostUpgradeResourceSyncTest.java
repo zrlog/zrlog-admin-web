@@ -109,7 +109,7 @@ public class HostUpgradeResourceSyncTest {
         sync = new HostUpgradeResourceSync(refresh, () -> hasGenerator ? List.of(site) : List.of(), () -> hasUi,
                 () -> HostUpgradeResourceSync.request(info.getHost(), "", new RequestConfig(), new ApplicationContext(serverConfig)),
                 new AdminAuditService(settings));
-        var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         context = new TaskExecutionContext("upgrade-run", actor, 30000, now::get, () -> { });
     }
 

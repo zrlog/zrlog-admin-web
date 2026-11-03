@@ -164,7 +164,7 @@ public class UserServiceDatabaseTest {
             // Passkey login uses this same builder without a thread-local browser identity.
             assertEquals(
                     "zh_CN",
-                    service.buildLoginDTO(new UserRepository(db.dataSource()).loadById(2))
+                    service.buildLoginDTO(new UserRepository(db.dataSource()).loadById(2L))
                             .getUserBasicInfoResponse()
                             .getLanguage());
 

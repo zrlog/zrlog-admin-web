@@ -69,16 +69,18 @@ public class TagManagementServiceTest {
     }
 
     @Test
-    public void shouldBuildArticleImpactResponseFromRawRow() throws Exception {
+    public void shouldBuildArticleImpactResponseFromProjection() throws Exception {
         TagManagementService service = new TagManagementService(() -> {
             throw new IllegalStateException("Database is unavailable in this test");
         }, () -> {
             throw new IllegalStateException("Database is unavailable in this test");
         }, null);
 
+        com.zrlog.data.dto.ArticleBasicDTO article = new com.zrlog.data.dto.ArticleBasicDTO();
+        article.setLogId(7L); article.setTitle("Article");
         TagManagementArticleImpactResponse response = service.toImpact(
-                Map.of("logId", 7L, "title", "Article"), "java,zrlog", "blog,zrlog");
-        TagManagementArticleImpactResponse missing = service.toImpact(Map.of(), "java", "");
+                article, "java,zrlog", "blog,zrlog");
+        TagManagementArticleImpactResponse missing = service.toImpact(new com.zrlog.data.dto.ArticleBasicDTO(), "java", "");
 
         assertEquals(Long.valueOf(7L), response.getId());
         assertEquals("Article", response.getTitle());
@@ -137,7 +139,7 @@ public class TagManagementServiceTest {
             request.setTargetTag("server");
 
             TagManagementPreviewResponse preview = service.preview(request, "rename");
-            TagManagementPreviewResponse executed = service.execute(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1)), request, "rename");
+            TagManagementPreviewResponse executed = service.execute(com.zrlog.data.security.AccountAccess.from(new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L)), request, "rename");
             Map<String, Object> first = db.queryOne("select keywords from log where logId=?", 1);
             Map<String, Object> second = db.queryOne("select keywords from log where logId=?", 2);
 
@@ -178,7 +180,7 @@ public class TagManagementServiceTest {
                 }
             });
             var actor = com.zrlog.data.security.AccountAccess.from(
-                    new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1));
+                    new com.zrlog.data.repository.UserRepository(db.dataSource()).loadById(1L));
             assertEquals(0, service.execute(actor, request, "rename").getUpdatedArticleCount());
             assertEquals("java,zrlog", db.scalar("select keywords from log where logId=1"));
             assertEquals("Other writer", db.scalar("select title from log where logId=1"));

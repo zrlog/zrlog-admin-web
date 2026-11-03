@@ -200,5 +200,10 @@
         "parameterTypes": []
       }
     ]
+  },
+  {
+    "name": "com.zrlog.admin.data.repository.LogVersionRepository$Summary",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true
   }
 ]

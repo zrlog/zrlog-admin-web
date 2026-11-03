@@ -10,7 +10,6 @@ import com.zrlog.data.repository.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
-import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -28,10 +27,10 @@ public class UserPasskeyDatabaseTest {
 
             assertTrue(challenges.save("valid-request", "authentication", 1,
                     "{\"challenge\":\"valid\"}", now + 60_000, now));
-            Map<String, Object> consumed = challenges.consume("valid-request", "authentication", now);
+            UserPasskeyChallenge consumed = challenges.consume("valid-request", "authentication", now);
 
             assertNotNull(consumed);
-            assertEquals("{\"challenge\":\"valid\"}", consumed.get("requestJson"));
+            assertEquals("{\"challenge\":\"valid\"}", consumed.getRequestJson());
             assertNull(challenges.consume("valid-request", "authentication", now));
         }
     }
@@ -47,16 +46,16 @@ public class UserPasskeyDatabaseTest {
                     0, "internal", "Test passkey", "aaguid", true, false,
                     "https://example.com", "example.com", now));
             assertTrue(passkeys.hasAny());
-            Map<String, Object> stored = passkeys.findByCredentialIdHash("credential-hash");
-            long id = ((Number) stored.get("id")).longValue();
+            UserPasskey stored = passkeys.findByCredentialIdHash("credential-hash");
+            long id = ((Number) stored.getId()).longValue();
 
-            assertTrue(passkeys.updateAfterAuthentication(id, 0, false, now + 1));
-            assertTrue(passkeys.updateAfterAuthentication(id, 2, true, now + 2));
-            assertFalse(passkeys.updateAfterAuthentication(id, 1, false, now + 3));
+            assertTrue(passkeys.updateAfterAuthentication(stored, 0, false, now + 1));
+            assertTrue(passkeys.updateAfterAuthentication(stored, 2, true, now + 2));
+            assertFalse(passkeys.updateAfterAuthentication(stored, 1, false, now + 3));
 
-            Map<String, Object> updated = passkeys.findByCredentialIdHash("credential-hash");
-            assertEquals(2L, ((Number) updated.get("signatureCount")).longValue());
-            assertEquals(now + 2, ((Number) updated.get("lastUsedAt")).longValue());
+            UserPasskey updated = passkeys.findByCredentialIdHash("credential-hash");
+            assertEquals(2L, ((Number) updated.getSignatureCount()).longValue());
+            assertEquals(now + 2, ((Number) updated.getLastUsedAt()).longValue());
             assertTrue(passkeys.deleteByIdAndUserId(id, 1));
             assertFalse(passkeys.hasAny());
         }

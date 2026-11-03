@@ -1051,7 +1051,7 @@ public class AdminControllerDelegationTest {
             assertTrue(process.getMessage().length() > 0);
             assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
             assertUpgradeAuditContent(db, "");
-            assertNull(upgradeExecutions(db).view(com.zrlog.data.security.AccountAccess.from(new UserRepository(db.dataSource()).loadById(1))));
+            assertNull(upgradeExecutions(db).view(com.zrlog.data.security.AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L))));
         }
     }
 
@@ -1261,7 +1261,7 @@ public class AdminControllerDelegationTest {
                 assertEquals(null, stream.renderedJson);
             }
             assertEquals(2, submissions.get());
-            var prior = executions.view(com.zrlog.data.security.AccountAccess.from(new UserRepository(db.dataSource()).loadById(1)));
+            var prior = executions.view(com.zrlog.data.security.AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L)));
             assertEquals("manual", prior.source);
             String different = docker.replace("browser-request-1234", "browser-request-5678");
             ResponseRecorder conflict = new ResponseRecorder();
@@ -1284,7 +1284,7 @@ public class AdminControllerDelegationTest {
             applicationConfig = db.config();
             setAdminToken();
             var executions = upgradeExecutions(db);
-            var actor = com.zrlog.data.security.AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+            var actor = com.zrlog.data.security.AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             var target = new Version();
             target.setVersion("99.0.0"); target.setBuildId("reviewed-build");
             var checks = new AtomicInteger();

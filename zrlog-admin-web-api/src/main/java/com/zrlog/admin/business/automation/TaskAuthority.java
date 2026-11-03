@@ -34,7 +34,7 @@ public final class TaskAuthority {
     public AccountAccess restore(StoredTask task) throws SQLException {
         // Site configuration is independent of its editor. Use the current real owner account,
         // so all existing data-layer permission and conditional-write checks still apply.
-        AccountAccess actor = task.ownerId == 0 ? siteActor() : AccountAccess.from(users.get().loadById(task.ownerId));
+        AccountAccess actor = task.ownerId == 0 ? siteActor() : AccountAccess.from(users.get().loadById((long) task.ownerId));
         if (!actor.isEnabled()) throw new PermissionErrorException();
         return actor.restrictActions(task.executionActions);
     }
@@ -46,8 +46,7 @@ public final class TaskAuthority {
     }
 
     public AccountAccess siteActor() throws SQLException {
-        AccountAccess actor = AccountAccess.from(users.get().queryFirstWithParams(
-                "SELECT userId,role,enabled,authVersion FROM user WHERE role=? AND enabled=? ORDER BY userId LIMIT 1", "owner", true));
+        AccountAccess actor = users.get().ownerAccess();
         if (!actor.isOwner()) throw new PermissionErrorException();
         return actor;
     }

@@ -152,7 +152,7 @@ public class DbFileService {
         requirePath(path);
         String prefix = DbFileStore.FILE_PREFIX + (path.endsWith("/") ? path : path + "/");
         Map<String, FileEntryVO> entries = new LinkedHashMap<>();
-        for (Map<String, Object> record : store.list(path)) {
+        for (DbFileStore.FileRow record : store.list(path)) {
             DbFileStore.Row row = store.recover(new DbFileStore.Row(record));
             if (row == null || !row.meta.ready) continue;
             String relative = row.name.substring(prefix.length());
@@ -185,7 +185,7 @@ public class DbFileService {
     public boolean deleteByPrefix(String path) throws SQLException {
         requirePath(path);
         boolean deleted = false;
-        for (Map<String, Object> record : store.list(path)) deleted |= store.delete(new DbFileStore.Row(record));
+        for (DbFileStore.FileRow record : store.list(path)) deleted |= store.delete(new DbFileStore.Row(record));
         return deleted;
     }
 
@@ -196,10 +196,10 @@ public class DbFileService {
         String root = com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
         String prefix = DbFileStore.FILE_PREFIX + root + "/";
         if (after == null || !after.startsWith(prefix)) after = "";
-        List<Map<String, Object>> records = store.cleanupPage(root, after, 128);
+        List<DbFileStore.FileRow> records = store.cleanupPage(root, after, 128);
         CleanupBatch result = new CleanupBatch();
         long cutoff = clock.getAsLong() - java.time.Duration.ofDays(retentionDays).toMillis();
-        for (Map<String, Object> record : records) {
+        for (DbFileStore.FileRow record : records) {
             if (context.remainingMillis() < 2000) break;
             context.checkActive();
             DbFileStore.Row row = new DbFileStore.Row(record);

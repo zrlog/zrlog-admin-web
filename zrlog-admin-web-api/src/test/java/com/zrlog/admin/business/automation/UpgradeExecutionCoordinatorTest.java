@@ -36,7 +36,7 @@ public class UpgradeExecutionCoordinatorTest {
         db = backend.equals("sqlite") ? InMemoryZrLogDatabase.openSqlite()
                 : backend.equals("web-api") ? InMemoryZrLogDatabase.openWebApi() : InMemoryZrLogDatabase.open();
         store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
-        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1));
+        actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         var authority = new TaskAuthority(new AccountIdentityService(() -> new UserRepository(db.dataSource())), () -> new UserRepository(db.dataSource()));
         coordinator = new UpgradeExecutionCoordinator(store, authority, now::get, installed::get);
     }

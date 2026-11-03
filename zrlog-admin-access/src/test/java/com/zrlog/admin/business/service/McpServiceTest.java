@@ -33,7 +33,7 @@ public class McpServiceTest {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.from(new UserRepository(testDataSource).loadById(1));
+                        return AccountAccess.from(new UserRepository(testDataSource).loadById(1L));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }

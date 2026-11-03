@@ -80,6 +80,13 @@ public class AdminNativeImageUtilsTest {
                         .getAsJsonArray()) {
                     JsonObject entry = element.getAsJsonObject();
                     Class<?> controller = Class.forName(entry.get("name").getAsString());
+                    if (!entry.has("methods")) {
+                        assertFalse("Route methods must remain explicitly registered", Controller.class.isAssignableFrom(controller));
+                        assertTrue(entry.get("allDeclaredFields").getAsBoolean());
+                        assertTrue(entry.get("allDeclaredConstructors").getAsBoolean());
+                        controller.getDeclaredConstructor();
+                        continue;
+                    }
                     for (JsonElement member : entry.getAsJsonArray("methods")) {
                         JsonObject method = member.getAsJsonObject();
                         Class<?>[] parameters = new Class<?>[method.getAsJsonArray("parameterTypes").size()];

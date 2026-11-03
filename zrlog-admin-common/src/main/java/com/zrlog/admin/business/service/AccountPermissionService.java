@@ -8,7 +8,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
-import java.util.Map;
+import com.zrlog.model.Log;
 
 /**
  * Business authorization for an explicitly supplied, authenticated account.
@@ -22,28 +22,17 @@ public final class AccountPermissionService {
         this.articles = articles;
     }
 
-    public static boolean isPublic(Map<String, Object> row) {
-        return row != null && !AccountAccess.truth(row.get("privacy")) && !AccountAccess.truth(row.get("rubbish"));
+    public static boolean isPublic(Log row) {
+        return row != null && !Boolean.TRUE.equals(row.getPrivacy()) && !Boolean.TRUE.equals(row.getRubbish());
     }
 
     public void administrator(AccountAccess account) {
         if (account == null || !account.isAdministrator()) throw new PermissionErrorException();
     }
 
-    public Map<String, Object> article(AccountAccess account, long id, boolean publish)
-            throws SQLException {
+    public Log article(AccountAccess account, long id, boolean publish) throws SQLException {
         if (account == null || !account.isEnabled()) throw new PermissionErrorException();
-        Map<String, Object> row = articles.get().loadById(id);
-        if (row == null || !(row.get("userId") instanceof Number)
-                || !account.canAccessArticle(((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("privacy"))))
-            throw new PermissionErrorException();
-        if (publish && !account.canPublish()) throw new PermissionErrorException();
-        return row;
-    }
-
-    public com.zrlog.model.Log articleEntity(AccountAccess account, long id, boolean publish) throws SQLException {
-        if (account == null || !account.isEnabled()) throw new PermissionErrorException();
-        com.zrlog.model.Log row = articles.get().findById(id).orElse(null);
+        Log row = articles.get().findById(id).orElse(null);
         if (row == null || row.getUserId() == null
                 || !account.canAccessArticle(row.getUserId(), Boolean.TRUE.equals(row.getPrivacy())))
             throw new PermissionErrorException();

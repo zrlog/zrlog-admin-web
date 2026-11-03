@@ -15,6 +15,7 @@ import com.zrlog.data.security.ArticleAccess;
 import jakarta.inject.Inject;
 
 import java.sql.SQLException;
+import com.zrlog.model.Log;
 import java.util.*;
 
 /** Authorization and approval previews shared by request entry points and tool execution. */
@@ -60,7 +61,7 @@ public class AIChatAccessPolicy {
         approval.id = UUID.randomUUID().toString();
         approval.tool = tool;
         approval.expiresAt = System.currentTimeMillis() + AIApprovalStore.APPROVAL_TTL;
-        Map<String, Object> old =
+        Log old =
                 approvalArticle(
                         actor, tool,
                         args,
@@ -69,25 +70,25 @@ public class AIChatAccessPolicy {
         if (args.has("id")) {
             approval.articleId = args.get("id").getAsLong();
             approval.version = args.get("version").getAsInt();
-            if (approval.version != ((Number) old.get("version")).intValue())
+            if (approval.version != old.getVersion().intValue())
                 throw new UpdateArticleExpireException();
-            approval.title = Objects.toString(old.get("title"), "");
+            approval.title = Objects.toString(old.getTitle(), "");
             approval.publicImpact =
-                    !AccountAccess.truth(old.get("rubbish"))
-                            && !AccountAccess.truth(old.get("privacy"));
+                    !AccountAccess.truth(old.getRubbish())
+                            && !AccountAccess.truth(old.getPrivacy());
         } else if (args.has("title")) approval.title = args.get("title").getAsString();
         approval.publicImpact |= tool.equals("publish_article") || args.has("status") && args.get("status").getAsString().equals("published");
         for (var entry : args.entrySet()) {
             if (Set.of("id", "version", "data").contains(entry.getKey())) continue;
             ApprovalChange change = new ApprovalChange();
             change.field = entry.getKey();
-            String before = Objects.toString(old.get(entry.getKey().equals("editorType") ? "editor_type" : entry.getKey()), "");
+            String before = previousValue(old, entry.getKey());
             String after = entry.getValue().getAsString();
-            if (entry.getKey().equals("status") && !old.isEmpty())
+            if (entry.getKey().equals("status") && old != null)
                 before =
-                        AccountAccess.truth(old.get("rubbish"))
+                        AccountAccess.truth(old.getRubbish())
                                 ? "draft"
-                                : AccountAccess.truth(old.get("privacy")) ? "private" : "published";
+                                : AccountAccess.truth(old.getPrivacy()) ? "private" : "published";
             change.truncated = before.length() > 4000 || after.length() > 4000;
             change.before = before.substring(0, Math.min(4000, before.length()));
             change.after = after.substring(0, Math.min(4000, after.length()));
@@ -103,20 +104,40 @@ public class AIChatAccessPolicy {
         return approval;
     }
 
-    Map<String, Object> approvalArticle(AccountAccess actor, String tool, JsonObject args, Set<String> scopes) throws SQLException {
+    private static String previousValue(Log article, String field) {
+        if (article == null) return "";
+        Object value;
+        switch (field) {
+            case "title": value = article.getTitle(); break;
+            case "typeId": value = article.getTypeId(); break;
+            case "alias": value = article.getAlias(); break;
+            case "markdown": value = article.getMarkdown(); break;
+            case "content": value = article.getContent(); break;
+            case "digest": value = article.getDigest(); break;
+            case "keywords": value = article.getKeywords(); break;
+            case "thumbnail": value = article.getThumbnail(); break;
+            case "editorType": value = article.getEditorType(); break;
+            case "canComment": value = article.getCanComment(); break;
+            case "recommended": value = article.getRecommended(); break;
+            default: return "";
+        }
+        return Objects.toString(value, "");
+    }
+
+    Log approvalArticle(AccountAccess actor, String tool, JsonObject args, Set<String> scopes) throws SQLException {
         AccountAccess account = identities.revalidate(actor);
         if (tool.equals("upload_attachment")) {
             permissionService.require(account, AccountAction.ASSET_UPLOAD);
-            return Map.of();
+            return null;
         }
-        Map<String, Object> old =
+        Log old =
                 args.has("id")
                         ? permissionService.article(account, args.get("id").getAsLong(), false)
-                        : Map.of();
-        boolean draft = old.isEmpty() || AccountAccess.truth(old.get("rubbish"));
-        boolean privacy = AccountAccess.truth(old.get("privacy"));
+                        : null;
+        boolean draft = old == null || AccountAccess.truth(old.getRubbish());
+        boolean privacy = old != null && Boolean.TRUE.equals(old.getPrivacy());
         String status = tool.equals("publish_article") ? "published" : args.has("status") ? args.get("status").getAsString() : null;
-        int author = old.isEmpty() ? account.getUserId() : ((Number) old.get("userId")).intValue();
+        int author = old == null ? account.getUserId() : old.getUserId();
         if (!ArticleAccess.canWrite(account, scopes, author, draft, privacy,
                 status == null ? draft : status.equals("draft"), status == null ? privacy : status.equals("private")))
             throw new PermissionErrorException();
@@ -130,15 +151,15 @@ public class AIChatAccessPolicy {
             context.status = "unsaved";
             return context;
         }
-        Map<String, Object> row =
+        Log row =
                 permissionService.article(actor, articleId, false);
-        context.title = Objects.toString(row.get("title"), "");
-        context.version = ((Number) Objects.requireNonNullElse(row.get("version"), 0)).intValue();
-        context.typeId = ((Number) Objects.requireNonNullElse(row.get("typeId"), 0)).longValue();
+        context.title = Objects.toString(row.getTitle(), "");
+        context.version = ((Number) Objects.requireNonNullElse(row.getVersion(), 0L)).intValue();
+        context.typeId = ((Number) Objects.requireNonNullElse(row.getTypeId(), 0)).longValue();
         context.status =
-                AccountAccess.truth(row.get("rubbish"))
+                AccountAccess.truth(row.getRubbish())
                         ? "draft"
-                        : AccountAccess.truth(row.get("privacy")) ? "private" : "published";
+                        : AccountAccess.truth(row.getPrivacy()) ? "private" : "published";
         return context;
     }
 
