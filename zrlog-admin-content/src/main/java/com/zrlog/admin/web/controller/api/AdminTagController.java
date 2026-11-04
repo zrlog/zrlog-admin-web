@@ -20,6 +20,7 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import java.io.IOException;
@@ -81,8 +82,12 @@ public class AdminTagController extends BaseController {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("rename");
         validateTargetTag(requestBody, "rename");
+        TagManagementPreviewResponse result =
+                tagManagementService.execute(requestIdentity.optional(), requestBody, "rename");
         return new ApiStandardResponse<>(
-                tagManagementService.execute(requestIdentity.optional(), requestBody, "rename"));
+                result,
+                I18nUtil.getAdminBackendStringFromRes("admin.tag.update.success")
+                        .replace("{count}", Long.toString(result.getUpdatedArticleCount())));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -94,8 +99,12 @@ public class AdminTagController extends BaseController {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("merge");
         validateTargetTag(requestBody, "merge");
+        TagManagementPreviewResponse result =
+                tagManagementService.execute(requestIdentity.optional(), requestBody, "merge");
         return new ApiStandardResponse<>(
-                tagManagementService.execute(requestIdentity.optional(), requestBody, "merge"));
+                result,
+                I18nUtil.getAdminBackendStringFromRes("admin.tag.update.success")
+                        .replace("{count}", Long.toString(result.getUpdatedArticleCount())));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -106,8 +115,12 @@ public class AdminTagController extends BaseController {
             throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("delete");
+        TagManagementPreviewResponse result =
+                tagManagementService.execute(requestIdentity.optional(), requestBody, "delete");
         return new ApiStandardResponse<>(
-                tagManagementService.execute(requestIdentity.optional(), requestBody, "delete"));
+                result,
+                I18nUtil.getAdminBackendStringFromRes("admin.tag.update.success")
+                        .replace("{count}", Long.toString(result.getUpdatedArticleCount())));
     }
 
     private void validateOperation(String operation) {

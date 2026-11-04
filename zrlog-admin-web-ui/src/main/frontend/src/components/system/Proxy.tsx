@@ -21,6 +21,7 @@ export type ProxyData = {
     activeHttpsUrl: string;
     activeNoProxy: string;
     restartRequired: boolean;
+    restartMessage?: string;
     writable: boolean;
 };
 
@@ -109,9 +110,9 @@ const ProxySettings = ({
             setSettings(response.data.data);
             form.setFieldsValue(response.data.data);
             dirty.current = false;
-            message.success(response.data.data.restartRequired ? text.pending : text.saved);
+            message.success(response.data.message || res.common.operationCompleted);
         } catch (error) {
-            if (mounted.current) setFailure(getErrorMessage(error, text.failed));
+            if (mounted.current) setFailure(getErrorMessage(error, res.error.requestFailed));
         } finally {
             pending.current = false;
             if (mounted.current) setSaving(false);
@@ -130,9 +131,9 @@ const ProxySettings = ({
                 const response = await axios.post("/api/admin/system/proxy/test", values, { timeout: 15000 });
                 if (!mounted.current) return;
                 if (response.data.error || !response.data.data) throw response.data;
-                message.success(text.testSuccess);
+                message.success(response.data.message || res.common.operationCompleted);
             } catch (error) {
-                if (mounted.current) setFailure(getErrorMessage(error, text.testFailed));
+                if (mounted.current) setFailure(getErrorMessage(error, res.error.requestFailed));
             }
         } finally {
             pending.current = false;
@@ -143,7 +144,9 @@ const ProxySettings = ({
     return (
         <AdminSettingsLayout activeKey="proxy">
             <Flex vertical gap={token.marginLG} style={{ maxWidth: 800, paddingBottom: token.paddingLG }}>
-                {settings.restartRequired && <Alert type="warning" showIcon title={text.pending} />}
+                {settings.restartRequired && settings.restartMessage && (
+                    <Alert type="warning" showIcon title={settings.restartMessage} />
+                )}
                 <SettingsSection title={text.active}>
                     <Descriptions
                         column={1}

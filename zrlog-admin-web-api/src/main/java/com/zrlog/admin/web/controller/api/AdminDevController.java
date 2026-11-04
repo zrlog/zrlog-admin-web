@@ -21,6 +21,7 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.LockVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
+import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.util.List;
 
@@ -102,7 +103,12 @@ public class AdminDevController extends Controller {
         this.adminAuditService.record(
                 AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 enabled ? AdminAuditAction.ENABLE_DEV_MODE : AdminAuditAction.DISABLE_DEV_MODE);
-        return new ApiStandardResponse<>(EnvKit.isDevMode());
+        return new ApiStandardResponse<>(
+                EnvKit.isDevMode(),
+                I18nUtil.getAdminBackendStringFromRes(
+                        EnvKit.isDevMode()
+                                ? "admin.system.development.enable.success"
+                                : "admin.system.development.disable.success"));
     }
 
     private void setDevMode(boolean enabled) {

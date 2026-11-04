@@ -19,6 +19,7 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import java.io.File;
@@ -70,7 +71,13 @@ public class FileManagerController extends BaseController {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
-        return new ApiStandardResponse<>(fileManagerService.refreshReferenceIndex());
+        boolean refreshed = fileManagerService.refreshReferenceIndex();
+        return new ApiStandardResponse<>(
+                refreshed,
+                I18nUtil.getAdminBackendStringFromRes(
+                        refreshed
+                                ? "admin.fileManager.references.refresh.success"
+                                : "admin.fileManager.references.refresh.disabled"));
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
@@ -88,7 +95,12 @@ public class FileManagerController extends BaseController {
         ReplaceArticleResourceUrlResponse response =
                 fileManagerService.replaceArticleResourceUrlAndRecord(
                         actor, body, AdminAuditContexts.from(request, actor.getUserId()));
-        return new ApiStandardResponse<>(response);
+        return new ApiStandardResponse<>(
+                response,
+                I18nUtil.getAdminBackendStringFromRes(
+                                "admin.fileManager.references.replace.success")
+                        .replace("{articles}", Integer.toString(response.getUpdatedArticles()))
+                        .replace("{fields}", Integer.toString(response.getUpdatedFields())));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -118,7 +130,9 @@ public class FileManagerController extends BaseController {
                         request,
                         AdminTokenThreadLocal.getUser(),
                         AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
-        return new ApiStandardResponse<>(response);
+        return new ApiStandardResponse<>(
+                response,
+                I18nUtil.getAdminBackendStringFromRes("admin.fileManager.restore.success"));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -129,9 +143,10 @@ public class FileManagerController extends BaseController {
         if (path.isEmpty()) {
             throw new ArgsException("path");
         }
-        return new ApiStandardResponse<>(
+        return operationResult(
                 fileManagerService.deleteAndRecord(
-                        path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
+                        path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())),
+                "admin.fileManager.delete.success");
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -145,13 +160,14 @@ public class FileManagerController extends BaseController {
         }
         boolean syncArticleReferences = request.getParaToBool("syncArticleReferences", false);
         var actor = requestIdentity.current();
-        return new ApiStandardResponse<>(
+        return operationResult(
                 fileManagerService.renameAndRecord(
                         path,
                         newName,
                         syncArticleReferences,
                         actor,
-                        AdminAuditContexts.from(request, actor.getUserId())));
+                        AdminAuditContexts.from(request, actor.getUserId())),
+                "admin.fileManager.rename.success");
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -162,9 +178,10 @@ public class FileManagerController extends BaseController {
         if (path.isEmpty()) {
             throw new ArgsException("path");
         }
-        return new ApiStandardResponse<>(
+        return operationResult(
                 fileManagerService.mkdirAndRecord(
-                        path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
+                        path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())),
+                "admin.fileManager.directory.create.success");
     }
 
     @ResponseBody
@@ -195,5 +212,15 @@ public class FileManagerController extends BaseController {
                     "Content-Disposition", "attachment;filename=" + new File(path).getName());
             response.write(target);
         }
+    }
+
+    private ApiStandardResponse<Boolean> operationResult(boolean completed, String key) {
+        ApiStandardResponse<Boolean> result =
+                new ApiStandardResponse<>(
+                        completed,
+                        I18nUtil.getAdminBackendStringFromRes(
+                                completed ? key : "admin.fileManager.operation.error"));
+        if (!completed) result.setError(1);
+        return result;
     }
 }

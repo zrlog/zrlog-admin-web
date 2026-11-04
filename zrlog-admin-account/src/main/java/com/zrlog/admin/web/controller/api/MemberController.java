@@ -17,6 +17,7 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
 
@@ -69,7 +70,8 @@ public class MemberController extends BaseController {
                 service.create(
                         requestIdentity.current(), getRequestBodyWithNullCheck(Create.class));
         audit(AdminAuditAction.UPDATE_MEMBER);
-        return new ApiStandardResponse<>(result);
+        return new ApiStandardResponse<>(
+                result, I18nUtil.getAdminBackendStringFromRes("admin.members.save.success"));
     }
 
     @ResponseBody
@@ -96,6 +98,7 @@ public class MemberController extends BaseController {
                 service.update(
                         requestIdentity.current(), getRequestBodyWithNullCheck(Update.class));
         audit(AdminAuditAction.UPDATE_MEMBER);
-        return new ApiStandardResponse<>(result);
+        return new ApiStandardResponse<>(
+                result, I18nUtil.getAdminBackendStringFromRes("admin.members.save.success"));
     }
 }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-message";
 import { Alert, Button, Checkbox, Empty, Grid, theme } from "antd";
 import Progress from "@zrlog/ui/antd/Progress";
 import { useUiApp, useUiMessage } from "@zrlog/ui/feedback";
@@ -141,14 +142,14 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 typeof response.data.onlineUpgradable !== "boolean" ||
                 (response.data.upgrade && !response.data.version)
             ) {
-                setRefreshError(getRes().upgrade.maintenance.refreshFailed);
+                setRefreshError(response.message || getRes().upgrade.maintenance.refreshFailed);
                 return;
             }
             setData(response.data);
             setCheckedAt(Date.now());
-        } catch {
+        } catch (error) {
             if (request === readinessRequest.current) {
-                setRefreshError(getRes().upgrade.maintenance.refreshFailed);
+                setRefreshError(getErrorMessage(error, getRes().upgrade.maintenance.refreshFailed));
             }
         } finally {
             if (request === readinessRequest.current) {
@@ -467,15 +468,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                             ? "download"
                             : "restart",
                         status: failed ? "error" : job.phase === "succeeded" ? "complete" : "running",
-                        message: getRes().upgrade.docker.phases[job.phase],
-                        detail: failed && job.recoveryRequired ? getRes().upgrade.docker.recovery : undefined,
+                        message: job.message || response.message || getRes().error.requestError,
+                        detail: job.detail,
                     },
                 });
                 await handleUpgradeResponse(
                     {
                         ...response,
                         error: failed ? 1 : response.error,
-                        message: failed ? getRes().upgrade.docker.failed : response.message,
+                        message: job.message || response.message || getRes().error.requestError,
                         data: { finish: !failed, message: "" },
                     },
                     task.buildId,

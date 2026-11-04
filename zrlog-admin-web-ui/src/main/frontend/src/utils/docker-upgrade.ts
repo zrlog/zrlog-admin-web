@@ -16,6 +16,8 @@ export type DockerUpgradeJob = {
     channel: string;
     phase: DockerPhase;
     recoveryRequired: boolean;
+    message?: string;
+    detail?: string;
 };
 
 const storageKey = () => `zrlog-docker-upgrade:${getContextPath()}`;

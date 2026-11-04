@@ -192,7 +192,7 @@ const TagManagement = ({
                 messageApi.error(response.message);
                 return;
             }
-            messageApi.success(formatMessage(tagRes.success, { count: response.data?.updatedArticleCount || 0 }));
+            messageApi.success(response.message || getRes().common.operationCompleted);
             closeAction();
             refreshCurrentPage();
         } finally {

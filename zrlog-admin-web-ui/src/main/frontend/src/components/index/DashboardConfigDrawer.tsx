@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../../utils/error-message";
 import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
@@ -236,10 +237,25 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
             return;
         }
         const values = normalizeConfig(configToSave);
-        await axiosInstance.post<ApiResponse<AdminDashboardConfig>>("/api/admin/index/config", values);
-        const { data } = await axiosInstance.get<ApiResponse<IndexData>>("/api/admin/index");
-        onSaved(data.data);
-        await messageApi.success(res.saveSuccess);
+        try {
+            const { data: result } = await axiosInstance.post<ApiResponse<AdminDashboardConfig>>(
+                "/api/admin/index/config",
+                values
+            );
+            if (result.error !== 0) {
+                messageApi.error(result.message || getRes().error.requestFailed);
+                return;
+            }
+            const { data } = await axiosInstance.get<ApiResponse<IndexData>>("/api/admin/index");
+            if (data.error !== 0) {
+                messageApi.error(data.message || getRes().error.requestFailed);
+                return;
+            }
+            onSaved(data.data);
+            messageApi.success(result.message || getRes().common.operationCompleted);
+        } catch (error) {
+            messageApi.error(getErrorMessage(error, getRes().error.requestFailed));
+        }
     };
 
     useEffect(() => {

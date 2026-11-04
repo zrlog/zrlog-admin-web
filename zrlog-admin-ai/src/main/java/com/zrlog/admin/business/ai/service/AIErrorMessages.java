@@ -9,6 +9,34 @@ import java.net.http.HttpTimeoutException;
 public final class AIErrorMessages {
     private AIErrorMessages() {}
 
+    static String suggestion(String errorType) {
+        return I18nUtil.getAdminBackendStringFromRes(
+                "admin.ai.error.suggestion." + typeKey(errorType));
+    }
+
+    static String typeLabel(String errorType) {
+        return I18nUtil.getAdminBackendStringFromRes("admin.ai.error.type." + typeKey(errorType));
+    }
+
+    private static String typeKey(String errorType) {
+        switch (errorType) {
+            case "incomplete_response":
+                return "incompleteResponse";
+            case "provider_request":
+                return "providerRequest";
+            case "provider_response":
+                return "providerResponse";
+            case "unsupported_tool":
+                return "unsupportedTool";
+            case "unsupported_image_generation":
+                return "unsupportedImageGeneration";
+            case "configuration_required":
+                return "configurationRequired";
+            default:
+                return "unknown";
+        }
+    }
+
     public static String message(Throwable failure, String fallbackKey) {
         if (failure instanceof AbstractAdminBusinessException) {
             return ((AbstractAdminBusinessException) failure).getUserMessage();

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-message";
 import { Alert, Button, Form, Select, theme, Typography } from "antd";
 import Switch from "@zrlog/ui/antd/Switch";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
@@ -148,10 +149,10 @@ const UserPreferencesForm = ({
             }
             if (mounted.current) {
                 acceptSaved(response.data);
-                messageApi.success(getRes().user.preferences.saved);
+                messageApi.success(response.message || getRes().common.operationCompleted);
             }
-        } catch {
-            if (mounted.current) messageApi.error(getRes().user.preferences.saveFailed);
+        } catch (error) {
+            if (mounted.current) messageApi.error(getErrorMessage(error, getRes().error.requestFailed));
         } finally {
             savingRef.current = false;
             if (mounted.current) setSaving(false);

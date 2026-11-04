@@ -25,6 +25,7 @@ public class AdminNativeImageUtils {
                         com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest.class,
                         com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest.class,
                         com.zrlog.admin.business.rest.response.UpgradeCheckResponse.class,
+                        com.zrlog.admin.business.rest.response.DockerUpgradeJobResponse.class,
                         com.zrlog.admin.business.automation.UpgradeExecutionCoordinator.View.class,
                         com.zrlog.admin.business.rest.request.UpgradeSettingsRequest.class,
                         com.zrlog.admin.business.rest.response.UpgradeSettingsResponse.class,

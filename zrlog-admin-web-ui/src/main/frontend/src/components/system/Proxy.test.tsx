@@ -112,17 +112,23 @@ test("file settings remain editable while environment priority is explained", as
 });
 
 test("saving shows pending restart while preserving the active configuration", async () => {
-    mockPost.mockResolvedValue({ data: { error: 0, data: { ...data, restartRequired: true } } });
+    mockPost.mockResolvedValue({
+        data: {
+            error: 0,
+            message: "Server: proxy configuration persisted",
+            data: { ...data, restartRequired: true, restartMessage: "Server: restart to activate the proxy" },
+        },
+    });
     await render();
     await act(async () => Simulate.submit(container.querySelector("form")!));
     expect(mockPost).toHaveBeenCalledWith("/api/admin/system/proxy", { url: data.url, noProxy: data.noProxy });
-    expect(container.textContent).toContain("Proxy settings saved; restart ZrLog to apply");
+    expect(container.textContent).toContain("Server: restart to activate the proxy");
     expect(container.textContent).toContain("No proxy set here");
-    expect(mockSuccess).toHaveBeenCalledWith("Proxy settings saved; restart ZrLog to apply");
+    expect(mockSuccess).toHaveBeenCalledWith("Server: proxy configuration persisted");
 });
 
 test("connection and save failures remain visible and preserve form values", async () => {
-    mockPost.mockResolvedValue({ data: { error: 0, data: false } });
+    mockPost.mockResolvedValue({ data: { error: 1, data: false, message: "Server: connectivity probe failed" } });
     await render();
     await act(async () => Simulate.click(button("Test connection")));
     expect(mockPost).toHaveBeenCalledWith(
@@ -131,11 +137,13 @@ test("connection and save failures remain visible and preserve form values", asy
         { timeout: 15000 }
     );
     expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain(
-        "Could not connect to the ZrLog website"
+        "Server: connectivity probe failed"
     );
     mockPost.mockRejectedValue(Object.assign(new Error("disk unavailable"), { isAxiosError: true }));
     await act(async () => Simulate.submit(container.querySelector("form")!));
-    expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain("Could not save");
+    expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain(
+        "The request could not be completed. Try again"
+    );
     expect((container.querySelector("#url") as HTMLInputElement).value).toBe(data.url);
 });
 

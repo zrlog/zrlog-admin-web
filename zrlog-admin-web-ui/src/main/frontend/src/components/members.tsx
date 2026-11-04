@@ -68,7 +68,7 @@ export default function Members({
             }
             setEditing(undefined);
             await reload();
-            notice.success(res.saved);
+            notice.success(response.data.message || getRes().common.operationCompleted);
         } finally {
             setBusy(false);
         }

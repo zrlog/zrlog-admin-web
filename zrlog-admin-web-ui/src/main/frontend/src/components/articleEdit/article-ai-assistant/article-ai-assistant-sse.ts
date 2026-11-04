@@ -1,3 +1,4 @@
+import {getResponseMessage} from "../../../utils/error-message";
 import {getRes} from "../../../utils/constants";
 import {
     ArticleAiErrorMeta,
@@ -19,6 +20,8 @@ const errorTypes = new Set<ArticleAiErrorType>([
 
 const toArticleAiErrorMeta = (chunk: Record<string, unknown>): ArticleAiErrorMeta => {
     const errorMeta: ArticleAiErrorMeta = {};
+    if (typeof chunk.suggestion === "string") errorMeta.suggestion = chunk.suggestion;
+    if (typeof chunk.errorTypeLabel === "string") errorMeta.errorTypeLabel = chunk.errorTypeLabel;
     if (typeof chunk.provider === "string") {
         errorMeta.provider = chunk.provider;
     }
@@ -52,7 +55,7 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
             if (errorData.error) {
                 return {
                     content: "",
-                    errorMessage: errorData.message || getRes().error.unknown,
+                    errorMessage: getResponseMessage(errorData) || getRes().error.unknown,
                     errorMeta: toArticleAiErrorMeta(errorData),
                 };
             }
@@ -92,7 +95,8 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
             try {
                 const chunk = JSON.parse(data);
                 if (event === "ai-error" || chunk.error) {
-                    errorMessage = chunk.message || chunk.error?.message || chunk.error || getRes().error.unknown;
+                    errorMessage = getResponseMessage(chunk) || getResponseMessage(chunk.error)
+                        || (typeof chunk.error === "string" && chunk.error.trim() ? chunk.error : getRes().error.unknown);
                     errorMeta = toArticleAiErrorMeta(chunk);
                     continue;
                 }

@@ -394,6 +394,15 @@ describe("personal preferences", () => {
         expect(container.querySelector("#editor_autoDigestLength")).toBeNull();
     });
 
+    it("displays the HTTP error explanation returned by the server", async () => {
+        await render();
+        mockPost.mockRejectedValue({
+            response: { data: { error: 9012, message: "Server: preferences could not be persisted" } },
+        });
+        await submit();
+        expect(document.body.textContent).toContain("Server: preferences could not be persisted");
+    });
+
     it("supports English and prevents offline writes", async () => {
         window.__SS_DATA__!.resourceInfo = { lang: "en_US" };
         await render(true);

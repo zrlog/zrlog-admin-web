@@ -118,6 +118,42 @@ public class AdminProxyControllerTest {
     }
 
     @Test
+    public void connectivityResultIncludesLocalizedOutcomeForBothSuccessAndFailure()
+            throws Exception {
+        for (String language : java.util.List.of("zh_CN", "en_US")) {
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+                for (boolean connected : new boolean[] {true, false}) {
+                    AdminProxyController controller =
+                            new AdminProxyController(
+                                    null,
+                                    new AdminProxyService() {
+                                        @Override
+                                        public boolean testConnection(
+                                                NetworkProxy.Settings settings) {
+                                            return connected;
+                                        }
+                                    },
+                                    null);
+                    set(
+                            controller,
+                            "request",
+                            request(HttpMethod.POST, "{\"url\":\"\",\"noProxy\":\"\"}"));
+                    var result = controller.test();
+                    assertEquals(connected, result.getData());
+                    assertEquals(connected ? 0 : 1, result.getError());
+                    assertEquals(
+                            com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                                    connected
+                                            ? "admin.system.proxy.test.success"
+                                            : "admin.system.proxy.test.error"),
+                            result.getMessage());
+                    assertFalse(result.getMessage().isBlank());
+                }
+            }
+        }
+    }
+
+    @Test
     public void savesLocalFileAndRejectsInvalidInputWithoutLosingSavedSettings() throws Exception {
         try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
             applicationConfig = database.config();

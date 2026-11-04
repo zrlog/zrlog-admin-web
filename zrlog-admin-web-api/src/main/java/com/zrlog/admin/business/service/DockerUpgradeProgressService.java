@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import com.hibegin.common.util.BeanUtil;
+import com.zrlog.admin.business.rest.response.DockerUpgradeJobResponse;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.updater.UpgradeProgressEvent;
@@ -15,6 +17,19 @@ import java.util.concurrent.TimeUnit;
 public class DockerUpgradeProgressService {
     @Inject
     public DockerUpgradeProgressService() {}
+
+    public ApiStandardResponse<DockerUpgradeJobResponse> snapshot(
+            DockerUpdaterProtocol.Job job, Map<String, Object> messages) {
+        if (job == null) return new ApiStandardResponse<>(null);
+        DockerUpgradeJobResponse view = BeanUtil.convert(job, DockerUpgradeJobResponse.class);
+        view.message = Objects.toString(messages.get("admin.upgrade.docker." + job.phase), "");
+        view.detail =
+                ("failed".equals(job.phase) || "interrupted".equals(job.phase))
+                                && job.recoveryRequired
+                        ? Objects.toString(messages.get("admin.upgrade.docker.recovery"), "")
+                        : null;
+        return new ApiStandardResponse<>(view, view.message);
+    }
 
     public ApiStandardResponse<UpgradeProcessResponse> watch(
             DockerControl client,
@@ -56,12 +71,9 @@ public class DockerUpgradeProgressService {
                 default:
                     throw new IllegalStateException("Unknown updater phase");
             }
-            String message =
-                    Objects.toString(messages.get("admin.upgrade.docker." + job.phase), "");
-            String detail =
-                    failed && job.recoveryRequired
-                            ? Objects.toString(messages.get("admin.upgrade.docker.recovery"), "")
-                            : null;
+            DockerUpgradeJobResponse snapshot = snapshot(job, messages).getData();
+            String message = snapshot.message;
+            String detail = snapshot.detail;
             listener.onProgress(
                     UpgradeProgressEvent.EVENT,
                     UpgradeProgressEvent.data(

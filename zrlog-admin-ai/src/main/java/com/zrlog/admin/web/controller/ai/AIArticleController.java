@@ -26,6 +26,7 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -226,7 +227,8 @@ public class AIArticleController extends BaseController {
                         .captureAccount(requestIdentity.current().getUserId())
                         .clearAIMessage(aiContextId());
         if (!cleared) throw new AIMessageSaveException();
-        return new ApiStandardResponse<>(cleared);
+        return new ApiStandardResponse<>(
+                cleared, I18nUtil.getAdminBackendStringFromRes("admin.ai.messages.clear.success"));
     }
 
     @ResponseBody

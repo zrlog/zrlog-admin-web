@@ -92,7 +92,7 @@ export default function PersonalAccessTokens({
                 return;
             }
             await onChange();
-            notice.success(res.saved);
+            notice.success(response.data.message || getRes().common.operationCompleted);
         } catch (error) {
             notice.error(getErrorMessage(error, getRes().error.requestError));
         } finally {

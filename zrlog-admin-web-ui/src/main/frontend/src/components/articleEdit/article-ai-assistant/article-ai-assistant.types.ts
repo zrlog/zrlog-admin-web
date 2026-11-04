@@ -163,6 +163,8 @@ export type ArticleContextMeta = {
 };
 
 export type ArticleAiErrorMeta = {
+    suggestion?: string;
+    errorTypeLabel?: string;
     provider?: string;
     model?: string;
     status?: number;

@@ -14,6 +14,7 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.util.NetworkProxy;
 import jakarta.inject.Inject;
 import java.io.IOException;
@@ -49,10 +50,21 @@ public class AdminProxyController extends BaseController {
             response.renderCode(405);
             return null;
         }
+        ProxySettingsResponse settings =
+                new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured());
+        settings.setRestartMessage(
+                settings.isRestartRequired()
+                        ? I18nUtil.getAdminBackendStringFromRes("admin.system.proxy.save.pending")
+                        : "");
         return pages.response(
                 requestIdentity.optional(),
-                new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured()),
-                "",
+                settings,
+                request.getMethod() == HttpMethod.POST
+                        ? I18nUtil.getAdminBackendStringFromRes(
+                                settings.isRestartRequired()
+                                        ? "admin.system.proxy.save.pending"
+                                        : "admin.system.proxy.save.success")
+                        : "",
                 AdminConstants.ADMIN_URI_BASE_PATH + "/system/proxy");
     }
 
@@ -65,9 +77,18 @@ public class AdminProxyController extends BaseController {
         }
         ProxySettingsRequest input = getRequestBodyWithNullCheck(ProxySettingsRequest.class);
         try {
-            return new ApiStandardResponse<>(
+            boolean connected =
                     this.adminProxyService.testConnection(
-                            NetworkProxy.preview(input.getUrl(), input.getNoProxy())));
+                            NetworkProxy.preview(input.getUrl(), input.getNoProxy()));
+            ApiStandardResponse<Boolean> result =
+                    new ApiStandardResponse<>(
+                            connected,
+                            I18nUtil.getAdminBackendStringFromRes(
+                                    connected
+                                            ? "admin.system.proxy.test.success"
+                                            : "admin.system.proxy.test.error"));
+            if (!connected) result.setError(1);
+            return result;
         } catch (IllegalArgumentException error) {
             throw new ArgsException("proxy");
         }

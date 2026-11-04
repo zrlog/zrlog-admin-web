@@ -103,7 +103,7 @@ public class AdminController extends BaseController {
             this.adminAuditService.record(
                     AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                     AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
-            message = I18nUtil.getAdminBackendStringFromRes("admin.common.update.success");
+            message = I18nUtil.getAdminBackendStringFromRes("admin.dashboard.save.success");
         } else {
             config =
                     dashboardService.getConfig(

@@ -90,7 +90,7 @@ function OAuthConnections({
                 return false;
             }
             await reload();
-            notice.success(res.saved);
+            notice.success(response.data.message || getRes().common.operationCompleted);
             return true;
         } finally {
             setBusy(false);

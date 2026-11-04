@@ -13,6 +13,7 @@ import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.DockerUpgradeProgressService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
+import com.zrlog.admin.business.service.UpgradeReadinessMessages;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -91,6 +92,7 @@ public class UpgradeController extends BaseController {
                         upgrades.preUpgradeVersion(fetch, updatePlugin.get()),
                         UpgradeCheckResponse.class);
         preCheckVersionResponse.setExecution(executions.view(requestIdentity.current()));
+        UpgradeReadinessMessages.apply(preCheckVersionResponse);
         return pages.response(
                 requestIdentity.optional(),
                 preCheckVersionResponse,
@@ -159,7 +161,8 @@ public class UpgradeController extends BaseController {
             if (isSseRequest()) {
                 streamDockerUpgrade(client, job);
             } else {
-                response.renderJson(new ApiStandardResponse<>(job));
+                response.renderJson(
+                        dockerUpgradeProgressService.snapshot(job, I18nUtil.getBackend()));
             }
             return;
         }
@@ -251,7 +254,7 @@ public class UpgradeController extends BaseController {
         if (isSseRequest()) {
             streamDockerUpgrade(client, job);
         } else {
-            response.renderJson(new ApiStandardResponse<>(job));
+            response.renderJson(dockerUpgradeProgressService.snapshot(job, I18nUtil.getBackend()));
         }
     }
 

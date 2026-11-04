@@ -36,6 +36,32 @@ public class DockerUpgradeProgressServiceTest {
     }
 
     @Test
+    public void jsonSnapshotAndStreamUseTheSamePublicCopyInsteadOfUpdaterDiagnostics()
+            throws Exception {
+        Job job = job("failed");
+        job.message = "internal exception with private diagnostics";
+        job.errorCode = "IMAGE_PULL_FAILED";
+        job.recoveryRequired = true;
+        var snapshot = service.snapshot(job, messages);
+        assertEquals("Failed", snapshot.getMessage());
+        assertEquals("Failed", snapshot.getData().message);
+        assertEquals("Recovery required", snapshot.getData().detail);
+        assertEquals("IMAGE_PULL_FAILED", snapshot.getData().errorCode);
+        assertEquals(job.id, snapshot.getData().id);
+        service.watch(
+                new Client(),
+                job,
+                (name, data) -> {
+                    var event = (UpgradeProgressEvent.Data) data;
+                    assertEquals(snapshot.getData().message, event.getMessage());
+                    assertEquals(snapshot.getData().detail, event.getDetail());
+                },
+                messages);
+        assertEquals("internal exception with private diagnostics", job.message);
+        assertNull(service.snapshot(null, messages).getData());
+    }
+
+    @Test
     public void mapsDurableJobPhasesToExistingUpgradeEventsAndCompletion() throws Exception {
         Client client =
                 new Client(job("pulling"), job("replacing"), job("checking"), job("succeeded"));

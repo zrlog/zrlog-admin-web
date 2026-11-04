@@ -127,7 +127,6 @@ export const zhCN = {
         permissions: "允许的操作",
         allow: "同意授权",
         deny: "拒绝",
-        saved: "已完成",
         scopeLabels: {
             "articles:read": "读取公开文章",
             "articles:read_drafts": "读取草稿",
@@ -281,7 +280,6 @@ export const enUS: I18nShape<typeof zhCN> = {
         permissions: "Allowed operations",
         allow: "Authorize",
         deny: "Deny",
-        saved: "Done",
         scopeLabels: {
             "articles:read": "Read public articles",
             "articles:read_drafts": "Read drafts",

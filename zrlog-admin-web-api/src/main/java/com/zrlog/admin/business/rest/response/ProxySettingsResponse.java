@@ -18,6 +18,7 @@ public class ProxySettingsResponse {
     private final String activeNoProxy;
     private final boolean restartRequired;
     private final boolean writable;
+    private String restartMessage;
 
     public ProxySettingsResponse(NetworkProxy.Settings active, NetworkProxy.Settings configured) {
         NetworkProxy.Settings stored = NetworkProxy.fileSettings();
@@ -88,6 +89,14 @@ public class ProxySettingsResponse {
 
     public boolean isRestartRequired() {
         return restartRequired;
+    }
+
+    public String getRestartMessage() {
+        return restartMessage;
+    }
+
+    public void setRestartMessage(String restartMessage) {
+        this.restartMessage = restartMessage;
     }
 
     public boolean isWritable() {

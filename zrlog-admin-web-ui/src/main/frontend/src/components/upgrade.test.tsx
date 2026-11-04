@@ -260,6 +260,17 @@ describe("upgrade readiness actions", () => {
         }
     });
 
+    it.each([false, true])("retains backend readiness failure wording for HTTP failure=%s", async (httpFailure) => {
+        const message = "Server: the readiness evidence cannot be refreshed yet";
+        if (httpFailure) mockGet.mockRejectedValueOnce({ response: { data: { error: 1, message } } });
+        else mockGet.mockResolvedValueOnce({ data: { error: 1, message } });
+        await render();
+        await click(check());
+        expect(container.textContent).toContain(message);
+        expect(execute().disabled).toBe(true);
+        expect(mockUpgrade).not.toHaveBeenCalled();
+    });
+
     it("refreshes evidence without upgrading and requires renewed risk acceptance", async () => {
         const pending = deferred();
         mockGet.mockReturnValue(pending.promise);
@@ -621,11 +632,18 @@ describe("Docker upgrade interaction and recovery", () => {
 
     it.each(["failed", "interrupted"] as const)("rejects %s in the JSON fallback", async (phase) => {
         saveDockerUpgrade(request);
-        mockSubscribe.mockResolvedValue(job(phase, { recoveryRequired: true }));
+        mockSubscribe.mockResolvedValue(
+            job(phase, {
+                recoveryRequired: true,
+                message: "Server: task stopped",
+                detail: "Server: inspect recovery evidence",
+            })
+        );
         await render();
         expect(readDockerUpgrade()).toBeUndefined();
         expect(getVersion).not.toHaveBeenCalled();
-        expect(container.textContent).toContain("recovery");
+        expect(container.textContent).toContain("Server: task stopped");
+        expect(container.textContent).toContain("Server: inspect recovery evidence");
     });
 
     it.each(["pulling", "succeeded"] as const)(

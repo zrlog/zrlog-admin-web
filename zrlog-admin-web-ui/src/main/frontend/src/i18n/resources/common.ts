@@ -2,6 +2,7 @@ import type { I18nShape } from "../types";
 
 export const zhCN = {
     common: {
+        operationCompleted: "操作已完成",
         preset: "预设",
         tips: "提示",
         delete: "删除",
@@ -80,6 +81,7 @@ export const zhCN = {
 
 export const enUS: I18nShape<typeof zhCN> = {
     common: {
+        operationCompleted: "Operation completed",
         preset: "Preset",
         tips: "Notice",
         delete: "Delete",

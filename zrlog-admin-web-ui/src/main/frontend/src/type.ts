@@ -33,6 +33,8 @@ export type UpgradeData = {
     disableUpgradeReason: string;
     version?: UpgradeVersion | null;
     backupProtection?: BackupProtectionStatus;
+    backupProtectionMessage?: string;
+    backupProtectionRecommendation?: string;
     dockerMode?: boolean;
     dockerUpdaterAvailable?: boolean;
     systemServiceMode?: boolean;

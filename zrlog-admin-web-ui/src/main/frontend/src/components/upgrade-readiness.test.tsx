@@ -1,10 +1,10 @@
-import {act, ComponentProps} from "react";
-import {createRoot, Root} from "react-dom/client";
-import {MemoryRouter, useLocation} from "react-router-dom";
-import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
-import {BackupProtectionStatus, UpgradeData} from "../type";
+import { act, ComponentProps } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { MemoryRouter, useLocation } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { BackupProtectionStatus, UpgradeData } from "../type";
 import UpgradeReadiness from "./upgrade-readiness";
-import {getAdminI18n} from "../i18n/admin";
+import { getAdminI18n } from "../i18n/admin";
 
 let mockSsData: {
     pageBuildId: string;
@@ -20,22 +20,22 @@ jest.mock("@ant-design/icons", () => ({
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
 
-    const Space = ({children}: { children?: import("react").ReactNode }) =>
+    const Space = ({ children }: { children?: import("react").ReactNode }) =>
         React.createElement("div", null, children);
-    const Tag = ({children}: { children?: import("react").ReactNode }) => React.createElement("span", null, children);
+    const Tag = ({ children }: { children?: import("react").ReactNode }) => React.createElement("span", null, children);
     const Text = ({
-                      children,
-                      role,
-                      tabIndex,
-                      "aria-disabled": ariaDisabled,
-                  }: import("react").HTMLAttributes<HTMLSpanElement>) =>
-        React.createElement("span", {role, tabIndex, "aria-disabled": ariaDisabled}, children);
-    const Descriptions = ({children}: { children?: import("react").ReactNode }) =>
+        children,
+        role,
+        tabIndex,
+        "aria-disabled": ariaDisabled,
+    }: import("react").HTMLAttributes<HTMLSpanElement>) =>
+        React.createElement("span", { role, tabIndex, "aria-disabled": ariaDisabled }, children);
+    const Descriptions = ({ children }: { children?: import("react").ReactNode }) =>
         React.createElement("dl", null, children);
     Descriptions.Item = ({
-                             children,
-                             label,
-                         }: {
+        children,
+        label,
+    }: {
         children?: import("react").ReactNode;
         label?: import("react").ReactNode;
     }) =>
@@ -48,34 +48,34 @@ jest.mock("antd", () => {
 
     return {
         Alert: ({
-                    description,
-                    message,
-                    role,
-                    type,
-                }: {
+            description,
+            message,
+            role,
+            type,
+        }: {
             description?: import("react").ReactNode;
             message?: import("react").ReactNode;
             role?: string;
             type?: string;
-        }) => React.createElement("div", {"data-alert-type": type, role}, message, description),
-        Button: ({children, icon, loading, disabled, onClick, "aria-label": ariaLabel}: import("antd").ButtonProps) =>
+        }) => React.createElement("div", { "data-alert-type": type, role }, message, description),
+        Button: ({ children, icon, loading, disabled, onClick, "aria-label": ariaLabel }: import("antd").ButtonProps) =>
             React.createElement(
                 "button",
-                {disabled, onClick, "aria-label": ariaLabel, type: "button", "data-loading": String(loading)},
+                { disabled, onClick, "aria-label": ariaLabel, type: "button", "data-loading": String(loading) },
                 icon,
                 children
             ),
         Descriptions,
         Space,
         Tag,
-        Tooltip: ({children, title}: { children?: import("react").ReactNode; title?: string }) =>
-            React.createElement("span", {"data-tooltip": title}, children),
-        Typography: {Text, Paragraph: Text},
+        Tooltip: ({ children, title }: { children?: import("react").ReactNode; title?: string }) =>
+            React.createElement("span", { "data-tooltip": title }, children),
+        Typography: { Text, Paragraph: Text },
     };
 });
 
 jest.mock("antd-style", () => ({
-    useTheme: () => ({fontSizeSM: 12, marginLG: 24, marginSM: 12, marginXS: 8}),
+    useTheme: () => ({ fontSizeSM: 12, marginLG: 24, marginSM: 12, marginXS: 8 }),
 }));
 
 jest.mock("../utils/helpers", () => ({
@@ -110,13 +110,15 @@ const upgradeData = (overrides: Partial<UpgradeData> = {}): UpgradeData => ({
     upgrade: true,
     onlineUpgradable: true,
     disableUpgradeReason: "",
-    version: {buildId: "400", changeLog: "", type: "standard", version: "4.0.0"},
+    version: { buildId: "400", changeLog: "", type: "standard", version: "4.0.0" },
     dockerMode: false,
     faasMode: false,
     systemServiceMode: false,
     warMode: false,
     nativeImageMode: false,
     backupProtection: readyBackup,
+    backupProtectionMessage: "后端：最近备份已通过恢复验证",
+    backupProtectionRecommendation: "后端：保留该备份文件和校验值",
     ...overrides,
 });
 
@@ -127,7 +129,7 @@ describe("UpgradeReadiness", () => {
     const res = getAdminI18n("zh_CN").upgrade.maintenance;
     const Location = () => {
         const location = useLocation();
-        return <span data-router-location={location.pathname + location.search}/>;
+        return <span data-router-location={location.pathname + location.search} />;
     };
 
     const render = (
@@ -140,10 +142,10 @@ describe("UpgradeReadiness", () => {
                 <MemoryRouter
                     basename={basename}
                     initialEntries={[basename === "/" ? "/upgrade" : basename + "/upgrade"]}
-                    future={{v7_relativeSplatPath: true, v7_startTransition: true}}
+                    future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
                 >
                     <UpgradeReadiness data={data} {...props} />
-                    <Location/>
+                    <Location />
                 </MemoryRouter>
             );
         });
@@ -152,7 +154,7 @@ describe("UpgradeReadiness", () => {
     beforeEach(() => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         (process.env as Record<string, string | undefined>).NODE_ENV = "production";
-        mockSsData = {pageBuildId: "", resourceInfo: {lang: "zh_CN", staticPage: false}};
+        mockSsData = { pageBuildId: "", resourceInfo: { lang: "zh_CN", staticPage: false } };
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
@@ -175,7 +177,7 @@ describe("UpgradeReadiness", () => {
         expect(text).toContain("独立运行包");
         expect(text).toContain("JVM");
         expect(text).toContain("在线更新");
-        expect(text).toContain("最近备份已通过恢复验证");
+        expect(text).toContain("后端：最近备份已通过恢复验证");
         expect(text).toContain("backup-20260905.sql");
         expect(text).toContain("a".repeat(64));
         expect(text).toContain("验证结果");
@@ -193,20 +195,22 @@ describe("UpgradeReadiness", () => {
             upgrade: true,
             onlineUpgradable: false,
             disableUpgradeReason: "manual update",
-            version: {buildId: "400", changeLog: "", type: "standard", version: "4.0.0"},
+            version: { buildId: "400", changeLog: "", type: "standard", version: "4.0.0" },
         });
 
         const text = container.textContent || "";
         expect(text).toContain("未报告");
         expect(text).toContain("按部署方式手动更新");
-        expect(text).toContain("备份保护记录格式无效");
+        expect(text).toContain(getAdminI18n("zh_CN").error.requestFailed);
         expect(text).toContain("暂无记录");
-        expect(text).toContain("重新创建备份并完成恢复验证");
+        expect(text).not.toContain("重新创建备份并完成恢复验证");
     });
 
     it("shows a failed restore result and its recorded detail", () => {
         render(
             upgradeData({
+                backupProtectionMessage: "后端：最近一次恢复验证失败",
+                backupProtectionRecommendation: "后端：停止更新，排查恢复失败原因后重新备份并验证",
                 backupProtection: {
                     ...readyBackup,
                     ready: false,
@@ -226,7 +230,7 @@ describe("UpgradeReadiness", () => {
 
     it("refreshes only when the user requests a check", () => {
         const onRefresh = jest.fn();
-        render(upgradeData(), {onRefresh});
+        render(upgradeData(), { onRefresh });
 
         const refresh = container.querySelector<HTMLButtonElement>(`button[aria-label="${res.refresh}"]`);
         expect(refresh?.disabled).toBe(false);
@@ -238,7 +242,7 @@ describe("UpgradeReadiness", () => {
 
     it.each(["refreshing", "refreshDisabled", "offline"] as const)("blocks refresh while %s", (disabledState) => {
         const onRefresh = jest.fn();
-        render(upgradeData(), {onRefresh, [disabledState]: true});
+        render(upgradeData(), { onRefresh, [disabledState]: true });
 
         const refresh = container.querySelector<HTMLButtonElement>(`button[aria-label="${res.refresh}"]`);
         expect(refresh?.disabled).toBe(true);
@@ -250,7 +254,7 @@ describe("UpgradeReadiness", () => {
     it("retains the previous evidence and successful-check time on failure, and permits retry", () => {
         const onRefresh = jest.fn();
         const checkedAt = Date.UTC(2026, 8, 8, 1, 0);
-        render(upgradeData(), {onRefresh, checkedAt, refreshError: res.refreshFailed});
+        render(upgradeData(), { onRefresh, checkedAt, refreshError: res.refreshFailed });
 
         expect(container.querySelector('[role="alert"]')?.textContent).toBe(res.refreshFailed);
         expect(container.textContent).toContain("backup-20260905.sql");
@@ -260,13 +264,13 @@ describe("UpgradeReadiness", () => {
         expect(onRefresh).toHaveBeenCalledTimes(1);
 
         const refreshedAt = checkedAt + 60_000;
-        render(upgradeData(), {onRefresh, checkedAt: refreshedAt});
+        render(upgradeData(), { onRefresh, checkedAt: refreshedAt });
         expect(container.querySelector('[role="alert"]')).toBeNull();
         expect(container.querySelector("time")?.dateTime).toBe(new Date(refreshedAt).toISOString());
     });
 
     it.each([undefined, NaN, Infinity, 1e20])("does not invent a successful-check time for %s", (checkedAt) => {
-        render(upgradeData(), {checkedAt, refreshError: res.refreshFailed});
+        render(upgradeData(), { checkedAt, refreshError: res.refreshFailed });
 
         expect(container.querySelector("time")).toBeNull();
         expect(container.textContent).not.toContain(res.lastChecked);
@@ -274,12 +278,12 @@ describe("UpgradeReadiness", () => {
     });
 
     it.each([
-        {basename: "/admin", staticPage: false, expectedPath: "/admin/plugin"},
-        {basename: "/blog/admin", staticPage: false, expectedPath: "/blog/admin/plugin"},
-        {basename: "/blog/admin", staticPage: true, expectedPath: "/blog/admin/plugin.html"},
+        { basename: "/admin", staticPage: false, expectedPath: "/admin/plugin" },
+        { basename: "/blog/admin", staticPage: false, expectedPath: "/blog/admin/plugin" },
+        { basename: "/blog/admin", staticPage: true, expectedPath: "/blog/admin/plugin.html" },
     ])(
         "preserves the backup-management route with $basename and staticPage=$staticPage",
-        ({basename, staticPage, expectedPath}) => {
+        ({ basename, staticPage, expectedPath }) => {
             mockSsData.pageBuildId = "400-test";
             mockSsData.resourceInfo.staticPage = staticPage;
             render(upgradeData(), {}, basename);
@@ -305,7 +309,7 @@ describe("UpgradeReadiness", () => {
     );
 
     it("keeps backup management non-navigable offline", () => {
-        render(upgradeData(), {offline: true}, "/blog/admin");
+        render(upgradeData(), { offline: true }, "/blog/admin");
 
         expect(
             Array.from(container.querySelectorAll("a")).some((link) => link.textContent?.includes(res.manageBackups))
@@ -324,7 +328,7 @@ describe("UpgradeReadiness", () => {
     it("uses English for maintenance actions, timestamps, and failed-check status", () => {
         mockSsData.resourceInfo.lang = "en_US";
         const english = getAdminI18n("en_US").upgrade.maintenance;
-        render(upgradeData(), {checkedAt: Date.UTC(2026, 8, 8), refreshError: english.refreshFailed});
+        render(upgradeData(), { checkedAt: Date.UTC(2026, 8, 8), refreshError: english.refreshFailed });
 
         expect(container.querySelector(`button[aria-label="${english.refresh}"]`)).not.toBeNull();
         expect(container.textContent).toContain(english.manageBackups);

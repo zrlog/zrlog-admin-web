@@ -451,6 +451,8 @@ public class AIWritingSkillService extends AIService {
         AIStreamPayloads.ErrorPayload payload = new AIStreamPayloads.ErrorPayload();
         payload.setMessage(AIErrorMessages.message(e, "admin.ai.error.request"));
         payload.setErrorType(getStreamErrorType(e));
+        payload.setSuggestion(AIErrorMessages.suggestion(payload.getErrorType()));
+        payload.setErrorTypeLabel(AIErrorMessages.typeLabel(payload.getErrorType()));
         if (e instanceof AIIncompleteResponseException) {
             AIIncompleteResponseException incomplete = (AIIncompleteResponseException) e;
             if (StringUtils.isNotEmpty(incomplete.getFinishReason())) {

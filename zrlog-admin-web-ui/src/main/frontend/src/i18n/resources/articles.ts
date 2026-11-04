@@ -83,7 +83,6 @@ export const zhCN = {
         deleteTitle: "删除标签",
         deleteWarning: "删除会从所有相关文章移除该标签，不会删除文章",
         sameTarget: "目标标签不能和当前标签相同",
-        success: "已更新 {count} 篇文章",
     },
     comment: {
         title: "评论",
@@ -194,7 +193,6 @@ export const enUS: I18nShape<typeof zhCN> = {
         deleteTitle: "Delete Tag",
         deleteWarning: "This removes the tag from all related articles. It does not delete articles",
         sameTarget: "The target tag must be different from the current tag",
-        success: "{count} articles updated",
     },
     comment: {
         title: "Comments",

@@ -292,6 +292,13 @@ public class FileManagerControllerTest {
                             .replaceArticleResourceUrl();
 
             assertEquals(3, response.getData().getScannedArticles());
+            assertEquals(
+                    com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                                    "admin.fileManager.references.replace.success")
+                            .replace("{articles}", "2")
+                            .replace("{fields}", "4"),
+                    response.getMessage());
+            assertFalse(response.getMessage().contains("{articles}"));
             assertEquals("/attached/old.png", service.replaceRequest.getFromUrl());
             String audit =
                     String.valueOf(

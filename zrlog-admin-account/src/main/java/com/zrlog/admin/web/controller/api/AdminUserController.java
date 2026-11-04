@@ -109,7 +109,8 @@ public class AdminUserController extends BaseController {
                 this.userPreferenceService.updateBody(
                         requestIdentity.current(),
                         IOUtil.getStringInputStream(request.getInputStream()),
-                        request.getParaToStr("section")));
+                        request.getParaToStr("section")),
+                I18nUtil.getAdminBackendStringFromRes("admin.user.preferences.save.success"));
     }
 
     /**

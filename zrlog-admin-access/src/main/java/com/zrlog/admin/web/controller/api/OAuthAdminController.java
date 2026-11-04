@@ -21,6 +21,7 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
 
@@ -101,7 +102,8 @@ public class OAuthAdminController extends BaseController {
         Redirect result =
                 service.decide(authority, sessionId(), getRequestBodyWithNullCheck(Decision.class));
         audit(authority.actor(), AdminAuditAction.AUTHORIZE_APPLICATION);
-        return new ApiStandardResponse<>(result);
+        return new ApiStandardResponse<>(
+                result, I18nUtil.getAdminBackendStringFromRes("admin.oauth.update.success"));
     }
 
     @ResponseBody
@@ -112,7 +114,8 @@ public class OAuthAdminController extends BaseController {
         var actor = requestIdentity.current();
         Client result = service.register(actor, getRequestBodyWithNullCheck(Client.class));
         audit(actor, AdminAuditAction.REGISTER_APPLICATION);
-        return new ApiStandardResponse<>(result);
+        return new ApiStandardResponse<>(
+                result, I18nUtil.getAdminBackendStringFromRes("admin.oauth.update.success"));
     }
 
     @ResponseBody
@@ -123,7 +126,8 @@ public class OAuthAdminController extends BaseController {
         var actor = requestIdentity.current();
         service.revokeGrant(actor, getRequestBodyWithNullCheck(Revoke.class).id);
         audit(actor, AdminAuditAction.REVOKE_APPLICATION);
-        return new ApiStandardResponse<>(true);
+        return new ApiStandardResponse<>(
+                true, I18nUtil.getAdminBackendStringFromRes("admin.oauth.update.success"));
     }
 
     @ResponseBody
@@ -144,7 +148,8 @@ public class OAuthAdminController extends BaseController {
                                 authority,
                                 getRequestBodyWithNullCheck(PersonalTokenModels.Create.class));
         audit(authority.actor(), AdminAuditAction.CREATE_PERSONAL_TOKEN);
-        return new ApiStandardResponse<>(result);
+        return new ApiStandardResponse<>(
+                result, I18nUtil.getAdminBackendStringFromRes("admin.oauth.update.success"));
     }
 
     @ResponseBody
@@ -159,7 +164,8 @@ public class OAuthAdminController extends BaseController {
                 .create(service.mcpResource())
                 .revoke(actor, getRequestBodyWithNullCheck(Revoke.class).id);
         audit(actor, AdminAuditAction.REVOKE_PERSONAL_TOKEN);
-        return new ApiStandardResponse<>(true);
+        return new ApiStandardResponse<>(
+                true, I18nUtil.getAdminBackendStringFromRes("admin.oauth.update.success"));
     }
 
     @ResponseBody
@@ -172,6 +178,7 @@ public class OAuthAdminController extends BaseController {
         var actor = requestIdentity.current();
         service.disableClient(actor, getRequestBodyWithNullCheck(Revoke.class).id);
         audit(actor, AdminAuditAction.REVOKE_APPLICATION);
-        return new ApiStandardResponse<>(true);
+        return new ApiStandardResponse<>(
+                true, I18nUtil.getAdminBackendStringFromRes("admin.oauth.update.success"));
     }
 }

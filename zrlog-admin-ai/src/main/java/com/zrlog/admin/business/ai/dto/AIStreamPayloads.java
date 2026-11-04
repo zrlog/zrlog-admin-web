@@ -77,6 +77,9 @@ public final class AIStreamPayloads {
     public static class ErrorPayload {
 
         private String message;
+        private String suggestion;
+        private String errorTypeLabel;
+
         private String errorType;
         private String finishReason;
         private Integer continuationRounds;
@@ -89,6 +92,22 @@ public final class AIStreamPayloads {
 
         public void setMessage(String message) {
             this.message = message;
+        }
+
+        public String getSuggestion() {
+            return suggestion;
+        }
+
+        public void setSuggestion(String suggestion) {
+            this.suggestion = suggestion;
+        }
+
+        public String getErrorTypeLabel() {
+            return errorTypeLabel;
+        }
+
+        public void setErrorTypeLabel(String errorTypeLabel) {
+            this.errorTypeLabel = errorTypeLabel;
         }
 
         public String getErrorType() {

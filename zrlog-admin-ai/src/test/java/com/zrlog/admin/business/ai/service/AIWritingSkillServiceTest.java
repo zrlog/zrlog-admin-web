@@ -172,6 +172,14 @@ public class AIWritingSkillServiceTest {
                 assertFalse(payload.getMessage().contains("title response"));
                 assertTrue(failure.getMessage().contains("title response"));
                 assertEquals("provider_response", payload.getErrorType());
+                assertEquals(
+                        language.equals("zh_CN") ? "服务方响应" : "Provider response",
+                        payload.getErrorTypeLabel());
+                assertEquals(
+                        I18nUtil.getAdminBackendStringFromRes(
+                                "admin.ai.error.suggestion.providerResponse"),
+                        payload.getSuggestion());
+                assertFalse(payload.getSuggestion().contains("title response"));
                 for (Exception error :
                         List.of(
                                 new AIRequestException("raw provider response", 429),

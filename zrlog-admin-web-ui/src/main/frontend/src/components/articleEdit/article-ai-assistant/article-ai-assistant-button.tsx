@@ -270,7 +270,7 @@ export const useArticleAiAssistantConfig = ({
             chat.clear();
             queue.clear();
             onAiMessagesChange?.([], articleId);
-            await message.success(getRes().articleEdit.assistant.clearAiMessagesSuccess);
+            await message.success(response.message || getRes().common.operationCompleted);
         } catch (e) {
             await message.error(e instanceof Error ? e.message : getRes().error.unknown);
         } finally {
@@ -588,47 +588,8 @@ export const useArticleAiAssistantConfig = ({
     const renderAiErrorMessage = (content: ToolAwareAIContent) => {
         const errorMeta = content.errorMeta;
         const assistantRes = getRes().articleEdit.assistant;
-        const getErrorTypeLabel = (errorType?: ArticleAiErrorMeta["errorType"]) => {
-            switch (errorType) {
-                case "incomplete_response":
-                    return assistantRes.requestFailedIncomplete;
-                case "provider_request":
-                    return assistantRes.requestFailedProviderRequest;
-                case "provider_response":
-                    return assistantRes.requestFailedProviderResponse;
-                case "unsupported_tool":
-                    return assistantRes.requestFailedUnsupportedTool;
-                case "unsupported_image_generation":
-                    return assistantRes.requestFailedUnsupportedImageGeneration;
-                case "configuration_required":
-                    return assistantRes.requestFailedConfigurationRequired;
-                case "unknown":
-                    return assistantRes.requestFailedUnknown;
-                default:
-                    return "";
-            }
-        };
-        const getErrorSuggestion = (errorType?: ArticleAiErrorMeta["errorType"]) => {
-            switch (errorType) {
-                case "incomplete_response":
-                    return assistantRes.requestFailedSuggestionIncomplete;
-                case "provider_request":
-                    return assistantRes.requestFailedSuggestionProviderRequest;
-                case "provider_response":
-                    return assistantRes.requestFailedSuggestionProviderResponse;
-                case "unsupported_tool":
-                    return assistantRes.requestFailedSuggestionUnsupportedTool;
-                case "unsupported_image_generation":
-                    return assistantRes.requestFailedSuggestionUnsupportedImageGeneration;
-                case "configuration_required":
-                    return assistantRes.requestFailedSuggestionConfigurationRequired;
-                case "unknown":
-                default:
-                    return assistantRes.requestFailedSuggestionUnknown;
-            }
-        };
-        const errorTypeLabel = getErrorTypeLabel(errorMeta?.errorType);
-        const errorSuggestion = getErrorSuggestion(errorMeta?.errorType);
+        const errorTypeLabel = errorMeta?.errorTypeLabel;
+        const errorSuggestion = errorMeta?.suggestion;
         return (
             <div style={{ display: "flex", justifyContent: "center" }}>
                 <Alert
@@ -638,7 +599,7 @@ export const useArticleAiAssistantConfig = ({
                     description={
                         <Space direction="vertical" size={6}>
                             <Typography.Text>{content.content || getRes().error.unknown}</Typography.Text>
-                            <Typography.Text type="secondary">{errorSuggestion}</Typography.Text>
+                            {errorSuggestion && <Typography.Text type="secondary">{errorSuggestion}</Typography.Text>}
                             <Space wrap size={6}>
                                 <Tag>
                                     {assistantRes.requestFailedProvider}

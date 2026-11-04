@@ -57,7 +57,7 @@ import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import FileManagerView from "./view";
 import FileDetailMetadata from "./detail-metadata";
 import { FileEntry, formatSize, getFileIcon, hasAction, hasDirectoryAction, isExternalPath, isImage } from "./shared";
-import BaseDragger from "@zrlog/editor/dist/editor/common/BaseDragger";
+import BaseDragger, { DraggerUploadResponse } from "@zrlog/editor/dist/editor/common/BaseDragger";
 import SidebarNavItem from "../common/SidebarNavItem";
 import BackendImage, { resolveBackendImageSrc } from "../../common/BackendImage";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
@@ -252,9 +252,9 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 return;
             }
             if (data.data === false) {
-                msgApi.warning(res.rescanReferencesDisabled);
+                msgApi.warning(data.message || getRes().common.operationCompleted);
             } else {
-                msgApi.success(res.rescanReferencesSuccess);
+                msgApi.success(data.message || getRes().common.operationCompleted);
             }
             await refreshData();
         } finally {
@@ -329,7 +329,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     const handleDelete = async (entry: FileEntry) => {
         const params = new URLSearchParams({ path: entry.path });
         const { data } = await axiosInstance.post(`${FILE_MANAGER_API}/delete?${params.toString()}`);
-        msgApi.success(data.message || res.deleteSuccess);
+        if (data.error) {
+            msgApi.error(data.message || getRes().error.requestFailed);
+            return;
+        }
+        msgApi.success(data.message || getRes().common.operationCompleted);
         setDeleteTarget(null);
         if (selectedEntry?.path === entry.path) {
             setSelectedEntry(null);
@@ -404,14 +408,6 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         setRenameSyncReferences(true);
     };
 
-    const getReplaceArticleResourceUrlSuccessText = (data?: ReplaceArticleResourceUrlResponse) => {
-        const updatedArticles = data?.updatedArticles || 0;
-        const updatedFields = data?.updatedFields || 0;
-        return res.replaceArticleResourceUrl.success
-            .replace("{articles}", updatedArticles.toString())
-            .replace("{fields}", updatedFields.toString());
-    };
-
     const handleRename = async () => {
         if (!renameTarget || !renameName.trim()) return;
         const nextName = renameName.trim();
@@ -427,7 +423,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     syncArticleReferences: String(renameSyncReferences && hasAction(renameTarget, "UPDATE_REFERENCES")),
                 });
                 const { data } = await axiosInstance.post(`${FILE_MANAGER_API}/rename?${params.toString()}`);
-                msgApi.success(data.message || res.renameSuccess);
+                if (data.error) {
+                    msgApi.error(data.message || getRes().error.requestFailed);
+                    return;
+                }
+                msgApi.success(data.message || getRes().common.operationCompleted);
             } else if (hasAction(renameTarget, "UPDATE_REFERENCES")) {
                 const data = await postRefreshCacheSse<ApiResponse<ReplaceArticleResourceUrlResponse>>(
                     `${FILE_MANAGER_API}/article-resource-url/replace`,
@@ -442,7 +442,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         backgroundTaskTitle: getReplaceArticleResourceUrlTitle(renameTarget),
                         getBackgroundTaskResult: (response) =>
                             buildBackgroundTaskResult(response, {
-                                successDescription: (item) => getReplaceArticleResourceUrlSuccessText(item.data),
+                                successDescription: (item) => item.message || getRes().common.operationCompleted,
                             }),
                     }
                 );
@@ -450,7 +450,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     msgApi.error(data.message);
                     return;
                 }
-                msgApi.success(getReplaceArticleResourceUrlSuccessText(data.data));
+                msgApi.success(data.message || getRes().common.operationCompleted);
             }
             resetRename();
         } finally {
@@ -467,14 +467,18 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             : basePath + "/" + newFolderName.trim();
         const params = new URLSearchParams({ path: newPath });
         const { data } = await axiosInstance.post(`${FILE_MANAGER_API}/mkdir?${params.toString()}`);
-        msgApi.success(data.message || res.newFolderSuccess);
+        if (data.error) {
+            msgApi.error(data.message || getRes().error.requestFailed);
+            return;
+        }
+        msgApi.success(data.message || getRes().common.operationCompleted);
         setNewFolderOpen(false);
         setNewFolderName("");
         await refreshData();
     };
 
-    const handleReuploadSuccess = () => {
-        msgApi.success(res.reuploadMissingSuccess);
+    const handleReuploadSuccess = (data: DraggerUploadResponse & { message?: string }) => {
+        msgApi.success(data.message || getRes().common.operationCompleted);
         resetReupload();
         void refreshData();
     };
