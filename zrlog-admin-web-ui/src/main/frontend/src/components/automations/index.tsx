@@ -223,7 +223,7 @@ export default function Automations({
                     </Tooltip>
                 )}
             </div>
-            {(offline || offlineData) && <Alert type="info" title={res.offline} />}
+            {offline && <Alert type="info" title={res.offline} />}
             <Tabs
                 activeKey={tab}
                 onChange={(page) => navigate(getRealRouteUrl(ASSISTANT_ROUTES[page as AssistantPage]))}
