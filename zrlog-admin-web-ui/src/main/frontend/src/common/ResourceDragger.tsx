@@ -27,6 +27,7 @@ const ResourceDragger = ({
     type = "image",
     onSuccess,
     resourcePicker,
+    cardBodyStyle,
     ...props
 }: ResourceDraggerProps) => {
     const upload: SharedResourceDraggerProps["upload"] = axiosInstance
@@ -55,6 +56,7 @@ const ResourceDragger = ({
     return (
         <SharedResourceDragger
             {...props}
+            cardBodyStyle={{ display: "flex", flexDirection: "column", justifyContent: "center", ...cardBodyStyle }}
             upload={upload}
             onSuccess={(resource) => onSuccess?.({ data: { url: resource.url } })}
             resourcePicker={
