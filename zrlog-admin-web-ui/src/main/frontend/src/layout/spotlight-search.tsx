@@ -1,7 +1,7 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import SearchIcon from "@zrlog/ui/icons/search";
-import { Avatar, Grid, List, Modal, Space, Spin } from "antd";
+import { Avatar, Button, Grid, List, Modal, Space, Spin } from "antd";
 import { useTheme } from "antd-style";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -330,28 +330,22 @@ const SpotlightSearch = ({
     return (
         <>
             {isMobile || iconOnly ? (
-                <div
+                <Button
+                    type="text"
+                    className="admin-header-icon-entry admin-search-entry"
+                    aria-label={getRes().globalSearchTip}
+                    aria-haspopup="dialog"
+                    aria-expanded={open}
                     onClick={() => setOpen(true)}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 32,
-                        height: 32,
-                        borderRadius: theme.borderRadiusLG,
-                        cursor: "pointer",
-                        border: iconOnly ? border : undefined,
-                        backgroundColor: iconOnly ? theme.colorFillQuaternary : undefined,
-                        color: theme.colorTextSecondary,
-                    }}
+                    style={iconOnly ? { border, backgroundColor: theme.colorFillQuaternary } : undefined}
                 >
-                    <SearchIcon style={{ fontSize: 18 }} />
-                </div>
+                    <SearchIcon style={{ fontSize: 20 }} />
+                </Button>
             ) : (
                 <Input
                     onClick={() => setOpen(true)}
                     onMouseDown={(e) => e.preventDefault()}
-                    prefix={<SearchIcon style={{ color: theme.colorTextTertiary }} />}
+                    prefix={<SearchIcon style={{ fontSize: 20, color: theme.colorTextTertiary }} />}
                     suffix={
                         <div
                             style={{
@@ -371,7 +365,7 @@ const SpotlightSearch = ({
                     placeholder={getRes().globalSearchTip}
                     readOnly
                     style={{
-                        width: compact ? 180 : 220,
+                        width: compact ? 200 : 220,
                         cursor: "pointer",
                         caretColor: "transparent",
                         borderRadius: theme.borderRadiusLG,

@@ -39,26 +39,41 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
         background: ${(props) => props.colorBgElevated} !important;
     }
 
-    .admin-assistant-entry {
+    .admin-header-icon-entry {
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        padding: 0;
         flex-shrink: 0;
         border-radius: ${(props) => props.borderRadiusLG}px;
         color: ${(props) => props.textColor};
     }
 
-    .admin-assistant-entry:hover,
-    .admin-assistant-entry[aria-current="page"] {
+    .admin-header-icon-entry:not(:disabled):hover,
+    .admin-header-icon-entry[aria-current="page"] {
         color: ${(props) => props.colorPrimary};
         background: ${(props) => props.colorFillSecondary};
     }
 
-    .admin-assistant-entry:focus-visible {
+    .admin-header-icon-entry:focus-visible {
         outline: ${(props) => props.lineWidth * 2}px ${(props) => props.lineType} ${(props) => props.colorPrimary};
         outline-offset: 2px;
+    }
+
+    @media (pointer: coarse) {
+        .admin-header-icon-entry::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 44px;
+            height: 44px;
+            transform: translate(-50%, -50%);
+        }
     }
 
     /* Menu styling */

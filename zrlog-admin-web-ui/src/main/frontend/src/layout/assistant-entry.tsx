@@ -16,7 +16,7 @@ export default function AssistantEntry() {
             {contextHolder}
             <Tooltip title={title}>
                 <Link
-                    className="admin-assistant-entry"
+                    className="admin-header-icon-entry admin-assistant-entry"
                     to={getRealRouteUrl("/assistant")}
                     aria-label={title}
                     aria-current={selected ? "page" : undefined}

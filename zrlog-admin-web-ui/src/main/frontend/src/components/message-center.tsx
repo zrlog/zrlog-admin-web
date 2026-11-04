@@ -123,8 +123,13 @@ const MessageCenter = ({
         };
     };
 
+    const triggerIconSize = compact ? 20 : 18;
     const triggerIcon =
-        runningCount > 0 ? <LoadingIcon style={{ fontSize: 18 }} /> : <NotificationsIcon style={{ fontSize: 18 }} />;
+        runningCount > 0 ? (
+            <LoadingIcon style={{ fontSize: triggerIconSize }} />
+        ) : (
+            <NotificationsIcon style={{ fontSize: triggerIconSize }} />
+        );
 
     const handleRemoveTask = async (taskId: string, dismissPath?: string, dismissPayload?: Record<string, unknown>) => {
         if (dismissPath) {
@@ -169,18 +174,21 @@ const MessageCenter = ({
     const trigger = (
         <Button
             type="text"
+            className={compact ? "admin-header-icon-entry" : undefined}
             aria-label={getRes().backgroundTask.title}
             aria-expanded={open}
             title={getRes().backgroundTask.title}
             onClick={openMessageCenter}
-            style={{
-                width: compact ? 32 : undefined,
-                height: compact ? 32 : 44,
-                minWidth: compact ? 32 : undefined,
-                borderRadius: theme.borderRadiusLG,
-                color: theme.colorText,
-                paddingInline: compact ? 7 : 14,
-            }}
+            style={
+                compact
+                    ? undefined
+                    : {
+                          height: 44,
+                          borderRadius: theme.borderRadiusLG,
+                          color: theme.colorText,
+                          paddingInline: 14,
+                      }
+            }
         >
             <Space size={6}>
                 <Badge

@@ -1,8 +1,8 @@
-import {theme as antdTheme} from "antd";
-import {FunctionComponent} from "react";
+import { theme as antdTheme } from "antd";
+import { FunctionComponent } from "react";
 
 const DeskGlobalStyle: FunctionComponent = () => {
-    const {token} = antdTheme.useToken();
+    const { token } = antdTheme.useToken();
 
     return (
         <style>
@@ -23,6 +23,9 @@ body.light .ant-app,
 body.light .ant-layout-sider,
             body.light .ant-layout-header {
               background: ${token.colorBgContainer};
+            }
+body.light .admin-header-icon-entry {
+              border-radius: ${token.borderRadiusSM}px;
             }
 body.light .sidebar-shell {
               background:
