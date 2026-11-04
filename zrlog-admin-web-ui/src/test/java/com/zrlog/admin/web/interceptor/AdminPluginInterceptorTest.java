@@ -16,6 +16,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.plugin.IPlugin;
+import com.zrlog.plugin.PluginAdminAppearance;
 import com.zrlog.plugin.Plugins;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
@@ -29,12 +30,15 @@ public class AdminPluginInterceptorTest {
     private ZrLogConfig applicationConfig;
 
     private static HttpRequest request(HttpMethod method, String uri) {
+        Map<String, Object> attributes = new java.util.HashMap<>();
         return (HttpRequest)
                 Proxy.newProxyInstance(
                         AdminPluginInterceptorTest.class.getClassLoader(),
                         new Class[] {HttpRequest.class},
                         (proxy, calledMethod, args) -> {
                             switch (calledMethod.getName()) {
+                                case "getAttr":
+                                    return attributes;
                                 case "getMethod":
                                     return method;
                                 case "getUri":
@@ -137,6 +141,7 @@ public class AdminPluginInterceptorTest {
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                         ApplicationServicesFixture.installed(applicationConfig),
                         AccountServicesFixture.component(null).requestIdentity(),
+                        AccountServicesFixture.component(null).preferences(),
                         ApplicationServicesFixture.audit(null))
                 .doInterceptor(request(HttpMethod.GET, "/admin/plugins"), response.response());
 
@@ -155,6 +160,7 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
                                         AccountServicesFixture.component(null).requestIdentity(),
+                                        AccountServicesFixture.component(null).preferences(),
                                         ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
@@ -164,6 +170,7 @@ public class AdminPluginInterceptorTest {
 
         assertEquals("/reminder/manifest.json", plugin.lastUri);
         assertNull(plugin.lastToken);
+        assertNull(plugin.lastAppearance);
     }
 
     @Test
@@ -179,6 +186,7 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
                                         AccountServicesFixture.component(null).requestIdentity(),
+                                        AccountServicesFixture.component(null).preferences(),
                                         ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
@@ -201,6 +209,7 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
                                         AccountServicesFixture.component(null).requestIdentity(),
+                                        AccountServicesFixture.component(null).preferences(),
                                         ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(HttpMethod.GET, "/admin/plugins/reminder/index"),
@@ -227,6 +236,8 @@ public class AdminPluginInterceptorTest {
                                             ApplicationServicesFixture.installed(applicationConfig),
                                             AccountServicesFixture.component(db.dataSource())
                                                     .requestIdentity(),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .preferences(),
                                             ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
@@ -255,6 +266,8 @@ public class AdminPluginInterceptorTest {
                                             ApplicationServicesFixture.installed(applicationConfig),
                                             AccountServicesFixture.component(db.dataSource())
                                                     .requestIdentity(),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .preferences(),
                                             ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
@@ -270,6 +283,48 @@ public class AdminPluginInterceptorTest {
                                                     "admin_audit_log")
                                             .get("value"))
                             .contains("PLUGIN_SURFACE_ACTION"));
+        }
+    }
+
+    @Test
+    public void shouldResolvePersonalAppearanceForTheAuthenticatedAdministrator() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("admin_theme", "desk");
+            db.putWebsite("admin_darkMode", false);
+            db.putWebsite("admin_color_primary", "#1677ff");
+            db.putWebsite("admin_compactMode", true);
+            db.execute(
+                    "update user set preferences=? where userId=1",
+                    "{\"appearance\":{\"theme\":\"antd\",\"darkMode\":true,\"colorPrimary\":\"#00875a\",\"compactMode\":false}}");
+            FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
+            var account = AccountServicesFixture.component(db.dataSource());
+            var interceptor =
+                    new AdminPluginInterceptor(
+                            () -> tokenService(token()),
+                            () -> plugin,
+                            () -> true,
+                            account.requestIdentity(),
+                            account.preferences(),
+                            ApplicationServicesFixture.audit(db.dataSource()));
+            interceptor.doInterceptor(
+                    request(HttpMethod.GET, "/admin/plugins/"), new ResponseRecorder().response());
+
+            assertEquals("antd", plugin.lastAppearance.getTheme());
+            assertTrue(plugin.lastAppearance.isDarkMode());
+            assertEquals("#00875a", plugin.lastAppearance.getColorPrimary());
+            assertFalse(plugin.lastAppearance.isCompactMode());
+
+            // Missing overrides inherit the site's values on the next request.
+            db.execute(
+                    "update user set preferences=? where userId=1",
+                    "{\"appearance\":{\"theme\":\"geek\"}}");
+            interceptor.doInterceptor(
+                    request(HttpMethod.GET, "/admin/plugins/api/plugins"),
+                    new ResponseRecorder().response());
+            assertEquals("geek", plugin.lastAppearance.getTheme());
+            assertFalse(plugin.lastAppearance.isDarkMode());
+            assertEquals("#1677ff", plugin.lastAppearance.getColorPrimary());
+            assertTrue(plugin.lastAppearance.isCompactMode());
         }
     }
 
@@ -342,6 +397,7 @@ public class AdminPluginInterceptorTest {
         private final boolean accessResult;
         private String lastUri;
         private AdminTokenVO lastToken;
+        private PluginAdminAppearance lastAppearance;
 
         FakePluginCorePlugin(boolean accessResult) {
             this.accessResult = accessResult;
@@ -373,6 +429,9 @@ public class AdminPluginInterceptorTest {
                 throws IOException, URISyntaxException, InterruptedException {
             this.lastUri = uri;
             this.lastToken = adminTokenVO;
+            this.lastAppearance =
+                    (PluginAdminAppearance)
+                            request.getAttr().get(PluginAdminAppearance.REQUEST_ATTRIBUTE);
             return accessResult;
         }
 

@@ -4,7 +4,9 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.admin.web.audit.AdminAuditContexts;
@@ -14,6 +16,8 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.plugin.PluginAdminAppearance;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.IOException;
@@ -36,6 +40,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
     protected final Supplier<TokenService> tokenService;
     private final AdminAuditService adminAuditService;
     private final AdminRequestIdentity requestIdentity;
+    private final UserPreferenceService userPreferenceService;
     private final Supplier<PluginCorePlugin> pluginCore;
     private final BooleanSupplier installed;
     private final List<String> pluginHandlerPaths =
@@ -47,10 +52,12 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             Supplier<PluginCorePlugin> pluginCore,
             @Named("installed") BooleanSupplier installed,
             AdminRequestIdentity requestIdentity,
+            UserPreferenceService userPreferenceService,
             AdminAuditService adminAuditService) {
         this.adminAuditService = adminAuditService;
 
         this.requestIdentity = requestIdentity;
+        this.userPreferenceService = userPreferenceService;
 
         this.tokenService = Objects.requireNonNull(tokenService);
         this.pluginCore = Objects.requireNonNull(pluginCore);
@@ -95,10 +102,20 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             AdminWebTools.blockUnLoginRequestHandler(request, response, installed.getAsBoolean());
             return;
         }
-        if (!requestIdentity.account(entry).isAdministrator()) {
+        AccountAccess actor = requestIdentity.account(entry);
+        if (!actor.isAdministrator()) {
             response.renderCode(403);
             return;
         }
+        UserPreferences.Appearance appearance = userPreferenceService.effective(actor).appearance;
+        request.getAttr()
+                .put(
+                        PluginAdminAppearance.REQUEST_ATTRIBUTE,
+                        new PluginAdminAppearance(
+                                appearance.theme,
+                                Boolean.TRUE.equals(appearance.darkMode),
+                                appearance.colorPrimary,
+                                Boolean.TRUE.equals(appearance.compactMode)));
         if (pluginCore
                 .get()
                 .accessPlugin(

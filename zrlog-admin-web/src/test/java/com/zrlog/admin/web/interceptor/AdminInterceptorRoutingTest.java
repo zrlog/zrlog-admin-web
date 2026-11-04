@@ -178,6 +178,7 @@ public class AdminInterceptorRoutingTest {
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                         ApplicationServicesFixture.installed(applicationConfig),
                         AccountServicesFixture.component(null).requestIdentity(),
+                        AccountServicesFixture.component(null).preferences(),
                         ApplicationServicesFixture.audit(null));
 
         assertTrue(interceptor.isHandleAble(request("/admin/plugins")));
