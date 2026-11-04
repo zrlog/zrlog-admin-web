@@ -103,7 +103,7 @@ public class AutomationNotificationTest {
                 (com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse
                                 .OperationTaskPayload)
                         notices.get(0).getPayload();
-        assertEquals("/assistant?runId=" + run.id, payload.getActionPath());
+        assertEquals("/assistant/history?runId=" + run.id, payload.getActionPath());
         assertTrue(inbox().markRead(author, notices.get(0).getTaskKey()));
         assertTrue(inbox().markRead(author, notices.get(0).getTaskKey()));
         assertTrue(inbox().list(author).isEmpty());

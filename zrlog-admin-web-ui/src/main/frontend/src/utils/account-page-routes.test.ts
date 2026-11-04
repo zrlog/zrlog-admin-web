@@ -98,4 +98,17 @@ describe("account page routing", () => {
             expect(route?.props).toEqual({ activeKey: key });
         }
     });
+
+    it("loads assistant tabs through page APIs with history filters and detail preserved", async () => {
+        const get = jest.fn<Promise<any>, any[]>().mockResolvedValue({ data: { error: 0, data: {} } });
+        for (const page of ["system", "history"]) {
+            await getCsrData(`/assistant/${page}.html?taskId=a%2Bb&page=2&runId=run`, 0, {
+                get,
+            } as unknown as AxiosInstance);
+            expect(get).toHaveBeenLastCalledWith(`/api/admin/assistant/${page}?taskId=a%2Bb&page=2&runId=run`);
+            const route = createAdminDashboardRoutes().find((route) => route.paths.includes(`assistant/${page}`));
+            expect(route?.paths).toContain(`assistant/${page}.html`);
+            expect(route?.props).toEqual({ activePage: page });
+        }
+    });
 });

@@ -36,6 +36,7 @@ import {
     WEBSITE_ROUTES,
 } from "../utils/account-page-routes";
 import { canAccessPage } from "../utils/account-access";
+import { ASSISTANT_ROUTES } from "../utils/assistant-page-routes";
 import type { ComponentType, ReactNode } from "react";
 import { lazy } from "react";
 
@@ -211,6 +212,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("assistant"),
         lazy: AsyncAutomations,
         fallback: LightweightFallback,
+        getComponentKey: (_data, cacheKey) => cacheKey.split("?")[0],
         search: [
             {
                 id: "assistant",
@@ -220,6 +222,15 @@ export const createAdminDashboardRoutes = (
             },
         ],
     },
+    ...(["system", "history"] as const).map(
+        (page): AdminDashboardRouteDefinition => ({
+            paths: buildUriPaths(ASSISTANT_ROUTES[page].slice(1)),
+            lazy: AsyncAutomations,
+            fallback: LightweightFallback,
+            props: { activePage: page },
+            getComponentKey: (_data, cacheKey) => cacheKey.split("?")[0],
+        })
+    ),
     {
         paths: buildUriPaths(WEBSITE_ROUTES.members.slice(1)),
         lazy: AsyncMembers,

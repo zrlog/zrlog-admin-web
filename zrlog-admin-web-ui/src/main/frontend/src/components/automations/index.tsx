@@ -12,9 +12,10 @@ import {
     Tooltip,
 } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import { useEffect, useRef, useState } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { cacheIgnoreReloadTime, getRealRouteUrl, getRes } from "../../utils/constants";
+import { ASSISTANT_ROUTES, AssistantPage } from "../../utils/assistant-page-routes";
 import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
@@ -30,22 +31,32 @@ import { canAccessPage } from "../../utils/account-access";
 import { removeBackgroundTaskByKey } from "../../utils/background-task-store";
 import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
 import ProposalForm from "./ProposalForm";
-import type { Overview, Plan, Run, Runs, Task } from "./types";
+import type { Overview, Plan, Run, Task } from "./types";
 
 export default function Automations({
     data,
     offline = false,
     offlineData = false,
-}: Pick<AdminCommonProps<Overview>, "data"> & { offline?: boolean; offlineData?: boolean }) {
-    const [overview, setOverview] = useState(data);
+    activePage = "tasks",
+}: Pick<AdminCommonProps<Overview>, "data"> & {
+    offline?: boolean;
+    offlineData?: boolean;
+    activePage?: AssistantPage;
+}) {
+    const overview = data;
+    const tab = activePage;
+    const navigate = useNavigate();
+    const mounted = useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
     const [editing, setEditing] = useState<Partial<Plan>>();
     const [proposing, setProposing] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [tab, setTab] = useState("tasks");
-    const [taskPage, setTaskPage] = useState(1);
-    const [runs, setRuns] = useState<Runs>({ items: [], total: 0, page: 1, pageSize: 20 });
-    const [filter, setFilter] = useState<string>();
-    const [detail, setDetail] = useState<Run>();
+    const [detail, setDetail] = useState<Run | undefined>(data.selectedRun);
     const historyTrigger = useRef<HTMLElement | null>(null);
     const historyPanel = useRef<HTMLElement | null>(null);
     useEffect(() => {
@@ -60,42 +71,36 @@ export default function Automations({
     }, [detail]);
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedRun = searchParams.get("runId");
+    const taskPage = Math.floor(Math.max(0, Number(searchParams.get("offset")) || 0) / 100) + 1;
+    const filter = searchParams.get("taskId") || undefined;
+    const runs = overview.runs ?? { items: [], total: 0, page: 1, pageSize: 20 };
     useEffect(() => {
-        if (searchParams.get("tab") === "system") setTab("system");
-    }, [searchParams]);
+        setDetail(selectedRun && data.selectedRun?.id === selectedRun ? data.selectedRun : undefined);
+    }, [selectedRun, data.selectedRun]);
     const res = getRes().assistant;
     const { styles, cx } = useAssistantStyles();
     const disabled = offline || offlineData || busy;
-    useEffect(() => setOverview(data), [data]);
     const request = useAssistantRequest();
-    const reload = useCallback(
-        async () => setOverview(await request<Overview>(`?offset=${(taskPage - 1) * 100}`)),
-        [request, taskPage]
-    );
-    const loadRuns = useCallback(
-        async (page = 1) =>
-            setRuns(await request<Runs>(`runs?page=${page}&taskId=${encodeURIComponent(filter ?? "")}`)),
-        [request, filter]
-    );
-    useEffect(() => {
-        if (tab === "history") void loadRuns().catch(() => undefined);
-    }, [tab, loadRuns]);
-    useEffect(() => {
-        void reload().catch(() => undefined);
-    }, [reload]);
-    useEffect(() => {
-        if (!selectedRun) return;
-        let current = true;
-        setTab("history");
-        void request<Run>(`detail?id=${encodeURIComponent(selectedRun)}`)
-            .then((run) => {
-                if (current) setDetail(run);
-            })
-            .catch(() => undefined);
-        return () => {
-            current = false;
-        };
-    }, [request, selectedRun]);
+    const reload = () => {
+        if (!mounted.current) return;
+        setSearchParams(
+            (params) => {
+                params.set(cacheIgnoreReloadTime, String(Date.now()));
+                return params;
+            },
+            { replace: true }
+        );
+    };
+    const updateHistory = (changes: { taskId?: string; page?: number; runId?: string }, replace = false) => {
+        if (!mounted.current) return;
+        const params = new URLSearchParams(searchParams);
+        if (replace) params.set(cacheIgnoreReloadTime, String(Date.now()));
+        for (const [key, value] of Object.entries(changes)) {
+            if (value === undefined || value === "" || (key === "page" && value === 1)) params.delete(key);
+            else params.set(key, String(value));
+        }
+        navigate(getRealRouteUrl(`${ASSISTANT_ROUTES.history}?${params}`), { replace });
+    };
     const mutate = async (path: string, body: unknown) => {
         if (disabled) return;
         setBusy(true);
@@ -103,7 +108,7 @@ export default function Automations({
             const result = await request<Run>(path, body);
             if (path === "run") setDetail(result);
             setEditing(undefined);
-            await reload();
+            reload();
         } catch {
             /* The request boundary displays the error. */
         } finally {
@@ -130,15 +135,20 @@ export default function Automations({
     };
     const date = (value?: number) => (value ? formatDateTime(value) : res.none);
     const showHistory = (task: Task) => {
-        setFilter(task.id);
-        setTab("history");
+        navigate(getRealRouteUrl(`${ASSISTANT_ROUTES.history}?taskId=${encodeURIComponent(task.id)}`));
     };
     const taskList = (
         <PersonalTasks
             overview={overview}
             disabled={disabled}
             page={taskPage}
-            onPage={setTaskPage}
+            onPage={(page) =>
+                setSearchParams((params) => {
+                    if (page === 1) params.delete("offset");
+                    else params.set("offset", String((page - 1) * 100));
+                    return params;
+                })
+            }
             onEdit={setEditing}
             onPropose={() => setProposing(true)}
             onHistory={showHistory}
@@ -155,7 +165,7 @@ export default function Automations({
                     placeholder={res.allTasks}
                     aria-label={res.allTasks}
                     value={filter}
-                    onChange={setFilter}
+                    onChange={(taskId) => updateHistory({ taskId, page: 1, runId: undefined })}
                     options={[...(overview.systemTasks ?? []), ...overview.tasks].map((task) => ({
                         value: task.id,
                         label: task.name,
@@ -167,10 +177,7 @@ export default function Automations({
                 onDetail={(run) => {
                     historyTrigger.current =
                         document.activeElement instanceof HTMLElement ? document.activeElement : null;
-                    setSearchParams((params) => {
-                        params.set("runId", run.id);
-                        return params;
-                    });
+                    updateHistory({ runId: run.id });
                 }}
                 renderStatus={status}
             />
@@ -181,11 +188,18 @@ export default function Automations({
                     pageSize={runs.pageSize}
                     total={runs.total}
                     showSizeChanger={false}
-                    onChange={(page) => void loadRuns(page).catch(() => undefined)}
+                    onChange={(page) => updateHistory({ page, runId: undefined })}
                 />
             </div>
         </section>
     );
+    // Preserve existing notification and upgrade links while using canonical page routes.
+    if (activePage === "tasks" && (selectedRun || searchParams.get("tab") === "system")) {
+        const params = new URLSearchParams(searchParams);
+        params.delete("tab");
+        const path = selectedRun ? ASSISTANT_ROUTES.history : ASSISTANT_ROUTES.system;
+        return <Navigate replace to={getRealRouteUrl(`${path}?${params}`)} />;
+    }
     return (
         <div className={styles.page}>
             <div className={styles.header}>
@@ -212,7 +226,7 @@ export default function Automations({
             {(offline || offlineData) && <Alert type="info" title={res.offline} />}
             <Tabs
                 activeKey={tab}
-                onChange={setTab}
+                onChange={(page) => navigate(getRealRouteUrl(ASSISTANT_ROUTES[page as AssistantPage]))}
                 tabBarExtraContent={
                     <Tooltip title={res.reload}>
                         <Button
@@ -220,9 +234,7 @@ export default function Automations({
                             icon={<RefreshIcon />}
                             aria-label={res.reload}
                             disabled={disabled}
-                            onClick={() =>
-                                void (tab === "history" ? loadRuns(runs.page) : reload()).catch(() => undefined)
-                            }
+                            onClick={reload}
                         />
                     </Tooltip>
                 }
@@ -296,15 +308,10 @@ export default function Automations({
                                     removeBackgroundTaskByKey(ASSISTANT_NOTICE_PREFIX + detail.id);
                                     historyTrigger.current = historyPanel.current;
                                     setDetail(undefined);
-                                    setSearchParams(
-                                        (params) => {
-                                            params.delete("runId");
-                                            return params;
-                                        },
-                                        { replace: true }
-                                    );
                                     const lastPage = Math.max(1, Math.ceil((runs.total - 1) / runs.pageSize));
-                                    await loadRuns(Math.min(runs.page, lastPage));
+                                    if (tab === "history") {
+                                        updateHistory({ runId: undefined, page: Math.min(runs.page, lastPage) }, true);
+                                    } else reload();
                                 } catch {
                                     /* The request boundary displays the error. */
                                 } finally {
@@ -322,14 +329,7 @@ export default function Automations({
                 focusable={{ focusTriggerAfterClose: !historyTrigger.current }}
                 onClose={() => {
                     setDetail(undefined);
-                    if (selectedRun)
-                        setSearchParams(
-                            (params) => {
-                                params.delete("runId");
-                                return params;
-                            },
-                            { replace: true }
-                        );
+                    if (selectedRun) updateHistory({ runId: undefined }, true);
                 }}
                 closable={{ placement: "end" }}
                 size={560}

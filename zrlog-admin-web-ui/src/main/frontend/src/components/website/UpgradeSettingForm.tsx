@@ -165,7 +165,7 @@ const UpgradeSettingForm = ({
                         disabled={offline || offlineData}
                         block={narrow}
                         style={narrow ? { whiteSpace: "normal", height: "auto", textAlign: "left" } : undefined}
-                        onClick={() => navigate(getRealRouteUrl("/assistant") + "?tab=system")}
+                        onClick={() => navigate(getRealRouteUrl("/assistant/system"))}
                     >
                         {getRes().websiteUpgrade.manageUpdates}
                     </Button>

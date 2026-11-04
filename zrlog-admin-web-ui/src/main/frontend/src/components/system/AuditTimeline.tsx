@@ -79,7 +79,7 @@ export default function AuditTimeline({
                                 {log.assistantRunId && (
                                     <Link
                                         to={getRealRouteUrl(
-                                            `/assistant?runId=${encodeURIComponent(log.assistantRunId)}`
+                                            `/assistant/history?runId=${encodeURIComponent(log.assistantRunId)}`
                                         )}
                                     >
                                         {text.viewExecution}

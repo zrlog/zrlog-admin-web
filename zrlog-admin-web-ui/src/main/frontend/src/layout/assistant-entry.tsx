@@ -1,13 +1,14 @@
 import { Modal, Tooltip } from "antd";
 import RobotIcon from "@zrlog/ui/icons/robot";
 import { Link, useLocation } from "react-router-dom";
+import { isAssistantPage } from "../utils/assistant-page-routes";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 import { tryBlock } from "../utils/helpers";
 
 export default function AssistantEntry() {
     const [modal, contextHolder] = Modal.useModal();
     const location = useLocation();
-    const selected = location.pathname.replace(/\.html$/, "") === "/assistant";
+    const selected = isAssistantPage(location.pathname);
     const title = getRes().assistant.title;
 
     return (

@@ -57,7 +57,7 @@ public final class AutomationNotificationService {
             payload.setSource(I18nUtil.getAdminBackendStringFromRes("admin.assistant.manage"));
             payload.setActionLabel(
                     I18nUtil.getAdminBackendStringFromRes("admin.assistant.notice.detail"));
-            payload.setActionPath("/assistant?runId=" + run.id);
+            payload.setActionPath("/assistant/history?runId=" + run.id);
             payload.setClosable(true);
             String status =
                     "failed".equals(run.status)

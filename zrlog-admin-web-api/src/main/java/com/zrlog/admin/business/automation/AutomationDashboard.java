@@ -68,6 +68,14 @@ public final class AutomationDashboard {
         return response;
     }
 
+    public AutomationViews.Overview history(
+            AccountAccess actor, String taskId, int page, String runId) throws SQLException {
+        var response = overview(actor, 0);
+        response.runs = runs(actor, taskId, page, 20);
+        if (runId != null && !runId.isBlank()) response.selectedRun = run(tasks.run(actor, runId));
+        return response;
+    }
+
     public AutomationViews.Runs runs(AccountAccess actor, String taskId, int page, int pageSize)
             throws SQLException {
         actor = authority.current(actor);

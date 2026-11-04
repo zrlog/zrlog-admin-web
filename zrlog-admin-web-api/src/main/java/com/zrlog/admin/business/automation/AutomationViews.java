@@ -26,6 +26,8 @@ public final class AutomationViews {
         public long total;
         public boolean aiAvailable;
         public boolean canManageScheduler;
+        public Runs runs;
+        public Run selectedRun;
     }
 
     public static class Runs {

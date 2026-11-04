@@ -33,6 +33,17 @@ describe("account permission and cache boundary", () => {
         expect(actionForPath("/system/upgrade")).toBe("site.configure");
         expect(actionForPath("/system/upgrade.html?v=1")).toBe("site.configure");
     });
+
+    it("keeps assistant tab data within the authenticated session", () => {
+        for (const path of ["/assistant", "/assistant/system", "/assistant/history"]) {
+            expect(actionForPath(path + ".html?runId=private")).toBe("account.session");
+            addToCache(path + "?runId=private", { private: path });
+            expect(getCacheByKey(path + "?runId=private")).toEqual({ private: path });
+            expect(JSON.stringify(localStorage)).not.toContain("private");
+        }
+        window.__SS_DATA__!.key = "another-session";
+        expect(getCacheByKey("/assistant/history?runId=private")).toBeUndefined();
+    });
     it("does not reuse another signed-in session's article or grant cache", () => {
         addToCache("/article", { privateText: "first session" });
         addToCache("/user/applications/grants", { grants: ["first session"] });

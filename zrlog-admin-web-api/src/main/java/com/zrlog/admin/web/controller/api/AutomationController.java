@@ -102,6 +102,22 @@ public final class AutomationController extends BaseController {
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.runs")
+    public AdminPageDataResponse<AutomationViews.Overview> history() throws Exception {
+        var actor = identities.current();
+        return pages.response(
+                actor,
+                dashboard.history(
+                        actor,
+                        request.getParaToStr("taskId"),
+                        request.getParaToInt("page", 1),
+                        request.getParaToStr("runId")),
+                "",
+                "/admin/assistant/history");
+    }
+
+    @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.save")
     public ApiStandardResponse<AutomationViews.Task> save() throws Exception {

@@ -1,5 +1,6 @@
 import { getSsDate } from "../base/SsData";
 import { getAccountPage } from "./account-page-routes";
+import { isAssistantPage } from "./assistant-page-routes";
 
 export type AccountRole = "owner" | "admin" | "editor" | "author" | "contributor";
 export const hasAction = (action: string) => getSsDate().user?.actions?.includes(action) === true;
@@ -9,7 +10,7 @@ export const actionForPath = (raw: string): string => {
     const accountPage = getAccountPage(path);
     if (accountPage) return accountPage.action;
     if (path === "/website/assistant") return "system.manage";
-    if (path === "/assistant") return "account.session";
+    if (isAssistantPage(path)) return "account.session";
     if (path.startsWith("/article-edit")) return "article.read";
     if (path.startsWith("/article-type") || path.startsWith("/tag")) return "taxonomy.manage";
     if (path.startsWith("/article")) return "article.read";

@@ -148,6 +148,30 @@ public class AutomationHttpBoundaryTest {
             assertEquals(1, history(db, "?pageSize=1").items.size());
             assertEquals(100, history(db, "?pageSize=999").pageSize);
             assertThrows(NumberFormatException.class, () -> history(db, "?pageSize=invalid"));
+
+            var page = historyPage(db, "?page=2&taskId=" + taskId);
+            assertEquals(2, page.runs.page);
+            assertEquals(5, page.runs.items.size());
+            assertNull(page.selectedRun);
+            String runId = first.items.get(0).id;
+            var detail = historyPage(db, "?runId=" + runId);
+            assertEquals(runId, detail.selectedRun.id);
+            var other = new AutomationModels.Run();
+            other.ownerId = 2;
+            other.id =
+                    AutomationStore.ownerPrefix(2)
+                            + AutomationStore.timeKey(now)
+                            + "."
+                            + UUID.randomUUID();
+            other.taskId = AutomationStore.ownerPrefix(2) + UUID.randomUUID();
+            other.taskType = "assistant.reminder";
+            other.taskName = "Private history";
+            other.status = "success";
+            other.trigger = "internal";
+            other.startedAt = now;
+            store.insertRun(other);
+            assertThrows(
+                    PermissionErrorException.class, () -> historyPage(db, "?runId=" + other.id));
         }
     }
 
@@ -214,6 +238,28 @@ public class AutomationHttpBoundaryTest {
                 (com.zrlog.admin.web.controller.api.AutomationController)
                         Controller.buildController(route, request, null);
         return controller.runs().getData();
+    }
+
+    private AutomationViews.Overview historyPage(InMemoryZrLogDatabase db, String query)
+            throws Exception {
+        var config = db.config().getServerConfig();
+        var decoder =
+                new HttpRequestDecoderImpl(
+                        new RequestConfig(), new ApplicationContext(config), null);
+        assertTrue(
+                decoder.doDecode(
+                                ByteBuffer.wrap(
+                                        ("GET /api/admin/assistant/history"
+                                                        + query
+                                                        + " HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                                                .getBytes(StandardCharsets.UTF_8)))
+                        .getKey());
+        var request = decoder.getRequest();
+        var route = config.getRouter().getMethod(request.getUri(), HttpMethod.GET);
+        var controller =
+                (com.zrlog.admin.web.controller.api.AutomationController)
+                        Controller.buildController(route, request, null);
+        return controller.history().getData();
     }
 
     @Test

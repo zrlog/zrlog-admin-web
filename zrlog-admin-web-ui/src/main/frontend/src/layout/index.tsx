@@ -23,6 +23,7 @@ import MessageCenter from "../components/message-center";
 import NavigationTriggerButton from "./navigation-trigger-button";
 import AdminNavigationDrawer from "./admin-navigation-drawer";
 import AssistantEntry from "./assistant-entry";
+import { isAssistantPage } from "../utils/assistant-page-routes";
 import { useAssistantNotices } from "./use-assistant-notices";
 import { syncMessageCenterNotices } from "../utils/message-center-notice-sync";
 import { getAdminNavigationGroup, getAdminNavigationGroupLabel } from "./admin-navigation-model";
@@ -163,7 +164,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         if (pathname === "" || pathname === "/" || pathname === "/index") {
             return { title: getRes().index.title, subtitle: getRes().common.management };
         }
-        if (pathname === "/assistant") {
+        if (isAssistantPage(pathname)) {
             return { title: getRes().assistant.title, subtitle: getRes().websiteTitle };
         }
         const navigationGroup = getAdminNavigationGroup(pathname);

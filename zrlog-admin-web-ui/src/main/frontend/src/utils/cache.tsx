@@ -4,6 +4,7 @@ import { cacheIgnoreReloadKeys } from "./constants";
 import * as H from "history";
 import { getSsDate, ssKeyStorageKey } from "../base/SsData";
 import { getAccountPage } from "./account-page-routes";
+import { isAssistantPage } from "./assistant-page-routes";
 import type { BasicUserInfo } from "../type";
 
 const getCacheKey = () => {
@@ -31,9 +32,8 @@ const ephemeralPageData: Record<string, any> = {};
 const ephemeralKey = (key: string) => `${getCacheKey()}:${key}`;
 const isSensitivePage = (key: string) =>
     getAccountPage(key)?.sensitive === true ||
-    ["/assistant", "/website/assistant", "/system/proxy", "/system/audit"].includes(
-        key.split(/[?#]/)[0].replace(/\.html$/, "")
-    );
+    isAssistantPage(key) ||
+    ["/website/assistant", "/system/proxy", "/system/audit"].includes(key.split(/[?#]/)[0].replace(/\.html$/, ""));
 
 export const getCachedData = (): Record<string, any> => {
     const tempData = localStorage.getItem(getCacheKey());

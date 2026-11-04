@@ -57,6 +57,8 @@ export type Overview = {
     total: number;
     aiAvailable: boolean;
     canManageScheduler: boolean;
+    runs?: Runs;
+    selectedRun?: Run;
 };
 export type ChildResult = {
     id: string;
