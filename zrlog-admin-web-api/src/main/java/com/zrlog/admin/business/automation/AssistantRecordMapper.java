@@ -19,7 +19,11 @@ final class AssistantRecordMapper {
     }
 
     static String dateParameter(long value) {
-        return new Timestamp(value).toString();
+        String timestamp = new Timestamp(value).toString();
+        // Match EntityRepository's text dates: SQLite/WebAPI omit a zero fractional second.
+        return timestamp.endsWith(".0")
+                ? timestamp.substring(0, timestamp.length() - 2)
+                : timestamp;
     }
 
     static AssistantTask taskEntity(StoredTask value) {
