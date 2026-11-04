@@ -1,8 +1,8 @@
 package com.zrlog.admin.business.automation;
 
+import com.zrlog.admin.data.repository.AccountIdentityRepository;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
-import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -18,17 +18,17 @@ import java.util.UUID;
  */
 @Singleton
 public final class AutomationDefaults {
-    static final String KEY = "assistant.v1.defaults";
-    static final String PLUGIN_KEY = "assistant.v1.plugin-defaults";
+    static final String KEY = "assistant.v2.defaults";
+    static final String PLUGIN_KEY = "assistant.v2.plugin-defaults";
     private final AutomationStore store;
-    private final Provider<UserRepository> users;
+    private final Provider<AccountIdentityRepository> users;
     private final WebsiteKvService settings;
     private final TaskRegistry registry;
 
     @Inject
     public AutomationDefaults(
             AutomationStore store,
-            Provider<UserRepository> users,
+            Provider<AccountIdentityRepository> users,
             WebsiteKvService settings,
             TaskRegistry registry) {
         this.store = store;

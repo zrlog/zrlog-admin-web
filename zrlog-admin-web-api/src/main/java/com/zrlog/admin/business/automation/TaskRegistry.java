@@ -31,6 +31,19 @@ public final class TaskRegistry {
         return definitions;
     }
 
+    public List<AutomationModels.Definition> systemDefinitions() {
+        var supplied = providers.get();
+        var lookup = new Lookup(supplied);
+        List<AutomationModels.Definition> result = new ArrayList<>();
+        for (var provider : supplied)
+            for (var definition : provider.systemDefinitions()) {
+                if (!definition.systemTask || lookup.provider(definition.type) != provider)
+                    throw new IllegalStateException("automation.invalidDefinition");
+                result.add(definition);
+            }
+        return result;
+    }
+
     public Entry require(String type) {
         return lookup().require(type);
     }

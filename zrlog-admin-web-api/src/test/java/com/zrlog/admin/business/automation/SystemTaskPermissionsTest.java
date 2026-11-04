@@ -67,11 +67,27 @@ public class SystemTaskPermissionsTest {
                 "author",
                 true,
                 0);
-        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        store =
+                new AutomationStore(
+                        () -> new WebSiteRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantNoticeReadRepository(
+                                        db.dataSource()));
         authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         definition.type = "system.test-maintenance";
         definition.titleKey = "admin.assistant.cache.title";
         definition.systemTask = true;
@@ -112,7 +128,9 @@ public class SystemTaskPermissionsTest {
         defaults =
                 new AutomationDefaults(
                         store,
-                        () -> new UserRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()),
                         new WebsiteKvService(() -> new WebSiteRepository(db.dataSource())),
                         registry);
         assertTrue(defaults.initialize());
@@ -242,7 +260,13 @@ public class SystemTaskPermissionsTest {
                 PermissionErrorException.class,
                 () -> notices.markRead(actor(2), AutomationNotificationService.PREFIX + run.id));
         assertEquals(1, store.pruneRuns(0, now.get() + java.time.Duration.ofDays(91).toMillis()));
-        assertNull(store.read(AutomationStore.noticeReadKey(2, run.id), Long.class));
+        assertEquals(
+                0L,
+                ((Number)
+                                db.scalar(
+                                        "SELECT count(*) FROM assistant_notice_read WHERE runId=?",
+                                        run.id))
+                        .longValue());
     }
 
     @Test

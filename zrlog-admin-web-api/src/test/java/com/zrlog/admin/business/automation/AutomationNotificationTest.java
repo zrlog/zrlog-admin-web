@@ -43,11 +43,27 @@ public class AutomationNotificationTest {
                         : backend.equals("web-api")
                                 ? InMemoryZrLogDatabase.openWebApi()
                                 : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        store =
+                new AutomationStore(
+                        () -> new WebSiteRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantNoticeReadRepository(
+                                        db.dataSource()));
         authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         owner = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "author", "author");
         author = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));
@@ -93,7 +109,14 @@ public class AutomationNotificationTest {
         assertTrue(inbox().list(author).isEmpty());
         assertEquals("My private reminder", store.run(run.id).value.result.text);
         assertEquals("success", store.run(run.id).value.status);
-        assertNotNull(store.run(run.id).value.noticeReadAt);
+        assertEquals(
+                1L,
+                ((Number)
+                                db.scalar(
+                                        "SELECT count(*) FROM assistant_notice_read WHERE runId=? AND userId=?",
+                                        run.id,
+                                        author.getUserId()))
+                        .longValue());
     }
 
     @Test
@@ -103,7 +126,13 @@ public class AutomationNotificationTest {
         assertEquals(1, inbox().list(author).size());
         String key = AutomationNotificationService.PREFIX + run.id;
         assertThrows(PermissionErrorException.class, () -> inbox().markRead(owner, key));
-        assertNull(store.run(run.id).value.noticeReadAt);
+        assertEquals(
+                0L,
+                ((Number)
+                                db.scalar(
+                                        "SELECT count(*) FROM assistant_notice_read WHERE runId=?",
+                                        run.id))
+                        .longValue());
         assertThrows(
                 PermissionErrorException.class,
                 () -> inbox().list(author.restrictActions(List.of("article.read"))));
@@ -113,7 +142,13 @@ public class AutomationNotificationTest {
         db.execute("update user set enabled=? where userId=?", false, 2);
         assertThrows(PermissionErrorException.class, () -> inbox().list(author));
         assertThrows(PermissionErrorException.class, () -> inbox().markRead(author, key));
-        assertNull(store.run(run.id).value.noticeReadAt);
+        assertEquals(
+                0L,
+                ((Number)
+                                db.scalar(
+                                        "SELECT count(*) FROM assistant_notice_read WHERE runId=?",
+                                        run.id))
+                        .longValue());
     }
 
     @Test
@@ -140,6 +175,59 @@ public class AutomationNotificationTest {
         assertEquals(55, store.runCount(1, null));
     }
 
+    @Test
+    public void oldFailureRemainsVisibleBehindMoreThanAThousandQuietRunsAndRequiresManualRemoval()
+            throws Exception {
+        var failure = record(1, "failed", false);
+        var before = store.run(failure.id);
+        failure.startedAt = System.currentTimeMillis() - java.time.Duration.ofDays(120).toMillis();
+        failure.finishedAt = failure.startedAt;
+        assertTrue(store.replaceRun(before, failure));
+        for (int i = 0; i < 1100; i++) record(1, "success", false);
+        var notices = inbox().list(owner);
+        assertEquals(1, notices.size());
+        assertEquals(
+                AutomationNotificationService.PREFIX + failure.id, notices.get(0).getTaskKey());
+        assertEquals(0, store.pruneRuns(1, System.currentTimeMillis()));
+        var service =
+                new AutomationService(
+                        store, authority, new TaskRegistry(List::of), System::currentTimeMillis);
+        assertThrows(
+                PermissionErrorException.class,
+                () -> service.deleteRun(author, failure.id, failure.version));
+        assertThrows(IllegalStateException.class, () -> service.deleteRun(owner, failure.id, 0));
+        service.deleteRun(owner, failure.id, failure.version);
+        assertNull(store.run(failure.id));
+        assertTrue(inbox().list(owner).isEmpty());
+    }
+
+    @Test
+    public void listsReadSummariesAndDetailsKeepTheFullPlanAndChildResults() throws Exception {
+        var run = record(1, "success", true);
+        var before = store.run(run.id);
+        run.planSnapshot = new AutomationModels.Plan();
+        run.planSnapshot.parameters.addProperty("privateDetail", "plan-detail-only");
+        run.result.text = "summary " + "x".repeat(12000) + "full-result-tail";
+        var child = new AutomationModels.ChildResult();
+        child.id = "nested";
+        child.text = "child-detail-only";
+        run.result.children.add(child);
+        assertTrue(store.replaceRun(before, run));
+        var list = store.visibleRuns(1, List.of(), null, 20, 0);
+        assertEquals(1, list.size());
+        assertNull(list.get(0).value.planSnapshot);
+        assertEquals(1000, list.get(0).value.result.text.length());
+        assertTrue(list.get(0).value.result.children.isEmpty());
+        assertFalse(AutomationStore.JSON.toJson(inbox().list(owner)).contains("full-result-tail"));
+        var detail = store.run(run.id).value;
+        assertEquals(
+                "plan-detail-only",
+                detail.planSnapshot.parameters.get("privateDetail").getAsString());
+        assertTrue(detail.result.text.endsWith("full-result-tail"));
+        assertEquals("child-detail-only", detail.result.children.get(0).text);
+        assertEquals(run.version, detail.version);
+    }
+
     private AutomationModels.Run record(int ownerId, String status, boolean notify)
             throws Exception {
         var run = new AutomationModels.Run();
@@ -157,6 +245,9 @@ public class AutomationNotificationTest {
         run.status = status;
         run.result = AutomationModels.Result.success("admin.assistant.reminder.success.completed");
         run.result.notifyOwner = notify;
+        if (run.taskName == null) run.taskName = "Task";
+        if (run.taskType == null) run.taskType = "assistant.reminder";
+        if (run.trigger == null) run.trigger = "internal";
         store.insertRun(run);
         return run;
     }

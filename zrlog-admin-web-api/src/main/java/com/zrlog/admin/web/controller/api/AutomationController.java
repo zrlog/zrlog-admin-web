@@ -191,6 +191,22 @@ public final class AutomationController extends BaseController {
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.deleteRun")
+    public ApiStandardResponse<Boolean> deleteRun() throws Exception {
+        var input = getRequestBodyWithNullCheck(AutomationViews.RunDelete.class);
+        return result(
+                () -> {
+                    var deleted = tasks.deleteRun(identities.current(), input.id, input.version);
+                    record(
+                            AdminAuditAction.DELETE_ASSISTANT_RUN,
+                            deleted.taskName,
+                            deleted.taskNameKey);
+                    return true;
+                });
+    }
+
+    @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "automation.settings")
     public ApiStandardResponse<AutomationViews.Settings> settings() throws Exception {

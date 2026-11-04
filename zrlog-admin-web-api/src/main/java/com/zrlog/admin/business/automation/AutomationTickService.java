@@ -9,6 +9,7 @@ import java.util.function.LongSupplier;
  * Keeps last-trigger health separate from business runs; empty ticks do not fill execution history.
  */
 public final class AutomationTickService {
+    static final String RETENTION_KEY = "assistant.v2.retention";
     private final AutomationEngine engine;
     private final AutomationStore store;
     private final LongSupplier clock;
@@ -55,7 +56,8 @@ public final class AutomationTickService {
                                 AutomationDefaults.KEY,
                                 AutomationDefaults.PLUGIN_KEY,
                                 key,
-                                AutomaticUpgradeTaskProvider.KEY));
+                                AutomaticUpgradeTaskProvider.KEY,
+                                RETENTION_KEY));
         if (defaults != null) defaults.initialize(initial);
         Health health = new Health();
         health.id = UUID.randomUUID().toString();
@@ -72,6 +74,13 @@ public final class AutomationTickService {
                     initial.get(
                             AutomaticUpgradeTaskProvider.KEY,
                             AutomaticUpgradeTaskProvider.Receipt.class));
+            if (clock.getAsLong() < deadline) {
+                retain(
+                        initial.get(RETENTION_KEY, Retention.class),
+                        initial.get(
+                                AutomaticUpgradeTaskProvider.KEY,
+                                AutomaticUpgradeTaskProvider.Receipt.class));
+            }
             long remaining = deadline - clock.getAsLong();
             health.result =
                     remaining > 0
@@ -88,6 +97,39 @@ public final class AutomationTickService {
             // Only replace the exact running record we successfully wrote; a newer tick wins.
             if (recorded) store.write(key, running, health);
         }
+    }
+
+    /** Once per day, with a durable claim shared by resident and FaaS triggers. */
+    private void retain(
+            AutomationStore.Snapshot<Retention> before,
+            AutomationStore.Snapshot<AutomaticUpgradeTaskProvider.Receipt> receipt) {
+        long now = clock.getAsLong();
+        if (before != null && before.value.nextAt > now) return;
+        Retention claimed = new Retention();
+        claimed.nextAt = now + 60000;
+        try {
+            // A fresh store has no old runs. Establish its first maintenance date without a scan.
+            if (before == null) claimed.nextAt = now + java.time.Duration.ofDays(1).toMillis();
+            if (!store.write(RETENTION_KEY, before, claimed) || before == null) return;
+            String pending =
+                    receipt != null && !"confirmed".equals(receipt.value.state)
+                            ? receipt.value.runId
+                            : null;
+            int removed = store.pruneRuns(null, now, pending);
+            Retention next = new Retention();
+            next.nextAt = now + (removed == 64 ? 60000 : java.time.Duration.ofDays(1).toMillis());
+            store.write(
+                    RETENTION_KEY,
+                    AutomationStore.Snapshot.capture(RETENTION_KEY, claimed, Retention.class),
+                    next);
+        } catch (SQLException error) {
+            java.util.logging.Logger.getLogger(AutomationTickService.class.getName())
+                    .log(java.util.logging.Level.WARNING, "Assistant retention failed", error);
+        }
+    }
+
+    public static final class Retention {
+        public long nextAt;
     }
 
     public Health health(String source) throws SQLException {

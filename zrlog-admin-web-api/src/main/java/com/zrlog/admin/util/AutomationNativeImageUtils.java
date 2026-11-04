@@ -20,13 +20,21 @@ public final class AutomationNativeImageUtils {
                         AutomationViews.Run.class,
                         AutomationViews.Settings.class,
                         AutomationViews.Change.class,
+                        AutomationViews.RunDelete.class,
                         AutomationViews.SettingsChange.class,
                         StoredTask.class,
+                        RunSummary.class,
+                        AutomationStore.ExecutionProjection.class,
+                        AutomationStore.RunKey.class,
+                        com.zrlog.admin.data.entity.AssistantTask.class,
+                        com.zrlog.admin.data.entity.AssistantTaskRun.class,
+                        com.zrlog.admin.data.entity.AssistantNoticeRead.class,
                         AutomationDefaults.State.class,
                         AutomaticUpgradeTaskProvider.Receipt.class,
                         AutomationSettingsService.Settings.class,
                         AutomationSettingsService.SettingsView.class,
                         AutomationSettingsService.IssuedToken.class,
+                        AutomationTickService.Retention.class,
                         AutomationTickService.Health.class));
     }
 }

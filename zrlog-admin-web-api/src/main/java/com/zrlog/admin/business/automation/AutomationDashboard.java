@@ -37,7 +37,8 @@ public final class AutomationDashboard {
     public AutomationViews.Overview overview(AccountAccess actor, int offset) throws SQLException {
         actor = authority.current(actor);
         AutomationViews.Overview response = new AutomationViews.Overview();
-        for (AutomationModels.Definition definition : tasks.definitions(actor)) {
+        var definitions = tasks.definitions();
+        for (AutomationModels.Definition definition : tasks.definitionsFor(actor, definitions)) {
             AutomationModels.Definition copy =
                     AutomationStore.JSON.fromJson(
                             AutomationStore.JSON.toJson(definition),
@@ -49,13 +50,19 @@ public final class AutomationDashboard {
             response.definitions.add(copy);
         }
         response.aiAvailable = proposals.available(actor);
-        for (StoredTask task : tasks.systemTasks(actor)) response.systemTasks.add(task(task));
-        for (StoredTask task : tasks.tasks(actor, offset)) response.tasks.add(task(task));
+        for (StoredTask task : store.systemTasks(tasks.systemTaskIds(actor)))
+            response.systemTasks.add(task(task));
+        for (StoredTask task : tasks.tasksFor(actor, offset)) response.tasks.add(task(task));
         response.total = store.taskCount(actor.getUserId());
         var views = new java.util.ArrayList<>(response.systemTasks);
         views.addAll(response.tasks);
         for (var view : views) {
-            view.requiredActions = tasks.requiredActions(view.type);
+            view.requiredActions =
+                    definitions.stream()
+                            .filter(definition -> definition.type.equals(view.type))
+                            .map(definition -> List.copyOf(definition.requiredActions))
+                            .findFirst()
+                            .orElse(List.of());
         }
         response.canManageScheduler = AccountAction.SYSTEM_MANAGE.allowed(actor);
         return response;
@@ -67,15 +74,16 @@ public final class AutomationDashboard {
         AutomationViews.Runs response = new AutomationViews.Runs();
         response.page = Math.max(1, Math.min(100000, page));
         response.pageSize = Math.max(1, Math.min(100, pageSize));
-        for (AutomationModels.Run run :
-                tasks.runs(
-                        actor,
+        var systemIds = tasks.systemTaskIds(actor);
+        for (var row :
+                store.visibleRuns(
+                        actor.getUserId(),
+                        systemIds,
                         taskId,
                         response.pageSize,
-                        (response.page - 1) * response.pageSize)) {
-            response.items.add(run(run));
-        }
-        response.total = tasks.runCount(actor, taskId);
+                        (response.page - 1) * response.pageSize))
+            response.items.add(run(row.value));
+        response.total = store.visibleRunCount(actor.getUserId(), systemIds, taskId);
         return response;
     }
 

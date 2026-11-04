@@ -3,7 +3,6 @@ package com.zrlog.admin.business.automation;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.data.security.AccountAccess;
 import java.sql.SQLException;
-import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -43,8 +42,7 @@ public final class AutomationEngine {
         long deadline = Math.addExact(clock.getAsLong(), budgetMillis);
         AutomationModels.TickResult summary = new AutomationModels.TickResult();
         TaskRegistry.Lookup lookup = registry.lookup();
-        Set<Integer> completedOwners = new LinkedHashSet<>();
-        try {
+        {
             for (AutomationStore.Snapshot<StoredTask> row : store.due(clock.getAsLong(), 32)) {
                 if (clock.getAsLong() >= deadline) {
                     summary.budgetExhausted = true;
@@ -89,7 +87,6 @@ public final class AutomationEngine {
                     summary.skipped++;
                     continue;
                 }
-                completedOwners.add(row.value.ownerId);
                 summary.executed++;
                 summary.runIds.add(run.id);
                 if ("failed".equals(run.status) || "uncertain".equals(run.status)) summary.failed++;
@@ -97,8 +94,6 @@ public final class AutomationEngine {
                     summary.needsAttention++;
             }
             return summary;
-        } finally {
-            completedOwners.forEach(this::pruneRuns);
         }
     }
 
@@ -131,7 +126,6 @@ public final class AutomationEngine {
                         clock.getAsLong() + budgetMillis - RESULT_RESERVE_MILLIS,
                         actor);
         if (run == null) throw new IllegalStateException("automation.taskChanged");
-        pruneRuns(row.value.ownerId);
         return run;
     }
 
@@ -199,13 +193,11 @@ public final class AutomationEngine {
         store.insertRun(run);
         var runState =
                 new AtomicReference<>(
-                        AutomationStore.Snapshot.capture(
-                                AutomationStore.RUN_PREFIX + run.id,
-                                run,
-                                AutomationModels.Run.class));
+                        AutomationStore.Snapshot.capture(run.id, run, AutomationModels.Run.class));
         var taskState =
                 new AtomicReference<>(
-                        AutomationStore.Snapshot.capture(row.key, task, StoredTask.class));
+                        AutomationStore.Snapshot.capture(
+                                row.key, task, StoredTask.class, row.version + 1));
         if (unavailable != null) {
             run.result = AutomationModels.Result.attention(unavailable);
             run.status = run.result.status;
@@ -217,7 +209,7 @@ public final class AutomationEngine {
                             executionActor,
                             Math.min(requestDeadline, task.leaseUntil - 5000),
                             clock,
-                            () -> taskState.set(checkOwnership(task, executionActor)),
+                            () -> taskState.set(checkOwnership(taskState.get(), executionActor)),
                             progress -> {
                                 var checkpoint = runState.get();
                                 if (checkpoint == null
@@ -229,7 +221,10 @@ public final class AutomationEngine {
                                     throw new IllegalStateException("automation.runChanged");
                                 runState.set(
                                         AutomationStore.Snapshot.capture(
-                                                checkpoint.key, next, AutomationModels.Run.class));
+                                                checkpoint.key,
+                                                next,
+                                                AutomationModels.Run.class,
+                                                checkpoint.version + 1));
                             });
             try {
                 context.checkActive();
@@ -270,25 +265,24 @@ public final class AutomationEngine {
         return run;
     }
 
-    private void pruneRuns(int ownerId) {
-        try {
-            store.pruneRuns(ownerId, clock.getAsLong());
-        } catch (SQLException error) {
-            LOGGER.log(Level.WARNING, "Assistant history retention failed", error);
-        }
-    }
-
     private AutomationStore.Snapshot<StoredTask> checkOwnership(
-            StoredTask expected, AccountAccess executionActor) throws Exception {
-        var state = store.executionState(expected.id, executionActor.getUserId());
-        AutomationStore.Snapshot<StoredTask> row = state == null ? null : state.task();
-        if (row == null
-                || row.value.activeRun == null
-                || !row.value.activeRun.id.equals(expected.activeRun.id)
-                || row.value.leaseUntil <= clock.getAsLong())
+            AutomationStore.Snapshot<StoredTask> expected, AccountAccess executionActor)
+            throws Exception {
+        var state = store.executionState(expected.value.id, executionActor.getUserId());
+        if (state == null
+                || state.activeRunId == null
+                || !state.activeRunId.equals(expected.value.activeRun.id)
+                || state.leaseUntil == null
+                || state.leaseUntil.getTime() <= clock.getAsLong())
             throw new IllegalStateException("automation.executionExpired");
-        authority.revalidateExecution(executionActor, state.actor());
-        return row;
+        authority.revalidateExecution(executionActor, AccountAccess.fromSnapshot(state));
+        if (state.version == expected.version) return expected;
+        var current = store.task(expected.value.id);
+        if (current == null
+                || current.value.activeRun == null
+                || !current.value.activeRun.id.equals(state.activeRunId))
+            throw new IllegalStateException("automation.executionExpired");
+        return current;
     }
 
     private void recover(AutomationStore.Snapshot<StoredTask> row, TaskRegistry.Lookup lookup)

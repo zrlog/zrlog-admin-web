@@ -50,11 +50,27 @@ public class AutomaticUpgradeTaskTest {
                         : backend.equals("web-api")
                                 ? InMemoryZrLogDatabase.openWebApi()
                                 : InMemoryZrLogDatabase.open();
-        store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+        store =
+                new AutomationStore(
+                        () -> new WebSiteRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                        db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AssistantNoticeReadRepository(
+                                        db.dataSource()));
         authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         db.execute("UPDATE user SET role=? WHERE userId=?", "owner", 1);
         actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         provider = new AutomaticUpgradeTaskProvider(store, operations, now::get);
@@ -71,7 +87,9 @@ public class AutomaticUpgradeTaskTest {
                                 provider.completeInstalled(authority, budget, receipt));
         new AutomationDefaults(
                         store,
-                        () -> new UserRepository(db.dataSource()),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()),
                         new com.zrlog.business.service.WebsiteKvService(
                                 () -> new WebSiteRepository(db.dataSource())),
                         registry)
@@ -246,8 +264,13 @@ public class AutomaticUpgradeTaskTest {
         var task = service.save(actor, plan());
         authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         var inbox = new AutomationNotificationService(store, authority, service);
         now.addAndGet(1000);
         engine.tick("internal", 660000);

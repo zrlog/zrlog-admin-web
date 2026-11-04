@@ -58,6 +58,18 @@ public final class AutomationViews {
         }
     }
 
+    public static class RunDelete implements Validator {
+        public String id;
+        public Long version;
+
+        @Override
+        public void doValid() {
+            AutomationStore.requireRunId(id);
+            if (version == null || version < 0)
+                throw new IllegalArgumentException("automation.invalidPlan");
+        }
+    }
+
     public static class SettingsChange implements Validator {
         public Integer externalBudgetSeconds;
         public Long revision;

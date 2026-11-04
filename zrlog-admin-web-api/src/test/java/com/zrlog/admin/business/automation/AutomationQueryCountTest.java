@@ -23,6 +23,7 @@ public class AutomationQueryCountTest {
     private InMemoryZrLogDatabase db;
     private AutomationComponent component;
     private AccountAccess actor;
+    private final java.util.List<String> queries = new java.util.ArrayList<>();
     private final AtomicInteger reads = new AtomicInteger();
     private final AtomicInteger writes = new AtomicInteger();
     private final AtomicInteger retentionScans = new AtomicInteger();
@@ -36,20 +37,16 @@ public class AutomationQueryCountTest {
         actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
         component.defaults().initialize();
         component.defaults().initializePluginTrigger();
-        db.execute(
-                "UPDATE website SET remark=? WHERE name>=? AND name<?",
-                "~",
-                AutomationStore.TASK_PREFIX,
-                "assistant.v1.task;");
+        db.execute("UPDATE assistant_task SET dueAt=NULL");
         component.ticks().tick("internal", null, 660000);
         db.afterWebApiQuery(
                 (sql, params) -> {
                     // INSERT RETURNING is counted once by the write hook, not again as a read
                     // request.
                     if (!sql.startsWith("SELECT")) return;
+                    queries.add(sql);
                     reads.incrementAndGet();
-                    if (sql.contains("ORDER BY name DESC LIMIT ?")
-                            && java.util.Arrays.asList(params).contains(1000))
+                    if (sql.contains("SELECT r.id,r.version FROM assistant_task_run"))
                         retentionScans.incrementAndGet();
                 });
         db.beforeWebApiUpdate((sql, params) -> writes.incrementAndGet());
@@ -61,6 +58,7 @@ public class AutomationQueryCountTest {
     }
 
     private void reset() {
+        queries.clear();
         reads.set(0);
         writes.set(0);
         retentionScans.set(0);
@@ -103,16 +101,16 @@ public class AutomationQueryCountTest {
         reminder();
         reset();
         assertEquals(1, tick().executed);
-        assertEquals(9, reads.get());
+        assertEquals(7, reads.get());
         assertEquals(6, writes.get());
-        assertEquals(1, retentionScans.get());
+        assertEquals(0, retentionScans.get());
         reminder();
         reminder();
         reset();
         assertEquals(2, tick().executed);
-        assertEquals(13, reads.get());
+        assertEquals(11, reads.get());
         assertEquals(10, writes.get());
-        assertEquals(1, retentionScans.get());
+        assertEquals(0, retentionScans.get());
     }
 
     @Test
@@ -120,13 +118,18 @@ public class AutomationQueryCountTest {
             throws Exception {
         var authority =
                 new TaskAuthority(
-                        new AccountIdentityService(() -> new UserRepository(db.dataSource())),
-                        () -> new UserRepository(db.dataSource()));
+                        new AccountIdentityService(
+                                () ->
+                                        new com.zrlog.admin.data.repository
+                                                .AccountIdentityRepository(db.dataSource())),
+                        () ->
+                                new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                        db.dataSource()));
         var notices =
                 new AutomationNotificationService(component.store(), authority, component.tasks());
         reset();
         assertTrue(notices.list(actor).isEmpty());
-        assertEquals(7, reads.get());
+        assertEquals(queries.toString(), 2, reads.get());
         for (int i = 0; i < 50; i++) {
             var run = new AutomationModels.Run();
             long now = System.currentTimeMillis();
@@ -141,16 +144,19 @@ public class AutomationQueryCountTest {
             run.startedAt = now;
             run.finishedAt = now;
             run.taskName = "Version check";
+            if (run.taskName == null) run.taskName = "Task";
+            if (run.taskType == null) run.taskType = "assistant.reminder";
+            if (run.trigger == null) run.trigger = "internal";
             component.store().insertRun(run);
         }
         reset();
         var unread = notices.list(actor);
         assertEquals(50, unread.size());
-        assertEquals(8, reads.get());
+        assertEquals(queries.toString(), 2, reads.get());
         for (var notice : unread) assertTrue(notices.markRead(actor, notice.getTaskKey()));
         reset();
         assertTrue(notices.list(actor).isEmpty());
-        assertEquals(8, reads.get());
+        assertEquals(queries.toString(), 2, reads.get());
         db.execute(
                 "INSERT INTO user(userId,userName,role) VALUES(?,?,?)", 2, "other-admin", "admin");
         var other = AccountAccess.from(new UserRepository(db.dataSource()).loadById(2L));

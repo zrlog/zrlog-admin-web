@@ -56,7 +56,10 @@ public final class AutomationModels {
 
     public static class Plan implements Validator {
         public String id;
+
+        /** Editable plan revision, unchanged by scheduler bookkeeping. */
         public Long revision;
+
         public String name;
         public String type;
         public boolean enabled = true;
@@ -130,13 +133,17 @@ public final class AutomationModels {
     }
 
     public static class Run {
+        public long version;
         public String id;
         public String taskId;
         public int ownerId;
         public String taskName;
         public String taskNameKey;
         public String taskType;
+
+        /** Revision of the task plan captured for this execution, not this run row version. */
         public long taskRevision;
+
         public Plan planSnapshot;
         public long scheduledAt;
         public long startedAt;
@@ -147,7 +154,6 @@ public final class AutomationModels {
         public String status;
         public Result result;
         public String errorCode;
-        public Long noticeReadAt;
     }
 
     public static class TickResult {

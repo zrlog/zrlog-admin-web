@@ -85,7 +85,9 @@ public class AutomationDefaultsTest {
                                         new PluginScheduledTaskProvider(() -> null)));
         return new AutomationDefaults(
                 store,
-                () -> new UserRepository(db.dataSource()),
+                () ->
+                        new com.zrlog.admin.data.repository.AccountIdentityRepository(
+                                db.dataSource()),
                 new WebsiteKvService(() -> new WebSiteRepository(db.dataSource())),
                 registry);
     }
@@ -93,7 +95,18 @@ public class AutomationDefaultsTest {
     @Test
     public void maintenanceIsSiteWideAndEnabledExceptAutomaticUpgrade() throws Exception {
         try (var db = open()) {
-            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var store =
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             assertTrue(defaults(db, store).initialize());
             assertTrue(defaults(db, store).initializePluginTrigger());
             assertEquals(5, store.taskCount(0));
@@ -122,7 +135,18 @@ public class AutomationDefaultsTest {
     @Test
     public void systemNamesAndRunSnapshotsFollowTheViewerLanguage() throws Exception {
         try (var db = open()) {
-            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var store =
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
                 assertTrue(defaults(db, store).initialize());
             }
@@ -157,7 +181,18 @@ public class AutomationDefaultsTest {
     public void repeatedInitializationPreservesUserSettingsAndIgnoresOldDevelopmentStorage()
             throws Exception {
         try (var db = open()) {
-            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var store =
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             db.execute(
                     "INSERT INTO website(name,value,remark) VALUES(?,?,?)",
                     "assistant.task:old-development-task",
@@ -189,7 +224,18 @@ public class AutomationDefaultsTest {
     public void initializationCannotInventAnOwnerOrBypassAccountPermissions() throws Exception {
         try (var db = open()) {
             db.execute("UPDATE user SET role=? WHERE userId=?", "editor", 1);
-            var store = new AutomationStore(() -> new WebSiteRepository(db.dataSource()));
+            var store =
+                    new AutomationStore(
+                            () -> new WebSiteRepository(db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository.AssistantTaskRunRepository(
+                                            db.dataSource()),
+                            () ->
+                                    new com.zrlog.admin.data.repository
+                                            .AssistantNoticeReadRepository(db.dataSource()));
             assertFalse(defaults(db, store).initialize());
             assertFalse(defaults(db, store).initializePluginTrigger());
             assertEquals(0, store.taskCount(0));

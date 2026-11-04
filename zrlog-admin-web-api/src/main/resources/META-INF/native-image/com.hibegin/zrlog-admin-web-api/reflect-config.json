@@ -233,6 +233,10 @@
     "name": "com.zrlog.admin.web.controller.api.AutomationController",
     "methods": [
       {
+        "name": "deleteRun",
+        "parameterTypes": []
+      },
+      {
         "name": "configuration",
         "parameterTypes": []
       },
