@@ -354,7 +354,7 @@ const TagManagement = ({
                     loading: actionState.submitting,
                     disabled,
                 }}
-                cancelText={getRes().cancel}
+                cancelText={getRes().common.cancel}
                 destroyOnHidden
                 width={compactTable ? undefined : 760}
             >

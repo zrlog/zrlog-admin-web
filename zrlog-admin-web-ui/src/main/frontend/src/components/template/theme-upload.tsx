@@ -91,7 +91,7 @@ const ThemeUpload = ({ templates, onInstalled }: ThemeUploadProps) => {
             ),
             okText: res.overwriteConfirm,
             okType: "danger",
-            cancelText: getRes().cancel,
+            cancelText: getRes().common.cancel,
             onOk: () => upload(file, shortTemplate, true),
         });
         return false;

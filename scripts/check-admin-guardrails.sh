@@ -175,6 +175,9 @@ fi
 section "Permission endpoint description i18n completeness"
 node scripts/check-access-descriptions.mjs
 
+section "Frontend i18n usage and resource contracts"
+node scripts/check-i18n.mjs
+
 scan "Admin SQL portability candidates" \
     'DATE_FORMAT|UNIX_TIMESTAMP|FROM_UNIXTIME|strftime|information_schema|pg_stat_user_tables|OPTIMIZE TABLE|VACUUM|group by|GROUP BY|select count|SELECT count|count\(1\)' \
     zrlog-admin-*/src/main/java/com/zrlog/admin/business \

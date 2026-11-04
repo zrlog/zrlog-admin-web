@@ -114,7 +114,7 @@ export default function PersonalTasks({
                                                         title: task.name,
                                                         content: res.deleteHelp,
                                                         okText: res.delete,
-                                                        cancelText: getRes().cancel,
+                                                        cancelText: getRes().common.cancel,
                                                         okButtonProps: { danger: true },
                                                         onOk: () =>
                                                             onMutate("delete", {

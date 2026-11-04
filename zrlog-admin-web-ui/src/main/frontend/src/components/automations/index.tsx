@@ -228,11 +228,11 @@ export default function Automations({
                 activeKey={tab}
                 onChange={(page) => navigate(getRealRouteUrl(ASSISTANT_ROUTES[page as AssistantPage]))}
                 tabBarExtraContent={
-                    <Tooltip title={res.reload}>
+                    <Tooltip title={getRes().common.refresh}>
                         <Button
                             type="text"
                             icon={<RefreshIcon />}
-                            aria-label={res.reload}
+                            aria-label={getRes().common.refresh}
                             disabled={disabled}
                             onClick={reload}
                         />
@@ -298,7 +298,7 @@ export default function Automations({
                             title={res.deleteRun}
                             description={res.deleteRunHelp}
                             okText={res.deleteRun}
-                            cancelText={getRes().cancel}
+                            cancelText={getRes().common.cancel}
                             okButtonProps={{ danger: true, loading: busy }}
                             onConfirm={async () => {
                                 if (disabled) return;

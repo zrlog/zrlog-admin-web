@@ -115,7 +115,7 @@ export default function DockerRepositorySetting({
                             loading={busy}
                             onClick={() => void load()}
                         >
-                            {getRes().websiteUpgrade.retryRepository}
+                            {getRes().common.retry}
                         </Button>
                     }
                 />

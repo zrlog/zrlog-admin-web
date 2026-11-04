@@ -114,8 +114,7 @@ jest.mock("../article/article-preview-snapshot", () => ({
 
 jest.mock("../../utils/constants", () => ({
     getRes: () => ({
-        cancel: "Cancel",
-        close: "Close",
+        common: { cancel: "Cancel", close: "Close" },
         edit: "Edit",
         article: { previewSnapshot: { digest: "Summary", empty: "Empty", keywords: "Tags" } },
         articleEdit: {

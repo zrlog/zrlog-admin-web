@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -41,6 +43,18 @@ jobs:
       - name: Generate admin frontend resources
         # Refresh SNAPSHOT parents and dependencies even after restoring the Maven cache.
         run: ./mvnw -q -U -PnodeBuild generate-resources -DskipTests=true -Dmaven.test.skip=true
+
+      - name: Check i18n usage and report growth
+        env:
+          I18N_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          args=(--summary "$GITHUB_STEP_SUMMARY")
+          if [[ -n "$I18N_BASE_REF" && "$I18N_BASE_REF" != 0000000000000000000000000000000000000000 ]]; then
+            args+=(--base "$I18N_BASE_REF")
+          fi
+          node scripts/check-i18n.mjs "${args[@]}"
+          node --test scripts/check-i18n.test.mjs
 
       - name: Verify snapshot deployment against a temporary repository
         run: python3 scripts/test-snapshot-deploy.py

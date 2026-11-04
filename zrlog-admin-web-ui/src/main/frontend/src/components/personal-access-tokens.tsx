@@ -232,7 +232,7 @@ export default function PersonalAccessTokens({
                             {res.personalTokens.expiresAt}: {formatDateTime(created.info.expiresAt)}
                         </Typography.Text>
                         <Button onClick={close} disabled={busy}>
-                            {res.personalTokens.close}
+                            {getRes().common.close}
                         </Button>
                     </Space>
                 ) : (

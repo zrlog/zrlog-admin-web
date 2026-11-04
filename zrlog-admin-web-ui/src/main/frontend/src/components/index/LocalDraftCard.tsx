@@ -108,7 +108,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                             title={getClearTitle(localDraft)}
                             description={getClearConfirm(localDraft)}
                             okText={getClearTitle(localDraft)}
-                            cancelText={getRes().cancel}
+                            cancelText={getRes().common.cancel}
                             onConfirm={() => clearLocalDraft(localDraft)}
                         >
                             <Button icon={<ClearIcon />} size="small">
@@ -144,7 +144,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                                         title={getClearTitle(entry)}
                                         description={getClearConfirm(entry)}
                                         okText={getClearTitle(entry)}
-                                        cancelText={getRes().cancel}
+                                        cancelText={getRes().common.cancel}
                                         onConfirm={() => clearLocalDraft(entry)}
                                     >
                                         <Button icon={<ClearIcon />} size="small" title={getClearTitle(entry)} />

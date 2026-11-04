@@ -64,13 +64,15 @@
     "ws": "8.21.0"
   },
   "scripts": {
+    "i18n:check": "node ../../../../scripts/check-i18n.mjs",
+    "i18n:test": "node --test ../../../../scripts/check-i18n.test.mjs",
     "api-docs:check": "node ../../../../scripts/check-api-docs.mjs",
     "lint": "yarn type-check",
     "prepare": "cd ../../../../ && husky install zrlog-admin-web-ui/src/main/frontend/.husky",
     "pre-commit": "yarn lint",
     "start": "craco start",
-    "type-check": "tsc --project tsconfig.json --pretty --noEmit",
-    "build": "cross-env GENERATE_SOURCEMAP=false craco build",
+    "type-check": "yarn i18n:check && tsc --project tsconfig.json --pretty --noEmit",
+    "build": "yarn i18n:check && cross-env GENERATE_SOURCEMAP=false craco build",
     "test": "craco test",
     "test:dev-server": "node --test test-dev-server.cjs"
   },

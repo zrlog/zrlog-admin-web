@@ -1,18 +1,17 @@
-import {Alert, Button, Empty, Form, Modal, Select, Space, theme, Tooltip} from "antd";
+import { Alert, Button, Empty, Form, Modal, Select, Space, theme, Tooltip } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
-import {useUiApp} from "@zrlog/ui/feedback";
+import { useUiApp } from "@zrlog/ui/feedback";
 import RefreshIcon from "@zrlog/ui/icons/refresh";
 
-
-import {Column, Line, Pie} from "@ant-design/plots";
-import {AxiosInstance} from "axios";
-import {CSSProperties, FunctionComponent, ReactNode, useEffect, useMemo, useState} from "react";
-import {useNavigate} from "react-router-dom";
-import {getRes} from "../../utils/constants";
-import {buildBackgroundTaskResult, getBackgroundTaskNoticeType} from "../../utils/background-task-result";
-import {navigateToPluginAdminRoute} from "../plugin-admin-route";
+import { Column, Line, Pie } from "@ant-design/plots";
+import { AxiosInstance } from "axios";
+import { CSSProperties, FunctionComponent, ReactNode, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getRes } from "../../utils/constants";
+import { buildBackgroundTaskResult, getBackgroundTaskNoticeType } from "../../utils/background-task-result";
+import { navigateToPluginAdminRoute } from "../plugin-admin-route";
 import {
     InteractiveSurface,
     StandardSurfaceResponse,
@@ -74,18 +73,18 @@ const buttonType = (action: SurfaceAction) => (action.style === "primary" ? "pri
 
 const fieldNode = (field: SurfaceField): ReactNode => {
     if (field.type === "textarea") {
-        return <Input.TextArea rows={3} placeholder={field.placeholder} maxLength={500}/>;
+        return <Input.TextArea rows={3} placeholder={field.placeholder} maxLength={500} />;
     }
     if (field.type === "datetime") {
-        return <Input type="datetime-local"/>;
+        return <Input type="datetime-local" />;
     }
     if (field.type === "switch") {
-        return <Switch/>;
+        return <Switch />;
     }
     if (field.type === "select") {
-        return <Select options={field.options || []}/>;
+        return <Select options={field.options || []} />;
     }
-    return <Input placeholder={field.placeholder} maxLength={120}/>;
+    return <Input placeholder={field.placeholder} maxLength={120} />;
 };
 
 const errorMessage = (e: unknown, fallback: string) => {
@@ -131,14 +130,14 @@ const SurfaceChartView: FunctionComponent<{
         chartEmpty: CSSProperties;
     };
     token: ReturnType<typeof theme.useToken>["token"];
-}> = ({chart, emptyText, styles, token}) => {
+}> = ({ chart, emptyText, styles, token }) => {
     const height = Math.max(120, Math.min(chart.height || 160, 320));
 
     if (!chart.data || chart.data.length === 0) {
         return (
             <div style={styles.chart}>
                 {chart.title && <div style={styles.chartTitle}>{chart.title}</div>}
-                <div style={{...styles.chartEmpty, minHeight: height}}>{emptyText}</div>
+                <div style={{ ...styles.chartEmpty, minHeight: height }}>{emptyText}</div>
             </div>
         );
     }
@@ -157,7 +156,7 @@ const SurfaceChartView: FunctionComponent<{
             <div style={styles.chart}>
                 {chart.title && <div style={styles.chartTitle}>{chart.title}</div>}
                 {total <= 0 ? (
-                    <div style={{...styles.chartEmpty, minHeight: height}}>{emptyText}</div>
+                    <div style={{ ...styles.chartEmpty, minHeight: height }}>{emptyText}</div>
                 ) : (
                     <Pie
                         data={rows}
@@ -187,7 +186,7 @@ const SurfaceChartView: FunctionComponent<{
     const rows = chart.data.map((row) => ({
         label: stringValue(row[xField]),
         value: numberValue(row[yField]),
-        ...(seriesField ? {series: stringValue(row[seriesField])} : {}),
+        ...(seriesField ? { series: stringValue(row[seriesField]) } : {}),
     }));
     const axis = {
         labelFill: token.colorTextSecondary,
@@ -197,13 +196,13 @@ const SurfaceChartView: FunctionComponent<{
     };
     const seriesConfig = seriesField
         ? {
-            seriesField: "series",
-            colorField: "series",
-            legend: chartLegend(token),
-        }
+              seriesField: "series",
+              colorField: "series",
+              legend: chartLegend(token),
+          }
         : {
-            colorField: token.colorPrimary,
-        };
+              colorField: token.colorPrimary,
+          };
     const commonConfig = {
         data: rows,
         xField: "label",
@@ -224,7 +223,7 @@ const SurfaceChartView: FunctionComponent<{
             ],
         },
     };
-    const columnConfig = seriesField ? {...commonConfig, group: true} : commonConfig;
+    const columnConfig = seriesField ? { ...commonConfig, group: true } : commonConfig;
 
     return (
         <div style={styles.chart}>
@@ -235,26 +234,26 @@ const SurfaceChartView: FunctionComponent<{
 };
 
 const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = ({
-                                                                                    surfaceUrl,
-                                                                                    actionUrl,
-                                                                                    axiosInstance,
-                                                                                    className,
-                                                                                    style,
-                                                                                    title,
-                                                                                    maxItems,
-                                                                                    initialSurface,
-                                                                                    initialLoadStatus,
-                                                                                    initialError,
-                                                                                    loadOnMount = true,
-                                                                                    notifyLoadError = true,
-                                                                                    reloadToken,
-                                                                                    showRefresh = true,
-                                                                                    onOpenView,
-                                                                                    onRefresh,
-                                                                                }) => {
-    const {message} = useUiApp();
+    surfaceUrl,
+    actionUrl,
+    axiosInstance,
+    className,
+    style,
+    title,
+    maxItems,
+    initialSurface,
+    initialLoadStatus,
+    initialError,
+    loadOnMount = true,
+    notifyLoadError = true,
+    reloadToken,
+    showRefresh = true,
+    onOpenView,
+    onRefresh,
+}) => {
+    const { message } = useUiApp();
     const navigate = useNavigate();
-    const {token} = theme.useToken();
+    const { token } = theme.useToken();
     const res = getRes().pluginSurface;
     const [surface, setSurface] = useState<InteractiveSurface | null>(initialSurface || null);
     const [loading, setLoading] = useState(loadOnMount && !initialSurface);
@@ -404,7 +403,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
         setLoading(true);
         setActionNotice(undefined);
         try {
-            const {data} = await axiosInstance.get<StandardSurfaceResponse<InteractiveSurface>>(surfaceUrl);
+            const { data } = await axiosInstance.get<StandardSurfaceResponse<InteractiveSurface>>(surfaceUrl);
             if (!data.success) {
                 throw new Error(data.message || res.loadFailed);
             }
@@ -461,7 +460,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
     };
 
     const showActionResult = (status: "success" | "warning" | "error", description: string) => {
-        setActionNotice({type: status, message: description});
+        setActionNotice({ type: status, message: description });
         if (status === "error") {
             message.error(description);
             return;
@@ -480,8 +479,8 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
             const body = new URLSearchParams();
             body.set("actionRef", action.actionRef);
             body.set("values", JSON.stringify(values));
-            const {data} = await axiosInstance.post<StandardSurfaceResponse<SurfaceActionResponse>>(actionUrl, body, {
-                headers: {"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
+            const { data } = await axiosInstance.post<StandardSurfaceResponse<SurfaceActionResponse>>(actionUrl, body, {
+                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
             });
             if (!data.success) {
                 throw new Error(data.message || res.actionFailed);
@@ -564,11 +563,11 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
                 </div>
                 <Space size={4}>
                     {showRefresh && (
-                        <Tooltip title={res.refresh}>
+                        <Tooltip title={getRes().common.refresh}>
                             <Button
                                 type="text"
                                 size="small"
-                                icon={<RefreshIcon/>}
+                                icon={<RefreshIcon />}
                                 loading={loading}
                                 onClick={() => void loadSurface()}
                             />
@@ -584,7 +583,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
                     showIcon
                     closable
                     message={actionNotice.message}
-                    style={{marginBottom: token.marginSM}}
+                    style={{ marginBottom: token.marginSM }}
                     onClose={() => setActionNotice(undefined)}
                 />
             )}
@@ -592,9 +591,9 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
             {loading ? (
                 <div style={styles.empty}>{res.loading}</div>
             ) : loadError ? (
-                <Alert type="error" showIcon message={loadError}/>
+                <Alert type="error" showIcon message={loadError} />
             ) : surface === null ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}/>
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
                 <>
                     <div style={styles.metrics}>
@@ -680,7 +679,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
                 title={activeAction?.label}
                 open={activeAction !== null}
                 okText={res.submit}
-                cancelText={res.cancel}
+                cancelText={getRes().common.cancel}
                 onOk={submitModal}
                 onCancel={() => setActiveAction(null)}
             >
@@ -693,7 +692,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
                             valuePropName={field.type === "switch" ? "checked" : "value"}
                             rules={
                                 field.required
-                                    ? [{required: true, message: res.requiredMessage.replace("{label}", field.label)}]
+                                    ? [{ required: true, message: res.requiredMessage.replace("{label}", field.label) }]
                                     : undefined
                             }
                         >

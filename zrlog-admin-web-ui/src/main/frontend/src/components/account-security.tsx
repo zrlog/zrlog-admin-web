@@ -272,7 +272,7 @@ const AccountSecurity = ({ offline, offlineData, data, updateCache }: AdminCommo
                                 : getRes().accountSecurity.enableMfa}
                         </Button>
                         <Button disabled={mfaSubmitting} onClick={closeMfaDialog} style={securitySurface.actions}>
-                            {getRes().close}
+                            {getRes().common.close}
                         </Button>
                     </Space>
                 </Form>

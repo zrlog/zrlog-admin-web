@@ -114,7 +114,7 @@ const TemplateConfigDialog = ({
     const footer = (
         <Space style={{ width: "100%", justifyContent: "flex-end" }}>
             <Button onClick={close} disabled={editor.saving}>
-                {getRes().close}
+                {getRes().common.close}
             </Button>
             <Button
                 type="primary"
@@ -123,7 +123,7 @@ const TemplateConfigDialog = ({
                 loading={editor.saving}
                 disabled={offline || loading || !hasConfigFields(data) || !editor.dirty}
             >
-                {res.save}
+                {getRes().common.save}
             </Button>
         </Space>
     );

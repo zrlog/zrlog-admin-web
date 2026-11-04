@@ -188,7 +188,7 @@ export default function Members({
                             <Input.Password autoComplete="new-password" />
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={busy}>
-                            {res.save}
+                            {getRes().common.save}
                         </Button>
                     </Form>
                 </Drawer>

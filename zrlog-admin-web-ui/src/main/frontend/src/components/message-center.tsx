@@ -348,7 +348,7 @@ const MessageCenter = ({
                                                 void handleRemoveTask(task.id, task.dismissPath, task.dismissPayload)
                                             }
                                         >
-                                            {getRes().close}
+                                            {getRes().common.close}
                                         </Button>
                                     )}
                                 </Space>

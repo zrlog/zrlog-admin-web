@@ -208,11 +208,11 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
             onCancel={handleCancel}
             onOk={() => void handleConfirm()}
             okText={publishLater ? timing.schedulePublication : res.confirm}
-            cancelText={getRes().cancel}
+            cancelText={getRes().common.cancel}
             footer={
                 previewOnly ? (
                     <Button type="primary" onClick={handleCancel}>
-                        {getRes().close}
+                        {getRes().common.close}
                     </Button>
                 ) : undefined
             }

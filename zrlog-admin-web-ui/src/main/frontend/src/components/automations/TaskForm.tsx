@@ -210,7 +210,7 @@ export default function TaskForm({
                     <Button type="primary" htmlType="submit" loading={busy} disabled={!definition?.available}>
                         {definition?.systemTask ? res.saveSettings : res.save}
                     </Button>
-                    <Button onClick={onClose}>{res.close}</Button>
+                    <Button onClick={onClose}>{getRes().common.close}</Button>
                 </Space>
             </Form>
         </Drawer>

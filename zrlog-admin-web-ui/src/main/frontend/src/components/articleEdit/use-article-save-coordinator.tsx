@@ -1265,7 +1265,7 @@ const useArticleSaveCoordinator = ({
                             </Space>
                         ),
                         okText: getRes().articleEdit.rollbackRefresh,
-                        cancelText: getRes().cancel,
+                        cancelText: getRes().common.cancel,
                         getContainer: () => editCardRef.current as HTMLElement,
                         onOk: () => window.location.reload(),
                     });

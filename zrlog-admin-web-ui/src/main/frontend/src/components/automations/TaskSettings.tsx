@@ -56,7 +56,7 @@ export default function TaskSettings({
         return (
             <Space>
                 {loadError ? <Alert type="error" showIcon title={loadError} /> : <Spin />}
-                <Button onClick={() => void load().catch(() => undefined)}>{res.reload}</Button>
+                <Button onClick={() => void load().catch(() => undefined)}>{getRes().common.refresh}</Button>
             </Space>
         );
     const settings = page.settings;

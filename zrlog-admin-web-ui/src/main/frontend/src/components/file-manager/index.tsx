@@ -651,11 +651,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         <Popconfirm
                             title={res.confirmDelete}
                             onConfirm={() => handleDelete(entry)}
-                            okText={res.delete}
-                            cancelText={getRes().cancel}
+                            okText={getRes().common.delete}
+                            cancelText={getRes().common.cancel}
                             okType="danger"
                         >
-                            <span style={{ color: token.colorError }}>{res.delete}</span>
+                            <span style={{ color: token.colorError }}>{getRes().common.delete}</span>
                         </Popconfirm>
                     ),
                     icon: <DeleteIcon style={{ color: token.colorError }} />,
@@ -872,8 +872,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     <Popconfirm
                                         title={res.confirmDelete}
                                         onConfirm={() => handleDelete(entry)}
-                                        okText={res.delete}
-                                        cancelText={getRes().cancel}
+                                        okText={getRes().common.delete}
+                                        cancelText={getRes().common.cancel}
                                         okType="danger"
                                     >
                                         <Button
@@ -1431,12 +1431,12 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         <Popconfirm
                                             title={res.confirmDelete}
                                             onConfirm={() => handleDelete(selectedEntry)}
-                                            okText={res.delete}
-                                            cancelText={getRes().cancel}
+                                            okText={getRes().common.delete}
+                                            cancelText={getRes().common.cancel}
                                             okType="danger"
                                         >
                                             <Button danger icon={<DeleteIcon />}>
-                                                {res.delete}
+                                                {getRes().common.delete}
                                             </Button>
                                         </Popconfirm>
                                     )}
@@ -1458,8 +1458,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         }}
                         onCancel={() => setDeleteTarget(null)}
                         okButtonProps={{ danger: true }}
-                        okText={res.delete}
-                        cancelText={getRes().cancel}
+                        okText={getRes().common.delete}
+                        cancelText={getRes().common.cancel}
                     >
                         {deleteTarget?.name}
                     </Modal>
@@ -1512,7 +1512,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         onOk={handleMkdir}
                         onCancel={() => setNewFolderOpen(false)}
                         okText={res.newFolder}
-                        cancelText={getRes().cancel}
+                        cancelText={getRes().common.cancel}
                     >
                         <Input
                             placeholder={res.newFolderPlaceholder}
@@ -1607,7 +1607,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 ? getReplaceArticleResourceUrlAction(renameTarget)
                                 : res.rename
                         }
-                        cancelText={getRes().cancel}
+                        cancelText={getRes().common.cancel}
                         confirmLoading={renameSubmitting}
                         okButtonProps={{
                             disabled:
