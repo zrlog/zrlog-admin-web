@@ -290,11 +290,12 @@ public class AutomationEngineTest {
         if (active.taskType == null) active.taskType = "assistant.reminder";
         if (active.trigger == null) active.trigger = "internal";
         store.insertRun(active);
-        assertEquals(0, store.pruneRuns(1, now.get()));
+        long retentionBoundary = time + java.time.Duration.ofDays(30).toMillis();
+        assertEquals(0, store.pruneRuns(1, retentionBoundary));
         assertEquals(506, store.runCount(1, null));
         assertNotNull(store.run(active.id));
-        assertEquals(0, store.pruneRuns(2, now.get() + java.time.Duration.ofDays(100).toMillis()));
-        assertEquals(64, store.pruneRuns(1, now.get() + java.time.Duration.ofDays(100).toMillis()));
+        assertEquals(0, store.pruneRuns(2, retentionBoundary + 1000));
+        assertEquals(64, store.pruneRuns(1, retentionBoundary + 1000));
         assertNotNull(store.run(active.id));
     }
 
