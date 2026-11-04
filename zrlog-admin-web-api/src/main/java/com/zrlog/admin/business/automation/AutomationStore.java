@@ -348,7 +348,7 @@ public final class AutomationStore {
         String predicate =
                 "r.status='success' AND r.finishedAt<? AND NOT EXISTS (SELECT 1 FROM assistant_task t WHERE t.activeRunId=r.id)";
         List<Object> params = new ArrayList<>();
-        params.add(dateParameter(now - java.time.Duration.ofDays(90).toMillis()));
+        params.add(dateParameter(now - java.time.Duration.ofDays(30).toMillis()));
         if (ownerId != null) {
             predicate += " AND r.ownerId=?";
             params.add(ownerId);

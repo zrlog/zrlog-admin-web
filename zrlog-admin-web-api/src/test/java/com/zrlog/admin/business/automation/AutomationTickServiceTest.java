@@ -138,7 +138,7 @@ public class AutomationTickServiceTest {
     }
 
     private String oldRun(String status) throws Exception {
-        long finished = now.get() - Duration.ofDays(91).toMillis();
+        long finished = now.get() - Duration.ofDays(31).toMillis();
         var run = new AutomationModels.Run();
         run.id =
                 AutomationStore.ownerPrefix(1)
