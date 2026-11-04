@@ -333,6 +333,10 @@ public class UpgradeSettingsServiceTest {
                             null);
             assertTrue(page.isDockerMode());
             assertEquals("metadata_unavailable", page.getDockerErrorCode());
+            assertEquals(
+                    com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
+                            "admin.upgrade.repository.error.metadataUnavailable"),
+                    page.getDockerErrorMessage());
             assertNull(page.getDockerSettings());
         }
     }

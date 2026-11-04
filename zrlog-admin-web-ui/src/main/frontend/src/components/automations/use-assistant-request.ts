@@ -1,3 +1,4 @@
+import {getErrorMessage} from "../../utils/error-message";
 import { useCallback } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getSsDate } from "../../base/SsData";
@@ -19,7 +20,7 @@ export function useAssistantRequest(): Request {
                 if (response.data.error) throw new Error(response.data.message || failed);
                 return response.data.data as T;
             } catch (error) {
-                if (session === getSsDate().key) message.error(error instanceof Error ? error.message : failed);
+                if (session === getSsDate().key) message.error(getErrorMessage(error, failed));
                 throw error;
             }
         },

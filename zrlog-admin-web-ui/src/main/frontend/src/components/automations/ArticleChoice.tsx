@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../../utils/error-message";
 import { Alert, Button, InputNumber, Space, Typography } from "antd";
 import { useUiMessage } from "@zrlog/ui/feedback";
 import { useEffect, useRef, useState } from "react";
@@ -55,7 +56,7 @@ export default function ArticleChoice({
                 ).slice(0, 800)
             );
         } catch (error) {
-            message.error(error instanceof Error ? error.message : res.failedRequest);
+            message.error(getErrorMessage(error, res.failedRequest));
         } finally {
             setBusy(false);
         }

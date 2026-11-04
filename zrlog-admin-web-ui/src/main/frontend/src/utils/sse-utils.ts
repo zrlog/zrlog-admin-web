@@ -9,6 +9,7 @@ import {
     updateBackgroundTask,
 } from "./background-task-store";
 import {type BackgroundTaskResult, buildBackgroundTaskResult} from "./background-task-result";
+import {readResponseError} from "./error-message";
 
 export type StaticProgress = {
     total?: number;
@@ -158,10 +159,11 @@ const requestRefreshCacheSse = async <T>(uri: string, method: "GET" | "POST", op
         throw error;
     }
     if (!response.ok) {
+        const error = await readResponseError(response, getRes().error.requestError);
         if (backgroundTaskId) {
-            finishBackgroundTask(backgroundTaskId, "error", formatLabelValue(getRes().error.requestError, response.status));
+            finishBackgroundTask(backgroundTaskId, "error", error.message);
         }
-        throw new Error(formatLabelValue(getRes().error.requestError, response.status));
+        throw error;
     }
     if (!supportSse) {
         options.messageApi?.destroy(messageKey);

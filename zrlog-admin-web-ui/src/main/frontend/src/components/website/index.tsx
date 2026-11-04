@@ -112,6 +112,7 @@ export interface Upgrade {
         images: { repository: string; platforms: string[] }[];
     };
     dockerErrorCode?: string;
+    dockerErrorMessage?: string;
     upgradePackageSource?: "dl" | "github";
     autoUpgradeVersion: number;
     scheduleManaged?: boolean;

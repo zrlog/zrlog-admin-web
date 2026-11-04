@@ -1,3 +1,4 @@
+import {getErrorMessage} from "../../utils/error-message";
 import {useUiMessage} from "@zrlog/ui/feedback";
 import {useCallback, useEffect, useRef, useState} from "react";
 
@@ -59,8 +60,8 @@ export const useTemplateConfig = (data?: TemplateConfigData, disabled = false) =
             // Only the submitted snapshot is saved; edits made during the request remain dirty.
             setSavedValues(submitted);
             void messageApi.success(response.message || getRes().templateConfig.saved);
-        } catch {
-            void messageApi.error(getRes().templateConfig.saveFailed);
+        } catch (error) {
+            void messageApi.error(getErrorMessage(error, getRes().templateConfig.saveFailed));
         } finally {
             savingRef.current = false;
             setSaving(false);

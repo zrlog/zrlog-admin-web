@@ -1,6 +1,8 @@
 import type {AxiosInstance, AxiosRequestConfig} from "axios";
+import {isAxiosError} from "axios";
 import {FileEntry, formatSize} from "../../file-manager/shared";
 import {getRes} from "../../../utils/constants";
+import {ApiResponseError, getErrorMessage, readBlobMessage} from "../../../utils/error-message";
 
 export const aiAssetSizeLimit = (maxBytes: number) =>
     getRes().articleEdit.files.assetSizeLimit.replace("{size}", formatSize(maxBytes));
@@ -102,10 +104,20 @@ export async function loadAiAsset(
                 : mime === "image/jpeg"
                     ? startsWith([255, 216, 255])
                     : startsWith([82, 73, 70, 70]) && startsWith([87, 69, 66, 80], 8);
-        if (!valid) throw new Error(res.assetReadFailed);
+        if (!valid) {
+            const message = entry.path.startsWith("/attached/") ? await readBlobMessage(blob) : undefined;
+            if (message) throw new ApiResponseError(message);
+            throw new Error(res.assetReadFailed);
+        }
         return new File([blob], entry.name, {type: mime});
     } catch (error) {
         if (tooLarge) throw new Error(aiAssetSizeLimit(maxBytes));
+        if (isAxiosError(error)) {
+            const message = error.response?.data instanceof Blob
+                ? await readBlobMessage(error.response.data)
+                : getErrorMessage(error, res.assetReadFailed);
+            throw new ApiResponseError(message || res.assetReadFailed);
+        }
         throw error;
     } finally {
         signal.removeEventListener("abort", abort);

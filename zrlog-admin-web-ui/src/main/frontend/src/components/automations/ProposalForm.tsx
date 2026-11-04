@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../../utils/error-message";
 import { Alert, Button, Card, Drawer, Space, Typography } from "antd";
 import Input from "@zrlog/ui/antd/Input";
 import { useEffect, useRef, useState } from "react";
@@ -41,7 +42,7 @@ export default function ProposalForm({
             });
             if (active.current) setProposal(result);
         } catch (failure) {
-            if (active.current) setError(failure instanceof Error ? failure.message : res.failedRequest);
+            if (active.current) setError(getErrorMessage(failure, res.failedRequest));
         } finally {
             if (active.current) setPending(false);
         }

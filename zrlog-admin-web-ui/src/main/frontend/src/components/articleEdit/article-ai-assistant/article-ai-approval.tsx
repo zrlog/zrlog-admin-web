@@ -1,7 +1,7 @@
-import {Alert, Button, Collapse, Space, Typography} from "antd";
-import {useTheme} from "antd-style";
-import {getRes} from "../../../utils/constants";
-import type {ChatRun} from "./use-article-chat";
+import { Alert, Button, Collapse, Space, Typography } from "antd";
+import { useTheme } from "antd-style";
+import { getRes } from "../../../utils/constants";
+import type { ChatRun } from "./use-article-chat";
 
 type Props = {
     run: ChatRun;
@@ -10,7 +10,7 @@ type Props = {
     onRefresh: () => void;
 };
 
-export default function ArticleAiApproval({run, disabled, onDecide, onRefresh}: Props) {
+export default function ArticleAiApproval({ run, disabled, onDecide, onRefresh }: Props) {
     const res = getRes().articleEdit.approval;
     const theme = useTheme();
     const approval = run.approval;
@@ -21,12 +21,12 @@ export default function ArticleAiApproval({run, disabled, onDecide, onRefresh}: 
     const title = waiting
         ? res.waiting
         : expired
-            ? res.expired
-            : running
-                ? res.running
-                : run.status === "uncertain"
-                    ? res.uncertain
-                    : res.failed;
+        ? res.expired
+        : running
+        ? res.running
+        : run.status === "uncertain"
+        ? res.uncertain
+        : res.failed;
     const tools = new Map(
         Object.entries({
             create_article: res.create,
@@ -36,7 +36,6 @@ export default function ArticleAiApproval({run, disabled, onDecide, onRefresh}: 
         })
     );
     const fields = new Map(Object.entries(res.fields));
-    const errorMessages = new Map(Object.entries(getRes().articleEdit.knowledge));
     const format = (field: string, value: string) => {
         if (field === "status") {
             const statuses = getRes().article.status;
@@ -55,15 +54,13 @@ export default function ArticleAiApproval({run, disabled, onDecide, onRefresh}: 
             type={run.status === "failed" || run.status === "uncertain" ? "error" : "info"}
             title={title}
             description={
-                <Space orientation="vertical" style={{width: "100%", minWidth: 0}}>
+                <Space orientation="vertical" style={{ width: "100%", minWidth: 0 }}>
                     {run.status === "failed" && run.error && (
-                        <Typography.Text>
-                            {errorMessages.get(run.error) || getRes().articleEdit.knowledge.requestFailed}
-                        </Typography.Text>
+                        <Typography.Text>{run.message || getRes().articleEdit.knowledge.requestFailed}</Typography.Text>
                     )}
                     {approval && (
                         <>
-                            <Typography.Text strong style={{overflowWrap: "anywhere"}}>
+                            <Typography.Text strong style={{ overflowWrap: "anywhere" }}>
                                 {tools.get(approval.tool)}
                                 {approval.title ? ` · ${approval.title}` : ""}
                             </Typography.Text>
@@ -78,15 +75,15 @@ export default function ArticleAiApproval({run, disabled, onDecide, onRefresh}: 
                                             key: "changes",
                                             label: res.preview,
                                             children: (
-                                                <Space orientation="vertical" style={{width: "100%"}}>
+                                                <Space orientation="vertical" style={{ width: "100%" }}>
                                                     {approval.changes.map((change) => (
                                                         <div key={change.field}>
                                                             <Typography.Text strong>
                                                                 {fields.get(change.field) || res.field}
                                                             </Typography.Text>
                                                             {[
-                                                                {label: res.before, value: change.before},
-                                                                {label: res.after, value: change.after},
+                                                                { label: res.before, value: change.before },
+                                                                { label: res.after, value: change.after },
                                                             ].map((item) => (
                                                                 <div key={item.label}>
                                                                     <Typography.Text type="secondary">

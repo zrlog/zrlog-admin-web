@@ -1,27 +1,28 @@
-import {Alert, Button, Form, Space, Typography} from "antd";
+import { getErrorMessage } from "../../utils/error-message";
+import { Alert, Button, Form, Space, Typography } from "antd";
 import Switch from "@zrlog/ui/antd/Switch";
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
-import {useUiMessage} from "@zrlog/ui/feedback";
+import { useUiMessage } from "@zrlog/ui/feedback";
 
-import {useEffect, useState} from "react";
-import {Link} from "react-router-dom";
-import {getRealRouteUrl, getRes} from "../../utils/constants";
-import {USER_ROUTES} from "../../utils/account-page-routes";
-import {useAxiosBaseInstance} from "../../base/AppBase";
-import type {ApiResponse} from "../../type";
-import type {WebhookConfig} from "./index";
-import {useResponsiveFormLayout} from "../../utils/responsive-form";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { getRealRouteUrl, getRes } from "../../utils/constants";
+import { USER_ROUTES } from "../../utils/account-page-routes";
+import { useAxiosBaseInstance } from "../../base/AppBase";
+import type { ApiResponse } from "../../type";
+import type { WebhookConfig } from "./index";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 /** Compatibility page for bookmarks and revoking previously issued site-wide credentials. */
 export default function WebhookForm({
-                                        data,
-                                        offlineData,
-                                        offline,
-                                        onSubmit,
-                                        onConfigChange,
-                                        loading,
-                                    }: {
+    data,
+    offlineData,
+    offline,
+    onSubmit,
+    onConfigChange,
+    loading,
+}: {
     data: WebhookConfig;
     offlineData: boolean;
     offline: boolean;
@@ -35,7 +36,7 @@ export default function WebhookForm({
     const [notice, contextHolder] = useUiMessage();
     const api = useAxiosBaseInstance();
     const disabled = offline || offlineData;
-    const {formLayout} = useResponsiveFormLayout({labelCol: {span: 8}, wrapperCol: {span: 16}});
+    const { formLayout } = useResponsiveFormLayout({ labelCol: { span: 8 }, wrapperCol: { span: 16 } });
     useEffect(() => {
         setConfig(data);
         form.setFieldsValue(data);
@@ -43,7 +44,7 @@ export default function WebhookForm({
     const revoke = async () => {
         setRevoking(true);
         try {
-            const {data: response} = await api.post<ApiResponse<WebhookConfig>>("/api/admin/webhook/token/revoke");
+            const { data: response } = await api.post<ApiResponse<WebhookConfig>>("/api/admin/webhook/token/revoke");
             if (response.error) {
                 notice.error(response.message);
                 return;
@@ -52,14 +53,14 @@ export default function WebhookForm({
             form.setFieldsValue(response.data);
             onConfigChange?.(response.data);
             notice.success(getRes().websiteWebhook.tokenRevoked);
-        } catch {
-            notice.error(getRes().error.requestError);
+        } catch (error) {
+            notice.error(getErrorMessage(error, getRes().error.requestError));
         } finally {
             setRevoking(false);
         }
     };
     return (
-        <Space orientation="vertical" size="large" style={{width: "100%"}}>
+        <Space orientation="vertical" size="large" style={{ width: "100%" }}>
             {contextHolder}
             <Alert
                 type="info"
@@ -74,7 +75,7 @@ export default function WebhookForm({
                 form={form}
                 disabled={disabled}
                 initialValues={data}
-                onFinish={(values) => onSubmit({...config, ...values})}
+                onFinish={(values) => onSubmit({ ...config, ...values })}
             >
                 <Form.Item
                     name="enabled"
@@ -82,9 +83,9 @@ export default function WebhookForm({
                     label={getRes().websiteLab.webhook}
                     tooltip={getRes().websiteWebhook.webhookStatusTip}
                 >
-                    <Switch/>
+                    <Switch />
                 </Form.Item>
-                <WebsiteSubmitBar loading={loading} disabled={disabled}/>
+                <WebsiteSubmitBar loading={loading} disabled={disabled} />
             </Form>
             {config.hasToken && (
                 <Space wrap>

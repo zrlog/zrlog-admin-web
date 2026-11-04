@@ -237,6 +237,12 @@ public class AIChatConversationTest {
                                         .readAllBytes(),
                                 java.nio.charset.StandardCharsets.UTF_8);
                 assertTrue(wire.contains("\"error\":\"" + failure.getValue() + "\""));
+                assertTrue(
+                        wire,
+                        wire.contains(
+                                "\"message\":\""
+                                        + AIChatErrorMessages.message(failure.getValue())
+                                        + "\""));
                 assertFalse(wire.contains("private provider detail"));
                 assertFalse(wire.contains("\"type\":\"done\""));
                 assertTrue(logs.contains(Level.WARNING, "error=" + failure.getValue()));

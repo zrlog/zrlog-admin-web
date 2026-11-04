@@ -201,6 +201,7 @@ public final class AIChatModels {
         public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry>
                 skillMessages;
         public String error;
+        public String message;
         public Event answer;
         public List<Event> articleUpdates;
     }
@@ -221,6 +222,7 @@ public final class AIChatModels {
         public String content;
         public String reasoningContent;
         public String error;
+        public String message;
         public Long articleId;
         public Integer version;
         public Boolean created;

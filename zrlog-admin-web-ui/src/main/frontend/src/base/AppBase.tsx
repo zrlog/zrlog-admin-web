@@ -10,6 +10,7 @@ import AdminDashboardPage from "../components/admin-dashboard-page";
 import { NavigateFunction } from "react-router";
 import { syncMessageCenterStatus } from "../utils/message-center-status";
 import { ADMIN_ERROR_CODE } from "../common/admin-error-code";
+import { getErrorMessage, getResponseMessage } from "../utils/error-message";
 
 const AsyncLogin = lazy(() => import("components/login"));
 
@@ -39,19 +40,23 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
         }
 
         const commonAxiosErrorHandle = (error: any): Promise<any> => {
+            const backendMessage = getResponseMessage(error?.response?.data);
+            if (error && typeof error === "object") {
+                error.message = backendMessage || getRes().error.requestFailed;
+            }
             // Upgrade flow handles these request failures in its own progress UI.
             if ((error as AxiosError) && error.config && error.config.url) {
                 if ((error.config as any).showError === false) {
                     return Promise.reject(error);
                 }
                 if (error.config.url.includes(API_VERSION_PATH)) {
-                    return Promise.reject(new Error(getRes().error.requestFailed));
+                    return Promise.reject(error);
                 }
                 if (error.config.url.includes(API_DO_UPGRADE_PATH)) {
-                    return Promise.reject(new Error(getRes().error.requestFailed));
+                    return Promise.reject(error);
                 }
             }
-            if (!navigator.onLine) {
+            if (!navigator.onLine && !backendMessage) {
                 message.error(getRes().error.networkOffline);
             } else {
                 const status = error?.response?.status;
@@ -63,7 +68,7 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
                         : getRes().error.requestFailed;
                 modal.error({
                     title: getRes().error.requestError,
-                    content,
+                    content: getErrorMessage(error, content),
                     getContainer: getContainer ? getContainer() : undefined,
                 });
             }
@@ -85,7 +90,7 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
                         errorCountMap.set(errorCode, count + 1);
                         modal.error({
                             title: getRes().error.sessionExpiredTitle,
-                            content: getRes().error.sessionExpired,
+                            content: getResponseMessage(response.data) || getRes().error.requestFailed,
                             okText: getRes().error.signIn,
                             getContainer: getContainer ? getContainer() : undefined,
                             onOk: () => {
@@ -98,7 +103,9 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
                     if (isStaticPage()) {
                         jumpToLoginPage(navigate);
                     }
-                    return Promise.reject(response.data);
+                    const failure = Object.assign(new Error(), response.data);
+                    failure.message = getResponseMessage(response.data) || getRes().error.requestFailed;
+                    return Promise.reject(failure);
                 }
                 return response;
             },

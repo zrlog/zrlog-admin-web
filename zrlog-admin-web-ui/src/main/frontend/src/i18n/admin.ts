@@ -793,7 +793,6 @@ const zhCN = {
             "sessionHint": "对话会自动保存，重新打开文章后可继续。检索范围可在“偏好设置 → AI 助手”中调整",
             "thinking": "正在思考…",
             "waitingForResponse": "正在等待模型响应…",
-            "contextChanged": "文章内容已变化，请基于当前内容重新发起请求",
             "generating": "正在生成回复…",
             "searching": "正在搜索文章…",
             "reading": "正在读取文章…",
@@ -806,12 +805,8 @@ const zhCN = {
             "stop": "停止生成",
             "sources": "查阅来源",
             "restricted": "需要登录权限",
-            "permission": "账号权限或助手设置已变更，请重新发起对话",
             "saveFailed": "对话保存失败，请重试",
-            "requestTimeout": "等待 AI 响应超时，请稍后重试，或缩短本次请求",
             "responseIncomplete": "AI 回答未完成，可能已达到输出上限或连接中断。请缩短请求后重试",
-            "providerRequestFailed": "AI 服务请求失败，请检查服务状态、模型配置和可用额度",
-            "providerResponseInvalid": "AI 服务返回的内容无法解析，请重试或更换模型",
             "requestFailed": "助手请求未完成，请重试。如果持续失败，请检查服务端日志"
         },
         "interaction": {
@@ -1710,10 +1705,6 @@ const zhCN = {
         "dockerRepositoryTip": "保存后用于下一次更新。所选仓库不可用时会停止更新，不会自动切换仓库。",
         "currentRepository": "沿用当前部署仓库",
         "repositoryUnavailable": "无法读取可用镜像仓库，请稍后重试",
-        "repositoryMetadataUnavailable": "Docker 更新清单不可用，暂时无法列出镜像仓库。请确认当前更新通道已发布清单，且 updater 可以访问元数据源后重试。",
-        "repositoryServiceUnavailable": "无法连接 updater 服务，请检查服务是否运行以及连接地址后重试",
-        "repositoryUnauthorized": "updater 认证失败，请检查 ZrLog 与 updater 配置的访问令牌是否一致",
-        "repositoryConfigurationInvalid": "updater 配置不完整或与 ZrLog 不一致，请检查连接配置和元数据源后重试",
         "retryRepository": "重试",
         "title": "更新设置",
         "summary": "用于设置版本检查周期和是否检查预览版",
@@ -2124,7 +2115,6 @@ const zhCN = {
         "accessDenied": "当前账号无权执行此操作",
         "resourceMissing": "请求的内容不存在，请刷新页面后重试",
         "sessionExpiredTitle": "登录已失效",
-        "sessionExpired": "请重新登录后继续操作",
         "signIn": "重新登录"
 ,
 
@@ -3094,7 +3084,6 @@ const enUS: AdminI18nResource = {
             "sessionHint": "Conversations are saved automatically so you can continue when reopening the article. Change article access in Preferences → AI assistant",
             "thinking": "Thinking…",
             "waitingForResponse": "Waiting for the model…",
-            "contextChanged": "The article has changed. Start a new request using the current content",
             "generating": "Generating response…",
             "searching": "Searching articles…",
             "reading": "Reading article…",
@@ -3107,12 +3096,8 @@ const enUS: AdminI18nResource = {
             "stop": "Stop generating",
             "sources": "Sources consulted",
             "restricted": "Login permission required",
-            "permission": "Your account permissions or assistant settings changed. Start a new request",
             "saveFailed": "The conversation could not be saved. Please retry",
-            "requestTimeout": "Timed out waiting for the AI response. Retry later or shorten the request",
             "responseIncomplete": "The AI response was incomplete. It may have reached the output limit or lost the connection. Shorten the request and retry",
-            "providerRequestFailed": "The AI service request failed. Check the service status, model configuration, and available quota",
-            "providerResponseInvalid": "The AI response could not be parsed. Retry or switch models",
             "requestFailed": "The assistant request did not complete. Retry, and check the server logs if it keeps failing"
         },
         "interaction": {
@@ -4012,10 +3997,6 @@ const enUS: AdminI18nResource = {
         "dockerRepositoryTip": "Applies to the next update after saving. Updates stop if this repository is unavailable; no automatic switch occurs.",
         "currentRepository": "Use current deployment repository",
         "repositoryUnavailable": "Unable to load image repositories. Please retry later.",
-        "repositoryMetadataUnavailable": "The Docker update manifest is unavailable, so image repositories cannot be listed. Check that the selected update channel has a published manifest and the updater can reach the metadata source, then retry.",
-        "repositoryServiceUnavailable": "Unable to connect to the updater. Check that the service is running and its connection address is correct, then retry.",
-        "repositoryUnauthorized": "Updater authentication failed. Check that ZrLog and the updater use the same access token.",
-        "repositoryConfigurationInvalid": "The updater configuration is incomplete or does not match ZrLog. Check the connection settings and metadata source, then retry.",
         "retryRepository": "Retry",
         "title": "Update Settings",
         "summary": "Set the update check interval and whether preview versions are included",
@@ -4426,7 +4407,6 @@ const enUS: AdminI18nResource = {
         "accessDenied": "Your account does not have permission for this action",
         "resourceMissing": "The requested content was not found. Refresh the page and try again",
         "sessionExpiredTitle": "Session expired",
-        "sessionExpired": "Sign in again to continue",
         "signIn": "Sign in again"
 ,
 

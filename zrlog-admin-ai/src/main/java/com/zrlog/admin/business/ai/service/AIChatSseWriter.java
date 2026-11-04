@@ -15,6 +15,9 @@ public class AIChatSseWriter {
     public AIChatSseWriter() {}
 
     void write(OutputStream out, Event event) throws IOException {
+        if ("error".equals(event.type)) {
+            event.message = AIChatErrorMessages.message(event.error);
+        }
         out.write(("data: " + gson.toJson(event) + "\n\n").getBytes(StandardCharsets.UTF_8));
         out.flush();
     }

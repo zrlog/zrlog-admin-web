@@ -81,7 +81,7 @@ it("uses a sign-in action for an expired session", async () => {
     try {
         instance.defaults.adapter = async (config) => ({
             config,
-            data: { error: 9001, message: "private backend text" },
+            data: { error: 9001, message: "Your session was revoked. Sign in again" },
             status: 200,
             statusText: "OK",
             headers: {},
@@ -90,9 +90,32 @@ it("uses a sign-in action for an expired session", async () => {
         const dialog = mockModal.error.mock.calls[0][0];
         expect(dialog.title).toBe("Session expired");
         expect(dialog.okText).toBe("Sign in again");
-        expect(JSON.stringify(dialog)).not.toContain("private backend text");
+        expect(dialog.content).toBe("Your session was revoked. Sign in again");
         dialog.onOk();
         expect(mockNavigate).toHaveBeenCalled();
+    } finally {
+        unmount();
+    }
+});
+
+it.each(["zh_CN", "en_US"] as const)("preserves backend HTTP messages in %s", async (lang) => {
+    mockLang = lang;
+    const unmount = await mount();
+    try {
+        for (const status of [400, 403, 404, 500]) {
+            const error = Object.assign(new Error("Axios diagnostic"), {
+                isAxiosError: true,
+                response: { status, data: { error: 9999, message: `Server explanation for ${status}` } },
+            });
+            instance.defaults.adapter = async () => {
+                throw error;
+            };
+            await expect(instance.get("/api/admin/settings")).rejects.toBe(error);
+            expect(mockModal.error.mock.calls[mockModal.error.mock.calls.length - 1][0].content).toBe(
+                `Server explanation for ${status}`
+            );
+            expect(error.message).toBe(`Server explanation for ${status}`);
+        }
     } finally {
         unmount();
     }

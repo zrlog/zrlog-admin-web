@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../../utils/error-message";
 import { Alert, Button, Descriptions, Flex, Form, theme, Typography } from "antd";
 import Input from "@zrlog/ui/antd/Input";
 import { useUiApp } from "@zrlog/ui/feedback";
@@ -104,13 +105,13 @@ const ProxySettings = ({
         try {
             const response = await axios.post("/api/admin/system/proxy", values);
             if (!mounted.current) return;
-            if (response.data.error || !response.data.data) throw new Error();
+            if (response.data.error || !response.data.data) throw response.data;
             setSettings(response.data.data);
             form.setFieldsValue(response.data.data);
             dirty.current = false;
             message.success(response.data.data.restartRequired ? text.pending : text.saved);
-        } catch {
-            if (mounted.current) setFailure(text.failed);
+        } catch (error) {
+            if (mounted.current) setFailure(getErrorMessage(error, text.failed));
         } finally {
             pending.current = false;
             if (mounted.current) setSaving(false);
@@ -128,10 +129,10 @@ const ProxySettings = ({
             try {
                 const response = await axios.post("/api/admin/system/proxy/test", values, { timeout: 15000 });
                 if (!mounted.current) return;
-                if (response.data.error || !response.data.data) throw new Error();
+                if (response.data.error || !response.data.data) throw response.data;
                 message.success(text.testSuccess);
-            } catch {
-                if (mounted.current) setFailure(text.testFailed);
+            } catch (error) {
+                if (mounted.current) setFailure(getErrorMessage(error, text.testFailed));
             }
         } finally {
             pending.current = false;

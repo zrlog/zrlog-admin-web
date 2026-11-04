@@ -82,6 +82,15 @@ const sseResponse = (read: () => Promise<ReadableStreamReadResult<Uint8Array>>) 
     } as unknown as Response);
 
 describe("postRefreshCacheSse", () => {
+    it("preserves the backend message on a failed HTTP response", async () => {
+        mockFetch.mockResolvedValueOnce({
+            ok: false,
+            status: 403,
+            json: async () => ({error: 9016, message: "Server permission explanation"}),
+        } as Response);
+        await expect(postRefreshCacheSse("/api/admin/template/config")).rejects.toThrow("Server permission explanation");
+    });
+
     beforeEach(() => {
         mockSupportSse = true;
         mockFetch.mockReset();

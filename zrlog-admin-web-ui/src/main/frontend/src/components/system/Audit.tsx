@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../../utils/error-message";
 import { Button, Flex, Pagination } from "antd";
 import Input from "@zrlog/ui/antd/Input";
 import RefreshIcon from "@zrlog/ui/icons/refresh";
@@ -34,11 +35,11 @@ export default function Audit({
         setLoading(true);
         try {
             const result = await getCsrData("/system/audit", Date.now(), axios);
-            if (result.error) throw new Error("Audit query failed");
+            if (result.error) throw result;
             setLogs(result.data);
             setPage(1);
-        } catch {
-            message.error(text.refreshFailed);
+        } catch (error) {
+            message.error(getErrorMessage(error, text.refreshFailed));
         } finally {
             setLoading(false);
         }

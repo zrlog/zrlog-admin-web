@@ -1,22 +1,23 @@
-import type {MockedFunction} from "jest-mock";
-import {act} from "react";
-import {createRoot, Root} from "react-dom/client";
-import {afterEach, beforeEach, expect, it, jest} from "@jest/globals";
+import type { MockedFunction } from "jest-mock";
+import { act } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 import AiAssetPicker from "./article-ai-asset-picker";
-import {getRes} from "../../../utils/constants";
-import {loadAiAsset} from "./article-ai-assets";
+import { getRes } from "../../../utils/constants";
+import { loadAiAsset } from "./article-ai-assets";
+import { ApiResponseError } from "../../../utils/error-message";
 
-jest.mock("../../../base/AppBase", () => ({useAxiosBaseInstance: () => ({})}));
+jest.mock("../../../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
 jest.mock("./article-ai-assets", () => ({
     ...require("@jest/globals").jest.requireActual("./article-ai-assets"),
     loadAiAsset: require("@jest/globals").jest.fn(),
 }));
 jest.mock("../../file-manager/picker", () => ({
     __esModule: true,
-    default: ({onSelectFile, onlyImage, disabled}: any) => (
+    default: ({ onSelectFile, onlyImage, disabled }: any) => (
         <button
             disabled={disabled}
-            onClick={() => onSelectFile("/sub/attached/photo.png", {name: "photo.png", path: "/attached/photo.png"})}
+            onClick={() => onSelectFile("/sub/attached/photo.png", { name: "photo.png", path: "/attached/photo.png" })}
         >
             {onlyImage ? "Select image" : "Select file"}
         </button>
@@ -37,7 +38,7 @@ const click = async (label: string) => {
 };
 beforeEach(() => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-    window.matchMedia = jest.fn(() => ({matches: false, addListener: jest.fn(), removeListener: jest.fn()})) as any;
+    window.matchMedia = jest.fn(() => ({ matches: false, addListener: jest.fn(), removeListener: jest.fn() })) as any;
     const computedStyle = window.getComputedStyle;
     jest.spyOn(window, "getComputedStyle").mockImplementation((element) => computedStyle(element));
     load.mockReset();
@@ -91,6 +92,14 @@ it("keeps the picker open on failure and allows retry", async () => {
     load.mockResolvedValueOnce(new File(["image"], "photo.png"));
     await click("Select image");
     expect(selected).toHaveBeenCalledTimes(1);
+});
+
+it("displays the backend asset error without replacing its wording", async () => {
+    load.mockRejectedValueOnce(new ApiResponseError("Your access to this attachment has been revoked"));
+    render();
+    await click("Select image");
+    expect(document.body.textContent).toContain("Your access to this attachment has been revoked");
+    expect(selected).not.toHaveBeenCalled();
 });
 
 it("ignores a late download after the user cancels", async () => {

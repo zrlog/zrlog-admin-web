@@ -8,6 +8,7 @@ public class UpgradeSettingsResponse extends UpgradeWebSiteInfo {
     private final boolean dockerMode;
     private DockerUpdaterProtocol.SettingsResponse dockerSettings;
     private String dockerErrorCode;
+    private String dockerErrorMessage;
     private boolean scheduleManaged;
 
     public boolean isScheduleManaged() {
@@ -45,5 +46,13 @@ public class UpgradeSettingsResponse extends UpgradeWebSiteInfo {
 
     public void setDockerErrorCode(String value) {
         dockerErrorCode = value;
+    }
+
+    public String getDockerErrorMessage() {
+        return dockerErrorMessage;
+    }
+
+    public void setDockerErrorMessage(String value) {
+        dockerErrorMessage = value;
     }
 }

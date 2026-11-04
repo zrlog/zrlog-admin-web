@@ -1,17 +1,18 @@
-import {Alert, Grid, Modal, theme, Typography} from "antd";
-import {useEffect, useRef, useState} from "react";
-import {useAxiosBaseInstance} from "../../../base/AppBase";
-import {getRes} from "../../../utils/constants";
+import { Alert, Grid, Modal, theme, Typography } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { useAxiosBaseInstance } from "../../../base/AppBase";
+import { getRes } from "../../../utils/constants";
 import FileManagerPicker from "../../file-manager/picker";
-import type {FileEntry} from "../../file-manager/shared";
-import {aiAssetSizeLimit, loadAiAsset} from "./article-ai-assets";
+import type { FileEntry } from "../../file-manager/shared";
+import { aiAssetSizeLimit, loadAiAsset } from "./article-ai-assets";
+import { ApiResponseError } from "../../../utils/error-message";
 
 export default function AiAssetPicker({
-                                          maxBytes,
-                                          extensions,
-                                          onSelect,
-                                          onClose,
-                                      }: {
+    maxBytes,
+    extensions,
+    onSelect,
+    onClose,
+}: {
     maxBytes: number;
     extensions: string[];
     onSelect: (file: File) => void;
@@ -19,7 +20,7 @@ export default function AiAssetPicker({
 }) {
     const client = useAxiosBaseInstance();
     const screens = Grid.useBreakpoint();
-    const {token} = theme.useToken();
+    const { token } = theme.useToken();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
     const request = useRef<AbortController>();
@@ -37,7 +38,9 @@ export default function AiAssetPicker({
         } catch (failure) {
             if (!controller.signal.aborted)
                 setError(
-                    failure instanceof Error && [aiAssetSizeLimit(maxBytes), res.unsupported].includes(failure.message)
+                    failure instanceof ApiResponseError ||
+                        (failure instanceof Error &&
+                            [aiAssetSizeLimit(maxBytes), res.unsupported].includes(failure.message))
                         ? failure.message
                         : res.assetReadFailed
                 );
@@ -59,7 +62,7 @@ export default function AiAssetPicker({
                 onClose();
             }}
             width={narrow ? "100vw" : 860}
-            style={narrow ? {top: 0, maxWidth: "100vw", paddingBottom: 0} : undefined}
+            style={narrow ? { top: 0, maxWidth: "100vw", paddingBottom: 0 } : undefined}
             styles={{
                 body: {
                     height: narrow ? "calc(100dvh - 112px)" : "70vh",
@@ -70,12 +73,12 @@ export default function AiAssetPicker({
             }}
         >
             {loading && <Typography.Text role="status">{res.assetLoading}</Typography.Text>}
-            {error && <Alert type="error" showIcon title={error}/>}
+            {error && <Alert type="error" showIcon title={error} />}
             <FileManagerPicker
                 onlyImage
                 acceptExtensions={extensions}
                 disabled={loading}
-                style={{flex: 1, minHeight: 0}}
+                style={{ flex: 1, minHeight: 0 }}
                 onSelectFile={(_, entry) => void select(entry)}
             />
         </Modal>

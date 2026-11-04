@@ -133,10 +133,19 @@ test("connection and save failures remain visible and preserve form values", asy
     expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain(
         "Could not connect to the ZrLog website"
     );
-    mockPost.mockRejectedValue(new Error("disk unavailable"));
+    mockPost.mockRejectedValue(Object.assign(new Error("disk unavailable"), { isAxiosError: true }));
     await act(async () => Simulate.submit(container.querySelector("form")!));
     expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain("Could not save");
     expect((container.querySelector("#url") as HTMLInputElement).value).toBe(data.url);
+});
+
+test("server validation failures remain visible without replacing the explanation", async () => {
+    mockPost.mockResolvedValue({ data: { error: 9012, message: "The proxy address cannot include credentials" } });
+    await render();
+    await act(async () => Simulate.submit(container.querySelector("form")!));
+    expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain(
+        "The proxy address cannot include credentials"
+    );
 });
 
 test("read-only storage prevents saving but permits a connection test", async () => {

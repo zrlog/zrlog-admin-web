@@ -9,6 +9,7 @@ import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.updater.spi.DockerControl;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -64,6 +65,29 @@ public class UpgradeSettingsService {
             response.setDockerErrorCode(error.getCode());
         } catch (IllegalArgumentException | IllegalStateException error) {
             response.setDockerErrorCode("updater_not_configured");
+        }
+        if (response.getDockerErrorCode() != null) {
+            String key;
+            switch (response.getDockerErrorCode()) {
+                case "metadata_unavailable":
+                case "metadata_not_found":
+                    key = "metadataUnavailable";
+                    break;
+                case "updater_unavailable":
+                    key = "serviceUnavailable";
+                    break;
+                case "updater_unauthorized":
+                    key = "unauthorized";
+                    break;
+                case "updater_not_configured":
+                case "updater_configuration_mismatch":
+                    key = "configurationInvalid";
+                    break;
+                default:
+                    key = "unavailable";
+            }
+            response.setDockerErrorMessage(
+                    I18nUtil.getAdminBackendStringFromRes("admin.upgrade.repository.error." + key));
         }
         return response;
     }

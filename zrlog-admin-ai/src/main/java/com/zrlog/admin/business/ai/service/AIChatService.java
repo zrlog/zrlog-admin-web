@@ -392,6 +392,7 @@ public class AIChatService {
             view.answer = null;
             view.articleUpdates = List.of();
         }
+        view.message = AIChatErrorMessages.message(view.error);
         return view;
     }
 

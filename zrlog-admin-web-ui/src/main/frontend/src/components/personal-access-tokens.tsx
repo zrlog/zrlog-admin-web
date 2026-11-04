@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-message";
 import Typography from "@zrlog/ui/antd/Typography";
 import { Alert, Button, Checkbox, Drawer, Empty, Form, List, Radio, Select, Space } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
@@ -75,8 +76,8 @@ export default function PersonalAccessTokens({
             // Keep the one-time secret visible even if the subsequent list refresh fails.
             setCreated(response.data.data);
             await onChange();
-        } catch {
-            notice.error(getRes().error.requestError);
+        } catch (error) {
+            notice.error(getErrorMessage(error, getRes().error.requestError));
         } finally {
             setBusy(false);
         }
@@ -92,8 +93,8 @@ export default function PersonalAccessTokens({
             }
             await onChange();
             notice.success(res.saved);
-        } catch {
-            notice.error(getRes().error.requestError);
+        } catch (error) {
+            notice.error(getErrorMessage(error, getRes().error.requestError));
         } finally {
             setBusy(false);
         }

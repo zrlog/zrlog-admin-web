@@ -109,6 +109,14 @@ it("enforces actual downloaded size and rejects login or error documents", async
     await expect(read()).rejects.toThrow(getRes().articleEdit.files.assetReadFailed);
 });
 
+it("keeps backend error messages when a binary download returns JSON", async () => {
+    const data = new Blob([JSON.stringify({error: 9001, message: "Your session has expired. Sign in again"})]);
+    get.mockResolvedValueOnce({data});
+    await expect(read()).rejects.toThrow("Your session has expired. Sign in again");
+    get.mockRejectedValueOnce({isAxiosError: true, response: {status: 403, data}});
+    await expect(read()).rejects.toThrow("Your session has expired. Sign in again");
+});
+
 it("bounds external streams even when content length is missing or misleading", async () => {
     const body = response([bytes, bytes]);
     fetchImage.mockResolvedValue(body);

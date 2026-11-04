@@ -106,6 +106,15 @@ test("Docker hydration shows only the repository with one final submit and no mo
     await save();
     expect(submit).toHaveBeenLastCalledWith({ autoUpgradeVersion: 86400, upgradePreview: true });
 });
+test("Docker repository errors use the server message", async () => {
+    await render({
+        ...data,
+        dockerSettings: undefined,
+        dockerErrorCode: "metadata_unavailable",
+        dockerErrorMessage: "The selected update channel is unavailable. Select another channel",
+    });
+    expect(container.textContent).toContain("The selected update channel is unavailable. Select another channel");
+});
 test("package deployments submit only the package source", async () => {
     await render({ ...data, dockerMode: false, dockerSettings: undefined });
     expect(container.textContent).not.toContain("Docker image repository");
