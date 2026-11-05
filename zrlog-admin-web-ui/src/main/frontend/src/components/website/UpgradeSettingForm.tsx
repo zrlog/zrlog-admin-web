@@ -159,7 +159,18 @@ const UpgradeSettingForm = ({
                     <Button
                         disabled={offline || offlineData}
                         block={narrow}
-                        style={narrow ? { whiteSpace: "normal", height: "auto", textAlign: "left" } : undefined}
+                        style={
+                            narrow
+                                ? {
+                                      whiteSpace: "normal",
+                                      height: "auto",
+                                      minHeight: token.controlHeight,
+                                      paddingBlock: token.paddingXS,
+                                      lineHeight: token.lineHeight,
+                                      textAlign: "left",
+                                  }
+                                : undefined
+                        }
                         onClick={() => navigate(getRealRouteUrl("/assistant/system"))}
                     >
                         {getRes().websiteUpgrade.manageUpdates}
