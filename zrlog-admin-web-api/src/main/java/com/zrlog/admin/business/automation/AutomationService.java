@@ -90,7 +90,7 @@ public final class AutomationService {
         TaskRegistry.Entry entry = registry.require(plan.type);
         if (!entry.definition.available)
             throw new IllegalArgumentException("automation.taskUnavailable");
-        TaskSchedule.validate(plan.schedule);
+        var schedule = TaskSchedule.normalize(plan.schedule);
         if (entry.definition.systemTask && "once".equals(plan.schedule.kind))
             throw new IllegalArgumentException("automation.invalidSchedule");
         AutomationStore.Snapshot<StoredTask> previous =
@@ -110,7 +110,7 @@ public final class AutomationService {
             throw new IllegalStateException("automation.taskChanged");
         }
         long now = clock.getAsLong();
-        Long next = TaskSchedule.nextAfter(plan.schedule, now - 1);
+        Long next = TaskSchedule.nextAfter(schedule, now - 1);
         if (next == null && plan.enabled)
             throw new IllegalArgumentException("automation.timePassed");
         StoredTask task = new StoredTask();
@@ -137,10 +137,7 @@ public final class AutomationService {
                         actor.restrictActions(task.executionActions));
         if (task.parameters == null || task.parameters.toString().length() > 32768)
             throw new IllegalArgumentException("automation.invalidPlan");
-        task.schedule =
-                AutomationStore.JSON.fromJson(
-                        AutomationStore.JSON.toJson(plan.schedule),
-                        AutomationModels.Schedule.class);
+        task.schedule = schedule;
         task.nextRunAt = next;
         task.lastStatus =
                 previous == null

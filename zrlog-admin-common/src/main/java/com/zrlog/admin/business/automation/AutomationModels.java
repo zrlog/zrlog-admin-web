@@ -47,8 +47,11 @@ public final class AutomationModels {
 
     public static class Schedule {
         public String kind = "once";
-        public String timezone = "UTC";
         public Long at;
+
+        /** Local date/time entered or displayed by the UI, interpreted in the server timezone. */
+        public String atLocal;
+
         public Integer intervalMinutes;
         public String time;
         public List<Integer> weekdays = new ArrayList<>();

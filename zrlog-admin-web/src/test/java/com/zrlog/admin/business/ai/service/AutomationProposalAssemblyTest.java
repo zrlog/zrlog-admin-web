@@ -33,7 +33,7 @@ public class AutomationProposalAssemblyTest {
                     String content =
                             "{\"explanation\":\"Review this plan before saving.\",\"plans\":[{\"id\":\"forged-id\",\"enabled\":true,"
                                     + "\"executionActions\":[\"system.manage\"],\"name\":\"Write weekly\",\"type\":\"assistant.reminder\","
-                                    + "\"schedule\":{\"kind\":\"weekly\",\"timezone\":\"Asia/Shanghai\",\"time\":\"17:00\",\"weekdays\":[5]},"
+                                    + "\"schedule\":{\"kind\":\"weekly\",\"time\":\"17:00\",\"weekdays\":[5]},"
                                     + "\"parameters\":{\"text\":\"Plan next week's writing\",\"hiddenCommand\":\"publish\"}}]}";
                     JsonObject delta = new JsonObject();
                     delta.addProperty("content", content);
@@ -61,7 +61,6 @@ public class AutomationProposalAssemblyTest {
             long before = component.store().taskCount(actor.getUserId());
             var input = new AutomationAssistant.Request();
             input.input = "Remind me to plan weekly writing on Friday at 5pm";
-            input.timezone = "Asia/Shanghai";
             var proposal = component.proposals().propose(actor, input);
             var plan = proposal.plans.get(0);
             assertEquals("assistant.reminder", plan.type);

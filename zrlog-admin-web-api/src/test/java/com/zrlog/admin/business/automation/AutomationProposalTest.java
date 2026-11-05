@@ -51,7 +51,7 @@ public class AutomationProposalTest {
                 IllegalArgumentException.class,
                 () -> AutomationProposalService.sanitize(unknown, List.of(definition())));
         var schedule = proposal();
-        schedule.plans.get(0).schedule.timezone = "untrusted/timezone";
+        schedule.plans.get(0).schedule.time = "25:00";
         assertThrows(
                 IllegalArgumentException.class,
                 () -> AutomationProposalService.sanitize(schedule, List.of(definition())));
@@ -146,7 +146,6 @@ public class AutomationProposalTest {
             var service = new AutomationProposalService(() -> assistant, tasks, authority);
             var request = new AutomationAssistant.Request();
             request.input = "Remind me daily";
-            request.timezone = "UTC";
             assertEquals(1, service.propose(actor, request).plans.size());
             assertEquals(0, store.taskCount(actor.getUserId()));
             assertEquals(0, store.runCount(actor.getUserId(), null));

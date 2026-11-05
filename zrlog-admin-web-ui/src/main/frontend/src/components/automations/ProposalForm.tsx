@@ -38,7 +38,6 @@ export default function ProposalForm({
         try {
             const result = await request<Proposal>("propose", {
                 input,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             });
             if (active.current) setProposal(result);
         } catch (failure) {

@@ -5,13 +5,8 @@ import { useEffect } from "react";
 import { getRes } from "../../utils/constants";
 import TaskPermissions from "./TaskPermissions";
 import ArticleChoice from "./ArticleChoice";
-import type { Definition, Plan, Schedule } from "./types";
+import type { Definition, Plan } from "./types";
 
-type Values = Omit<Plan, "schedule"> & { schedule: Schedule; atLocal?: string };
-const localInput = (at: number) => {
-    const date = new Date(at);
-    return new Date(at - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-};
 export default function TaskForm({
     plan,
     definitions,
@@ -25,7 +20,7 @@ export default function TaskForm({
     onClose: () => void;
     onSave: (plan: Plan) => Promise<void>;
 }) {
-    const [form] = Form.useForm<Values>();
+    const [form] = Form.useForm<Plan>();
     const type = Form.useWatch("type", form);
     const articleTitle = Form.useWatch(["parameters", "title"], form);
     const articleVersion = Form.useWatch(["parameters", "version"], form);
@@ -42,14 +37,12 @@ export default function TaskForm({
             schedule: {
                 kind: "daily",
                 time: "09:00",
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 weekdays: [1],
                 ...plan.schedule,
             },
-            atLocal: localInput(plan.schedule?.at ?? Date.now() + 3600000),
         });
     }, [plan, form, definitions]);
-    const save = async (values: Values) => {
+    const save = async (values: Plan) => {
         if (!definition) return;
         await onSave({
             id: plan.id,
@@ -60,9 +53,8 @@ export default function TaskForm({
             parameters: values.parameters ?? {},
             schedule: {
                 ...values.schedule,
-                at: ["once", "interval"].includes(values.schedule.kind)
-                    ? new Date(values.atLocal!).getTime()
-                    : undefined,
+                at: ["once", "interval"].includes(values.schedule.kind) ? plan.schedule?.at : undefined,
+                atLocal: ["once", "interval"].includes(values.schedule.kind) ? values.schedule.atLocal : undefined,
             },
         });
     };
@@ -174,7 +166,7 @@ export default function TaskForm({
                     />
                 </Form.Item>
                 {["once", "interval"].includes(kind) && (
-                    <Form.Item name="atLocal" label={res.at} rules={[{ required: true }]}>
+                    <Form.Item name={["schedule", "atLocal"]} label={res.at} rules={[{ required: true }]}>
                         <Input type="datetime-local" />
                     </Form.Item>
                 )}
@@ -184,14 +176,9 @@ export default function TaskForm({
                     </Form.Item>
                 )}
                 {["daily", "weekly"].includes(kind) && (
-                    <>
-                        <Form.Item name={["schedule", "time"]} label={res.time} rules={[{ required: true }]}>
-                            <Input type="time" />
-                        </Form.Item>
-                        <Form.Item name={["schedule", "timezone"]} label={res.timezone} rules={[{ required: true }]}>
-                            <Input />
-                        </Form.Item>
-                    </>
+                    <Form.Item name={["schedule", "time"]} label={res.time} rules={[{ required: true }]}>
+                        <Input type="time" />
+                    </Form.Item>
                 )}
                 {kind === "weekly" && (
                     <Form.Item name={["schedule", "weekdays"]} label={res.weekdays} rules={[{ required: true }]}>

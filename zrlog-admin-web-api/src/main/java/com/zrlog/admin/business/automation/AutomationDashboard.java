@@ -45,6 +45,7 @@ public final class AutomationDashboard {
                             AutomationModels.Definition.class);
             copy.title = text(copy.titleKey);
             copy.description = text(copy.descriptionKey);
+            copy.defaultSchedule = TaskSchedule.forDisplay(copy.defaultSchedule);
             copy.unavailableReason = copy.available ? null : text(copy.unavailableReasonKey);
             for (AutomationModels.Field field : copy.fields) field.label = text(field.labelKey);
             response.definitions.add(copy);
@@ -109,6 +110,7 @@ public final class AutomationDashboard {
                         AutomationStore.JSON.toJson(task), AutomationViews.Task.class);
         if (task.nameKey != null) view.name = text(task.nameKey);
         view.systemTask = task.ownerId == 0;
+        view.schedule = TaskSchedule.forDisplay(view.schedule);
         view.activeRunId = task.activeRun == null ? null : task.activeRun.id;
         return view;
     }
@@ -117,6 +119,8 @@ public final class AutomationDashboard {
         AutomationViews.Run view =
                 AutomationStore.JSON.fromJson(
                         AutomationStore.JSON.toJson(run), AutomationViews.Run.class);
+        if (view.planSnapshot != null)
+            view.planSnapshot.schedule = TaskSchedule.forDisplay(view.planSnapshot.schedule);
         if (run.taskNameKey != null) {
             view.taskName = text(run.taskNameKey);
             if (view.planSnapshot != null) view.planSnapshot.name = view.taskName;

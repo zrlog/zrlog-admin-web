@@ -103,21 +103,19 @@ public final class AutomationProposalService {
                     || candidate.name.length() > 160
                     || candidate.parameters == null
                     || candidate.parameters.toString().length() > 16000) throw invalid();
+            AutomationModels.Schedule schedule;
             try {
-                TaskSchedule.validate(candidate.schedule);
+                schedule = TaskSchedule.normalize(candidate.schedule);
             } catch (IllegalArgumentException error) {
                 throw invalid();
             }
-            if (TaskSchedule.nextAfter(candidate.schedule, System.currentTimeMillis()) == null)
+            if (TaskSchedule.nextAfter(schedule, System.currentTimeMillis()) == null)
                 throw invalid();
             var plan = new AutomationModels.Plan();
             plan.type = definition.type;
             plan.name = candidate.name;
             plan.enabled = false;
-            plan.schedule =
-                    AutomationStore.JSON.fromJson(
-                            AutomationStore.JSON.toJson(candidate.schedule),
-                            AutomationModels.Schedule.class);
+            plan.schedule = TaskSchedule.forDisplay(schedule);
             plan.parameters = new JsonObject();
             for (var field : definition.fields) {
                 if (field.readOnly || field.requiresConfirmation || "article".equals(field.type))

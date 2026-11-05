@@ -1,7 +1,7 @@
 export type Schedule = {
     kind: "once" | "interval" | "daily" | "weekly";
-    timezone: string;
     at?: number;
+    atLocal?: string;
     intervalMinutes?: number;
     time?: string;
     weekdays?: number[];

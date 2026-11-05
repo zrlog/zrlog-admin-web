@@ -23,7 +23,7 @@ public class AIAutomationAssistantTest {
             String proposal =
                     "{\"explanation\":\"Review this reminder.\",\"plans\":[{\"name\":\"Writing plan\","
                             + "\"type\":\"personal.reminder\",\"parameters\":{\"text\":\"Plan writing\"},"
-                            + "\"schedule\":{\"kind\":\"weekly\",\"time\":\"17:00\",\"timezone\":\"Asia/Shanghai\",\"weekdays\":[5]}}]}";
+                            + "\"schedule\":{\"kind\":\"weekly\",\"time\":\"17:00\",\"weekdays\":[5]}}]}";
             var client = client(proposal);
             var service = assistant(db, client);
             var actor = actor(db);
@@ -42,7 +42,13 @@ public class AIAutomationAssistantTest {
                             .get(0)
                             .toString()
                             .contains("personal.reminder"));
-            assertTrue(body.getAsJsonArray("messages").get(0).toString().contains("Asia/Shanghai"));
+            assertTrue(
+                    body.getAsJsonArray("messages")
+                            .get(0)
+                            .toString()
+                            .contains(
+                                    "server timezone: "
+                                            + java.time.ZoneId.systemDefault().getId()));
             assertEquals(
                     "0",
                     db.scalar("select count(*) from website where name like 'assistant.%'")
@@ -107,7 +113,6 @@ public class AIAutomationAssistantTest {
     private static AutomationAssistant.Request request() {
         var request = new AutomationAssistant.Request();
         request.input = "Remind me to plan writing every Friday at 5pm";
-        request.timezone = "Asia/Shanghai";
         return request;
     }
 }

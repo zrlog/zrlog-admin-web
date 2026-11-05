@@ -374,14 +374,12 @@ export default function Automations({
                                     label: res.kind,
                                     children:
                                         detail.planSnapshot.schedule.kind === "once"
-                                            ? date(detail.planSnapshot.schedule.at)
+                                            ? detail.planSnapshot.schedule.atLocal?.replace("T", " ") || res.none
                                             : detail.planSnapshot.schedule.kind === "interval"
                                             ? `${res.minutes}: ${detail.planSnapshot.schedule.intervalMinutes}`
                                             : `${
                                                   detail.planSnapshot.schedule.kind === "daily" ? res.daily : res.weekly
-                                              } ${detail.planSnapshot.schedule.time} (${
-                                                  detail.planSnapshot.schedule.timezone
-                                              })`,
+                                              } ${detail.planSnapshot.schedule.time}`,
                                 },
                                 ...(
                                     overview.definitions.find((item) => item.type === detail.taskType)?.fields ?? []

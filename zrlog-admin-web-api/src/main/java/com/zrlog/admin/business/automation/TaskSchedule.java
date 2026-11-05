@@ -1,20 +1,63 @@
 package com.zrlog.admin.business.automation;
 
 import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 
 /**
- * Wall-clock schedules retain their timezone; intervals are anchored to their initial timestamp.
+ * Wall-clock schedules use the server timezone; intervals are anchored to their initial timestamp.
  */
 public final class TaskSchedule {
     private TaskSchedule() {}
 
+    static AutomationModels.Schedule normalize(AutomationModels.Schedule schedule) {
+        if (schedule == null) throw new IllegalArgumentException("automation.invalidSchedule");
+        var copy =
+                AutomationStore.JSON.fromJson(
+                        AutomationStore.JSON.toJson(schedule), AutomationModels.Schedule.class);
+        if (copy.atLocal != null && ("once".equals(copy.kind) || "interval".equals(copy.kind))) {
+            try {
+                var local = LocalDateTime.parse(copy.atLocal);
+                var zone = ZoneId.systemDefault();
+                // Keep the original seconds and repeated daylight-saving hour when unchanged.
+                var previous =
+                        copy.at == null
+                                ? null
+                                : Instant.ofEpochMilli(copy.at).atZone(zone).toLocalDateTime();
+                if (previous == null
+                        || !local.equals(previous)
+                                && !local.equals(previous.truncatedTo(ChronoUnit.MINUTES)))
+                    copy.at = local.atZone(zone).toInstant().toEpochMilli();
+            } catch (DateTimeException error) {
+                throw new IllegalArgumentException("automation.invalidSchedule", error);
+            }
+        }
+        copy.atLocal = null;
+        validate(copy);
+        return copy;
+    }
+
+    static AutomationModels.Schedule forDisplay(AutomationModels.Schedule schedule) {
+        if (schedule == null) return null;
+        var copy =
+                AutomationStore.JSON.fromJson(
+                        AutomationStore.JSON.toJson(schedule), AutomationModels.Schedule.class);
+        copy.atLocal =
+                copy.at == null
+                        ? null
+                        : Instant.ofEpochMilli(copy.at)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDateTime()
+                                .truncatedTo(ChronoUnit.MINUTES)
+                                .toString();
+        return copy;
+    }
+
     public static void validate(AutomationModels.Schedule schedule) {
-        if (schedule == null || schedule.kind == null || schedule.timezone == null) {
+        if (schedule == null || schedule.kind == null) {
             throw new IllegalArgumentException("automation.invalidSchedule");
         }
         try {
-            ZoneId.of(schedule.timezone);
             switch (schedule.kind) {
                 case "once":
                     if (schedule.at == null || schedule.at <= 0)
@@ -61,7 +104,7 @@ public final class TaskSchedule {
             return Math.addExact(
                     schedule.at, Math.multiplyExact((after - schedule.at) / period + 1, period));
         }
-        ZoneId zone = ZoneId.of(schedule.timezone);
+        ZoneId zone = ZoneId.systemDefault();
         LocalDate date = Instant.ofEpochMilli(after).atZone(zone).toLocalDate();
         LocalTime time = LocalTime.parse(schedule.time);
         Set<Integer> weekdays =

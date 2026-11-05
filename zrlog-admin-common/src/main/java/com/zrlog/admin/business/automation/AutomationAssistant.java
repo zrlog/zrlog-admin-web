@@ -2,7 +2,6 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.common.Validator;
 import com.zrlog.data.security.AccountAccess;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,16 +18,10 @@ public interface AutomationAssistant {
 
     class Request implements Validator {
         public String input;
-        public String timezone;
 
         @Override
         public void doValid() {
-            if (input == null || input.isBlank() || input.length() > 4000 || timezone == null) {
-                throw new IllegalArgumentException("automation.invalidProposalRequest");
-            }
-            try {
-                ZoneId.of(timezone);
-            } catch (java.time.DateTimeException error) {
+            if (input == null || input.isBlank() || input.length() > 4000) {
                 throw new IllegalArgumentException("automation.invalidProposalRequest");
             }
         }
