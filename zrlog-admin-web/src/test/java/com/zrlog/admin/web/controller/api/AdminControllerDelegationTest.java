@@ -1546,7 +1546,11 @@ public class AdminControllerDelegationTest {
             var executions = upgradeExecutions(db);
             var job = new DockerUpdaterProtocol.Job();
             job.id = "browser-request-1234";
+            job.version = "4.0.0-SNAPSHOT";
+            job.buildId = "1234567";
+            job.channel = "preview";
             job.phase = "queued";
+            job.message = "internal updater diagnostics";
             var submissions = new AtomicInteger();
             var client =
                     new DockerControlStub() {
@@ -1556,6 +1560,7 @@ public class AdminControllerDelegationTest {
                             submissions.incrementAndGet();
                             assertEquals(job.id, request.requestId);
                             assertEquals("4.0.0-SNAPSHOT", request.version);
+                            assertEquals("1234567", request.buildId);
                             assertEquals("preview", request.channel);
                             return job;
                         }
@@ -1615,7 +1620,20 @@ public class AdminControllerDelegationTest {
             setControllerResponse(controller, recorder.response());
             controller.doUpgrade();
             assertEquals(1, submissions.get());
-            assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
+            ApiStandardResponse<?> submitted = (ApiStandardResponse<?>) recorder.renderedJson;
+            DockerUpgradeJobResponse queued = (DockerUpgradeJobResponse) submitted.getData();
+            assertEquals(0, submitted.getError());
+            assertEquals(job.id, queued.id);
+            assertEquals(job.version, queued.version);
+            assertEquals(job.buildId, queued.buildId);
+            assertEquals(job.channel, queued.channel);
+            assertEquals("queued", queued.phase);
+            assertFalse(queued.message.isEmpty());
+            assertEquals(
+                    I18nUtil.getBackendStringFromRes("admin.upgrade.docker.queued"),
+                    queued.message);
+            assertEquals(queued.message, submitted.getMessage());
+            assertNull(queued.detail);
             assertUpgradeAuditContent(db, "4.0.0-SNAPSHOT");
             job.phase = "succeeded";
             setControllerRequest(
@@ -1627,7 +1645,22 @@ public class AdminControllerDelegationTest {
                             Map.of(),
                             null));
             controller.dockerStatus();
-            assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
+            ApiStandardResponse<?> recovered = (ApiStandardResponse<?>) recorder.renderedJson;
+            DockerUpgradeJobResponse succeeded = (DockerUpgradeJobResponse) recovered.getData();
+            assertEquals(0, recovered.getError());
+            assertEquals(job.id, succeeded.id);
+            assertEquals(job.version, succeeded.version);
+            assertEquals(job.buildId, succeeded.buildId);
+            assertEquals(job.channel, succeeded.channel);
+            assertEquals("succeeded", succeeded.phase);
+            assertFalse(succeeded.message.isEmpty());
+            assertEquals(
+                    I18nUtil.getBackendStringFromRes("admin.upgrade.docker.succeeded"),
+                    succeeded.message);
+            assertEquals(succeeded.message, recovered.getMessage());
+            assertNull(succeeded.detail);
+            assertEquals("queued", queued.phase);
+            assertEquals("internal updater diagnostics", job.message);
             for (String action : List.of("doUpgrade", "docker-status")) {
                 ResponseRecorder stream = new ResponseRecorder();
                 setControllerResponse(controller, stream.response());
@@ -1652,10 +1685,8 @@ public class AdminControllerDelegationTest {
                 assertTrue(stream.stream.contains("event: response\n"));
                 assertTrue(stream.stream.contains("\"finish\":true"));
                 assertFalse(stream.stream.contains("\"message\":\"\""));
-                assertTrue(
-                        stream.stream.contains(
-                                I18nUtil.getAdminBackendStringFromRes(
-                                        "admin.upgrade.docker.succeeded")));
+                assertTrue(stream.stream.contains(succeeded.message));
+                assertFalse(stream.stream.contains(job.message));
                 assertEquals(null, stream.renderedJson);
             }
             assertEquals(2, submissions.get());

@@ -226,6 +226,7 @@ public class UploadActorBoundaryTest {
                                                         response
                                                     };
                                                 }
+                                                if (method.getName().equals("stop")) return true;
                                                 return null;
                                             }));
             var file = temporary.newFile("cloud.png");
