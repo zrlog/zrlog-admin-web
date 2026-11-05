@@ -133,7 +133,12 @@ public class HostAutomaticUpgradeOperationsTest {
             var updater = UpdaterHosts.adapt(new UpdateSession(host, docker));
             var operations =
                     new HostAutomaticUpgradeOperations(
-                            null,
+                            new com.zrlog.business.service.UpgradeService(
+                                    () -> updater,
+                                    new com.zrlog.business.service.UpgradeNoticeService(
+                                            () -> true, settings),
+                                    null,
+                                    settings),
                             settings,
                             () -> null,
                             () -> updater,

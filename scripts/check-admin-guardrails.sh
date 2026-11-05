@@ -52,6 +52,18 @@ else
 fi
 echo "OK"
 
+section "Updater implementation boundary"
+if rg -n 'DockerControl|DockerUpdaterProtocol|com\.zrlog\.updater\.docker|dockerStatus|upgrade/docker-status' \
+    zrlog-admin-*/src/main/java zrlog-admin-web-ui/src/main/frontend/src \
+    --glob '*.java' --glob '*.ts' --glob '*.tsx' --glob '!*.test.ts' --glob '!*.test.tsx'; then
+    echo "Admin must consume UpdateOperations; Docker protocol and status mapping belong to updater." >&2
+    exit 1
+else
+    status=$?
+    if [ "$status" -ne 1 ]; then exit "$status"; fi
+fi
+echo "OK"
+
 scan "Frontend i18n access and fallback candidates" \
     'getRes\(\)\[|\bres\[|adminI18nAliases|getRes\(\)(\.[A-Za-z0-9_]+)+\s*\|\|\s*["'\'']' \
     zrlog-admin-web-ui/src \

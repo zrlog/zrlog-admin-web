@@ -6,7 +6,7 @@ import { UpgradeData, UpgradeExecution } from "../type";
 import Upgrade, { UpgradeProps } from "./upgrade";
 import { getVersion } from "../api";
 import { finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
-import { DockerUpgradeJob, DockerUpgradeRequest, readDockerUpgrade, saveDockerUpgrade } from "../utils/docker-upgrade";
+import { UpgradeTask, UpgradeTaskRequest, readUpgradeTask, saveUpgradeTask } from "../utils/upgrade-task";
 
 const mockGet = jest.fn<Promise<any>, [string, unknown]>();
 const mockUpgrade = jest.fn<Promise<any>, [string, any]>();
@@ -115,7 +115,22 @@ const initialData = (): UpgradeData => ({
     upgrade: true,
     onlineUpgradable: true,
     disableUpgradeReason: "",
-    version: { buildId: "old", version: "4.0.0", type: "standard", changeLog: "" },
+    version: {
+        buildId: "old",
+        version: "4.0.0",
+        artifactVersion: "4.0.0",
+        channel: "release",
+        type: "standard",
+        changeLog: "",
+    },
+    taskMessages: {
+        restoring: "Checking the existing update task",
+        retrySubmission: "Retry the same task",
+        unknown:
+            "The task result could not be confirmed. Reopen this page later to check; do not submit another update.",
+        failed: "The image update did not complete. Check the deployment before continuing.",
+        storageUnavailable: "Unable to save the update task. Allow browser storage and retry.",
+    },
     backupProtection: {
         ready: false,
         requiresRiskAcceptance: true,
@@ -175,7 +190,10 @@ describe("upgrade readiness actions", () => {
     const check = () => button("Refresh Check");
     const execute = () => button("Update Now");
 
+    const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
     beforeEach(() => {
+        Object.defineProperty(globalThis, "crypto", { configurable: true, value: require("crypto").webcrypto });
+        localStorage.clear();
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         mockGet.mockReset();
         mockUpgrade.mockReset();
@@ -188,6 +206,8 @@ describe("upgrade readiness actions", () => {
         act(() => root.unmount());
         container.remove();
         jest.restoreAllMocks();
+        localStorage.clear();
+        if (originalCrypto) Object.defineProperty(globalThis, "crypto", originalCrypto);
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
     });
 
@@ -234,7 +254,11 @@ describe("upgrade readiness actions", () => {
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
             expect.objectContaining({
-                body: { upgradeRiskAccepted: true, reviewedExecutionId: "new-execution" },
+                body: expect.objectContaining({
+                    upgradeRiskAccepted: true,
+                    reviewedExecutionId: "new-execution",
+                    task: expect.objectContaining({ buildId: "old" }),
+                }),
             })
         );
     });
@@ -304,7 +328,12 @@ describe("upgrade readiness actions", () => {
         expect(mockUpgrade).toHaveBeenCalledTimes(1);
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
-            expect.objectContaining({ body: { upgradeRiskAccepted: true } })
+            expect.objectContaining({
+                body: expect.objectContaining({
+                    upgradeRiskAccepted: true,
+                    task: expect.objectContaining({ buildId: "new" }),
+                }),
+            })
         );
         expect(container.querySelector("[data-backup]")).toBeNull();
     });
@@ -404,7 +433,7 @@ describe("Docker upgrade interaction and recovery", () => {
     let root: Root;
     let container: HTMLDivElement;
     const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
-    const request: DockerUpgradeRequest = {
+    const request: UpgradeTaskRequest = {
         requestId: "docker-request-1234567890",
         version: "4.0.0-SNAPSHOT",
         buildId: "adminweb-1234567",
@@ -413,7 +442,6 @@ describe("Docker upgrade interaction and recovery", () => {
     const page = (): UpgradeData => ({
         ...initialData(),
         dockerMode: true,
-        dockerUpdaterAvailable: true,
         version: {
             ...initialData().version!,
             buildId: request.buildId,
@@ -421,9 +449,16 @@ describe("Docker upgrade interaction and recovery", () => {
             channel: request.channel,
         },
     });
-    const job = (phase: DockerUpgradeJob["phase"], changes: Partial<DockerUpgradeJob> = {}) => ({
+    const job = (state: UpgradeTask["state"], changes: Partial<UpgradeTask> = {}) => ({
         error: 0,
-        data: { ...request, id: request.requestId, phase, recoveryRequired: false, ...changes },
+        data: {
+            ...request,
+            id: request.requestId,
+            state,
+            stage: state === "succeeded" ? "complete" : state === "running" ? "restart" : "error",
+            recoveryRequired: false,
+            ...changes,
+        },
     });
     const render = async (changes: Partial<UpgradeProps> = {}) => {
         await act(async () =>
@@ -454,6 +489,7 @@ describe("Docker upgrade interaction and recovery", () => {
         mockSubscribe.mockReset();
         mockUpgrade.mockReset();
         jest.mocked(getVersion).mockReset();
+        jest.mocked(getVersion).mockResolvedValue({ error: 0, data: { buildId: "old-build" } } as any);
         Object.defineProperty(globalThis, "crypto", { configurable: true, value: require("crypto").webcrypto });
         localStorage.clear();
         container = document.createElement("div");
@@ -482,28 +518,28 @@ describe("Docker upgrade interaction and recovery", () => {
         await tick();
         expect(mockSubscribe).not.toHaveBeenCalled();
         expect(getVersion).not.toHaveBeenCalled();
-        expect(readDockerUpgrade()).toBeUndefined();
+        expect(readUpgradeTask()).toBeUndefined();
         expect(mockUpgrade).toHaveBeenCalledTimes(1);
         expect(container.textContent).toContain("An update is running or awaiting confirmation");
     });
 
     it("saves before the SSE submission and uses the common restart check after a lost stream", async () => {
-        let savedAtSubmission: DockerUpgradeRequest | undefined;
+        let savedAtSubmission: UpgradeTaskRequest | undefined;
         mockUpgrade.mockImplementation(async () => {
-            savedAtSubmission = readDockerUpgrade();
+            savedAtSubmission = readUpgradeTask();
             throw new Error("response lost during replacement");
         });
         jest.mocked(getVersion).mockResolvedValue({ data: { buildId: "old-build" } } as any);
         await render();
         await act(async () => (container.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
         await click("Update Now");
-        const saved = readDockerUpgrade();
+        const saved = readUpgradeTask();
         expect(savedAtSubmission).toEqual(saved);
         expect(saved).toEqual({ ...request, requestId: expect.stringMatching(/^[0-9a-f]{32}$/) });
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
             expect.objectContaining({
-                body: { upgradeRiskAccepted: true, docker: saved },
+                body: { upgradeRiskAccepted: true, task: saved },
                 waitForComplete: true,
             })
         );
@@ -516,7 +552,7 @@ describe("Docker upgrade interaction and recovery", () => {
     });
 
     it.each([true, false])("recovers using one SSE subscription, with version metadata=%s", async (metadata) => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockResolvedValue({ error: 0, data: { finish: true, message: "" } });
         jest.mocked(getVersion).mockResolvedValueOnce({ data: { buildId: "old-build" } } as any);
         jest.mocked(getVersion).mockResolvedValueOnce({ data: { buildId: request.buildId } } as any);
@@ -525,22 +561,22 @@ describe("Docker upgrade interaction and recovery", () => {
         await render({ data: { ...page(), upgrade: false, version: metadata ? page().version : undefined } });
         expect(container.textContent).not.toContain("No update is waiting to be installed");
         expect(mockSubscribe).toHaveBeenCalledWith(
-            "/api/admin/upgrade/docker-status?requestId=" + request.requestId,
+            "/api/admin/upgrade/status?requestId=" + request.requestId,
             expect.objectContaining({ waitForComplete: true, responseEvents: ["response"] })
         );
         expect(mockModal.success).not.toHaveBeenCalled();
-        expect(readDockerUpgrade()).toEqual(request);
+        expect(readUpgradeTask()).toEqual(request);
         await tick();
         expect(mockUpgrade).toHaveBeenCalledWith("/api/admin/static-site/sync", expect.anything());
         expect(mockModal.success).toHaveBeenCalledTimes(1);
-        expect(readDockerUpgrade()).toBeUndefined();
+        expect(readUpgradeTask()).toBeUndefined();
         await tick();
         expect(mockSubscribe).toHaveBeenCalledTimes(1);
         expect(mockGet).not.toHaveBeenCalled();
     });
 
     it("shows recovery while the saved task is loading without version metadata", async () => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockReturnValue(deferred().promise);
         await render({ data: { ...page(), upgrade: false, onlineUpgradable: false, version: null } });
         expect(container.textContent).toContain("Checking the existing update task");
@@ -552,7 +588,7 @@ describe("Docker upgrade interaction and recovery", () => {
     });
 
     it.each(["failed", "interrupted"] as const)("renders the standard terminal error for %s", async (phase) => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockImplementation(async (_path, options) => {
             options.onEvent({
                 event: "upgrade-progress",
@@ -566,7 +602,7 @@ describe("Docker upgrade interaction and recovery", () => {
             return { error: 1, message: phase, data: { finish: false } };
         });
         await render();
-        expect(readDockerUpgrade()).toBeUndefined();
+        expect(readUpgradeTask()).toBeUndefined();
         expect(container.textContent).toContain("Inspect the updater task before recovery");
         expect(getVersion).not.toHaveBeenCalled();
         expect(mockModal.success).not.toHaveBeenCalled();
@@ -575,7 +611,7 @@ describe("Docker upgrade interaction and recovery", () => {
     });
 
     it("does not mistake a terminal error followed by disconnect for replacement", async () => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockImplementation(async (_path, options) => {
             options.onEvent({
                 event: "upgrade-progress",
@@ -585,11 +621,11 @@ describe("Docker upgrade interaction and recovery", () => {
         });
         await render();
         expect(getVersion).not.toHaveBeenCalled();
-        expect(readDockerUpgrade()).toBeUndefined();
+        expect(readUpgradeTask()).toBeUndefined();
     });
 
     it.each([null, undefined])("retries the same missing task only on an explicit click (%s)", async (data) => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockResolvedValue({ error: 0, data });
         mockUpgrade.mockReturnValue(deferred().promise);
         await render();
@@ -601,10 +637,22 @@ describe("Docker upgrade interaction and recovery", () => {
         expect(mockUpgrade).toHaveBeenCalledWith(
             "/api/admin/upgrade/doUpgrade",
             expect.objectContaining({
-                body: { upgradeRiskAccepted: true, docker: request },
+                body: { upgradeRiskAccepted: true, task: request },
             })
         );
-        expect(readDockerUpgrade()).toEqual(request);
+        expect(readUpgradeTask()).toEqual(request);
+    });
+
+    it("confirms a replaced host before retrying a missing receipt", async () => {
+        saveUpgradeTask(request);
+        mockSubscribe.mockResolvedValue({ error: 0, data: null });
+        jest.mocked(getVersion).mockResolvedValue({ error: 0, data: { buildId: request.buildId } } as any);
+        mockGet.mockResolvedValue({ error: 0, data: {} });
+        await render();
+        await tick();
+        expect(readUpgradeTask()).toBeUndefined();
+        expect(mockUpgrade.mock.calls.some(([path]) => path === "/api/admin/upgrade/doUpgrade")).toBe(false);
+        expect(container.textContent).not.toContain("Retry the same task");
     });
 
     it("recovers a rejected submission by ID without another POST", async () => {
@@ -616,22 +664,22 @@ describe("Docker upgrade interaction and recovery", () => {
         await tick();
         expect(mockUpgrade).toHaveBeenCalledTimes(1);
         expect(mockSubscribe).toHaveBeenCalledTimes(1);
-        expect(readDockerUpgrade()).toBeDefined();
+        expect(readUpgradeTask()).toBeDefined();
         expect(container.textContent).toContain("Retry the same task");
-        expect(getVersion).not.toHaveBeenCalled();
+        expect(getVersion).toHaveBeenCalledTimes(1);
     });
 
     it("retains the request and rejects a mismatched JSON fallback", async () => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockResolvedValue(job("succeeded", { id: "another-request-1234567890" }));
         await render();
-        expect(readDockerUpgrade()).toEqual(request);
+        expect(readUpgradeTask()).toEqual(request);
         expect(getVersion).not.toHaveBeenCalled();
         expect(mockModal.success).not.toHaveBeenCalled();
     });
 
     it.each(["failed", "interrupted"] as const)("rejects %s in the JSON fallback", async (phase) => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         mockSubscribe.mockResolvedValue(
             job(phase, {
                 recoveryRequired: true,
@@ -640,17 +688,17 @@ describe("Docker upgrade interaction and recovery", () => {
             })
         );
         await render();
-        expect(readDockerUpgrade()).toBeUndefined();
+        expect(readUpgradeTask()).toBeUndefined();
         expect(getVersion).not.toHaveBeenCalled();
         expect(container.textContent).toContain("Server: task stopped");
         expect(container.textContent).toContain("Server: inspect recovery evidence");
     });
 
-    it.each(["pulling", "succeeded"] as const)(
+    it.each(["running", "succeeded"] as const)(
         "verifies %s JSON snapshots before completing progress",
         async (phase) => {
-            saveDockerUpgrade(request);
-            mockSubscribe.mockResolvedValue(job(phase));
+            saveUpgradeTask(request);
+            mockSubscribe.mockResolvedValueOnce(job(phase)).mockResolvedValue(job("succeeded"));
             jest.mocked(getVersion)
                 .mockResolvedValueOnce({ data: { buildId: "old-build" } } as any)
                 .mockResolvedValue({ data: { buildId: request.buildId } } as any);
@@ -661,15 +709,16 @@ describe("Docker upgrade interaction and recovery", () => {
             );
             expect(mockModal.success).not.toHaveBeenCalled();
             await tick();
+            if (phase === "running") await tick();
             expect(container.querySelectorAll('[role="listitem"][aria-busy="true"]')).toHaveLength(0);
             expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("100");
             expect(mockModal.success).toHaveBeenCalledTimes(1);
-            expect(readDockerUpgrade()).toBeUndefined();
+            expect(readUpgradeTask()).toBeUndefined();
         }
     );
 
     it.each(["offline", "unmount"])("aborts the stream and ignores late events after %s", async (transition) => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         const pending = deferred();
         mockSubscribe.mockReturnValueOnce(pending.promise);
         await render();
@@ -686,11 +735,11 @@ describe("Docker upgrade interaction and recovery", () => {
         });
         await tick();
         expect(getVersion).not.toHaveBeenCalled();
-        expect(readDockerUpgrade()).toEqual(request);
+        expect(readUpgradeTask()).toEqual(request);
     });
 
     it("opens one new subscription on reconnect and ignores the previous stream", async () => {
-        saveDockerUpgrade(request);
+        saveUpgradeTask(request);
         const previous = deferred();
         mockSubscribe.mockReturnValueOnce(previous.promise);
         mockSubscribe.mockReturnValue(deferred().promise);
@@ -700,7 +749,7 @@ describe("Docker upgrade interaction and recovery", () => {
         await act(async () => previous.resolve({ error: 1, message: "old rejection" }));
         await tick();
         expect(mockSubscribe).toHaveBeenCalledTimes(2);
-        expect(readDockerUpgrade()).toEqual(request);
+        expect(readUpgradeTask()).toEqual(request);
         expect(mockUpgrade).not.toHaveBeenCalled();
         expect(mockMessage.error).not.toHaveBeenCalled();
     });
@@ -727,7 +776,6 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
             ...initialData(),
             onlineUpgradable: online,
             dockerMode: docker,
-            dockerUpdaterAvailable: docker,
             version: { ...initialData().version!, buildId: targetBuild, artifactVersion: "4.0.0", channel: "release" },
         };
         await act(async () =>
@@ -827,7 +875,7 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
             expect(running()).toHaveLength(0);
             expect(mockModal.success).toHaveBeenCalledTimes(1);
             expect(mockUpgrade.mock.calls.filter(([path]) => path === "/api/admin/upgrade/doUpgrade")).toHaveLength(1);
-            expect(readDockerUpgrade()).toBeUndefined();
+            expect(readUpgradeTask()).toBeUndefined();
         }
     );
 

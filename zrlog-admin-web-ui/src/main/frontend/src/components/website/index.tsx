@@ -104,16 +104,17 @@ export interface AIModelEntry {
 }
 
 export interface Upgrade {
-    dockerMode?: boolean;
-    dockerRepository?: string;
-    dockerSettings?: {
-        settings: { repository: string; channel: string };
-        currentRepository: string;
-        images: { repository: string; platforms: string[] }[];
+    updateSource?: string;
+    sourceSettings?: {
+        managedByUpdater: boolean;
+        source: string;
+        channel: string;
+        label: string;
+        description: string;
+        options: { value: string; label: string }[];
+        errorCode?: string;
+        errorMessage?: string;
     };
-    dockerErrorCode?: string;
-    dockerErrorMessage?: string;
-    upgradePackageSource?: "dl" | "github";
     autoUpgradeVersion: number;
     scheduleManaged?: boolean;
     upgradePreview: boolean;

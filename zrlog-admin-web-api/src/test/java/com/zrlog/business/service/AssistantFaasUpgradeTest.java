@@ -80,7 +80,7 @@ public class AssistantFaasUpgradeTest {
         var transport =
                 new UpdateHttp() {
                     public String read(URI uri) {
-                        throw new AssertionError("No catalog read during submission");
+                        return manifest();
                     }
 
                     public int download(URI uri, File file) throws Exception {
@@ -130,7 +130,7 @@ public class AssistantFaasUpgradeTest {
         var transport =
                 new UpdateHttp() {
                     public String read(URI uri) {
-                        throw new AssertionError();
+                        return manifest();
                     }
 
                     public int download(URI uri, File file) throws Exception {
@@ -155,6 +155,8 @@ public class AssistantFaasUpgradeTest {
             throws Exception {
         var builder = new UpdateContext.Builder();
         builder.lambda = lambda;
+        builder.metadataOrigin = "https://packages.example.invalid";
+        builder.manifestFilename = "update.json";
         builder.updateTemp = temporary.newFolder();
         builder.http = http;
         builder.aws =
@@ -209,6 +211,12 @@ public class AssistantFaasUpgradeTest {
         version.setZipFileSize(3);
         version.setZipSha256("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");
         return version;
+    }
+
+    private static String manifest() {
+        Version version = target();
+        version.setReleaseDate("2026-11-05 00:00:00+08:00");
+        return new com.google.gson.Gson().toJson(version);
     }
 
     private static UpdateHttp noNetwork() {

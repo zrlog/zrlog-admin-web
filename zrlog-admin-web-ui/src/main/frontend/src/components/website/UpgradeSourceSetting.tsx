@@ -6,7 +6,7 @@ import { getRes } from "../../utils/constants";
 import type { Upgrade } from "./index";
 import { getErrorMessage } from "../../utils/error-message";
 
-export default function DockerRepositorySetting({
+export default function UpgradeSourceSetting({
     data,
     value,
     onChange,
@@ -22,9 +22,9 @@ export default function DockerRepositorySetting({
     preview: boolean;
 }) {
     const axiosInstance = useAxiosBaseInstance();
-    const [settings, setSettings] = useState(data.dockerSettings);
+    const [settings, setSettings] = useState(data.sourceSettings);
     const [error, setError] = useState(
-        data.dockerErrorMessage || (data.dockerErrorCode ? getRes().websiteUpgrade.repositoryUnavailable : undefined)
+        data.sourceSettings?.errorMessage || (data.sourceSettings?.errorCode ? getRes().error.requestError : undefined)
     );
     const [busy, setBusy] = useState(false);
     const operation = useRef(0);
@@ -37,19 +37,23 @@ export default function DockerRepositorySetting({
             const requestConfig = { params: { channel: preview ? "preview" : "release" }, showError: false };
             const response = await axiosInstance.get<ApiResponse<Upgrade>>("/api/admin/system/upgrade", requestConfig);
             if (request !== operation.current) return;
-            if (response.data.error || !response.data.data?.dockerSettings?.images) {
+            if (
+                response.data.error ||
+                !response.data.data?.sourceSettings?.options ||
+                response.data.data.sourceSettings.errorCode ||
+                response.data.data.sourceSettings.errorMessage
+            ) {
                 setError(
-                    response.data.data?.dockerErrorMessage ||
+                    response.data.data?.sourceSettings?.errorMessage ||
                         response.data.message ||
-                        getRes().websiteUpgrade.repositoryUnavailable
+                        getRes().error.requestError
                 );
                 return;
             }
-            setSettings(response.data.data.dockerSettings);
+            setSettings(response.data.data.sourceSettings);
             setError(undefined);
         } catch (failure) {
-            if (request === operation.current)
-                setError(getErrorMessage(failure, getRes().websiteUpgrade.repositoryUnavailable));
+            if (request === operation.current) setError(getErrorMessage(failure, getRes().error.requestError));
         } finally {
             if (request === operation.current) {
                 setBusy(false);
@@ -59,10 +63,10 @@ export default function DockerRepositorySetting({
     }, [axiosInstance, preview, onLoadingChange]);
     useEffect(() => {
         operation.current += 1;
-        setSettings(data.dockerSettings);
+        setSettings(data.sourceSettings);
         setError(
-            data.dockerErrorMessage ||
-                (data.dockerErrorCode ? getRes().websiteUpgrade.repositoryUnavailable : undefined)
+            data.sourceSettings?.errorMessage ||
+                (data.sourceSettings?.errorCode ? getRes().error.requestError : undefined)
         );
         setBusy(false);
         onLoadingChange(false);
@@ -81,27 +85,17 @@ export default function DockerRepositorySetting({
         []
     );
 
-    const repository = value ?? settings?.settings.repository;
-    const repositories = new Set(settings?.images.map((image) => image.repository));
-    if (repository) repositories.add(repository);
+    const repository = value ?? settings?.source;
     return (
         <Space orientation="vertical" style={{ width: "100%" }}>
             <Select
-                aria-label={getRes().websiteUpgrade.dockerRepository}
+                aria-label={settings?.label}
                 value={repository}
                 onChange={onChange}
                 disabled={disabled || busy || !!error || !settings}
                 loading={busy}
                 style={{ width: "100%" }}
-                options={[
-                    {
-                        value: "",
-                        label: settings?.currentRepository
-                            ? `${getRes().websiteUpgrade.currentRepository} (${settings.currentRepository})`
-                            : getRes().websiteUpgrade.currentRepository,
-                    },
-                    ...Array.from(repositories).map((repository) => ({ value: repository, label: repository })),
-                ]}
+                options={settings?.options || []}
             />
             {error && (
                 <Alert

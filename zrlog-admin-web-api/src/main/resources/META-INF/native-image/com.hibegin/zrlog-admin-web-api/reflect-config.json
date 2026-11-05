@@ -179,7 +179,7 @@
         "parameterTypes": []
       },
       {
-        "name": "dockerStatus",
+        "name": "status",
         "parameterTypes": []
       }
     ]

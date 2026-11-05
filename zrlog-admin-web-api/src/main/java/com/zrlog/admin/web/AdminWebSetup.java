@@ -32,7 +32,6 @@ import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.plugin.Plugins;
@@ -399,8 +398,9 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                         zrLogConfig.getPlugin(
                                                                 UpdateVersionInfoPlugin.class),
                                                 () ->
-                                                        UpdaterHosts.dockerControl(
-                                                                zrLogConfig.getUpdater()),
+                                                        r.get(ServiceComponent.class)
+                                                                .upgrades()
+                                                                .operations(),
                                                 r.get(SystemInfoUtils.class),
                                                 this::staticHtmlEnabled,
                                                 () ->

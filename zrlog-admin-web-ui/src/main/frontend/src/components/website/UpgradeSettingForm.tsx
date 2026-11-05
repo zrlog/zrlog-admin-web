@@ -16,7 +16,7 @@ import { ApiResponse, UpgradeData } from "../../type";
 import axios, { AxiosResponse, CancelTokenSource } from "axios";
 import UpgradeContent from "../upgrade-content";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
-import DockerRepositorySetting from "./DockerRepositorySetting";
+import UpgradeSourceSetting from "./UpgradeSourceSetting";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 import { hasAction } from "../../utils/account-access";
 
@@ -38,7 +38,6 @@ const UpgradeSettingForm = ({
     loading?: boolean;
     onSubmit: (data: Upgrade) => void;
 }) => {
-    const dockerMode = data.dockerMode === true;
     const canUpgrade = hasAction("system.manage");
     const [repositoryLoading, setRepositoryLoading] = useState(false);
     const [checking, setChecking] = useState<boolean>(false);
@@ -134,11 +133,7 @@ const UpgradeSettingForm = ({
                 onSubmit({
                     autoUpgradeVersion: data.scheduleManaged ? data.autoUpgradeVersion : nv.autoUpgradeVersion,
                     upgradePreview: nv.upgradePreview,
-                    ...(dockerMode
-                        ? state.dockerRepository === undefined
-                            ? {}
-                            : { dockerRepository: state.dockerRepository }
-                        : { upgradePackageSource: nv.upgradePackageSource }),
+                    ...(state.updateSource === undefined ? {} : { updateSource: state.updateSource }),
                 });
             }}
         >
@@ -210,36 +205,20 @@ const UpgradeSettingForm = ({
                 <Switch />
             </Form.Item>
 
-            {dockerMode ? (
-                <Form.Item
-                    label={getRes().websiteUpgrade.dockerRepository}
-                    tooltip={getRes().websiteUpgrade.dockerRepositoryTip}
-                    style={formItemStyle}
-                >
-                    <DockerRepositorySetting
-                        data={data}
-                        value={state.dockerRepository}
-                        onChange={(dockerRepository) => setState((current) => ({ ...current, dockerRepository }))}
-                        onLoadingChange={setRepositoryLoading}
-                        disabled={offline || offlineData || !!loading}
-                        preview={!!state.upgradePreview}
-                    />
-                </Form.Item>
-            ) : (
-                <Form.Item
-                    name="upgradePackageSource"
-                    label={getRes().websiteUpgrade.packageSource}
-                    tooltip={getRes().websiteUpgrade.packageSourceTip}
-                    style={formItemStyle}
-                >
-                    <Select
-                        options={[
-                            { value: "dl", label: getRes().websiteUpgrade.dlSource },
-                            { value: "github", label: getRes().websiteUpgrade.githubSource },
-                        ]}
-                    />
-                </Form.Item>
-            )}
+            <Form.Item
+                label={data.sourceSettings?.label}
+                tooltip={data.sourceSettings?.description}
+                style={formItemStyle}
+            >
+                <UpgradeSourceSetting
+                    data={data}
+                    value={state.updateSource}
+                    onChange={(updateSource) => setState((current) => ({ ...current, updateSource }))}
+                    onLoadingChange={setRepositoryLoading}
+                    disabled={offline || offlineData || !!loading}
+                    preview={!!state.upgradePreview}
+                />
+            </Form.Item>
             <WebsiteSubmitBar loading={loading} disabled={offline || offlineData || repositoryLoading} />
         </Form>
     );

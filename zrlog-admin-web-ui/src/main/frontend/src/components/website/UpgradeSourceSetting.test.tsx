@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import DockerRepositorySetting from "./DockerRepositorySetting";
+import UpgradeSourceSetting from "./UpgradeSourceSetting";
 import type { Upgrade } from "./index";
 
 const mockGet = jest.fn<Promise<any>, [string, unknown]>();
@@ -32,11 +32,13 @@ const hub = "docker.io/zrlog/zrlog";
 const initial: Upgrade = {
     autoUpgradeVersion: 86400,
     upgradePreview: true,
-    dockerMode: true,
-    dockerSettings: {
-        settings: { repository: hub, channel: "preview" },
-        currentRepository: aliyun,
-        images: [aliyun, hub].map((repository) => ({ repository, platforms: ["linux/amd64"] })),
+    sourceSettings: {
+        managedByUpdater: true,
+        source: hub,
+        channel: "preview",
+        label: "Docker image repository",
+        description: "Choose a published source",
+        options: [aliyun, hub].map((value) => ({ value, label: value })),
     },
 };
 const response = (repository = hub) => ({
@@ -44,7 +46,7 @@ const response = (repository = hub) => ({
         error: 0,
         data: {
             ...initial,
-            dockerSettings: { ...initial.dockerSettings, settings: { repository, channel: "release" } },
+            sourceSettings: { ...initial.sourceSettings, source: repository, channel: "release" },
         },
     },
 });
@@ -55,7 +57,7 @@ const busy = jest.fn();
 const render = async (data = initial, preview = true, disabled = false, value?: string) => {
     await act(async () =>
         root.render(
-            <DockerRepositorySetting
+            <UpgradeSourceSetting
                 data={data}
                 preview={preview}
                 disabled={disabled}
@@ -134,7 +136,7 @@ test.each([
     ["updater_configuration_mismatch", "The updater configuration is incomplete"],
     ["unexpected private detail", "Unable to load image repositories"],
 ])("explains %s and retries through the existing website endpoint", async (errorCode, message) => {
-    const data = { ...initial, dockerSettings: undefined, dockerErrorCode: errorCode, dockerErrorMessage: message };
+    const data = { ...initial, sourceSettings: { ...initial.sourceSettings!, errorCode, errorMessage: message } };
     await render(data);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(message);
     expect(container.textContent).not.toContain("private");
@@ -147,4 +149,29 @@ test.each([
     });
     expect(select().value).toBe(aliyun);
     expect(container.querySelector('[role="alert"]')).toBeNull();
+});
+
+test("preserves the edited source and backend error when refreshed settings are unavailable", async () => {
+    mockGet.mockResolvedValue({
+        data: {
+            error: 0,
+            data: {
+                ...initial,
+                sourceSettings: {
+                    ...initial.sourceSettings,
+                    options: [],
+                    errorCode: "metadata_unavailable",
+                    errorMessage: "Published sources are temporarily unavailable",
+                },
+            },
+        },
+    });
+    await render();
+    await render(initial, false, false, aliyun);
+    expect(select().value).toBe(aliyun);
+    expect(select().disabled).toBe(true);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        "Published sources are temporarily unavailable"
+    );
+    expect(change).not.toHaveBeenCalled();
 });

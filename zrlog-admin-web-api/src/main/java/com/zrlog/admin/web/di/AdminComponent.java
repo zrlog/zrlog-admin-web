@@ -16,7 +16,7 @@ import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataBindingsModule;
 import com.zrlog.data.di.DataComponent;
-import com.zrlog.updater.spi.DockerControl;
+import com.zrlog.updater.spi.UpdateOperations;
 import dagger.BindsInstance;
 import dagger.Component;
 import jakarta.inject.Named;
@@ -80,7 +80,7 @@ public interface AdminComponent {
                 @BindsInstance Supplier<PluginCorePlugin> plugins,
                 @BindsInstance Supplier<TemplateDownloadPlugin> templates,
                 @BindsInstance Supplier<UpdateVersionInfoPlugin> updates,
-                @BindsInstance Supplier<DockerControl> docker,
+                @BindsInstance Supplier<UpdateOperations> operations,
                 @BindsInstance SystemInfoUtils systemInfo,
                 @BindsInstance BooleanSupplier staticHtml,
                 @BindsInstance @Named("accessAvailable") BooleanSupplier accessAvailable,

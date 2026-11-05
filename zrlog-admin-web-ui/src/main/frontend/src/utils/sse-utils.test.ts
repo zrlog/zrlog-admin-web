@@ -116,10 +116,10 @@ describe("postRefreshCacheSse", () => {
             : {done: true, value: undefined}));
         const controller = new AbortController();
         const onEvent = jest.fn();
-        await expect(getRefreshCacheSse("/upgrade/docker-status?requestId=test", {
+        await expect(getRefreshCacheSse("/upgrade/status?requestId=test", {
             signal: controller.signal, onEvent, waitForComplete: true,
         })).resolves.toEqual({error: 0, data: {finish: true}});
-        expect(mockFetch).toHaveBeenCalledWith("https://api.example/upgrade/docker-status?requestId=test", {
+        expect(mockFetch).toHaveBeenCalledWith("https://api.example/upgrade/status?requestId=test", {
             method: "GET", signal: controller.signal, body: undefined, credentials: "include",
             headers: {"Content-Type": "application/json", Accept: "text/event-stream"},
         });
@@ -134,7 +134,7 @@ describe("postRefreshCacheSse", () => {
         mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
             options!.signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
         }));
-        const request = getRefreshCacheSse("/upgrade/docker-status", {signal: controller.signal});
+        const request = getRefreshCacheSse("/upgrade/status", {signal: controller.signal});
         controller.abort();
         await expect(request).rejects.toMatchObject({name: "AbortError"});
         expect(mockFetch).toHaveBeenCalledTimes(1);

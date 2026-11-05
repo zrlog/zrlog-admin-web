@@ -1,15 +1,17 @@
 package com.zrlog.admin.business.rest.response;
 
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
-import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
+import com.zrlog.updater.spi.UpdateSourceSettings;
 
-/** Initial page data includes the runtime mode even when the updater is unavailable. */
 public class UpgradeSettingsResponse extends UpgradeWebSiteInfo {
-    private final boolean dockerMode;
-    private DockerUpdaterProtocol.SettingsResponse dockerSettings;
-    private String dockerErrorCode;
-    private String dockerErrorMessage;
+    private UpdateSourceSettings sourceSettings;
     private boolean scheduleManaged;
+
+    public UpgradeSettingsResponse(UpgradeWebSiteInfo settings) {
+        setAutoUpgradeVersion(settings.getAutoUpgradeVersion());
+        setUpgradePreview(settings.getUpgradePreview());
+        setUpgradePackageSource(settings.getUpgradePackageSource());
+    }
 
     public boolean isScheduleManaged() {
         return scheduleManaged;
@@ -19,40 +21,11 @@ public class UpgradeSettingsResponse extends UpgradeWebSiteInfo {
         scheduleManaged = value;
     }
 
-    public UpgradeSettingsResponse(UpgradeWebSiteInfo settings, boolean dockerMode) {
-        setAutoUpgradeVersion(settings.getAutoUpgradeVersion());
-        setUpgradePreview(settings.getUpgradePreview());
-        if (!dockerMode) {
-            setUpgradePackageSource(settings.getUpgradePackageSource());
-        }
-        this.dockerMode = dockerMode;
+    public UpdateSourceSettings getSourceSettings() {
+        return sourceSettings;
     }
 
-    public boolean isDockerMode() {
-        return dockerMode;
-    }
-
-    public DockerUpdaterProtocol.SettingsResponse getDockerSettings() {
-        return dockerSettings;
-    }
-
-    public void setDockerSettings(DockerUpdaterProtocol.SettingsResponse value) {
-        dockerSettings = value;
-    }
-
-    public String getDockerErrorCode() {
-        return dockerErrorCode;
-    }
-
-    public void setDockerErrorCode(String value) {
-        dockerErrorCode = value;
-    }
-
-    public String getDockerErrorMessage() {
-        return dockerErrorMessage;
-    }
-
-    public void setDockerErrorMessage(String value) {
-        dockerErrorMessage = value;
+    public void setSourceSettings(UpdateSourceSettings value) {
+        sourceSettings = value;
     }
 }

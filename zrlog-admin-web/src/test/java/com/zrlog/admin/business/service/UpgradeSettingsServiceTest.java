@@ -20,13 +20,11 @@ import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.updater.spi.DockerControl;
 import java.lang.reflect.Proxy;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -45,7 +43,7 @@ public class UpgradeSettingsServiceTest {
         UpgradeSettingsRequest input = new UpgradeSettingsRequest();
         input.setAutoUpgradeVersion(-1);
         input.setUpgradePreview(true);
-        input.setDockerRepository(repository);
+        input.setUpdateSource(repository);
         return input;
     }
 
@@ -212,7 +210,7 @@ public class UpgradeSettingsServiceTest {
                     new Gson()
                             .fromJson(
                                     "{\"autoUpgradeVersion\":-1,\"upgradePreview\":true,"
-                                            + "\"upgradePackageSource\":\"dl\",\"dockerRepository\":\""
+                                            + "\"upgradePackageSource\":\"dl\",\"updateSource\":\""
                                             + ALIYUN
                                             + "\",\"dockerMode\":false}",
                                     UpgradeSettingsRequest.class);
@@ -225,7 +223,7 @@ public class UpgradeSettingsServiceTest {
             assertEquals("github", value(db, "upgradePackageSource"));
             assertEquals("-1", value(db, "autoUpgradeVersion"));
             assertEquals("true", value(db, "upgradePreview"));
-            assertNull(value(db, "dockerRepository"));
+            assertNull(value(db, "updateSource"));
             assertNull(value(db, "dockerMode"));
             assertNull(value(db, "dockerSettings"));
             var response =
@@ -234,10 +232,10 @@ public class UpgradeSettingsServiceTest {
                                     .requestIdentity()
                                     .current(),
                             null);
-            assertTrue(response.isDockerMode());
+            assertTrue(response.getSourceSettings().managedByUpdater);
             assertNull(response.getUpgradePackageSource());
-            assertEquals(ALIYUN, response.getDockerSettings().settings.repository);
-            assertTrue(new Gson().toJson(response).contains("\"dockerMode\":true"));
+            assertEquals(ALIYUN, response.getSourceSettings().source);
+            assertTrue(new Gson().toJson(response).contains("\"managedByUpdater\":true"));
         }
     }
 
@@ -267,7 +265,7 @@ public class UpgradeSettingsServiceTest {
                                     () -> new WebSiteRepository(db.dataSource())),
                             db.dataSource());
             assertThrows(
-                    ArgsException.class,
+                    IllegalArgumentException.class,
                     () ->
                             service.save(
                                     AccountServicesFixture.component(db.dataSource())
@@ -280,7 +278,7 @@ public class UpgradeSettingsServiceTest {
             assertTrue(client.saves.isEmpty());
             client.failSave = true;
             assertThrows(
-                    DockerControl.RequestException.class,
+                    com.zrlog.updater.spi.UpdateOperationException.class,
                     () ->
                             service.save(
                                     AccountServicesFixture.component(db.dataSource())
@@ -331,13 +329,13 @@ public class UpgradeSettingsServiceTest {
                                     .requestIdentity()
                                     .current(),
                             null);
-            assertTrue(page.isDockerMode());
-            assertEquals("metadata_unavailable", page.getDockerErrorCode());
+            assertTrue(page.getSourceSettings().managedByUpdater);
+            assertEquals("metadata_unavailable", page.getSourceSettings().errorCode);
             assertEquals(
-                    com.zrlog.util.I18nUtil.getAdminBackendStringFromRes(
-                            "admin.upgrade.repository.error.metadataUnavailable"),
-                    page.getDockerErrorMessage());
-            assertNull(page.getDockerSettings());
+                    com.zrlog.util.I18nUtil.getBackendStringFromRes(
+                            "upgrade.docker.source.error.metadataUnavailable"),
+                    page.getSourceSettings().errorMessage);
+            assertTrue(page.getSourceSettings().options.isEmpty());
         }
     }
 
@@ -430,7 +428,8 @@ public class UpgradeSettingsServiceTest {
                                             .requestIdentity()
                                             .current(),
                                     null)
-                            .isDockerMode());
+                            .getSourceSettings()
+                            .managedByUpdater);
             assertThrows(
                     ArgsException.class,
                     () ->
@@ -532,21 +531,17 @@ public class UpgradeSettingsServiceTest {
         return new UpgradeSettingsService(
                 settings,
                 () ->
-                        UpdaterHosts.dockerControl(
-                                applicationConfig == null ? null : applicationConfig.getUpdater()),
+                        docker
+                                ? new com.zrlog.updater.docker.DockerUpdateOperations(
+                                        new com.zrlog.updater.spi.UpdateContext.Builder().build(),
+                                        client)
+                                : new com.zrlog.updater.common.PackageUpdateOperations(
+                                        new com.zrlog.updater.spi.UpdateContext.Builder().build(),
+                                        null,
+                                        new com.zrlog.updater.zip.ZipProvider()),
                 AccountServicesFixture.component(testDataSource).permissions(),
                 AccountServicesFixture.component(testDataSource).identities(),
-                ApplicationServicesFixture.settings(testDataSource)) {
-            @Override
-            protected boolean isDockerMode() {
-                return docker;
-            }
-
-            @Override
-            protected DockerControl dockerClient() {
-                return client;
-            }
-        };
+                ApplicationServicesFixture.settings(testDataSource));
     }
 
     private static class Client extends DockerControlStub {

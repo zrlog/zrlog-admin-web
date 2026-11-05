@@ -36,7 +36,13 @@ export type UpgradeData = {
     backupProtectionMessage?: string;
     backupProtectionRecommendation?: string;
     dockerMode?: boolean;
-    dockerUpdaterAvailable?: boolean;
+    taskMessages?: {
+        restoring: string;
+        retrySubmission: string;
+        unknown: string;
+        failed: string;
+        storageUnavailable: string;
+    };
     systemServiceMode?: boolean;
     faasMode?: boolean;
     warMode?: boolean;

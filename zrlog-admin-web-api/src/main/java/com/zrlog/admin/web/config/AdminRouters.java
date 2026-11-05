@@ -122,9 +122,9 @@ public class AdminRouters {
                 UpgradeController.class,
                 "notice");
         router.addMapper(
-                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/docker-status",
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/status",
                 UpgradeController.class,
-                "dockerStatus");
+                "status");
         router.addMapper(
                 "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/system",
                 AdminSystemController.class);

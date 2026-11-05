@@ -954,11 +954,14 @@ paths:
       summary: 执行 ZrLog 站点升级
       description: |-
         需要 `system.manage`。请求必须明确提交 upgradeRiskAccepted=true，与后台升级确认一致。
-        升级到站点配置通道的最新版本，目标由服务端重新检查，不接受任意下载地址、镜像或版本。
+        未传 task 时升级到站点配置通道的最新版本，并保留 finish/message 响应。
+        传入 task 时使用统一升级任务契约，目标版本和 buildId 必须与服务端发布清单匹配；不接受下载地址或镜像参数。
+        requestId 在提交前生成并保存，同一 ID 只能对应同一目标；恢复时查询 status，不自动创建新任务。
         接收 SSE 时发送 upgrade-progress，最终 response 为 UpgradeExecuteResponse；
         sse-error 或缺少 response 的断流表示执行结果未确认，不得自动重试。
-        error=0 仍须检查 data.finish；false 表示未完成，message 提供手动操作说明。
-        finish=true 表示升级处理已完成，不证明重启后的站点可用；调用方需另行验证运行版本。
+        任务响应中的 queued/running 表示已受理或执行中；succeeded 表示目标版本已确认，failed/interrupted 表示执行失败。
+        awaitingRestart 表示应继续验证新版本启动。连接断开或查询失败不证明升级失败。
+        旧请求的 finish=true 表示升级请求已处理，不证明重启后的站点可用；调用方需另行验证运行版本。
       operationId: executeZrLogUpgrade
       x-zrlog-controller: com.zrlog.admin.web.controller.api.UpgradeController#doUpgrade
       x-zrlog-response-kind: action
@@ -980,10 +983,13 @@ paths:
               required: [upgradeRiskAccepted]
               properties:
                 upgradeRiskAccepted: {type: boolean, const: true}
+                reviewedExecutionId: {type: string, description: 明确审核过的上次执行记录 ID}
+                task:
+                  $ref: "#/components/schemas/UpgradeTaskRequest"
             example: {upgradeRiskAccepted: true}
       responses:
         "200":
-          description: 执行结果；检查 error 和 data.finish
+          description: 执行结果；任务请求检查 data.state，旧请求检查 data.finish
           content:
             application/json:
               schema:
@@ -1004,6 +1010,45 @@ paths:
           $ref: "#/components/responses/Forbidden"
         default:
           $ref: "#/components/responses/ApiError"
+  /api/admin/upgrade/status:
+    get:
+      tags: [Upgrade]
+      summary: 查询或订阅升级任务
+      description: |-
+        需要 system.manage。各部署方式共用任务状态和进度契约，不提交或取消升级。
+        data=null 表示无法找到任务，不能将其当作成功或自动重复提交。
+        JSON 返回当前快照；Accept 为 text/event-stream 时订阅标准 upgrade-progress 和最终 response。
+      operationId: getZrLogUpgradeStatus
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.UpgradeController#status
+      x-zrlog-response-kind: action
+      security:
+        - AccessTokenBearer: []
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      parameters:
+        - in: query
+          name: requestId
+          required: true
+          schema: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{15,79}$'}
+      responses:
+        "200":
+          description: 当前任务或最终观察结果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpgradeTaskResponse"
+            text/event-stream:
+              x-zrlog-stream:
+                completionEvent: response
+                errorEvents: [sse-error]
+              schema: {type: string, description: upgrade-progress 与 response 使用统一升级任务契约}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        default:
+          $ref: "#/components/responses/ApiError"
+
 components:
   responses:
     Unauthorized:
@@ -1156,6 +1201,39 @@ components:
         message: {type: string}
         data:
           $ref: "#/components/schemas/UpgradeCheck"
+    UpgradeTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [requestId, version, buildId, channel]
+      properties:
+        requestId: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{15,79}$'}
+        version: {type: string, minLength: 1, maxLength: 200, description: 清单中的完整制品版本，包含 SNAPSHOT 等后缀}
+        buildId: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'}
+        channel: {type: string, enum: [release, preview]}
+    UpgradeTask:
+      type: object
+      required: [id, version, buildId, channel, state, stage, recoveryRequired, awaitingRestart]
+      properties:
+        id: {type: string}
+        version: {type: string}
+        buildId: {type: string}
+        channel: {type: string, enum: [release, preview]}
+        state: {type: string, enum: [queued, running, succeeded, failed, interrupted]}
+        stage: {type: string}
+        message: {type: string, description: updater 提供的当前语言文案}
+        detail: {type: [string, 'null']}
+        recoveryRequired: {type: boolean}
+        awaitingRestart: {type: boolean}
+    UpgradeTaskResponse:
+      type: object
+      required: [error, data]
+      properties:
+        error: {type: integer}
+        message: {type: string}
+        data:
+          oneOf:
+            - $ref: "#/components/schemas/UpgradeTask"
+            - type: 'null'
     UpgradeExecuteResponse:
       type: object
       required: [error, data]
@@ -1163,11 +1241,13 @@ components:
         error: {type: integer}
         message: {type: string}
         data:
-          type: object
-          required: [finish, message]
-          properties:
-            finish: {type: boolean}
-            message: {type: string}
+          oneOf:
+            - $ref: "#/components/schemas/UpgradeTask"
+            - type: object
+              required: [finish, message]
+              properties:
+                finish: {type: boolean}
+                message: {type: string}
     UpgradeProgress:
       type: object
       required: [stage, status, message]

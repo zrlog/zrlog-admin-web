@@ -30,12 +30,13 @@ const submit = jest.fn();
 const data: Upgrade = {
     autoUpgradeVersion: 86400,
     upgradePreview: true,
-    upgradePackageSource: "github",
-    dockerMode: true,
-    dockerSettings: {
-        settings: { repository: "docker.io/zrlog/zrlog", channel: "preview" },
-        currentRepository: "docker.io/zrlog/zrlog",
-        images: [{ repository: "registry.example/zrlog", platforms: ["linux/amd64"] }],
+    sourceSettings: {
+        managedByUpdater: true,
+        source: "docker.io/zrlog/zrlog",
+        channel: "preview",
+        label: "Docker image repository",
+        description: "Choose a published source",
+        options: ["docker.io/zrlog/zrlog", "registry.example/zrlog"].map((value) => ({ value, label: value })),
     },
 };
 beforeEach(() => {
@@ -109,21 +110,32 @@ test("Docker hydration shows only the repository with one final submit and no mo
 test("Docker repository errors use the server message", async () => {
     await render({
         ...data,
-        dockerSettings: undefined,
-        dockerErrorCode: "metadata_unavailable",
-        dockerErrorMessage: "The selected update channel is unavailable. Select another channel",
+        sourceSettings: {
+            ...data.sourceSettings!,
+            errorCode: "metadata_unavailable",
+            errorMessage: "The selected update channel is unavailable. Select another channel",
+        },
     });
     expect(container.textContent).toContain("The selected update channel is unavailable. Select another channel");
 });
 test("package deployments submit only the package source", async () => {
-    await render({ ...data, dockerMode: false, dockerSettings: undefined });
+    await render({
+        ...data,
+        sourceSettings: {
+            managedByUpdater: false,
+            source: "github",
+            channel: "release",
+            label: "Package download source",
+            description: "Published packages",
+            options: [{ value: "github", label: "GitHub Release" }],
+        },
+    });
     expect(container.textContent).not.toContain("Docker image repository");
     expect(container.textContent).toContain("Package download source");
     await save();
     expect(submit).toHaveBeenLastCalledWith({
         autoUpgradeVersion: 86400,
         upgradePreview: true,
-        upgradePackageSource: "github",
     });
     expect(mockGet).not.toHaveBeenCalled();
 });
@@ -139,7 +151,7 @@ test("the common submit includes edited repository and retains it after a failed
     expect(submit).toHaveBeenLastCalledWith({
         autoUpgradeVersion: 86400,
         upgradePreview: true,
-        dockerRepository: "registry.example/zrlog",
+        updateSource: "registry.example/zrlog",
     });
     await save();
     expect(submit).toHaveBeenCalledTimes(2);
@@ -166,7 +178,17 @@ test("offline data keeps the mode visible and cannot submit", async () => {
 
 test("site configuration permission alone does not expose the system upgrade action", async () => {
     mockCanUpgrade = false;
-    await render({ ...data, dockerMode: false, dockerSettings: undefined });
+    await render({
+        ...data,
+        sourceSettings: {
+            managedByUpdater: false,
+            source: "github",
+            channel: "release",
+            label: "Package download source",
+            description: "Published packages",
+            options: [{ value: "github", label: "GitHub Release" }],
+        },
+    });
     expect(container.textContent).not.toContain("Check for Updates");
     expect(container.querySelectorAll('button[type="submit"]')).toHaveLength(1);
     await save();

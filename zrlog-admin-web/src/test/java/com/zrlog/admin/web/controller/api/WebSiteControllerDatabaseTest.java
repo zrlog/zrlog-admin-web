@@ -27,7 +27,6 @@ import com.zrlog.admin.web.controller.ai.AIWebSiteController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.plugin.BaseStaticSitePlugin;
@@ -792,9 +791,7 @@ public class WebSiteControllerDatabaseTest {
                                     () ->
                                             new WebSiteRepository(
                                                     (DataSourceWrapper) config.getDataSource())),
-                            () ->
-                                    UpdaterHosts.dockerControl(
-                                            config == null ? null : config.getUpdater()),
+                            () -> ApplicationServicesFixture.upgrades(config).operations(),
                             AccountServicesFixture.component(
                                             (DataSourceWrapper) config.getDataSource())
                                     .permissions(),

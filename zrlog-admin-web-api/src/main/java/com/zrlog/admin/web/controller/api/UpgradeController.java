@@ -11,7 +11,6 @@ import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.UpgradeCheckResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.DockerUpgradeProgressService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.service.UpgradeReadinessMessages;
 import com.zrlog.admin.business.type.AdminAuditAction;
@@ -29,14 +28,12 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.updater.UpgradeProgressListener;
-import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.updater.spi.DockerControl;
+import com.zrlog.updater.spi.UpdateCommand;
+import com.zrlog.updater.spi.UpdateTask;
 import com.zrlog.util.I18nUtil;
-import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Objects;
@@ -45,7 +42,6 @@ import java.util.function.Supplier;
 public class UpgradeController extends BaseController {
     private final AdminRequestIdentity requestIdentity;
 
-    private final DockerUpgradeProgressService dockerUpgradeProgressService;
     private final AdminAuditService adminAuditService;
     private final MessageCenterOperationService messageCenterOperationService;
 
@@ -53,29 +49,24 @@ public class UpgradeController extends BaseController {
 
     private final UpgradeService upgrades;
     private final Supplier<UpdateVersionInfoPlugin> updatePlugin;
-    private final Supplier<DockerControl> docker;
     private final UpgradeExecutionCoordinator executions;
 
     @Inject
     public UpgradeController(
             UpgradeService upgrades,
             Supplier<UpdateVersionInfoPlugin> updatePlugin,
-            Supplier<DockerControl> docker,
             AdminPageDataFactory pages,
-            DockerUpgradeProgressService dockerUpgradeProgressService,
             AdminAuditService adminAuditService,
             MessageCenterOperationService messageCenterOperationService,
             AdminRequestIdentity requestIdentity,
             UpgradeExecutionCoordinator executions) {
         this.requestIdentity = requestIdentity;
-        this.dockerUpgradeProgressService = dockerUpgradeProgressService;
         this.adminAuditService = adminAuditService;
         this.messageCenterOperationService = messageCenterOperationService;
 
         this.pages = pages;
         this.upgrades = upgrades;
         this.updatePlugin = updatePlugin;
-        this.docker = docker;
         this.executions = executions;
     }
 
@@ -114,7 +105,7 @@ public class UpgradeController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
-    public void doUpgrade() throws IOException, SQLException {
+    public void doUpgrade() throws Exception {
         ExecuteUpgradeRequest upgradeRequest =
                 getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
         try {
@@ -131,153 +122,149 @@ public class UpgradeController extends BaseController {
         }
     }
 
-    private void executeUpgrade(ExecuteUpgradeRequest upgradeRequest)
-            throws IOException, SQLException {
-        if (upgradeRequest.getDocker() != null) {
-            DockerControl client = dockerClient();
-            var dockerRequest = upgradeRequest.getDocker();
-            Version target = new Version();
-            target.setVersion(dockerRequest.version);
-            target.setBuildId(dockerRequest.buildId);
-            var receipt =
-                    executions.claimManual(
-                            requestIdentity.current(),
-                            target,
-                            dockerRequest.requestId,
-                            dockerRequest.channel,
-                            upgradeRequest.getReviewedExecutionId());
-            DockerUpdaterProtocol.Job job;
-            boolean submitted = false;
-            try {
-                job = client.submit(dockerRequest);
-                if (job == null || !Objects.equals(job.id, dockerRequest.requestId)) {
-                    throw new IllegalStateException("Updater returned a different upgrade task");
-                }
-                submitted = true;
-            } finally {
-                executions.finish(receipt, submitted);
-            }
-            recordUpgradeAudit(target);
-            if (isSseRequest()) {
-                streamDockerUpgrade(client, job);
-            } else {
-                response.renderJson(
-                        dockerUpgradeProgressService.snapshot(job, I18nUtil.getBackend()));
-            }
-            return;
-        }
-        UpdateVersionInfoPlugin plugin = updatePlugin.get();
+    private void executeUpgrade(ExecuteUpgradeRequest input) throws Exception {
         Map<String, Object> backend = I18nUtil.getBackend();
-        PreCheckVersionResponse check = upgrades.preUpgradeVersion(true, plugin);
-        Version target = Boolean.TRUE.equals(check.getUpgrade()) ? check.getVersion() : null;
-        // Manual instructions and no-change responses do not reserve a new upgrade execution.
-        AutomaticUpgradeTaskProvider.Receipt receipt =
-                target != null
-                                && Boolean.TRUE.equals(check.getOnlineUpgradable())
-                                && !Boolean.TRUE.equals(check.getDockerMode())
-                        ? executions.claimManual(
-                                requestIdentity.current(),
-                                target,
-                                null,
-                                target.getChannel(),
-                                upgradeRequest.getReviewedExecutionId())
-                        : null;
-        if (!isSseRequest()) {
-            UpgradeProcessResponse upgradeProcessResponse;
-            try {
-                upgradeProcessResponse =
-                        executeClaimedUpgrade(
-                                target, receipt, UpgradeProgressListener.NONE, backend);
-                this.messageCenterOperationService.recordUpgradeResult(upgradeProcessResponse);
-            } catch (RuntimeException e) {
-                this.messageCenterOperationService.recordUpgradeError();
-                throw e;
+        UpdateCommand command = input.getTask();
+        boolean legacyResponse = command == null;
+        if (command == null) {
+            PreCheckVersionResponse check = upgrades.preUpgradeVersion(true, updatePlugin.get());
+            Version target = Boolean.TRUE.equals(check.getUpgrade()) ? check.getVersion() : null;
+            if (target == null || !Boolean.TRUE.equals(check.getOnlineUpgradable())) {
+                if (isSseRequest()) {
+                    AdminSseEmitter.write(
+                            response,
+                            "admin-upgrade",
+                            "sse-error",
+                            emitter ->
+                                    emitter.send(
+                                            "response",
+                                            new ApiStandardResponse<>(
+                                                    manualResponse(
+                                                            target, emitter::send, backend))));
+                } else {
+                    response.renderJson(
+                            new ApiStandardResponse<>(
+                                    manualResponse(target, UpgradeProgressListener.NONE, backend)));
+                }
+                return;
             }
-            recordUpgradeAudit(target);
-            response.renderJson(new ApiStandardResponse<>(upgradeProcessResponse));
-            return;
+            command = new UpdateCommand();
+            command.requestId = java.util.UUID.randomUUID().toString();
+            command.version =
+                    target.getArtifactVersion() == null
+                            ? target.getVersion()
+                            : target.getArtifactVersion();
+            command.buildId = target.getBuildId();
+            command.channel =
+                    target.getChannel() == null
+                            ? (command.version.contains("SNAPSHOT") ? "preview" : "release")
+                            : target.getChannel();
         }
-        AdminSseEmitter.write(
-                response,
-                "admin-upgrade",
-                "sse-error",
-                emitter -> {
-                    UpgradeProcessResponse upgradeProcessResponse;
-                    try {
-                        upgradeProcessResponse =
-                                executeClaimedUpgrade(target, receipt, emitter::send, backend);
-                        this.messageCenterOperationService.recordUpgradeResult(
-                                upgradeProcessResponse);
-                    } catch (Exception e) {
-                        this.messageCenterOperationService.recordUpgradeError();
-                        throw e;
-                    }
-                    recordUpgradeAudit(target);
-                    emitter.send("response", new ApiStandardResponse<>(upgradeProcessResponse));
-                });
+        command.validate();
+        Version target = new Version();
+        target.setVersion(command.version);
+        target.setBuildId(command.buildId);
+        var receipt =
+                executions.claimManual(
+                        requestIdentity.current(),
+                        target,
+                        command.requestId,
+                        command.channel,
+                        input.getReviewedExecutionId());
+        UpdateCommand selected = command;
+        if (isSseRequest()) {
+            AdminSseEmitter.write(
+                    response,
+                    "admin-upgrade",
+                    "sse-error",
+                    emitter -> {
+                        submit(selected, target, receipt, emitter::send, backend);
+                        emitter.send(
+                                "response",
+                                taskResponse(
+                                        upgrades.watchUpgrade(
+                                                selected.requestId, emitter::send, backend),
+                                        legacyResponse));
+                    });
+        } else {
+            response.renderJson(
+                    taskResponse(
+                            submit(
+                                    selected,
+                                    target,
+                                    receipt,
+                                    UpgradeProgressListener.NONE,
+                                    backend),
+                            legacyResponse));
+        }
     }
 
-    private UpgradeProcessResponse executeClaimedUpgrade(
+    private UpgradeProcessResponse manualResponse(
+            Version target, UpgradeProgressListener listener, Map<String, Object> backend) {
+        UpgradeProcessResponse result = upgrades.doUpgradeVersion(target, listener, backend);
+        recordUpgradeAudit(target);
+        if (!Boolean.TRUE.equals(result.getFinish()))
+            messageCenterOperationService.recordUpgradeError();
+        return result;
+    }
+
+    private UpdateTask submit(
+            UpdateCommand command,
             Version target,
             AutomaticUpgradeTaskProvider.Receipt receipt,
             UpgradeProgressListener listener,
             Map<String, Object> backend)
-            throws SQLException {
+            throws Exception {
         boolean submitted = false;
         try {
-            UpgradeProcessResponse result = upgrades.doUpgradeVersion(target, listener, backend);
-            submitted = Boolean.TRUE.equals(result.getFinish());
-            return result;
+            UpdateTask task = upgrades.submitUpgrade(command, listener, backend);
+            submitted = task != null && !task.failed();
+            recordUpgradeAudit(target);
+            if (task != null && task.failed()) messageCenterOperationService.recordUpgradeError();
+            return task;
         } finally {
-            if (receipt != null) executions.finish(receipt, submitted);
+            executions.finish(receipt, submitted);
         }
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
-    public void dockerStatus() throws IOException {
-        DockerControl client = dockerClient();
-        DockerUpdaterProtocol.Job job;
-        try {
-            String requestId = request.getParaToStr("requestId");
-            job = client.status(requestId);
-            if (job != null && !Objects.equals(requestId, job.id)) {
-                throw new IllegalStateException("Updater returned a different upgrade task");
-            }
-        } catch (DockerControl.RequestException error) {
-            if (error.getStatus() != 404) {
-                throw error;
-            }
-            job = null;
-        }
-        if (isSseRequest()) {
-            streamDockerUpgrade(client, job);
-        } else {
-            response.renderJson(dockerUpgradeProgressService.snapshot(job, I18nUtil.getBackend()));
-        }
-    }
-
-    private void streamDockerUpgrade(DockerControl client, DockerUpdaterProtocol.Job job)
-            throws IOException {
+    public void status() throws Exception {
+        String requestId = request.getParaToStr("requestId");
+        UpdateCommand.validateId(requestId);
         Map<String, Object> backend = I18nUtil.getBackend();
-        AdminSseEmitter.write(
-                response,
-                "admin-upgrade",
-                "sse-error",
-                emitter -> {
-                    ApiStandardResponse<UpgradeProcessResponse> result =
-                            this.dockerUpgradeProgressService.watch(
-                                    client, job, emitter::send, backend);
-                    emitter.send("response", result);
-                });
+        if (isSseRequest()) {
+            AdminSseEmitter.write(
+                    response,
+                    "admin-upgrade",
+                    "sse-error",
+                    emitter ->
+                            emitter.send(
+                                    "response",
+                                    taskResponse(
+                                            upgrades.watchUpgrade(
+                                                    requestId, emitter::send, backend))));
+        } else {
+            response.renderJson(taskResponse(upgrades.upgradeStatus(requestId, backend)));
+        }
     }
 
-    protected DockerControl dockerClient() {
-        if (!ZrLogUtil.isDockerMode()) {
-            throw new IllegalStateException("Docker updater requires Docker mode");
-        }
-        return docker.get();
+    private ApiStandardResponse<UpdateTask> taskResponse(UpdateTask task) {
+        ApiStandardResponse<UpdateTask> result =
+                new ApiStandardResponse<>(task, task == null ? "" : task.message);
+        if (task != null && task.failed()) result.setError(1);
+        return result;
+    }
+
+    private ApiStandardResponse<?> taskResponse(UpdateTask task, boolean legacy) {
+        if (!legacy) return taskResponse(task);
+        var result =
+                new ApiStandardResponse<>(
+                        new UpgradeProcessResponse(
+                                task != null && !task.failed(), task == null ? "" : task.message));
+        if (task != null && task.failed()) result.setError(1);
+        return result;
     }
 
     private boolean isSseRequest() {

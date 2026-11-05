@@ -10,8 +10,9 @@ import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.Updater;
 import com.zrlog.common.UpdaterTypeEnum;
 import com.zrlog.common.adapter.UpdaterHosts;
-import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
+import com.zrlog.common.updater.UpgradeProgressListener;
 import com.zrlog.common.vo.Version;
+import com.zrlog.updater.spi.UpdateCommand;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import java.util.function.BooleanSupplier;
@@ -91,25 +92,17 @@ public final class HostAutomaticUpgradeOperations
         // upgrade.
         if (faas.getAsBoolean() && !supportsFaas(updater.get())) return false;
         audit.record(context.audit(), AdminAuditAction.EXECUTE_UPGRADE, target.getVersion());
-        if (updater.get().getType() == UpdaterTypeEnum.DOCKER) {
-            var request = new DockerUpdaterProtocol.UpgradeRequest();
-            request.requestId = "assistant_" + context.runId().replace('.', '_');
-            request.channel = channel();
-            request.version = target.getArtifactVersion();
-            request.buildId = target.getBuildId();
-            var job = UpdaterHosts.dockerControl(updater.get()).submit(request);
-            return job != null
-                    && request.requestId.equals(job.id)
-                    && !job.recoveryRequired
-                    && !"failed".equals(job.phase)
-                    && !"interrupted".equals(job.phase);
-        }
-        return Boolean.TRUE.equals(
-                upgrades.doUpgrade(
-                                target,
-                                updater.get(),
-                                (event, data) -> context.checkActive(),
-                                I18nUtil.getBackend())
-                        .getFinish());
+        UpdateCommand request = new UpdateCommand();
+        request.requestId = "assistant_" + context.runId().replace('.', '_');
+        request.channel = channel();
+        request.version =
+                target.getArtifactVersion() == null
+                        ? target.getVersion()
+                        : target.getArtifactVersion();
+        request.buildId = target.getBuildId();
+        var task =
+                upgrades.submitUpgrade(
+                        request, UpgradeProgressListener.NONE, I18nUtil.getBackend());
+        return task != null && task.matches(request) && !task.failed() && !task.recoveryRequired;
     }
 }

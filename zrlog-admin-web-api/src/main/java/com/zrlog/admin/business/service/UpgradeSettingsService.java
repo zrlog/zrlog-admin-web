@@ -4,19 +4,19 @@ import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
+import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.updater.spi.DockerControl;
+import com.zrlog.updater.spi.UpdateOperations;
+import com.zrlog.updater.spi.UpdateSourceSettings;
 import com.zrlog.util.I18nUtil;
-import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
-/** Aggregates the existing website settings and the private updater protocol. */
+/** Aggregates the existing website settings and the public updater source settings. */
 @Singleton
 public class UpgradeSettingsService {
     private final WebSiteService webSiteService;
@@ -25,12 +25,12 @@ public class UpgradeSettingsService {
     private final AccountPermissionService permissionService;
 
     private final WebSiteSettingsService settingsService;
-    private final Supplier<DockerControl> docker;
+    private final Supplier<UpdateOperations> operations;
 
     @Inject
     public UpgradeSettingsService(
             WebSiteSettingsService settingsService,
-            Supplier<DockerControl> docker,
+            Supplier<UpdateOperations> operations,
             AccountPermissionService permissionService,
             AccountIdentityService identities,
             WebSiteService webSiteService) {
@@ -39,7 +39,7 @@ public class UpgradeSettingsService {
         this.permissionService = permissionService;
         this.identities = identities;
 
-        this.docker = docker;
+        this.operations = operations;
         this.settingsService = settingsService;
     }
 
@@ -47,48 +47,16 @@ public class UpgradeSettingsService {
             throws SQLException {
         actor = authorize(actor);
         UpgradeSettingsResponse response =
-                new UpgradeSettingsResponse(
-                        this.webSiteService.upgradeWebSiteInfo(), isDockerMode());
+                new UpgradeSettingsResponse(webSiteService.upgradeWebSiteInfo());
         response.setScheduleManaged(settingsService.isUpgradeScheduleManaged());
-        if (!response.isDockerMode()) {
-            return response;
-        }
-        requireDockerPermission(actor);
         String channel =
                 requestedChannel == null ? channel(response.getUpgradePreview()) : requestedChannel;
-        if (!"preview".equals(channel) && !"release".equals(channel)) {
-            throw new ArgsException("channel");
-        }
-        try {
-            response.setDockerSettings(dockerClient().settings(channel));
-        } catch (DockerControl.RequestException error) {
-            response.setDockerErrorCode(error.getCode());
-        } catch (IllegalArgumentException | IllegalStateException error) {
-            response.setDockerErrorCode("updater_not_configured");
-        }
-        if (response.getDockerErrorCode() != null) {
-            String key;
-            switch (response.getDockerErrorCode()) {
-                case "metadata_unavailable":
-                case "metadata_not_found":
-                    key = "metadataUnavailable";
-                    break;
-                case "updater_unavailable":
-                    key = "serviceUnavailable";
-                    break;
-                case "updater_unauthorized":
-                    key = "unauthorized";
-                    break;
-                case "updater_not_configured":
-                case "updater_configuration_mismatch":
-                    key = "configurationInvalid";
-                    break;
-                default:
-                    key = "unavailable";
-            }
-            response.setDockerErrorMessage(
-                    I18nUtil.getAdminBackendStringFromRes("admin.upgrade.repository.error." + key));
-        }
+        var selected = operations.get();
+        if (selected.managesSourceSettings()) requireSourcePermission(actor);
+        UpdateSourceSettings sources =
+                selected.settings(channel, UpdaterHosts.text(I18nUtil.getBackend()));
+        if (sources.managedByUpdater) response.setUpgradePackageSource(null);
+        response.setSourceSettings(sources);
         return response;
     }
 
@@ -102,55 +70,48 @@ public class UpgradeSettingsService {
                         webSiteService.upgradeWebSiteInfo().getAutoUpgradeVersion())) {
             throw new ArgsException("autoUpgradeVersion");
         }
-        boolean docker = isDockerMode();
-        if (docker) {
-            requireDockerPermission(actor);
-        }
-        if (!docker && input.getDockerRepository() != null) {
-            throw new ArgsException("dockerRepository");
-        }
-        // Persist only the website fields. Never pass response/runtime fields to the generic KV
-        // writer.
+        String channel = channel(input.getUpgradePreview());
+        var operations = this.operations.get();
+        boolean managed = operations.managesSourceSettings();
+        if (managed) requireSourcePermission(actor);
         UpgradeWebSiteInfo settings = new UpgradeWebSiteInfo();
         settings.setAutoUpgradeVersion(input.getAutoUpgradeVersion());
         settings.setUpgradePreview(input.getUpgradePreview());
-        settings.setUpgradePackageSource(docker ? null : input.getUpgradePackageSource());
+        String source = input.getUpdateSource();
+        if (source == null && !managed) source = input.getUpgradePackageSource();
+        settings.setUpgradePackageSource(
+                managed
+                        ? null
+                        : source == null
+                                ? webSiteService.upgradeWebSiteInfo().getUpgradePackageSource()
+                                : source);
         settingsService.validateUpgrade(settings);
-        if (input.getDockerRepository() == null) {
+        if (source == null) {
             identities.revalidate(actor);
             settingsService.updateUpgrade(settings, audit);
             return;
         }
-        DockerControl client = dockerClient();
-        String channel = channel(input.getUpgradePreview());
-        DockerUpdaterProtocol.SettingsResponse previous = client.settings(channel);
-        String repository = input.getDockerRepository();
-        if (!repository.isEmpty()
-                && previous.images.stream()
-                        .noneMatch(image -> repository.equals(image.repository))) {
-            throw new ArgsException("dockerRepository");
-        }
+        UpdateSourceSettings previous =
+                operations.settings(channel, UpdaterHosts.text(I18nUtil.getBackend()));
         identities.revalidate(actor);
-        client.saveSettings(repository, channel);
+        if (previous.errorCode != null)
+            throw new com.zrlog.updater.spi.UpdateOperationException(
+                    503, previous.errorCode, previous.errorMessage);
+        identities.revalidate(actor);
+        operations.saveSettings(source, channel, UpdaterHosts.text(I18nUtil.getBackend()));
         try {
             identities.revalidate(actor);
             settingsService.updateUpgrade(settings, audit);
         } catch (SQLException | RuntimeException error) {
-            try {
-                client.saveSettings(previous.settings.repository, previous.settings.channel);
-            } catch (RuntimeException rollbackError) {
-                error.addSuppressed(rollbackError);
+            if (previous.managedByUpdater) {
+                try {
+                    operations.restoreSettings(previous, UpdaterHosts.text(I18nUtil.getBackend()));
+                } catch (RuntimeException rollbackError) {
+                    error.addSuppressed(rollbackError);
+                }
             }
             throw error;
         }
-    }
-
-    protected boolean isDockerMode() {
-        return ZrLogUtil.isDockerMode();
-    }
-
-    protected DockerControl dockerClient() {
-        return docker.get();
     }
 
     private AccountAccess authorize(AccountAccess actor) {
@@ -159,7 +120,7 @@ public class UpgradeSettingsService {
         return actor;
     }
 
-    private void requireDockerPermission(AccountAccess actor) {
+    private void requireSourcePermission(AccountAccess actor) {
         permissionService.require(actor, AccountAction.SYSTEM_MANAGE);
     }
 

@@ -11,6 +11,8 @@ public final class AdminErrorMessages {
 
     public static String message(Throwable failure, String fallbackKey) {
         Throwable cause = unwrap(failure);
+        if (cause instanceof com.zrlog.updater.spi.UpdateOperationException)
+            return cause.getMessage();
         return cause instanceof AbstractAdminBusinessException
                 ? ((AbstractAdminBusinessException) cause).getUserMessage()
                 : I18nUtil.getAdminBackendStringFromRes(fallbackKey);

@@ -40,7 +40,6 @@ import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.AbstractBusinessException;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -51,7 +50,6 @@ import com.zrlog.common.web.ZrLogErrorHandle;
 import com.zrlog.data.repository.*;
 import com.zrlog.data.util.DistributedLockManager;
 import com.zrlog.plugin.IPlugin;
-import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import java.io.ByteArrayInputStream;
@@ -1272,16 +1270,10 @@ public class AdminControllerDelegationTest {
                                             ? null
                                             : applicationConfig.getPlugin(
                                                     UpdateVersionInfoPlugin.class),
-                            () ->
-                                    UpdaterHosts.dockerControl(
-                                            applicationConfig == null
-                                                    ? null
-                                                    : applicationConfig.getUpdater()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(applicationConfig),
                                     () -> "test",
                                     ApplicationServicesFixture.messages(db.dataSource())),
-                            new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AccountServicesFixture.component(db.dataSource()).requestIdentity(),
@@ -1346,14 +1338,10 @@ public class AdminControllerDelegationTest {
                                     db.config() == null
                                             ? null
                                             : db.config().getPlugin(UpdateVersionInfoPlugin.class),
-                            () ->
-                                    UpdaterHosts.dockerControl(
-                                            db.config() == null ? null : db.config().getUpdater()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
                                     ApplicationServicesFixture.messages(db.dataSource())),
-                            new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AccountServicesFixture.component(db.dataSource()).requestIdentity(),
@@ -1367,7 +1355,7 @@ public class AdminControllerDelegationTest {
             assertEquals(Boolean.FALSE, index.getData().getUpgrade());
             assertTrue(index.getMessage().length() > 0);
             assertNull(((UpgradeCheckResponse) index.getData()).getExecution());
-            assertEquals(true, index.getData().getOnlineUpgradable());
+            assertEquals(false, index.getData().getOnlineUpgradable());
 
             setControllerRequest(
                     controller,
@@ -1463,10 +1451,8 @@ public class AdminControllerDelegationTest {
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSiteRepository(db.dataSource())),
                                     () ->
-                                            UpdaterHosts.dockerControl(
-                                                    db.config() == null
-                                                            ? null
-                                                            : db.config().getUpdater()),
+                                            ApplicationServicesFixture.upgrades(db.config())
+                                                    .operations(),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     ApplicationServicesFixture.settings(db.dataSource())),
@@ -1502,23 +1488,14 @@ public class AdminControllerDelegationTest {
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSiteRepository(db.dataSource())),
                                     () ->
-                                            UpdaterHosts.dockerControl(
-                                                    db.config() == null
-                                                            ? null
-                                                            : db.config().getUpdater()),
+                                            new com.zrlog.updater.docker.DockerUpdateOperations(
+                                                    new com.zrlog.updater.spi.UpdateContext
+                                                                    .Builder()
+                                                            .build(),
+                                                    client),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
-                                    ApplicationServicesFixture.settings(db.dataSource())) {
-                                @Override
-                                protected boolean isDockerMode() {
-                                    return true;
-                                }
-
-                                @Override
-                                protected DockerControl dockerClient() {
-                                    return client;
-                                }
-                            };
+                                    ApplicationServicesFixture.settings(db.dataSource()));
                         }
                     };
             setControllerRequest(
@@ -1531,10 +1508,10 @@ public class AdminControllerDelegationTest {
                             null));
             var response = controller.upgrade();
             assertEquals(0, response.getError());
-            assertTrue(response.getData().isDockerMode());
-            assertEquals("metadata_unavailable", response.getData().getDockerErrorCode());
+            assertTrue(response.getData().getSourceSettings().managedByUpdater);
+            assertEquals("metadata_unavailable", response.getData().getSourceSettings().errorCode);
             assertEquals("", response.getMessage());
-            assertEquals(null, response.getData().getDockerSettings());
+            assertTrue(response.getData().getSourceSettings().options.isEmpty());
         }
     }
 
@@ -1573,30 +1550,34 @@ public class AdminControllerDelegationTest {
                     };
             UpgradeController controller =
                     new UpgradeController(
-                            ApplicationServicesFixture.upgrades(db.config()),
+                            new com.zrlog.business.service.UpgradeService(
+                                    () -> null,
+                                    new com.zrlog.business.service.UpgradeNoticeService(
+                                            () -> true,
+                                            ApplicationServicesFixture.websiteKv(db.dataSource())),
+                                    null,
+                                    ApplicationServicesFixture.websiteKv(db.dataSource())) {
+                                public com.zrlog.updater.spi.UpdateOperations operations() {
+                                    return new com.zrlog.updater.docker.DockerUpdateOperations(
+                                            new com.zrlog.updater.spi.UpdateContext.Builder()
+                                                    .build(),
+                                            client);
+                                }
+                            },
                             () ->
                                     db.config() == null
                                             ? null
                                             : db.config().getPlugin(UpdateVersionInfoPlugin.class),
-                            () ->
-                                    UpdaterHosts.dockerControl(
-                                            db.config() == null ? null : db.config().getUpdater()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
                                     ApplicationServicesFixture.messages(db.dataSource())),
-                            new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AccountServicesFixture.component(db.dataSource()).requestIdentity(),
-                            executions) {
-                        @Override
-                        protected DockerControl dockerClient() {
-                            return client;
-                        }
-                    };
+                            executions);
             String docker =
-                    ",\"docker\":{\"requestId\":\"browser-request-1234\",\"version\":\"4.0.0-SNAPSHOT\","
+                    ",\"task\":{\"requestId\":\"browser-request-1234\",\"version\":\"4.0.0-SNAPSHOT\","
                             + "\"buildId\":\"1234567\",\"channel\":\"preview\"}}";
             setControllerRequest(
                     controller,
@@ -1621,17 +1602,16 @@ public class AdminControllerDelegationTest {
             controller.doUpgrade();
             assertEquals(1, submissions.get());
             ApiStandardResponse<?> submitted = (ApiStandardResponse<?>) recorder.renderedJson;
-            DockerUpgradeJobResponse queued = (DockerUpgradeJobResponse) submitted.getData();
+            com.zrlog.updater.spi.UpdateTask queued =
+                    (com.zrlog.updater.spi.UpdateTask) submitted.getData();
             assertEquals(0, submitted.getError());
             assertEquals(job.id, queued.id);
             assertEquals(job.version, queued.version);
             assertEquals(job.buildId, queued.buildId);
             assertEquals(job.channel, queued.channel);
-            assertEquals("queued", queued.phase);
+            assertEquals("queued", queued.state);
             assertFalse(queued.message.isEmpty());
-            assertEquals(
-                    I18nUtil.getBackendStringFromRes("admin.upgrade.docker.queued"),
-                    queued.message);
+            assertEquals(I18nUtil.getBackendStringFromRes("upgrade.docker.queued"), queued.message);
             assertEquals(queued.message, submitted.getMessage());
             assertNull(queued.detail);
             assertUpgradeAuditContent(db, "4.0.0-SNAPSHOT");
@@ -1640,28 +1620,29 @@ public class AdminControllerDelegationTest {
                     controller,
                     request(
                             HttpMethod.GET,
-                            "/api/admin/upgrade/docker-status",
+                            "/api/admin/upgrade/status",
                             Map.of("requestId", job.id),
                             Map.of(),
                             null));
-            controller.dockerStatus();
+            controller.status();
             ApiStandardResponse<?> recovered = (ApiStandardResponse<?>) recorder.renderedJson;
-            DockerUpgradeJobResponse succeeded = (DockerUpgradeJobResponse) recovered.getData();
+            com.zrlog.updater.spi.UpdateTask succeeded =
+                    (com.zrlog.updater.spi.UpdateTask) recovered.getData();
             assertEquals(0, recovered.getError());
             assertEquals(job.id, succeeded.id);
             assertEquals(job.version, succeeded.version);
             assertEquals(job.buildId, succeeded.buildId);
             assertEquals(job.channel, succeeded.channel);
-            assertEquals("succeeded", succeeded.phase);
+            assertEquals("succeeded", succeeded.state);
             assertFalse(succeeded.message.isEmpty());
             assertEquals(
-                    I18nUtil.getBackendStringFromRes("admin.upgrade.docker.succeeded"),
+                    I18nUtil.getBackendStringFromRes("upgrade.docker.succeeded"),
                     succeeded.message);
             assertEquals(succeeded.message, recovered.getMessage());
             assertNull(succeeded.detail);
-            assertEquals("queued", queued.phase);
+            assertEquals("queued", queued.state);
             assertEquals("internal updater diagnostics", job.message);
-            for (String action : List.of("doUpgrade", "docker-status")) {
+            for (String action : List.of("doUpgrade", "status")) {
                 ResponseRecorder stream = new ResponseRecorder();
                 setControllerResponse(controller, stream.response());
                 setControllerRequest(
@@ -1676,14 +1657,14 @@ public class AdminControllerDelegationTest {
                     controller.doUpgrade();
                     assertUpgradeAuditContent(db, "4.0.0-SNAPSHOT");
                 } else {
-                    controller.dockerStatus();
+                    controller.status();
                 }
                 assertEquals("text/event-stream;charset=UTF-8", stream.headers.get("Content-Type"));
                 assertEquals("no", stream.headers.get("X-Accel-Buffering"));
                 assertTrue(stream.stream.contains("event: upgrade-progress\n"));
                 assertTrue(stream.stream.contains("\"stage\":\"complete\""));
                 assertTrue(stream.stream.contains("event: response\n"));
-                assertTrue(stream.stream.contains("\"finish\":true"));
+                assertTrue(stream.stream.contains("\"state\":\"succeeded\""));
                 assertFalse(stream.stream.contains("\"message\":\"\""));
                 assertTrue(stream.stream.contains(succeeded.message));
                 assertFalse(stream.stream.contains(job.message));
@@ -1749,31 +1730,38 @@ public class AdminControllerDelegationTest {
                         }
 
                         @Override
-                        public UpgradeProcessResponse doUpgradeVersion(
-                                Version version,
+                        public com.zrlog.updater.spi.UpdateTask submitUpgrade(
+                                com.zrlog.updater.spi.UpdateCommand command,
                                 com.zrlog.common.updater.UpgradeProgressListener listener,
                                 Map<String, Object> backend) {
                             submissions.incrementAndGet();
-                            assertSame(target, version);
+                            assertEquals(target.getBuildId(), command.buildId);
+                            assertEquals(target.getVersion(), command.version);
                             try {
                                 assertEquals(target.getBuildId(), executions.view(actor).buildId);
                                 assertEquals("pending", executions.view(actor).state);
                             } catch (SQLException error) {
                                 throw new AssertionError(error);
                             }
-                            return new UpgradeProcessResponse(true, "submitted");
+                            var task = new com.zrlog.updater.spi.UpdateTask();
+                            task.id = command.requestId;
+                            task.version = command.version;
+                            task.buildId = command.buildId;
+                            task.channel = command.channel;
+                            task.state = "queued";
+                            task.stage = "download";
+                            task.message = "submitted";
+                            return task;
                         }
                     };
             var controller =
                     new UpgradeController(
                             service,
                             () -> null,
-                            () -> null,
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
                                     ApplicationServicesFixture.messages(db.dataSource())),
-                            new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AccountServicesFixture.component(db.dataSource()).requestIdentity(),

@@ -70,6 +70,21 @@ public class AdminSseEmitterTest {
     }
 
     @Test
+    public void preservesTheProvidersPublicUpgradeFailureMessage() throws Exception {
+        CapturedResponse response = new CapturedResponse();
+        AdminSseEmitter.write(
+                response.response(),
+                "upgrade-failed",
+                emitter -> {
+                    throw new com.zrlog.updater.spi.UpdateOperationException(
+                            503, "updater_unavailable", "Please check the updater connection");
+                });
+        String body = response.body();
+        assertTrue(body.contains("event: sse-error"));
+        assertTrue(body.contains("Please check the updater connection"));
+    }
+
+    @Test
     public void shouldPreserveBusinessErrorCodeBeforeArticleIsSaved() throws Exception {
         CapturedResponse response = new CapturedResponse();
         AdminSseEmitter.write(

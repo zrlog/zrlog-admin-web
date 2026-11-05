@@ -50,7 +50,7 @@ public final class UpgradeExecutionCoordinator {
     public AutomaticUpgradeTaskProvider.Receipt claimManual(
             AccountAccess actor,
             Version target,
-            String dockerRequestId,
+            String requestId,
             String channel,
             String reviewedExecutionId)
             throws SQLException {
@@ -64,11 +64,11 @@ public final class UpgradeExecutionCoordinator {
                         AutomaticUpgradeTaskProvider.Receipt.class);
         if (before != null && !complete(before.value)) {
             var previous = before.value;
-            // Docker owns idempotency for resubmitting exactly the same target and request
+            // Updater owns idempotency for resubmitting exactly the same target and request
             // identity.
-            if (dockerRequestId != null
+            if (requestId != null
                     && "manual".equals(previous.source)
-                    && dockerRequestId.equals(previous.externalRequestId)
+                    && requestId.equals(previous.externalRequestId)
                     && Objects.equals(target.getBuildId(), previous.buildId)
                     && Objects.equals(target.getVersion(), previous.version)
                     && Objects.equals(channel, previous.channel)) return previous;
@@ -91,7 +91,7 @@ public final class UpgradeExecutionCoordinator {
         receipt.source = "manual";
         receipt.state = "pending";
         receipt.phase = "running";
-        receipt.externalRequestId = dockerRequestId;
+        receipt.externalRequestId = requestId;
         receipt.startedAt = clock.getAsLong();
         receipt.channel = channel;
         receipt.runtimeId = RUNTIME_ID;
