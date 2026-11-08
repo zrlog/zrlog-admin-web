@@ -9,6 +9,7 @@ public final class CommonNativeImageUtils {
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(
                 Arrays.asList(
+                        com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest.class,
                         com.zrlog.admin.business.automation.AutomationModels.Definition.class,
                         com.zrlog.admin.business.automation.AutomationAssistant.Request.class,
                         com.zrlog.admin.business.automation.AutomationAssistant.Proposal.class,

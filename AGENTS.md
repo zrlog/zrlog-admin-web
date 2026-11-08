@@ -7,6 +7,7 @@
 
 - `zrlog-admin-account/content/assets/ai/access`：所属功能的 Controller、服务、DTO、资源和测试。
 - `zrlog-admin-common`：共享 HTTP 契约、审计、通知和通用设置。
+- `zrlog-admin-automation`：助手任务、调度、执行记录、通知和自动化 API。
 - `zrlog-admin-web-api`：后端组装与公共 API，不依赖 UI。
 - `zrlog-admin-web-ui`：React 界面、页面渲染、PWA 和静态资源。
 - `zrlog-admin-web`：兼容构件的组装、开发入口和集成测试。

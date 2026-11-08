@@ -276,6 +276,7 @@
         <module>zrlog-admin-assets</module>
         <module>zrlog-admin-ai</module>
         <module>zrlog-admin-access</module>
+        <module>zrlog-admin-automation</module>
         <module>zrlog-admin-web-api</module>
         <module>zrlog-admin-web-ui</module>
         <module>zrlog-admin-web</module>
@@ -323,6 +324,11 @@
             <dependency>
                 <groupId>com.hibegin</groupId>
                 <artifactId>zrlog-admin-access</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hibegin</groupId>
+                <artifactId>zrlog-admin-automation</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

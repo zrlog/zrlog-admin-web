@@ -74,7 +74,15 @@ public class AdminNativeImageUtilsTest {
             throws Exception {
         Set<String> registered = new HashSet<>();
         for (String module :
-                List.of("account", "content", "assets", "ai", "access", "web-api", "web-ui")) {
+                List.of(
+                        "account",
+                        "content",
+                        "assets",
+                        "ai",
+                        "access",
+                        "automation",
+                        "web-api",
+                        "web-ui")) {
             String path =
                     "/META-INF/native-image/com.hibegin/zrlog-admin-"
                             + module

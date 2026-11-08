@@ -10,6 +10,7 @@ public final class AutomationNativeImageUtils {
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(
                 List.of(
+                        com.zrlog.admin.business.automation.UpgradeExecutionCoordinator.View.class,
                         com.zrlog.business.plugin.PluginSchedulerTickResult.class,
                         com.zrlog.business.plugin.PluginCacheRefreshResult.class,
                         com.zrlog.business.plugin.PluginViewRenderResult.class,
