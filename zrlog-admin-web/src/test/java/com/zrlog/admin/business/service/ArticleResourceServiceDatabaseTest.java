@@ -436,8 +436,7 @@ public class ArticleResourceServiceDatabaseTest {
                         if (sql.replace("`", "")
                                         .toLowerCase(java.util.Locale.ROOT)
                                         .startsWith("insert into website")
-                                && Arrays.asList(params)
-                                        .contains("distributed_lock_write_article_" + id)
+                                && Arrays.asList(params).contains("lock_write_article_" + id)
                                 && revoked.compareAndSet(false, true)) {
                             db.execute("update user set authVersion=authVersion+1 where userId=1");
                         }

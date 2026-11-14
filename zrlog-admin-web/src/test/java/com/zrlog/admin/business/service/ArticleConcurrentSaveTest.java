@@ -71,8 +71,7 @@ public class ArticleConcurrentSaveTest {
                 var writer = db.component(ContentComponent.class).articles();
                 long id = writer.create(actor, article("Original")).getLogId();
                 String lockKey =
-                        "distributed_lock_write_article_"
-                                + (operation.equals("create") ? "create" : id);
+                        "lock_write_article_" + (operation.equals("create") ? "create" : id);
                 AtomicBoolean revoked = new AtomicBoolean();
                 db.beforeWebApiUpdate(
                         (sql, params) -> {

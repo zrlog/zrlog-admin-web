@@ -48,7 +48,7 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.Version;
 import com.zrlog.common.web.ZrLogErrorHandle;
 import com.zrlog.data.repository.*;
-import com.zrlog.data.util.DistributedLockManager;
+import com.zrlog.data.util.LockManager;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
@@ -871,12 +871,11 @@ public class AdminControllerDelegationTest {
                                 ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.audit(null),
                         ApplicationServicesFixture.websiteCache(null),
-                        new DistributedLockManager(
+                        new LockManager(
                                 () -> {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
-                                },
-                                ApplicationServicesFixture.locks(null)),
+                                }),
                         AccountServicesFixture.component(null).requestIdentity());
         setControllerRequest(
                 controller,
@@ -1697,6 +1696,145 @@ public class AdminControllerDelegationTest {
     }
 
     @Test
+    public void shouldReconcileFailedDockerJobsFromJsonSseAndPageRefresh() throws Exception {
+        for (String mode : List.of("json", "sse", "page", "submit-sse")) {
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                applicationConfig = db.config();
+                setAdminToken();
+                var executions = upgradeExecutions(db);
+                var actor =
+                        com.zrlog.data.security.AccountAccess.from(
+                                new UserRepository(db.dataSource()).loadById(1L));
+                var target = new Version();
+                target.setVersion("4.0.2-SNAPSHOT");
+                target.setBuildId("adminweb-0501818");
+                var receipt =
+                        executions.claimManual(
+                                actor, target, "failed-download-1234", "preview", null);
+                executions.finish(receipt, true);
+                assertFalse(executions.view(actor).canRetry);
+                var job = new DockerUpdaterProtocol.Job();
+                job.id = receipt.externalRequestId;
+                job.version = target.getVersion();
+                job.buildId = target.getBuildId();
+                job.channel = "preview";
+                var client =
+                        new DockerControlStub() {
+                            @Override
+                            public DockerUpdaterProtocol.Job submit(
+                                    DockerUpdaterProtocol.UpgradeRequest input) {
+                                job.id = input.requestId;
+                                job.phase = "queued";
+                                return job;
+                            }
+
+                            @Override
+                            public DockerUpdaterProtocol.Job status(String id) {
+                                assertEquals(job.id, id);
+                                job.phase = "failed";
+                                return job;
+                            }
+                        };
+                var kv = ApplicationServicesFixture.websiteKv(db.dataSource());
+                var service =
+                        new com.zrlog.business.service.UpgradeService(
+                                () -> null,
+                                new com.zrlog.business.service.UpgradeNoticeService(() -> true, kv),
+                                null,
+                                kv) {
+                            @Override
+                            public com.zrlog.updater.spi.UpdateOperations operations() {
+                                return new com.zrlog.updater.docker.DockerUpdateOperations(
+                                        new com.zrlog.updater.spi.UpdateContext.Builder().build(),
+                                        client);
+                            }
+
+                            @Override
+                            public PreCheckVersionResponse preUpgradeVersion(
+                                    boolean fetch, UpdateVersionInfoPlugin plugin) {
+                                var check = new PreCheckVersionResponse();
+                                check.setUpgrade(true);
+                                check.setOnlineUpgradable(true);
+                                check.setVersion(target);
+                                return check;
+                            }
+                        };
+                var controller =
+                        new UpgradeController(
+                                service,
+                                () -> null,
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(db.config()),
+                                        ApplicationServicesFixture.buildId(db.resources()),
+                                        ApplicationServicesFixture.messages(db.dataSource())),
+                                ApplicationServicesFixture.audit(db.dataSource()),
+                                ApplicationServicesFixture.operations(db.dataSource()),
+                                AccountServicesFixture.component(db.dataSource()).requestIdentity(),
+                                executions);
+                String task =
+                        ",\"task\":{\"requestId\":\"failed-download-1234\","
+                                + "\"version\":\"4.0.2-SNAPSHOT\",\"buildId\":\"adminweb-0501818\",\"channel\":\"preview\"}}";
+                var response = new ResponseRecorder();
+                setControllerResponse(controller, response.response());
+                setControllerRequest(
+                        controller,
+                        request(
+                                mode.equals("submit-sse") ? HttpMethod.POST : HttpMethod.GET,
+                                mode.equals("page")
+                                        ? "/api/admin/upgrade"
+                                        : "/api/admin/upgrade/status",
+                                Map.of("requestId", job.id),
+                                mode.contains("sse")
+                                        ? Map.of("Accept", "text/event-stream")
+                                        : Map.of(),
+                                "{\"upgradeRiskAccepted\":true" + task));
+                if (mode.equals("page")) {
+                    var page = (UpgradeCheckResponse) controller.index().getData();
+                    assertTrue(page.getExecution().canRetry);
+                    assertEquals("needs_review", page.getExecution().state);
+                } else if (mode.equals("submit-sse")) {
+                    controller.doUpgrade();
+                } else {
+                    controller.status();
+                }
+                if (mode.contains("sse"))
+                    assertTrue(response.stream.contains("\"state\":\"failed\""));
+                if (mode.equals("json"))
+                    assertEquals(1, ((ApiStandardResponse<?>) response.renderedJson).getError());
+                assertEquals("needs_review", executions.view(actor).state);
+                assertFalse(executions.view(actor).confirmed);
+
+                String retryTask = task.replace("failed-download-1234", "retry-download-5678");
+                setControllerRequest(
+                        controller,
+                        request(
+                                HttpMethod.POST,
+                                "/api/admin/upgrade/doUpgrade",
+                                Map.of(),
+                                Map.of(),
+                                "{\"upgradeRiskAccepted\":true" + retryTask));
+                controller.doUpgrade();
+                assertEquals(409, ((ApiStandardResponse<?>) response.renderedJson).getError());
+                setControllerRequest(
+                        controller,
+                        request(
+                                HttpMethod.POST,
+                                "/api/admin/upgrade/doUpgrade",
+                                Map.of(),
+                                Map.of(),
+                                "{\"upgradeRiskAccepted\":true,\"reviewedExecutionId\":\""
+                                        + receipt.runId
+                                        + "\""
+                                        + retryTask));
+                controller.doUpgrade();
+                assertEquals(0, ((ApiStandardResponse<?>) response.renderedJson).getError());
+                assertNotEquals(receipt.runId, executions.view(actor).id);
+                assertFalse(executions.view(actor).canRetry);
+            }
+        }
+    }
+
+    @Test
     public void shouldClaimTheCheckedVersionBeforeManualExecutionAndRejectAStalePage()
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -1811,7 +1949,7 @@ public class AdminControllerDelegationTest {
                                             new com.zrlog.admin.data.repository
                                                     .AssistantNoticeReadRepository(db.dataSource()))
                             .read(
-                                    "assistant.v2.upgrade",
+                                    "lock_upgrade",
                                     com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider
                                             .Receipt.class)
                             .value;

@@ -20,7 +20,7 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.LockVO;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.util.DistributedLockManager;
+import com.zrlog.data.util.LockManager;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -30,7 +30,7 @@ public class AdminDevController extends Controller {
 
     private final AdminAuditService adminAuditService;
     private final WebsiteCacheService websiteCacheService;
-    private final DistributedLockManager lockManager;
+    private final LockManager lockManager;
     private final AdminPageDataFactory pages;
 
     @Inject
@@ -38,7 +38,7 @@ public class AdminDevController extends Controller {
             AdminPageDataFactory pages,
             AdminAuditService adminAuditService,
             WebsiteCacheService websiteCacheService,
-            DistributedLockManager lockManager,
+            LockManager lockManager,
             AdminRequestIdentity requestIdentity) {
         this.requestIdentity = requestIdentity;
         this.adminAuditService = adminAuditService;

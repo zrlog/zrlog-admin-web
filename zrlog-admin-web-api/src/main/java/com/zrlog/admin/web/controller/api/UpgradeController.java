@@ -82,7 +82,10 @@ public class UpgradeController extends BaseController {
                 BeanUtil.convert(
                         upgrades.preUpgradeVersion(fetch, updatePlugin.get()),
                         UpgradeCheckResponse.class);
-        preCheckVersionResponse.setExecution(executions.view(requestIdentity.current()));
+        preCheckVersionResponse.setExecution(
+                executions.refresh(
+                        requestIdentity.current(),
+                        requestId -> upgrades.upgradeStatus(requestId, I18nUtil.getBackend())));
         UpgradeReadinessMessages.apply(preCheckVersionResponse);
         return pages.response(
                 requestIdentity.optional(),
@@ -250,15 +253,18 @@ public class UpgradeController extends BaseController {
         }
     }
 
-    private ApiStandardResponse<UpdateTask> taskResponse(UpdateTask task) {
+    private ApiStandardResponse<UpdateTask> taskResponse(UpdateTask task) throws SQLException {
+        executions.observe(task);
         ApiStandardResponse<UpdateTask> result =
                 new ApiStandardResponse<>(task, task == null ? "" : task.message);
         if (task != null && task.failed()) result.setError(1);
         return result;
     }
 
-    private ApiStandardResponse<?> taskResponse(UpdateTask task, boolean legacy) {
+    private ApiStandardResponse<?> taskResponse(UpdateTask task, boolean legacy)
+            throws SQLException {
         if (!legacy) return taskResponse(task);
+        executions.observe(task);
         var result =
                 new ApiStandardResponse<>(
                         new UpgradeProcessResponse(

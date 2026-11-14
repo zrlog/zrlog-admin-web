@@ -3,6 +3,7 @@ package com.zrlog.admin.business.automation;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.updater.spi.UpdateTask;
 import com.zrlog.util.BlogBuildInfoUtil;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
@@ -45,6 +46,57 @@ public final class UpgradeExecutionCoordinator {
                         AutomaticUpgradeTaskProvider.KEY,
                         AutomaticUpgradeTaskProvider.Receipt.class);
         return row == null ? null : view(row.value, actor);
+    }
+
+    /** Reconcile durable provider status even when the browser has lost its request ID. */
+    public View refresh(AccountAccess actor, TaskStatus status) throws SQLException {
+        actor = authority.current(actor);
+        TaskAuthority.require(actor, AccountAction.SYSTEM_MANAGE.getId());
+        var row =
+                store.read(
+                        AutomaticUpgradeTaskProvider.KEY,
+                        AutomaticUpgradeTaskProvider.Receipt.class);
+        if (row != null
+                && "manual".equals(row.value.source)
+                && !complete(row.value)
+                && row.value.externalRequestId != null) {
+            UpdateTask task;
+            try {
+                task = status.get(row.value.externalRequestId);
+            } catch (Exception unavailable) {
+                // An unavailable provider is not evidence that the operation has ended.
+                if (unavailable instanceof InterruptedException) Thread.currentThread().interrupt();
+                return view(actor);
+            }
+            observe(task);
+        }
+        return view(actor);
+    }
+
+    /** Only a matching terminal failure makes the shared claim immediately reviewable. */
+    public void observe(UpdateTask task) throws SQLException {
+        if (task == null || !task.failed()) return;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            var current =
+                    store.read(
+                            AutomaticUpgradeTaskProvider.KEY,
+                            AutomaticUpgradeTaskProvider.Receipt.class);
+            if (current == null) return;
+            var receipt = current.value;
+            if (!"manual".equals(receipt.source)
+                    || complete(receipt)
+                    || receipt.externalRequestId == null
+                    || !Objects.equals(receipt.externalRequestId, task.id)
+                    || !Objects.equals(receipt.version, task.version)
+                    || !Objects.equals(receipt.buildId, task.buildId)
+                    || !Objects.equals(receipt.channel, task.channel)
+                    || "uncertain".equals(receipt.phase)) return;
+            var next = current.copy(AutomaticUpgradeTaskProvider.Receipt.class);
+            next.phase = "uncertain";
+            next.finishedAt = clock.getAsLong();
+            if (store.write(AutomaticUpgradeTaskProvider.KEY, current, next)) return;
+        }
+        throw new IllegalStateException("automation.upgrade.unconfirmed");
     }
 
     public AutomaticUpgradeTaskProvider.Receipt claimManual(
@@ -109,6 +161,8 @@ public final class UpgradeExecutionCoordinator {
                             AutomaticUpgradeTaskProvider.KEY,
                             AutomaticUpgradeTaskProvider.Receipt.class);
             if (current == null || !Objects.equals(receipt.runId, current.value.runId)) return;
+            // A late submission response must not hide a failure already observed by status.
+            if (complete(current.value) || "uncertain".equals(current.value.phase)) return;
             var next = current.copy(AutomaticUpgradeTaskProvider.Receipt.class);
             next.phase = submitted ? "submitted" : "uncertain";
             next.finishedAt = clock.getAsLong();
@@ -164,6 +218,11 @@ public final class UpgradeExecutionCoordinator {
         public String id, source, version, buildId, state;
         public long startedAt;
         public boolean confirmed, canRetry;
+    }
+
+    @FunctionalInterface
+    public interface TaskStatus {
+        UpdateTask get(String requestId) throws Exception;
     }
 
     public static final class Conflict extends IllegalStateException {

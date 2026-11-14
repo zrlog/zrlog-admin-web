@@ -147,7 +147,7 @@ public class PasskeyServiceCapacityTest {
                     0L,
                     ((Number)
                                     db.scalar(
-                                            "select count(1) from website where name like 'distributed_lock_passkey-%'"))
+                                            "select count(1) from website where name like 'lock_passkey-%'"))
                             .longValue());
         }
     }
@@ -211,7 +211,7 @@ public class PasskeyServiceCapacityTest {
                     0L,
                     ((Number)
                                     db.scalar(
-                                            "select count(1) from website where name like 'distributed_lock_passkey-%'"))
+                                            "select count(1) from website where name like 'lock_passkey-%'"))
                             .longValue());
         }
     }
