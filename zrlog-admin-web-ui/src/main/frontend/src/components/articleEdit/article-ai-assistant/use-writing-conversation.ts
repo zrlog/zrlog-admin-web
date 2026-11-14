@@ -1,4 +1,3 @@
-import { newAssistantSessionId } from "../../../utils/assistant-session";
 import { useEffect, useRef, useState } from "react";
 import type { AxiosInstance } from "axios";
 import type { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
@@ -25,7 +24,6 @@ export default function useWritingConversation(
     const [messages, setMessages] = useState<AIContent[]>(sessionId ? [] : initialMessages || []);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
-    const [revision, setRevision] = useState(0);
     const [retry, setRetry] = useState(0);
     const priorArticle = useRef(articleId);
     const loaded = useRef<string>();
@@ -60,7 +58,6 @@ export default function useWritingConversation(
                 if (data.error) throw new Error(data.message || getRes().error.unknown);
                 loaded.current = loadKey;
                 setMessages(data.data.aiMessages);
-                if (data.data.aiMessages.length) setRevision((value) => value + 1);
             })
             .catch((error) => {
                 if (!controller.signal.aborted) setError(getErrorMessage(error, getRes().error.unknown));
@@ -70,36 +67,16 @@ export default function useWritingConversation(
             });
         return () => controller.abort();
     }, [api, articleId, sessionId, open, loadKey]);
-    const select = (id?: string) => {
-        if (id === sessionId) return;
-        loaded.current = undefined;
-        setSessionId(id);
-        setMessages([]);
-        window.localStorage.setItem(preferenceKey(articleId), id || "default");
-        const params = new URLSearchParams(window.location.search);
-        if (params.has("assistantSession")) {
-            params.set("assistantSession", id || "default");
-            window.history.replaceState(
-                window.history.state,
-                "",
-                `${window.location.pathname}?${params}${window.location.hash}`
-            );
-        }
-    };
     const change = (next: AIContent[]) => {
         if (selectedRef.current !== sessionId) return;
         setMessages(next);
-        if ((next[next.length - 1] as { messageId?: string } | undefined)?.messageId) setRevision((value) => value + 1);
     };
     return {
         sessionId,
         messages,
         loading,
         error,
-        revision,
-        select,
         change,
-        create: () => select(newAssistantSessionId()),
         retry: () => setRetry((value) => value + 1),
     };
 }
