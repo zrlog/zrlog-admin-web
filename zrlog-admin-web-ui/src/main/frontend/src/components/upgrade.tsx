@@ -221,7 +221,11 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     const showUpgradeSuccess = (newBuildId: string, message?: string) => {
         modal.success({
             title: message || getRes().upgrade.restartDetected,
-            content: "",
+            content: getRes().upgrade.completedNavigation,
+            okCancel: true,
+            okText: getRes().upgrade.goToAdmin,
+            cancelText: getRes().upgrade.stayOnPage,
+            focusable: { autoFocusButton: "cancel" },
             onOk: function () {
                 redirectToAdminIndex(newBuildId);
             },
@@ -304,6 +308,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             modal.warning({
                 title: getRes().upgrade.staticSyncFailed,
                 content: getRes().upgrade.staticSyncFailedDetail,
+                okCancel: true,
+                okText: getRes().upgrade.goToAdmin,
+                cancelText: getRes().upgrade.stayOnPage,
+                focusable: { autoFocusButton: "cancel" },
                 onOk: function () {
                     redirectToAdminIndex(newBuildId);
                 },

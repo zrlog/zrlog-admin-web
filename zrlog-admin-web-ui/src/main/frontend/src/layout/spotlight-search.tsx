@@ -116,6 +116,15 @@ const SpotlightSearch = ({
     const theme = useTheme();
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
     const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
+    const contentPaddingInline = theme.paddingMD;
+    const resultMarginInline = theme.marginSM;
+    const leadingIconStyle: React.CSSProperties = {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: theme.sizeLG,
+        flexShrink: 0,
+    };
     const navigate = useNavigate();
     const inputRef = useRef<any>(null);
     const axiosInstance = useAxiosBaseInstance();
@@ -401,18 +410,23 @@ const SpotlightSearch = ({
                 >
                     <div
                         style={{
-                            padding: "16px 20px",
+                            padding: `16px ${contentPaddingInline}px`,
                             borderBottom: borderSecondary,
                         }}
                     >
                         <Input
                             ref={inputRef}
                             variant="borderless"
-                            prefix={<SearchIcon style={{ fontSize: 20, color: theme.colorPrimary, marginRight: 8 }} />}
+                            prefix={
+                                <span style={leadingIconStyle}>
+                                    <SearchIcon style={{ fontSize: 20, color: theme.colorPrimary }} />
+                                </span>
+                            }
                             placeholder={getRes().searchTip}
                             value={keyword}
                             onChange={(e) => setKeyword(e.target.value)}
                             onKeyDown={handleInputKeyDown}
+                            styles={{ prefix: { marginInlineEnd: theme.marginSM } }}
                             style={{ fontSize: 18, padding: 0 }}
                         />
                     </div>
@@ -439,8 +453,8 @@ const SpotlightSearch = ({
                                             onClick={() => void handleSelect(item)}
                                             onMouseEnter={() => setActiveIndex(index)}
                                             style={{
-                                                padding: "12px 16px",
-                                                margin: "4px 12px",
+                                                padding: `12px ${contentPaddingInline - resultMarginInline}px`,
+                                                margin: `4px ${resultMarginInline}px`,
                                                 cursor: "pointer",
                                                 borderBottom: "none",
                                                 borderRadius: theme.borderRadius,
@@ -452,17 +466,14 @@ const SpotlightSearch = ({
                                             <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
                                                 <div
                                                     style={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        width: 32,
-                                                        height: 32,
+                                                        ...leadingIconStyle,
+                                                        height: theme.sizeLG,
                                                         fontSize: 20,
                                                         color:
                                                             index === activeIndex
                                                                 ? theme.colorPrimary
                                                                 : theme.colorTextSecondary,
-                                                        marginRight: 12,
+                                                        marginInlineEnd: theme.marginSM,
                                                     }}
                                                 >
                                                     {item.icon}
