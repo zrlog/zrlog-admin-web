@@ -816,7 +816,6 @@ export const useArticleAiAssistantConfig = ({
             };
             let toolContent = (
                 <ArticleAiAssistantToolContent
-                    aiProvider={data.aiProvider}
                     messageIndex={index}
                     messageId={(content as ToolAwareAIContent).messageId}
                     offline={offline}
@@ -912,7 +911,6 @@ export const useArticleAiAssistantConfig = ({
         <ArticleAiAssistantSkillContent
             key={queue.key}
             draftKey={scope}
-            aiProvider={data.aiProvider}
             writingContext={articleContext}
             api={axiosInstance}
             fileInput={data.aiFileInput}

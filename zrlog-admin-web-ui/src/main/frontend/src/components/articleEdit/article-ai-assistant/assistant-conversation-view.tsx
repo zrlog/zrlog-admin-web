@@ -1,22 +1,17 @@
 import type { ReactNode, RefObject, UIEventHandler } from "react";
 import { useTheme } from "antd-style";
-import AIContentItem from "@zrlog/editor/core/ai/AIContentItem";
-import { getAppState } from "../../../base/ConfigProviderApp";
-import { getEditorUser } from "../../../utils/helpers";
-import type { AIProviderType } from "../../../type";
+import AssistantMessageContent from "./assistant-message-content";
 import type { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
 
 /** The existing conversation content, shared by the assistant page and writing surfaces. */
 export default function AssistantConversationView({
     config,
-    aiProvider,
     leading,
     scrollRef,
     onScroll,
     selectedText,
 }: {
     config: ReturnType<typeof useArticleAiAssistantConfig>;
-    aiProvider: AIProviderType;
     leading?: ReactNode;
     scrollRef?: RefObject<HTMLDivElement>;
     onScroll?: UIEventHandler<HTMLDivElement>;
@@ -37,14 +32,7 @@ export default function AssistantConversationView({
                             const node = config.renderMessage({
                                 content,
                                 index,
-                                defaultNode: (
-                                    <AIContentItem
-                                        content={content}
-                                        aiProvider={aiProvider}
-                                        user={getEditorUser()}
-                                        dark={getAppState().dark}
-                                    />
-                                ),
+                                defaultNode: <AssistantMessageContent content={content} />,
                             });
                             return node === null ? null : (
                                 <div

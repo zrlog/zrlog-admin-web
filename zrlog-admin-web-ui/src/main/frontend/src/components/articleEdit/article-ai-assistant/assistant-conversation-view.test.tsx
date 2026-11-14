@@ -3,9 +3,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import AssistantConversationView from "./assistant-conversation-view";
 
-jest.mock("@zrlog/editor/core/ai/AIContentItem", () => ({ __esModule: true, default: () => null }));
+jest.mock("./assistant-message-content", () => ({ __esModule: true, default: () => null }));
 jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
-jest.mock("../../../utils/helpers", () => ({ getEditorUser: () => ({}) }));
 jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
 
 it("renders stored task feedback and chat through the same message renderer", () => {
@@ -25,15 +24,7 @@ it("renders stored task feedback and chat through the same message renderer", ()
         renderFooter: footer,
     };
     try {
-        act(() =>
-            root.render(
-                <AssistantConversationView
-                    config={config as never}
-                    aiProvider={"OPEN_AI" as never}
-                    selectedText="Selected text"
-                />
-            )
-        );
+        act(() => root.render(<AssistantConversationView config={config as never} selectedText="Selected text" />));
         expect(Array.from(container.querySelectorAll("[data-activity]")).map((node) => node.textContent)).toEqual([
             "First execution",
             "Question",

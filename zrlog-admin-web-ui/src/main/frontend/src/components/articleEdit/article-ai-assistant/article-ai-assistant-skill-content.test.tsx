@@ -56,7 +56,6 @@ const render = (props: Partial<ComponentProps<typeof ArticleAiAssistantSkillCont
             <ConfigProvider theme={{ token: { motion: false } }}>
                 <ArticleAiAssistantSkillContent
                     key={props.draftKey}
-                    aiProvider="OPEN_AI"
                     disabled={false}
                     busy
                     waiting={false}

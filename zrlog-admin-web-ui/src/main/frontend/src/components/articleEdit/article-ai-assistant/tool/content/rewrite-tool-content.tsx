@@ -1,40 +1,39 @@
-import {Button, Space, Typography} from "antd";
-import {FunctionComponent} from "react";
-import {getRes} from "../../../../../utils/constants";
+import { Button, Space, Typography } from "antd";
+import { FunctionComponent } from "react";
+import { getRes } from "../../../../../utils/constants";
 import MarkdownDiffView from "../../../markdown-diff-view";
-import {AssistantToolPayload} from "../../article-ai-assistant.types";
+import { AssistantToolPayload } from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
 import ArticleAiAssistantToolResultCard from "../article-ai-assistant-tool-result-card";
-import {SpecificToolContentProps} from "../article-ai-assistant-tool-content.types";
+import { SpecificToolContentProps } from "../article-ai-assistant-tool-content.types";
 
 type RewriteToolPayload = Extract<AssistantToolPayload, { tool: "rewrite" }>;
 
 const RewriteToolContent: FunctionComponent<SpecificToolContentProps<RewriteToolPayload>> = ({
-                                                                                                 aiProvider,
-                                                                                                 currentMarkdown,
-                                                                                                 messageIndex,
-                                                                                                 offline,
-                                                                                                 loadingKey,
-                                                                                                 toolPayload,
-                                                                                                 onApplyValues,
-                                                                                                 applyDisabled,
-                                                                                                 onRefine,
-                                                                                                 onUpdateToolPayload,
-                                                                                             }) => {
+    currentMarkdown,
+    messageIndex,
+    offline,
+    loadingKey,
+    toolPayload,
+    onApplyValues,
+    applyDisabled,
+    onRefine,
+    onUpdateToolPayload,
+}) => {
     const assistantRes = getRes().articleEdit.assistant;
     const markdown = toolPayload.payload.markdown || "";
     const summary = toolPayload.payload.summary || "";
     const unchanged = markdown === currentMarkdown;
     const discarded = toolPayload.payload.discarded === true;
     return (
-        <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
-            <Space direction="vertical" size={8} style={{width: "100%"}}>
+        <ArticleAiAssistantToolResultCard tool={toolPayload.tool}>
+            <Space direction="vertical" size={8} style={{ width: "100%" }}>
                 {discarded ? (
                     <Typography.Text type="secondary">{assistantRes.rewriteRejected}</Typography.Text>
                 ) : (
                     <>
                         {summary ? (
-                            <Typography.Paragraph style={{marginBottom: 0}}>{summary}</Typography.Paragraph>
+                            <Typography.Paragraph style={{ marginBottom: 0 }}>{summary}</Typography.Paragraph>
                         ) : null}
                         <MarkdownDiffView
                             beforeText={currentMarkdown}
@@ -51,7 +50,7 @@ const RewriteToolContent: FunctionComponent<SpecificToolContentProps<RewriteTool
                                 size="small"
                                 type="primary"
                                 disabled={applyDisabled || !markdown || unchanged}
-                                onClick={() => onApplyValues({markdown})}
+                                onClick={() => onApplyValues({ markdown })}
                             >
                                 {assistantRes.apply}
                             </Button>

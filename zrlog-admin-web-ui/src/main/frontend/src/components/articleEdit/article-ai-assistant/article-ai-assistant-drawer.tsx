@@ -183,12 +183,7 @@ export default function ArticleAiAssistantDrawer({
                     />
                 )}
                 <div style={{ flex: 1, minHeight: 0 }}>
-                    <AssistantConversationView
-                        config={config}
-                        aiProvider={data.aiProvider}
-                        scrollRef={scrollRef}
-                        onScroll={saveScroll}
-                    />
+                    <AssistantConversationView config={config} scrollRef={scrollRef} onScroll={saveScroll} />
                 </div>
             </div>
         </Drawer>
