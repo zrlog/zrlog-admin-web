@@ -354,15 +354,6 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 onChange={setFiles}
                 toolbar={
                     <Space size={theme.marginXXS}>
-                        <Button
-                            type="text"
-                            disabled={disabled}
-                            aria-label={assistantRes.mentions.choose}
-                            title={assistantRes.mentions.choose}
-                            onClick={mentions.insert}
-                        >
-                            @
-                        </Button>
                         {writingContext && (
                             <Button
                                 type="text"

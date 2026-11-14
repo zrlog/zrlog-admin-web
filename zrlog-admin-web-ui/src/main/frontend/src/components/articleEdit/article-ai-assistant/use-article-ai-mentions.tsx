@@ -128,15 +128,6 @@ export const useArticleAiMentions = (
             setDismissed(undefined);
             setCaret(0);
         },
-        insert: () => {
-            const position = Math.max(0, Math.min(caret, input.length));
-            const prefix = input.slice(0, position);
-            const text = `${prefix}${prefix && !/\s$/.test(prefix) ? " " : ""}@`;
-            setDismissed(undefined);
-            setInput(text + input.slice(position));
-            setCaret(text.length);
-            focus(text.length);
-        },
         inputProps: {
             "aria-autocomplete": "list" as const,
             "aria-controls": open && !atLimit ? id : undefined,
