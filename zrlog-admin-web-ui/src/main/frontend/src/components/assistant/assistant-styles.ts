@@ -6,14 +6,6 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         width: 100%;
         min-width: 0;
     `,
-    maintenancePage: css`
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: ${token.padding}px;
-        @media (max-width: ${token.screenSM}px) {
-            padding: ${token.paddingXS}px;
-        }
-    `,
     conversationPage: css`
         display: flex;
         flex-direction: column;
@@ -108,32 +100,12 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         align-items: flex-start;
         gap: ${token.marginSM}px;
     `,
-    systemHeading: css`
-        display: grid;
-        grid-template-columns: ${token.controlHeight}px minmax(0, 1fr) auto;
-        column-gap: ${token.marginSM}px;
-        row-gap: ${token.marginXXS}px;
-        align-items: start;
-    `,
-    systemIcon: css`
-        grid-row: 1 / 3;
-    `,
-    systemDescription: css`
-        grid-column: 2 / -1;
-    `,
     title: css`
         margin: 0;
         font-size: ${token.fontSizeLG}px;
         font-weight: ${token.fontWeightStrong};
         line-height: ${token.lineHeight};
         overflow-wrap: anywhere;
-    `,
-    taskBody: css`
-        margin-top: ${token.marginXS}px;
-        margin-inline-start: calc(${token.controlHeight}px + ${token.marginSM}px);
-        @media (max-width: ${token.screenSM}px) {
-            margin-inline-start: 0;
-        }
     `,
     metadata: css`
         display: flex;
@@ -149,15 +121,5 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         flex: 1;
         gap: ${token.marginXXS}px;
         min-width: 0;
-    `,
-    footer: css`
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: ${token.marginSM}px;
-    `,
-    actions: css`
-        margin-inline-start: auto;
     `,
 }));

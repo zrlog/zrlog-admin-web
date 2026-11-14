@@ -218,7 +218,7 @@ export default function AssistantWorkspace({
         </section>
     ) : undefined;
     return (
-        <div className={cx(styles.page, maintenanceOnly ? styles.maintenancePage : styles.conversationPage)}>
+        <div className={cx(styles.page, !maintenanceOnly && styles.conversationPage)}>
             {offline && <Alert type="info" title={res.offline} />}
             {maintenanceOnly ? (
                 <SystemTasks

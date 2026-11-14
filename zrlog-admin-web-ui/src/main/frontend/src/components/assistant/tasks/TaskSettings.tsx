@@ -1,7 +1,10 @@
-import { Alert, Button, Descriptions, Divider, InputNumber, Popconfirm, Space, Spin, Typography } from "antd";
+import { Alert, Button, Collapse, InputNumber, Space, Spin, Typography } from "antd";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import Tag from "@zrlog/ui/antd/Tag";
+import { useAssistantSettingsStyles } from "./settings-styles";
 import Switch from "@zrlog/ui/antd/Switch";
 import { useCallback, useEffect, useState } from "react";
-import { getBackendServerUrl, getRes } from "../../../utils/constants";
+import { formatLabelValue, getBackendServerUrl, getRes } from "../../../utils/constants";
 import { formatDateTime } from "../../../utils/date-time";
 import type { Request, Settings, SettingsPage } from "./types";
 import ExternalTriggerGuide from "./ExternalTriggerGuide";
@@ -21,6 +24,7 @@ export default function TaskSettings({
     const [secret, setSecret] = useState<string>();
     const [budget, setBudget] = useState<number | null>(null);
     const res = getRes().websiteAssistant;
+    const { styles } = useAssistantSettingsStyles();
     const load = useCallback(async () => {
         setLoadError(undefined);
         try {
@@ -68,49 +72,32 @@ export default function TaskSettings({
         secret ?? "$ZRLOG_ASSISTANT_TASK_TOKEN"
     }"`;
     return (
-        <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-            <Typography.Paragraph>{res.settingsHelp}</Typography.Paragraph>
-            {settings.faas && <Alert type="info" showIcon title={res.faas} />}
-            <Space wrap>
-                <Switch
-                    checked={settings.internalEnabled && !settings.faas}
-                    disabled={busy || disabled || settings.faas}
-                    aria-label={res.internalEnabled}
-                    onChange={(internalEnabled) => void change("settings/save", { ...settings, internalEnabled })}
-                />
-                <span>{res.internalEnabled}</span>
-            </Space>
-            <Space wrap>
-                <Switch
-                    checked={settings.externalEnabled}
-                    disabled={busy || disabled || !settings.tokenConfigured}
-                    aria-label={res.externalEnabled}
-                    onChange={(externalEnabled) => void change("settings/save", { ...settings, externalEnabled })}
-                />
-                <span>{res.externalEnabled}</span>
-            </Space>
-            <Space wrap>
-                <label htmlFor="automation-budget">{res.externalBudget}</label>
-                <InputNumber
-                    id="automation-budget"
-                    min={10}
-                    max={660}
-                    precision={0}
-                    disabled={busy || disabled}
-                    value={budget ?? settings.externalBudgetSeconds}
-                    onChange={(value) => setBudget(value)}
-                />
-                <Button
-                    disabled={busy || disabled || budget === null || budget === settings.externalBudgetSeconds}
-                    onClick={async () => {
-                        if (await change("settings/save", { ...settings, externalBudgetSeconds: budget }))
-                            setBudget(null);
-                    }}
-                >
-                    {res.saveSettings}
-                </Button>
-            </Space>
-            <Typography.Paragraph type="secondary">{res.externalBudgetHelp}</Typography.Paragraph>
+        <section className={styles.section} aria-label={res.execution}>
+            <h3 className={styles.title}>{res.execution}</h3>
+            {loadError && <Alert type="error" showIcon title={loadError} />}
+            {settings.faas ? (
+                <Alert type="info" showIcon title={res.faas} />
+            ) : (
+                <div className={styles.row}>
+                    <div className={styles.label}>
+                        <Typography.Text strong>{res.internalEnabled}</Typography.Text>
+                        <p className={styles.help}>{res.internalHelp}</p>
+                        <span className={styles.metadata}>
+                            {formatLabelValue(
+                                res.healthInternal,
+                                page.internal ? formatDateTime(page.internal.startedAt) : res.never
+                            )}
+                        </span>
+                    </div>
+                    <Switch
+                        className={styles.toggle}
+                        checked={settings.internalEnabled}
+                        disabled={busy || disabled}
+                        aria-label={res.internalEnabled}
+                        onChange={(internalEnabled) => void change("settings/save", { ...settings, internalEnabled })}
+                    />
+                </div>
+            )}
             {!!page.external?.result?.insufficientBudgetTaskIds?.length && (
                 <Alert
                     type="warning"
@@ -121,57 +108,152 @@ export default function TaskSettings({
                     )}
                 />
             )}
-            <Descriptions
-                column={1}
+            <Collapse
+                style={{ background: "transparent" }}
+                defaultActiveKey={settings.faas || settings.externalEnabled ? ["external"] : []}
                 items={[
                     {
-                        key: "internal",
-                        label: res.healthInternal,
-                        children: page.internal ? formatDateTime(page.internal.startedAt) : res.never,
-                    },
-                    {
                         key: "external",
-                        label: res.healthExternal,
-                        children: page.external ? formatDateTime(page.external.startedAt) : res.never,
-                    },
-                    {
-                        key: "token",
-                        label: res.token,
-                        children: settings.tokenConfigured ? res.tokenConfigured : res.tokenMissing,
+                        label: (
+                            <div className={styles.label}>
+                                <Typography.Text strong>{res.externalTrigger}</Typography.Text>
+                                <p className={styles.help}>{res.externalHelp}</p>
+                            </div>
+                        ),
+                        extra: <Tag>{settings.externalEnabled ? getRes().assistant.on : getRes().assistant.off}</Tag>,
+                        children: (
+                            <div className={styles.details}>
+                                <div className={styles.row}>
+                                    <div className={styles.label}>
+                                        <Typography.Text>{res.externalEnabled}</Typography.Text>
+                                        {!settings.tokenConfigured && (
+                                            <p className={styles.help}>{res.tokenMissingHelp}</p>
+                                        )}
+                                        <span className={styles.metadata}>
+                                            {formatLabelValue(
+                                                res.healthExternal,
+                                                page.external ? formatDateTime(page.external.startedAt) : res.never
+                                            )}
+                                        </span>
+                                    </div>
+                                    <Switch
+                                        className={styles.toggle}
+                                        checked={settings.externalEnabled}
+                                        disabled={busy || disabled || !settings.tokenConfigured}
+                                        aria-label={res.externalEnabled}
+                                        onChange={(externalEnabled) =>
+                                            void change("settings/save", { ...settings, externalEnabled })
+                                        }
+                                    />
+                                </div>
+                                <div className={styles.field}>
+                                    <Space wrap>
+                                        <Typography.Text strong>{res.token}</Typography.Text>
+                                        <Typography.Text type="secondary">
+                                            {settings.tokenConfigured ? res.tokenConfigured : res.tokenMissing}
+                                        </Typography.Text>
+                                    </Space>
+                                    <p className={styles.help}>{res.tokenHelp}</p>
+                                    <Space wrap>
+                                        <Popconfirm
+                                            title={res.rotateHelp}
+                                            okText={res.rotate}
+                                            cancelText={getRes().common.cancel}
+                                            onConfirm={() => change("token/rotate")}
+                                        >
+                                            <Button disabled={disabled || busy}>{res.rotate}</Button>
+                                        </Popconfirm>
+                                        <Popconfirm
+                                            title={res.revokeHelp}
+                                            okText={res.revoke}
+                                            cancelText={getRes().common.cancel}
+                                            onConfirm={() => change("token/revoke")}
+                                        >
+                                            <Button danger disabled={disabled || busy || !settings.tokenConfigured}>
+                                                {res.revoke}
+                                            </Button>
+                                        </Popconfirm>
+                                    </Space>
+                                    {secret && (
+                                        <Alert
+                                            type="warning"
+                                            showIcon
+                                            title={res.tokenOnce}
+                                            description={
+                                                <Typography.Paragraph
+                                                    copyable
+                                                    style={{ overflowWrap: "anywhere", marginBottom: 0 }}
+                                                >
+                                                    {secret}
+                                                </Typography.Paragraph>
+                                            }
+                                            closable={{ closeIcon: true, "aria-label": getRes().common.close }}
+                                            onClose={() => setSecret(undefined)}
+                                        />
+                                    )}
+                                </div>
+                                <div className={styles.field}>
+                                    <Typography.Text strong>{res.endpoint}</Typography.Text>
+                                    <Typography.Paragraph
+                                        copyable
+                                        style={{ overflowWrap: "anywhere", marginBottom: 0 }}
+                                    >
+                                        {endpoint}
+                                    </Typography.Paragraph>
+                                </div>
+                                <div className={styles.field}>
+                                    <label htmlFor="assistant-trigger-budget">{res.externalBudget}</label>
+                                    <Space wrap>
+                                        <InputNumber
+                                            id="assistant-trigger-budget"
+                                            aria-describedby="assistant-trigger-budget-help"
+                                            min={10}
+                                            max={660}
+                                            precision={0}
+                                            disabled={busy || disabled}
+                                            value={budget ?? settings.externalBudgetSeconds}
+                                            onChange={(value) => setBudget(value)}
+                                        />
+                                        <Button
+                                            disabled={
+                                                busy ||
+                                                disabled ||
+                                                budget === null ||
+                                                budget === settings.externalBudgetSeconds
+                                            }
+                                            onClick={async () => {
+                                                if (
+                                                    await change("settings/save", {
+                                                        ...settings,
+                                                        externalBudgetSeconds: budget,
+                                                    })
+                                                )
+                                                    setBudget(null);
+                                            }}
+                                        >
+                                            {res.saveSettings}
+                                        </Button>
+                                    </Space>
+                                    <p id="assistant-trigger-budget-help" className={styles.help}>
+                                        {res.externalBudgetHelp}
+                                    </p>
+                                </div>
+                                <Collapse
+                                    items={[
+                                        {
+                                            key: "examples",
+                                            label: res.example,
+                                            children: (
+                                                <ExternalTriggerGuide endpoint={endpoint} curlExample={example} />
+                                            ),
+                                        },
+                                    ]}
+                                />
+                            </div>
+                        ),
                     },
                 ]}
             />
-            <Divider />
-            <Typography.Title level={4}>{res.endpoint}</Typography.Title>
-            <Typography.Paragraph copyable style={{ overflowWrap: "anywhere" }}>
-                {endpoint}
-            </Typography.Paragraph>
-            <Typography.Paragraph type="secondary">{res.tokenHelp}</Typography.Paragraph>
-            <Space wrap>
-                <Popconfirm title={res.rotateHelp} okText={res.rotate} onConfirm={() => change("token/rotate")}>
-                    <Button disabled={disabled || busy}>{res.rotate}</Button>
-                </Popconfirm>
-                <Popconfirm title={res.revokeHelp} okText={res.revoke} onConfirm={() => change("token/revoke")}>
-                    <Button danger disabled={disabled || busy || !settings.tokenConfigured}>
-                        {res.revoke}
-                    </Button>
-                </Popconfirm>
-            </Space>
-            {secret && (
-                <Alert
-                    type="warning"
-                    showIcon
-                    title={res.tokenOnce}
-                    description={
-                        <Typography.Paragraph copyable style={{ overflowWrap: "anywhere" }}>
-                            {secret}
-                        </Typography.Paragraph>
-                    }
-                    closable
-                    onClose={() => setSecret(undefined)}
-                />
-            )}
-            <ExternalTriggerGuide endpoint={endpoint} curlExample={example} />
-        </Space>
+        </section>
     );
 }

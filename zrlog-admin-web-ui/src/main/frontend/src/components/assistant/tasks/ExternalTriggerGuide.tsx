@@ -31,7 +31,6 @@ export default function ExternalTriggerGuide({ endpoint, curlExample }: { endpoi
     const res = getRes().websiteAssistant;
     return (
         <section aria-label={res.example} style={{ width: "100%", minWidth: 0 }}>
-            <Typography.Title level={4}>{res.example}</Typography.Title>
             <Tabs
                 items={[
                     {
