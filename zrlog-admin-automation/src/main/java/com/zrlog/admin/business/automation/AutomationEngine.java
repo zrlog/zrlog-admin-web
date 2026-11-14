@@ -250,6 +250,12 @@ public final class AutomationEngine {
                 run.errorCode = "automation.executionUncertain";
             }
         }
+        if (run.result != null) {
+            run.result.recovered =
+                    "success".equals(run.status)
+                            && Set.of("failed", "needs_attention", "uncertain")
+                                    .contains(Objects.toString(task.lastStatus, ""));
+        }
         run.finishedAt = clock.getAsLong();
         AutomationStore.Snapshot<AutomationModels.Run> previous = runState.get();
         if (run.result == null && previous != null) {

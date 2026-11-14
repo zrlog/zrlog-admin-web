@@ -12,4 +12,17 @@ public interface AssistantTaskContextProvider {
             throws SQLException {
         return java.util.List.of();
     }
+
+    /** Lightweight, permission-checked feedback; no plan snapshots or child result bodies. */
+    default FeedbackPage feedback(AccountAccess actor, String taskId, Long before, String beforeId)
+            throws SQLException {
+        return new FeedbackPage();
+    }
+
+    class FeedbackPage {
+        public java.util.List<AutomationModels.Run> items = new java.util.ArrayList<>();
+        public Long before;
+        public String beforeId;
+        public boolean hasMore;
+    }
 }

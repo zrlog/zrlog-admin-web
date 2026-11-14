@@ -53,6 +53,46 @@ public class AIResponseEntry {
         private java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment>
                 attachments;
         private String messageType;
+        private TaskResult taskResult;
+        private TaskFeedbackState taskFeedbackState;
+
+        public TaskResult getTaskResult() {
+            return taskResult;
+        }
+
+        public void setTaskResult(TaskResult value) {
+            taskResult = value;
+        }
+
+        public TaskFeedbackState getTaskFeedbackState() {
+            return taskFeedbackState;
+        }
+
+        public void setTaskFeedbackState(TaskFeedbackState value) {
+            taskFeedbackState = value;
+        }
+
+        /** References an authoritative execution; contains only the bounded user-facing summary. */
+        public static class TaskResult {
+            public String runId;
+            public long version;
+            public String status;
+            public String messageKey;
+            public List<String> messageArguments = new ArrayList<>();
+            public String text;
+            public boolean recovered;
+        }
+
+        /**
+         * Private synchronization state in the existing session envelope, never a model message.
+         */
+        public static class TaskFeedbackState {
+            public Long before;
+            public String beforeId;
+            public boolean hasMore;
+            public long clearedAt;
+        }
+
         private ArticleContextMeta contextMeta;
         private String tool;
         private Object payload;

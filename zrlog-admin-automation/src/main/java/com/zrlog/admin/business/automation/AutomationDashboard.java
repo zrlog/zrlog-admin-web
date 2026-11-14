@@ -100,7 +100,6 @@ public final class AutomationDashboard {
             throws SQLException {
         var response = overview(actor, offset, conversations);
         response.selectedTask = tasks.require(actor, taskId);
-        response.runs = runs(actor, taskId, page, 20);
         if (runId != null && !runId.isBlank()) response.selectedRun = run(tasks.run(actor, runId));
         return response;
     }

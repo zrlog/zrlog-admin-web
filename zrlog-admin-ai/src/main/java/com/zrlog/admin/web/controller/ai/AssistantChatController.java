@@ -194,8 +194,21 @@ public class AssistantChatController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     public ApiStandardResponse<AIChatModels.ConversationView> conversation() throws SQLException {
         response.addHeader("Cache-Control", "private, no-store");
-        var info = chat.conversationInfo(requestIdentity.current(), articleId(), taskId());
+        var info =
+                chat.conversationInfo(
+                        requestIdentity.current(),
+                        articleId(),
+                        taskId(),
+                        "1".equals(request.getParaToStr("earlier")));
         var view = new AIChatModels.ConversationView();
+        view.hasEarlierFeedback =
+                info.getAiMessages().stream()
+                        .map(
+                                com.zrlog.admin.business.rest.response.AIResponseEntry
+                                                .AIContentEntry
+                                        ::getTaskFeedbackState)
+                        .filter(Objects::nonNull)
+                        .anyMatch(state -> state.hasMore);
         view.aiProvider = info.getAi_provider();
         view.aiModel = info.getAi_model();
         view.aiFileInput = AIFileService.capabilities(info);

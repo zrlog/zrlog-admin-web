@@ -98,13 +98,15 @@ final class AssistantRecordMapper {
                 value.finishedAt != null
                         && !"running".equals(value.status)
                         && (Set.of("failed", "uncertain", "needs_attention").contains(value.status)
-                                || value.result != null && value.result.notifyOwner));
+                                || value.result != null
+                                        && (value.result.notifyOwner || value.result.recovered)));
         row.setPlanSnapshot(JSON.toJson(value.planSnapshot));
         row.setResult(JSON.toJson(value.result));
         if (value.result != null) {
             AutomationModels.Result summary = new AutomationModels.Result();
             summary.status = value.result.status;
             summary.notifyOwner = value.result.notifyOwner;
+            summary.recovered = value.result.recovered;
             summary.messageKey = value.result.messageKey;
             summary.messageArguments = value.result.messageArguments;
             summary.text =
@@ -136,6 +138,7 @@ final class AssistantRecordMapper {
         value.errorCode = row.getErrorCode();
         value.scheduledAt = millis(row.getScheduledAt());
         value.startedAt = millis(row.getStartedAt());
+        value.updatedAt = millis(row.getUpdatedAt());
         value.finishedAt = millis(row.getFinishedAt());
         value.planSnapshot = JSON.fromJson(row.getPlanSnapshot(), AutomationModels.Plan.class);
         value.result = JSON.fromJson(row.getResult(), AutomationModels.Result.class);

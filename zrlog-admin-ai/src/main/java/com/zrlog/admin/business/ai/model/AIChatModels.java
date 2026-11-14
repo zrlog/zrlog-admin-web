@@ -71,6 +71,7 @@ public final class AIChatModels {
     }
 
     public static class ConversationView {
+        public boolean hasEarlierFeedback;
         public com.zrlog.admin.business.ai.model.AIProviderType aiProvider;
         public String aiModel;
         public AIFileModels.Capabilities aiFileInput;

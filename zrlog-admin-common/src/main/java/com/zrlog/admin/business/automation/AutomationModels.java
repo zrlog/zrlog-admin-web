@@ -112,6 +112,9 @@ public final class AutomationModels {
         /** Show a successful outcome in the owner's inbox. Failures always appear there. */
         public boolean notifyOwner;
 
+        /** The previous execution required attention and this execution succeeded. */
+        public boolean recovered;
+
         public String messageKey;
         public List<String> messageArguments = new ArrayList<>();
         public String text;
@@ -150,6 +153,7 @@ public final class AutomationModels {
         public Plan planSnapshot;
         public long scheduledAt;
         public long startedAt;
+        public Long updatedAt;
         public Long finishedAt;
         public String trigger;
         public Integer triggeredBy;

@@ -8,7 +8,7 @@ jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark
 jest.mock("../../../utils/helpers", () => ({ getEditorUser: () => ({}) }));
 jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
 
-it("interleaves successive executions in the same conversation without duplicating their data", () => {
+it("renders stored task feedback and chat through the same message renderer", () => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -16,7 +16,9 @@ it("interleaves successive executions in the same conversation without duplicati
     const config = {
         contentMaxWidth: 768,
         messages: [
+            { content: "First execution", createdAt: 10, messageType: "taskResult" },
             { content: "Question", createdAt: 20 },
+            { content: "Second execution", createdAt: 30, messageType: "taskResult" },
             { content: "Answer", createdAt: 40 },
         ],
         renderMessage: ({ content }: any) => <p data-activity>{content.content}</p>,
@@ -29,10 +31,6 @@ it("interleaves successive executions in the same conversation without duplicati
                     config={config as never}
                     aiProvider={"OPEN_AI" as never}
                     selectedText="Selected text"
-                    activities={[
-                        { id: "run-1", createdAt: 10, content: <p data-activity>First execution</p> },
-                        { id: "run-2", createdAt: 30, content: <p data-activity>Second execution</p> },
-                    ]}
                 />
             )
         );

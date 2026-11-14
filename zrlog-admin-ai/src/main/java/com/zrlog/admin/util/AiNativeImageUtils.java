@@ -27,6 +27,10 @@ public final class AiNativeImageUtils {
                         com.zrlog.admin.business.rest.response.AIResponseEntry.class,
                         com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry.class,
                         com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry
+                                .TaskResult.class,
+                        com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry
+                                .TaskFeedbackState.class,
+                        com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry
                                 .ArticleContextMeta.class,
                         com.zrlog.admin.business.ai.dto.AIStreamPayloads.Chunk.class,
                         com.zrlog.admin.business.ai.dto.AIStreamPayloads.ErrorPayload.class,
