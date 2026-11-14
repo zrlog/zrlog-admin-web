@@ -65,7 +65,7 @@ const AsyncTemplate = lazy(() => import("components/template"));
 const AsyncTemplateConfig = lazy(() => import("components/template/template-config"));
 const AsyncAccountSecurity = lazy(() => import("components/account-security"));
 const AsyncArticle = lazy(() => import("components/article"));
-const AsyncAutomations = lazy(() => import("components/automations"));
+const AsyncAssistant = lazy(() => import("components/assistant"));
 const AsyncMembers = lazy(() => import("components/members"));
 const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
@@ -210,7 +210,7 @@ export const createAdminDashboardRoutes = (
 ): AdminDashboardRouteDefinition[] => [
     {
         paths: buildUriPaths("assistant"),
-        lazy: AsyncAutomations,
+        lazy: AsyncAssistant,
         fallback: LightweightFallback,
         getComponentKey: (_data, cacheKey) => cacheKey.split("?")[0],
         search: [
@@ -225,7 +225,7 @@ export const createAdminDashboardRoutes = (
     ...(["system", "history"] as const).map(
         (page): AdminDashboardRouteDefinition => ({
             paths: buildUriPaths(ASSISTANT_ROUTES[page].slice(1)),
-            lazy: AsyncAutomations,
+            lazy: AsyncAssistant,
             fallback: LightweightFallback,
             props: { activePage: page },
             getComponentKey: (_data, cacheKey) => cacheKey.split("?")[0],

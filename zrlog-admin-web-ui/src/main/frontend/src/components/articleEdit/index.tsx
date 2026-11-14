@@ -21,7 +21,7 @@ import { Locale } from "@zrlog/editor/dist/editor/lang/editor-lang";
 import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useNavigate } from "react-router-dom";
 import PublishStatusBar from "./publish-status-bar";
-import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
+import { useAssistantConversation } from "../assistant/use-assistant-conversation";
 import useArticleEditUiState from "./use-article-edit-ui-state";
 import ArticleVersionConflict from "./version-sync/article-version-conflict";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
@@ -303,7 +303,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         handleValuesChange({ markdown: nextMarkdown });
     };
 
-    const assistantConfig = useArticleAiAssistantConfig({
+    const assistantConfig = useAssistantConversation({
         data: state,
         draftAiSaveGate,
         offline,

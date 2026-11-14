@@ -1,11 +1,11 @@
 import {useRef, useState} from "react";
 import {ArticleChangeableValue, ArticleEntry} from "./index.types";
 
-import {canApplySkillValues, createSkillApplicationSession} from "./article-ai-assistant/article-ai-skill-contract";
-import {ToolAwareAIContent} from "./article-ai-assistant/article-ai-assistant.types";
+import {canApplySkillValues, createSkillApplicationSession} from "../assistant/writing/writing-skill-contract";
+import {AssistantMessage} from "../assistant/chat/assistant-chat.types";
 
-export type SkillContextRevision = (message: ToolAwareAIContent) => string;
-export type ApplyAiValues = (cv: ArticleChangeableValue, source?: ToolAwareAIContent) => void;
+export type SkillContextRevision = (message: AssistantMessage) => string;
+export type ApplyAiValues = (cv: ArticleChangeableValue, source?: AssistantMessage) => void;
 
 type ArticleFieldAiOptions = {
     getCurrentArticle: () => ArticleEntry;

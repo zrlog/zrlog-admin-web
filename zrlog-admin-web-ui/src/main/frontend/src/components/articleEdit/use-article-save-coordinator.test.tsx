@@ -1,5 +1,5 @@
 import useArticleFieldAi from "./use-article-field-ai";
-import { articleContextRevision } from "./article-ai-assistant/article-ai-skill-contract";
+import { articleContextRevision } from "../assistant/writing/writing-skill-contract";
 import { act, SetStateAction, useSyncExternalStore } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
@@ -15,7 +15,7 @@ import { getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
 import { disableExitTips } from "../../utils/helpers";
 import { AIProviderType } from "../../type";
 import { ArticleEditInfo, ArticleEditState, ArticleEntry } from "./index.types";
-import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
+import { AssistantMessage } from "../assistant/chat/assistant-chat.types";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
 import useArticleEditorDocument from "./use-article-editor-document";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "./draft-ai-save-gate";
@@ -465,7 +465,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 const article = body as ArticleEntry;
                 return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
             });
-            const source: ToolAwareAIContent = {
+            const source: AssistantMessage = {
                 role: "assistant",
                 content: "",
                 thinking: false,
@@ -630,7 +630,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 const article = body as ArticleEntry;
                 return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
             });
-            const skill = (field: string, index: number): ToolAwareAIContent => ({
+            const skill = (field: string, index: number): AssistantMessage => ({
                 role: "assistant",
                 content: "",
                 thinking: false,
@@ -691,7 +691,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             const article = body as ArticleEntry;
             return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
         });
-        const source: ToolAwareAIContent = {
+        const source: AssistantMessage = {
             role: "assistant",
             content: "",
             thinking: false,
@@ -753,7 +753,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("does not extend a run's application baseline when a conflict rejects the patch", async () => {
         mockUseRealDraftSync = true;
         remountWith(data, "?id=7");
-        const source: ToolAwareAIContent = {
+        const source: AssistantMessage = {
             role: "assistant",
             content: "",
             thinking: false,
@@ -1349,7 +1349,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             role: "assistant",
             content: "Publish check result",
             messageId: "publish-check-before-navigation",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         mockPostPublish.mockImplementationOnce(async () => {
             mockTransparentPublishOptions.onAiMessagesChange((current) => [...current, publishCheckMessage], 42);
             return {
@@ -1384,7 +1384,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(
             mockPageCache
                 .get("/article-edit?id=42")
-                ?.aiMessages.map((message) => (message as ToolAwareAIContent).messageId)
+                ?.aiMessages.map((message) => (message as AssistantMessage).messageId)
         ).toEqual(["publish-check-before-navigation"]);
     });
 
@@ -1396,17 +1396,17 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             role: "assistant",
             content: "Existing message",
             messageId: "existing-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const laterMessage = {
             role: "user",
             content: "Question added after publish",
             messageId: "later-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const publishCheckMessage = {
             role: "assistant",
             content: "Publish check result",
             messageId: "publish-check-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         harnessData = {
             ...data,
             article: { ...data.article, logId: 42 },
@@ -1421,7 +1421,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => coordinator.updateAiMessageCache([existingMessage, laterMessage]));
         act(() => updateFromStartedPublish((current) => [...current, publishCheckMessage], 42));
 
-        expect(coordinator.state.aiMessages.map((message) => (message as ToolAwareAIContent).messageId)).toEqual([
+        expect(coordinator.state.aiMessages.map((message) => (message as AssistantMessage).messageId)).toEqual([
             "existing-message",
             "later-message",
             "publish-check-message",
@@ -1429,7 +1429,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(
             mockPageCache
                 .get("/article-edit?id=42")
-                ?.aiMessages.map((message) => (message as ToolAwareAIContent).messageId)
+                ?.aiMessages.map((message) => (message as AssistantMessage).messageId)
         ).toEqual(["existing-message", "later-message", "publish-check-message"]);
     });
 
@@ -1445,7 +1445,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             role: "assistant",
             content: "Draft response",
             messageId: "draft-route-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
 
         window.history.replaceState({}, "", "/article-edit?id=42&intent=edit&typeId=9");
         act(() => updateFromDraftRequest([draftMessage], 0));
@@ -1463,13 +1463,13 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             content: "Stale session message",
             thinking: false,
             messageId: "stale-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const freshMessage = {
             role: "assistant",
             content: "Fresh server message",
             thinking: false,
             messageId: "fresh-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
 
         act(() => coordinator.updateAiMessageCache([staleMessage]));
         act(() => root.unmount());
@@ -1844,12 +1844,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             role: "assistant",
             content: "Draft answer",
             messageId: "draft-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const publishCheckMessage = {
             role: "assistant",
             content: "Publish check",
             messageId: "publish-check-message",
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const draftData = {
             ...data,
             article: { ...initialArticle, logId: undefined, version: -1 },
@@ -1884,7 +1884,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(
             mockPageCache
                 .get("/article-edit?id=42")
-                ?.aiMessages.map((message) => (message as ToolAwareAIContent).messageId)
+                ?.aiMessages.map((message) => (message as AssistantMessage).messageId)
         ).toEqual(["draft-message", "publish-check-message"]);
 
         const nextDraftData = { ...draftData, aiMessages: [] };
@@ -1897,12 +1897,12 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             role: "user",
             content: "Please review this draft",
             thinking: false,
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const secondLocalQuestion = {
             role: "user",
             content: "Please review this draft",
             thinking: false,
-        } as ToolAwareAIContent;
+        } as AssistantMessage;
         const draftData = {
             ...data,
             article: { ...initialArticle, logId: undefined, version: -1 },
@@ -1928,7 +1928,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                             content: "Please review this draft",
                             messageId: "server-question-2",
                         },
-                    ] as ToolAwareAIContent[],
+                    ] as AssistantMessage[],
                 },
             },
         });
@@ -1938,7 +1938,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         });
 
         const migratedEntry = Array.from(mockPageCache.entries()).find(([cacheKey]) => cacheKey.includes("id=42"));
-        const migratedMessages = migratedEntry?.[1].aiMessages as ToolAwareAIContent[];
+        const migratedMessages = migratedEntry?.[1].aiMessages as AssistantMessage[];
         expect(migratedMessages).toHaveLength(2);
         expect(migratedMessages.map(({ content }) => content)).toEqual([
             "Please review this draft",

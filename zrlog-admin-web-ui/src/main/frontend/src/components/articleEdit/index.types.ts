@@ -1,6 +1,6 @@
 import {AdminCommonProps, AIProviderType} from "../../type";
 import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
-import {AssistantToolPayload} from "./article-ai-assistant/article-ai-assistant.types";
+import { WritingSkillPayload } from "../assistant/writing/writing-assistant.types";
 
 export type ArticleEntry = ChangedContent &
     ThumbnailChanged &
@@ -102,7 +102,7 @@ export type ArticleEditInfo = {
     article: ArticleEntry;
     aiProvider: AIProviderType;
     aiModel?: string;
-    aiFileInput?: import("./article-ai-assistant/article-ai-files").AiFileCapabilities;
+    aiFileInput?: import("../assistant/chat/assistant-files").AiFileCapabilities;
     aiConfigured?: boolean;
     aiMessages: AIContent[];
     linkPreviewEnabled?: boolean;
@@ -124,7 +124,7 @@ export type ArticleEditState = {
     tags: any[];
     aiProvider: AIProviderType;
     aiModel?: string;
-    aiFileInput?: import("./article-ai-assistant/article-ai-files").AiFileCapabilities;
+    aiFileInput?: import("../assistant/chat/assistant-files").AiFileCapabilities;
     aiConfigured: boolean;
     aiMessages: AIContent[];
     linkPreviewEnabled: boolean;
@@ -169,7 +169,7 @@ export type PublishStatusPopoverState = {
     staticError?: string;
     checkStatus: "idle" | "running" | "success" | "error";
     checkError?: string;
-    checkPayload?: Extract<AssistantToolPayload, { tool: "publishCheck" }>;
+    checkPayload?: Extract<WritingSkillPayload, { tool: "publishCheck" }>;
 };
 
 export type PublishCheckTarget = "title" | "alias" | "digest" | "tags" | "cover" | "markdown" | "settings";
