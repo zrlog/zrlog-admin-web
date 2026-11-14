@@ -569,6 +569,7 @@ describe("Docker upgrade interaction and recovery", () => {
         await tick();
         expect(mockUpgrade).toHaveBeenCalledWith("/api/admin/static-site/sync", expect.anything());
         expect(mockModal.success).toHaveBeenCalledTimes(1);
+        expect(mockModal.success).toHaveBeenCalledWith(expect.objectContaining({ title: "New version is live" }));
         expect(readUpgradeTask()).toBeUndefined();
         await tick();
         expect(mockSubscribe).toHaveBeenCalledTimes(1);
@@ -837,7 +838,7 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         expect(percent()).toBe("33");
         await act(async () => stream.resolve({ error: 0, data: { finish: true } }));
         expect(percent()).toBe("33");
-        await act(async () => version.resolve({ data: { buildId: targetBuild } }));
+        await act(async () => version.resolve({ message: "Server update result", data: { buildId: targetBuild } }));
         expect(percent()).toBe("67");
         expect(running()).toHaveLength(1);
         expect(mockModal.success).not.toHaveBeenCalled();
@@ -845,6 +846,20 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         expect(percent()).toBe("100");
         expect(running()).toHaveLength(0);
         expect(mockModal.success).toHaveBeenCalledTimes(1);
+        expect(mockModal.success).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: "Server update result",
+                content: "Stay on this page to review the update results, or go to the admin homepage",
+                okCancel: true,
+                okText: "Go to admin homepage",
+                cancelText: "Stay here",
+                focusable: { autoFocusButton: "cancel" },
+            })
+        );
+        const location = { href: "" } as Location;
+        jest.spyOn(window, "location", "get").mockReturnValue(location);
+        (mockModal.success.mock.calls[0][0] as { onOk: () => void }).onOk();
+        expect(location.href).toBe("/blog/admin/index?buildId=" + targetBuild);
         expect(finishBackgroundTask).toHaveBeenLastCalledWith("test-upgrade-task", "success", expect.any(String));
         const taskUpdates = jest.mocked(updateBackgroundTask).mock.calls.length;
         await emit("download");
@@ -963,6 +978,19 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
         expect(mockModal.success).not.toHaveBeenCalled();
         expect(mockModal.warning).toHaveBeenCalledTimes(1);
         expect(finishBackgroundTask).toHaveBeenLastCalledWith("test-upgrade-task", "warning", expect.any(String));
+        expect(mockModal.warning).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: "Admin static resource sync did not complete",
+                okCancel: true,
+                okText: "Go to admin homepage",
+                cancelText: "Stay here",
+                focusable: { autoFocusButton: "cancel" },
+            })
+        );
+        const location = { href: "" } as Location;
+        jest.spyOn(window, "location", "get").mockReturnValue(location);
+        (mockModal.warning.mock.calls[0][0] as { onOk: () => void }).onOk();
+        expect(location.href).toBe("/blog/admin/index?buildId=" + targetBuild);
     });
 
     if (!docker) {

@@ -165,15 +165,15 @@ public class SystemTaskPermissionsTest {
         assertEquals("admin.assistant.cache.title", stored.taskNameKey);
         var inbox = new AutomationNotificationService(store, authority, service);
         try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("en_US")) {
-            assertEquals("Keep article caches fresh", AutomationDashboard.run(stored).taskName);
+            assertEquals("Refresh site caches", AutomationDashboard.run(stored).taskName);
             var payload =
                     (com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse
                                     .OperationTaskPayload)
                             inbox.list(actor(2)).get(0).getPayload();
-            assertEquals("Keep article caches fresh", payload.getTitle());
+            assertEquals("Refresh site caches", payload.getTitle());
         }
         try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
-            assertFalse(AutomationDashboard.run(stored).taskName.contains("Keep"));
+            assertEquals("刷新站点缓存", AutomationDashboard.run(stored).taskName);
         }
         assertEquals(stored.taskNameKey, store.run(run.id).value.taskNameKey);
         assertEquals(task.type, stored.taskName);

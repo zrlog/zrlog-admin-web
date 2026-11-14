@@ -11,6 +11,7 @@ import { NavigateFunction } from "react-router";
 import { syncMessageCenterStatus } from "../utils/message-center-status";
 import { ADMIN_ERROR_CODE } from "../common/admin-error-code";
 import { getErrorMessage, getResponseMessage } from "../utils/error-message";
+import { enableAxiosTextStreaming } from "../utils/axios-text-stream";
 
 const AsyncLogin = lazy(() => import("components/login"));
 
@@ -35,6 +36,7 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
 
     return useMemo(() => {
         const axiosInstance = axios.create();
+        enableAxiosTextStreaming(axiosInstance);
         if (isStaticPage()) {
             axiosInstance.defaults.withCredentials = true;
         }

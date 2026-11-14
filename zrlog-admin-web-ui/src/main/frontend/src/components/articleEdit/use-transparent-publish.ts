@@ -4,7 +4,7 @@ import {AIContent} from "@zrlog/editor/core/ai/AIContentItem";
 import {getRes} from "../../utils/constants";
 import {getStaticProgressText, postRefreshCacheSse} from "../../utils/sse-utils";
 import {ArticleEntry, PublishStatusPopoverState} from "./index.types";
-import {ToolAwareAIContent} from "./article-ai-assistant/article-ai-assistant.types";
+import {AssistantMessage} from "../assistant/chat/assistant-chat.types";
 
 type UseTransparentPublishOptions = {
     messageApi: MessageInstance;
@@ -17,11 +17,11 @@ type UseTransparentPublishOptions = {
 const appendUniqueAiMessages = (current: AIContent[], incoming: AIContent[]) => {
     const messageIds = new Set(
         current
-            .map((message) => (message as ToolAwareAIContent).messageId)
+            .map((message) => (message as AssistantMessage).messageId)
             .filter((messageId): messageId is string => Boolean(messageId))
     );
     const additions = incoming.filter((message) => {
-        const messageId = (message as ToolAwareAIContent).messageId;
+        const messageId = (message as AssistantMessage).messageId;
         if (!messageId) {
             return true;
         }

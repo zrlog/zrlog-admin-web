@@ -1,7 +1,7 @@
 import SaveIcon from "@zrlog/ui/icons/save";
 import SendIcon from "@zrlog/ui/icons/send";
 import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
-import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
+import { ArticleUpdatedEvent } from "../assistant/writing/writing-assistant.types";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { hasAction } from "../../utils/account-access";
 import { Button } from "antd";
@@ -14,9 +14,7 @@ import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getAiDrawerOpen } from "@zrlog/editor/core/ai/AIDrawer";
 import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
-import ArticleAiAssistantButton, {
-    getArticleAiAssistantDrawerOpen,
-} from "./article-ai-assistant/article-ai-assistant-button";
+import WritingAssistantButton, { getWritingAssistantDrawerOpen } from "../assistant/writing/writing-assistant-button";
 import { DraftAiSaveGate } from "./draft-ai-save-gate";
 import useArticleEditorScreens from "./use-article-editor-screens";
 
@@ -86,7 +84,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
             const metaPressed = isMac ? event.metaKey : event.ctrlKey;
             const key = event.key.toLowerCase();
 
-            if (getAiDrawerOpen() || getArticleAiAssistantDrawerOpen() || isTouchLikeDevice()) {
+            if (getAiDrawerOpen() || getWritingAssistantDrawerOpen() || isTouchLikeDevice()) {
                 return;
             }
 
@@ -178,7 +176,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                 onClick={async () => await onSubmit(data.article, false, false, false)}
             />
             {isModuleEnabled("ai") && (
-                <ArticleAiAssistantButton
+                <WritingAssistantButton
                     data={data}
                     draftAiSaveGate={draftAiSaveGate}
                     offline={offline}
