@@ -35,6 +35,11 @@ public final class AutomationDashboard {
     }
 
     public AutomationViews.Overview overview(AccountAccess actor, int offset) throws SQLException {
+        return overview(actor, offset, false);
+    }
+
+    public AutomationViews.Overview overview(AccountAccess actor, int offset, boolean conversations)
+            throws SQLException {
         actor = authority.current(actor);
         AutomationViews.Overview response = new AutomationViews.Overview();
         var definitions = tasks.definitions();
@@ -51,8 +56,13 @@ public final class AutomationDashboard {
             response.definitions.add(copy);
         }
         response.aiAvailable = proposals.available(actor);
-        for (StoredTask task : tasks.tasksFor(actor, offset)) response.tasks.add(task(task));
-        response.total = store.taskCount(actor.getUserId());
+        if (conversations) {
+            response.tasks.addAll(tasks.conversationsFor(actor, offset));
+            response.total = store.conversationCount(actor.getUserId());
+        } else {
+            for (StoredTask task : tasks.tasksFor(actor, offset)) response.tasks.add(task(task));
+            response.total = store.taskCount(actor.getUserId());
+        }
         var views = new java.util.ArrayList<>(response.systemTasks);
         views.addAll(response.tasks);
         for (var view : views) {
@@ -77,8 +87,21 @@ public final class AutomationDashboard {
 
     public AutomationViews.Overview conversation(
             AccountAccess actor, String taskId, int page, String runId) throws SQLException {
-        var response = history(actor, taskId, page, runId);
+        return conversation(actor, taskId, page, runId, 0, false);
+    }
+
+    public AutomationViews.Overview conversation(
+            AccountAccess actor,
+            String taskId,
+            int page,
+            String runId,
+            int offset,
+            boolean conversations)
+            throws SQLException {
+        var response = overview(actor, offset, conversations);
         response.selectedTask = tasks.require(actor, taskId);
+        response.runs = runs(actor, taskId, page, 20);
+        if (runId != null && !runId.isBlank()) response.selectedRun = run(tasks.run(actor, runId));
         return response;
     }
 

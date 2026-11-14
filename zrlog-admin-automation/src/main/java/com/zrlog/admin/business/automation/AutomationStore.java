@@ -104,6 +104,76 @@ public final class AutomationStore {
                                 Math.max(0, offset)));
     }
 
+    /** One entry per personal task, including retained conversations after schedule deletion. */
+    List<ConversationKey> conversationKeys(int ownerId, int limit, int offset) throws SQLException {
+        return tasks.get()
+                .queryList(
+                        "SELECT id,MAX(activityAt) AS activityAt FROM ("
+                                + "SELECT id,COALESCE(lastRunAt,updatedAt,createdAt) AS activityAt FROM assistant_task WHERE ownerId=?"
+                                + " UNION ALL SELECT taskId AS id,MAX(startedAt) AS activityAt FROM assistant_task_run WHERE ownerId=? GROUP BY taskId"
+                                + ") c GROUP BY id ORDER BY activityAt DESC,id DESC LIMIT ? OFFSET ?",
+                        ConversationKey.class,
+                        ownerId,
+                        ownerId,
+                        pageSize(limit),
+                        Math.max(0, offset));
+    }
+
+    long conversationCount(int ownerId) throws SQLException {
+        return ((Number)
+                        tasks.get()
+                                .queryFirstObj(
+                                        "SELECT count(*) FROM (SELECT id FROM assistant_task WHERE ownerId=?"
+                                                + " UNION SELECT taskId AS id FROM assistant_task_run WHERE ownerId=?) c",
+                                        ownerId,
+                                        ownerId))
+                .longValue();
+    }
+
+    List<StoredTask> conversationPlans(int ownerId, List<String> ids) throws SQLException {
+        if (ids.isEmpty()) return List.of();
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(ownerId);
+        parameters.addAll(ids);
+        return tasks
+                .get()
+                .select(
+                        "WHERE ownerId=? AND id IN (" + placeholders(ids.size()) + ")",
+                        parameters.toArray())
+                .stream()
+                .map(AssistantRecordMapper::taskValue)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** Only the latest summary is read; archived results and plan snapshots stay unloaded. */
+    List<AutomationModels.Run> conversationLastRuns(int ownerId, List<String> ids)
+            throws SQLException {
+        if (ids.isEmpty()) return List.of();
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(ownerId);
+        parameters.addAll(ids);
+        return runs
+                .get()
+                .queryList(
+                        "SELECT "
+                                + RunSummary.COLUMNS
+                                + " FROM assistant_task_run r WHERE r.ownerId=? AND r.taskId IN ("
+                                + placeholders(ids.size())
+                                + ")"
+                                + " AND NOT EXISTS (SELECT 1 FROM assistant_task_run n WHERE n.ownerId=r.ownerId AND n.taskId=r.taskId"
+                                + " AND (n.startedAt>r.startedAt OR (n.startedAt=r.startedAt AND n.id>r.id)))",
+                        RunSummary.class,
+                        parameters.toArray())
+                .stream()
+                .map(RunSummary::value)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public static final class ConversationKey {
+        public String id;
+        public Timestamp activityAt;
+    }
+
     public List<StoredTask> systemTasks(List<String> ids) throws SQLException {
         if (ids.isEmpty()) return List.of();
         List<StoredTask> result = new ArrayList<>();

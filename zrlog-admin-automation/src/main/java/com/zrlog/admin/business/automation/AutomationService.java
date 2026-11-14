@@ -75,18 +75,37 @@ public final class AutomationService implements AssistantTaskContextProvider {
         var run = retained.get(0).value;
         var definition = registry.require(run.taskType).definition;
         for (String action : definition.requiredActions) TaskAuthority.require(actor, action);
+        var view = archivedTask(run);
+        view.requiredActions = List.copyOf(definition.requiredActions);
+        return view;
+    }
+
+    private static AutomationViews.Task archivedTask(AutomationModels.Run run) {
         var view = new AutomationViews.Task();
         view.type = run.taskType;
         view.revision = run.taskRevision;
-        view.id = taskId;
+        view.id = run.taskId;
         view.name = AutomationDashboard.run(run).taskName;
         view.systemTask = run.ownerId == 0;
         view.archived = true;
         view.enabled = false;
         view.lastRunAt = run.startedAt;
         view.lastStatus = run.status;
-        view.requiredActions = List.copyOf(definition.requiredActions);
         return view;
+    }
+
+    List<AutomationViews.Task> conversationsFor(AccountAccess actor, int offset)
+            throws SQLException {
+        var keys = store.conversationKeys(actor.getUserId(), 100, offset);
+        var ids = keys.stream().map(key -> key.id).collect(Collectors.toList());
+        var plans = new java.util.HashMap<String, AutomationViews.Task>();
+        for (var plan : store.conversationPlans(actor.getUserId(), ids))
+            plans.put(plan.id, AutomationDashboard.task(plan));
+        var archivedIds =
+                ids.stream().filter(id -> !plans.containsKey(id)).collect(Collectors.toList());
+        for (var run : store.conversationLastRuns(actor.getUserId(), archivedIds))
+            plans.put(run.taskId, archivedTask(run));
+        return ids.stream().map(plans::get).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     @Override

@@ -112,7 +112,7 @@ export default function SystemTasks({
                                 </div>
                                 <Space wrap className={styles.actions}>
                                     <Button type="link" onClick={() => onHistory(task)}>
-                                        {res.history}
+                                        {res.conversation}
                                     </Button>
                                     <Button
                                         disabled={disabled || !available || !!task.activeRunId}

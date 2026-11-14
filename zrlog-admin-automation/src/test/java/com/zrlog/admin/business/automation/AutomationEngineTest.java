@@ -342,6 +342,49 @@ public class AutomationEngineTest {
     }
 
     @Test
+    public void taskConversationsKeepOneEntryAcrossRunsAndScheduleDeletion() throws Exception {
+        var archived = service.save(actor, plan("interval"));
+        var first = engine().runNow(actor, archived.id, archived.revision, 60000);
+        now.incrementAndGet();
+        engine().runNow(actor, archived.id, store.task(archived.id).value.revision, 60000);
+        assertEquals(1, store.conversationCount(1));
+        service.delete(actor, archived.id, store.task(archived.id).value.revision);
+        now.incrementAndGet();
+        var current = service.save(actor, plan("once"));
+
+        var other =
+                AutomationStore.JSON.fromJson(
+                        AutomationStore.JSON.toJson(first), AutomationModels.Run.class);
+        other.id =
+                AutomationStore.ownerPrefix(2)
+                        + AutomationStore.timeKey(now.get())
+                        + "."
+                        + java.util.UUID.randomUUID();
+        other.ownerId = 2;
+        other.taskId = AutomationStore.ownerPrefix(2) + java.util.UUID.randomUUID();
+        other.taskName = "Other account";
+        store.insertRun(other);
+
+        assertEquals(2, store.conversationCount(1));
+        assertEquals(1, store.conversationCount(2));
+        assertEquals(current.id, store.conversationKeys(1, 1, 0).get(0).id);
+        assertEquals(archived.id, store.conversationKeys(1, 1, 1).get(0).id);
+        var entries = service.conversationsFor(actor, 0);
+        assertEquals(
+                List.of(current.id, archived.id),
+                entries.stream()
+                        .map(task -> task.id)
+                        .collect(java.util.stream.Collectors.toList()));
+        assertFalse(entries.get(0).archived);
+        assertTrue(entries.get(1).archived);
+        assertEquals(1, store.conversationLastRuns(1, List.of(archived.id)).size());
+        var summary = store.conversationLastRuns(1, List.of(archived.id)).get(0);
+        assertNull(summary.planSnapshot);
+        assertNull(summary.result.text);
+        assertTrue(store.conversationLastRuns(1, List.of(other.taskId)).isEmpty());
+    }
+
+    @Test
     public void disablingWhileRunningDoesNotEraseOrCancelTheCurrentRun() throws Exception {
         StoredTask task = service.save(actor, plan("interval"));
         now.addAndGet(1000);
