@@ -267,7 +267,7 @@ it("keeps same-name attachments distinct and reindexes a reference after another
     );
 });
 
-it("removes a reference when its attachment is removed, and supports Escape and the visible @ button", () => {
+it("removes a reference when its attachment is removed, and reopens typed mentions after Escape", () => {
     render({ busy: false, fileInput });
     const file = new File(["notes"], "notes.txt");
     attach(file);
@@ -275,7 +275,7 @@ it("removes a reference when its attachment is removed, and supports Escape and 
     act(() => Simulate.keyDown(input(), { key: "Escape" }));
     expect(container.querySelector('[role="listbox"]')).toBeNull();
     type("");
-    click(res().mentions.choose);
+    type("@");
     expect(container.querySelector('[role="listbox"]')).not.toBeNull();
     enter();
     click(`${getRes().articleEdit.files.remove} notes.txt`);
