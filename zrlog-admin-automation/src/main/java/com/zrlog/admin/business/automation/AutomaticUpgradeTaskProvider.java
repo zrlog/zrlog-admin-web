@@ -5,6 +5,7 @@ import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.common.vo.Version;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.data.util.LockManager;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
@@ -14,7 +15,7 @@ import java.util.function.LongSupplier;
  * Submits a confirmed upgrade policy and records the exact target before touching the application.
  */
 public final class AutomaticUpgradeTaskProvider implements ScheduledTaskProvider {
-    static final String KEY = "assistant.v2.upgrade";
+    static final String KEY = LockManager.storageKey("upgrade");
     private final AutomationStore store;
     private final Operations operations;
     private final LongSupplier clock;

@@ -25,7 +25,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.util.DistributedLockManager;
+import com.zrlog.data.util.LockManager;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
@@ -186,7 +186,9 @@ public class AdminDevControllerTest {
     public void shouldReleaseDevLocksAndRecordAudit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
+            db.putWebsite("lock_upgrade", "{\"state\":\"pending\",\"phase\":\"submitted\"}");
             assertEquals(0, controller(Map.of(), db.dataSource()).releaseLocks().getError());
+            assertNull(new WebSiteRepository(db.dataSource()).findByName("lock_upgrade"));
 
             assertTrue(
                     String.valueOf(
@@ -214,9 +216,7 @@ public class AdminDevControllerTest {
                                 ApplicationServicesFixture.messages(testDataSource)),
                         ApplicationServicesFixture.audit(testDataSource),
                         ApplicationServicesFixture.websiteCache(testDataSource),
-                        new DistributedLockManager(
-                                () -> new WebSiteRepository(testDataSource),
-                                ApplicationServicesFixture.locks(testDataSource)),
+                        new LockManager(() -> new WebSiteRepository(testDataSource)),
                         AccountServicesFixture.component(testDataSource).requestIdentity());
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);

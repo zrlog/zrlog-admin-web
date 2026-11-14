@@ -9,6 +9,8 @@ import com.zrlog.common.vo.Version;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.util.LockManager;
+import com.zrlog.updater.spi.UpdateTask;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
@@ -196,6 +198,121 @@ public class UpgradeExecutionCoordinatorTest {
     }
 
     @Test
+    public void aFailedDownloadAllowsImmediateReviewWithoutUnlockingANewerAttempt()
+            throws Exception {
+        var first =
+                coordinator.claimManual(actor, target(), "download-1234567890", "release", null);
+        coordinator.finish(first, true);
+        assertFalse(coordinator.view(actor).canRetry);
+
+        var failed = task(first, "failed");
+        coordinator.observe(failed);
+        coordinator.finish(first, true);
+        assertEquals("needs_review", coordinator.view(actor).state);
+        assertFalse(coordinator.view(actor).confirmed);
+        assertThrows(
+                UpgradeExecutionCoordinator.Conflict.class,
+                () ->
+                        coordinator.claimManual(
+                                actor, target(), "retry-1234567890", "release", null));
+
+        var retry =
+                coordinator.claimManual(
+                        actor, target(), "retry-1234567890", "release", first.runId);
+        coordinator.observe(failed);
+        coordinator.finish(first, false);
+        assertEquals(retry.runId, coordinator.view(actor).id);
+        assertEquals("pending", coordinator.view(actor).state);
+    }
+
+    @Test
+    public void failureMustMatchTheEntireSubmittedIdentity() throws Exception {
+        var receipt =
+                coordinator.claimManual(actor, target(), "download-1234567890", "release", null);
+        coordinator.finish(receipt, true);
+        var wrongId = task(receipt, "failed");
+        wrongId.id = "different-request";
+        var wrongVersion = task(receipt, "failed");
+        wrongVersion.version = "4.3.0";
+        var wrongBuild = task(receipt, "failed");
+        wrongBuild.buildId = "other-build";
+        var wrongChannel = task(receipt, "failed");
+        wrongChannel.channel = "preview";
+        for (var mismatch : Arrays.asList(wrongId, wrongVersion, wrongBuild, wrongChannel)) {
+            coordinator.observe(mismatch);
+            assertFalse(coordinator.view(actor).canRetry);
+        }
+        installed.set(receipt.buildId);
+        coordinator.observe(task(receipt, "failed"));
+        assertTrue(coordinator.view(actor).confirmed);
+        assertFalse(coordinator.view(actor).canRetry);
+    }
+
+    @Test
+    public void refreshRecoversFailureWithoutBrowserStateButKeepsUnknownOrActiveWorkLocked()
+            throws Exception {
+        var receipt =
+                coordinator.claimManual(actor, target(), "download-1234567890", "release", null);
+        coordinator.finish(receipt, true);
+        assertFalse(coordinator.refresh(actor, id -> null).canRetry);
+        assertFalse(
+                coordinator.refresh(
+                                actor,
+                                id -> {
+                                    throw new java.io.IOException("updater unavailable");
+                                })
+                        .canRetry);
+        for (String state : Arrays.asList("queued", "running", "succeeded")) {
+            var view = coordinator.refresh(actor, id -> task(receipt, state));
+            assertEquals("pending", view.state);
+            assertFalse(view.confirmed);
+        }
+        var recovered =
+                coordinator.refresh(
+                        actor,
+                        id -> {
+                            assertEquals(receipt.externalRequestId, id);
+                            var task = task(receipt, "interrupted");
+                            task.recoveryRequired = true;
+                            return task;
+                        });
+        assertEquals(receipt.runId, recovered.id);
+        assertEquals("needs_review", recovered.state);
+        assertTrue(recovered.canRetry);
+        assertFalse(recovered.confirmed);
+    }
+
+    private UpdateTask task(AutomaticUpgradeTaskProvider.Receipt receipt, String state) {
+        var task = new UpdateTask();
+        task.id = receipt.externalRequestId;
+        task.version = receipt.version;
+        task.buildId = receipt.buildId;
+        task.channel = receipt.channel;
+        task.state = state;
+        return task;
+    }
+
+    @Test
+    public void upgradeReceiptCanBeClearedThroughTheSharedLockManagerWithoutResurrection()
+            throws Exception {
+        var receipt =
+                coordinator.claimManual(actor, target(), "download-1234567890", "release", null);
+        coordinator.finish(receipt, true);
+        assertEquals(receipt.runId, coordinator.view(actor).id);
+        assertFalse(coordinator.view(actor).canRetry);
+        var manager = new LockManager(() -> new WebSiteRepository(db.dataSource()));
+        assertTrue(manager.getLocks().stream().anyMatch(lock -> "upgrade".equals(lock.getName())));
+
+        manager.releaseLock("upgrade");
+        coordinator.finish(receipt, false);
+        coordinator.observe(task(receipt, "failed"));
+        assertNull(coordinator.view(actor));
+        assertTrue(manager.getLocks().isEmpty());
+        var next = coordinator.claimManual(actor, target(), "retry-1234567890", "release", null);
+        assertNotEquals(receipt.runId, next.runId);
+    }
+
+    @Test
     public void revokedAccountCannotAcquireTheUpgradeClaim() throws Exception {
         db.execute("UPDATE user SET enabled=? WHERE userId=?", false, actor.getUserId());
         assertThrows(
@@ -217,6 +334,15 @@ public class UpgradeExecutionCoordinatorTest {
                         coordinator.claimManual(
                                 actor, target(), "docker-1234567890", "release", null));
         assertThrows(PermissionErrorException.class, () -> coordinator.view(actor));
+        assertThrows(
+                PermissionErrorException.class,
+                () ->
+                        coordinator.refresh(
+                                actor,
+                                id -> {
+                                    fail("A revoked account must not query provider status");
+                                    return null;
+                                }));
     }
 
     private AutomaticUpgradeTaskProvider.Receipt automatic(String id) {
