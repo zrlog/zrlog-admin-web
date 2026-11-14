@@ -22,7 +22,6 @@ export const zhCN = {
         systemTasks: "系统维护",
         requiredPermissions: "所需权限",
         systemHelp: "全站共用的维护任务，有相应权限的账号可以暂停或调整。自动升级默认关闭。",
-        configure: "设置",
         saveSettings: "保存设置",
         on: "已开启",
         off: "未启用",
@@ -122,7 +121,11 @@ export const zhCN = {
         externalBudgetHelp:
             "请设为低于部署平台请求超时的值，并为保存执行结果留出时间。预算不足以容纳的任务会留待后续触发。",
         insufficientBudget: "部分任务至少需要 {seconds} 秒，请增加时间预算或改用常驻服务执行",
-        settingsHelp: "常驻服务每分钟检查到期任务。FaaS 需要外部服务调用下方地址；两种方式执行同一份任务列表。",
+        execution: "执行方式",
+        internalHelp: "当前服务每分钟检查到期任务，按各自计划执行",
+        externalTrigger: "外部触发",
+        externalHelp: "通过 Cloudflare Worker、crontab 等外部服务检查到期任务",
+        tokenMissingHelp: "生成令牌后，外部服务才能触发任务",
         faas: "当前为 FaaS 环境，请配置外部触发",
         endpoint: "触发地址",
         example: "调用示例",
@@ -192,7 +195,6 @@ export const enUS: I18nShape<typeof zhCN> = {
         requiredPermissions: "Required permissions",
         systemHelp:
             "These maintenance tasks are shared across the site. Accounts with the required permissions can pause or configure them. Automatic upgrades are off by default.",
-        configure: "Configure",
         saveSettings: "Save settings",
         on: "On",
         off: "Off",
@@ -296,8 +298,11 @@ export const enUS: I18nShape<typeof zhCN> = {
             "Keep this below your deployment request timeout, leaving time to save results. Tasks that need a larger budget remain due for a later trigger.",
         insufficientBudget:
             "Some tasks need at least {seconds} seconds; increase the time budget or use an always-on server",
-        settingsHelp:
-            "Resident servers check due tasks every minute. FaaS needs an external service to call the endpoint below. Both use the same task list.",
+        execution: "Task execution",
+        internalHelp: "This server checks for due tasks every minute and follows each task’s schedule",
+        externalTrigger: "External trigger",
+        externalHelp: "Check for due tasks through Cloudflare Worker, crontab or another external service",
+        tokenMissingHelp: "Generate a token before an external service can trigger tasks",
         faas: "This FaaS deployment requires an external trigger",
         endpoint: "Trigger endpoint",
         example: "Example request",
