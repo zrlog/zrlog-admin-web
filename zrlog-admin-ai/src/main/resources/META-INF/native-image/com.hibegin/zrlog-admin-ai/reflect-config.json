@@ -1,9 +1,13 @@
 [
   {
-    "name": "com.zrlog.admin.web.controller.ai.AIArticleController",
+    "name": "com.zrlog.admin.web.controller.ai.AssistantChatController",
     "methods": [
       {
         "name": "ai",
+        "parameterTypes": []
+      },
+      {
+        "name": "conversation",
         "parameterTypes": []
       },
       {
