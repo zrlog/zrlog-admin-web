@@ -4,11 +4,11 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
     page: css`
         box-sizing: border-box;
         width: 100%;
-        max-width: 1280px;
         min-width: 0;
-        margin: 0 auto;
     `,
     maintenancePage: css`
+        max-width: 1280px;
+        margin: 0 auto;
         padding: ${token.padding}px;
         @media (max-width: ${token.screenSM}px) {
             padding: ${token.paddingXS}px;
