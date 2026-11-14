@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type RewriteToolPayload = Extract<WritingSkillPayload, { tool: "rewrite" }>;
 
 const RewriteToolContent: FunctionComponent<SpecificToolContentProps<RewriteToolPayload>> = ({
-    aiProvider,
     currentMarkdown,
     messageIndex,
     offline,
@@ -27,7 +26,7 @@ const RewriteToolContent: FunctionComponent<SpecificToolContentProps<RewriteTool
     const unchanged = markdown === currentMarkdown;
     const discarded = toolPayload.payload.discarded === true;
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <Space direction="vertical" size={8} style={{ width: "100%" }}>
                 {discarded ? (
                     <Typography.Text type="secondary">{assistantRes.rewriteRejected}</Typography.Text>

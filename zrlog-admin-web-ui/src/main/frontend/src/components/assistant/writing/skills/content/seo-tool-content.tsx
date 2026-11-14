@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type SeoToolPayload = Extract<WritingSkillPayload, { tool: "seo" }>;
 
 const SeoToolContent: FunctionComponent<SpecificToolContentProps<SeoToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
@@ -20,7 +19,7 @@ const SeoToolContent: FunctionComponent<SpecificToolContentProps<SeoToolPayload>
     const score = seoResult.score || 0;
     const items = seoResult.items || [];
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <ToolReportSummary score={score} summary={seoResult.summary} />
             <ToolReportList>
                 {items.map((item, index) => (

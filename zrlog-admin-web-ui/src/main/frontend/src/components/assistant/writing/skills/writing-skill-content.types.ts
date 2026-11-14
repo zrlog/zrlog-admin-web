@@ -2,7 +2,6 @@ import { ArticleChangeableValue } from "../../../articleEdit/index.types";
 import { WritingSkill, WritingSkillPayload } from "../writing-assistant.types";
 
 export type WritingSkillContentCommonProps = {
-    aiProvider: any;
     messageIndex: number;
     messageId?: string;
     offline: boolean;

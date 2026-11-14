@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type StructureToolPayload = Extract<WritingSkillPayload, { tool: "structure" }>;
 
 const StructureToolContent: FunctionComponent<SpecificToolContentProps<StructureToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
@@ -19,7 +18,7 @@ const StructureToolContent: FunctionComponent<SpecificToolContentProps<Structure
     const structureResult = toolPayload.payload;
     const items = structureResult.items || [];
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <ToolReportSummary summary={structureResult.summary} />
             <ToolReportList>
                 {items.map((item, index) => (

@@ -56,7 +56,6 @@ const render = (props: Partial<ComponentProps<typeof AssistantComposer>> = {}) =
             <ConfigProvider theme={{ token: { motion: false } }}>
                 <AssistantComposer
                     key={props.draftKey}
-                    aiProvider="OPEN_AI"
                     disabled={false}
                     busy
                     waiting={false}

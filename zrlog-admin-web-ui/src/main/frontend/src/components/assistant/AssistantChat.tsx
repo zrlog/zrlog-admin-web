@@ -115,7 +115,6 @@ function Conversation({
             <div style={{ flex: 1, minHeight: 0 }}>
                 <AssistantConversationView
                     config={config}
-                    aiProvider={data.aiProvider}
                     leading={
                         <>
                             {leading}

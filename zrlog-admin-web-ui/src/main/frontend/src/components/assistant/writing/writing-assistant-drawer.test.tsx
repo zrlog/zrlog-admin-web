@@ -4,13 +4,12 @@ import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 import { App, ConfigProvider } from "antd";
 import WritingAssistantDrawer from "./writing-assistant-drawer";
 
-jest.mock("@zrlog/editor/core/ai/AIContentItem", () => ({ __esModule: true, default: () => null }));
+jest.mock("../chat/assistant-message-content", () => ({ __esModule: true, default: () => null }));
 jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
 jest.mock("@zrlog/editor/dist/ai/AIStateCache", () => ({
     getAIStateCacheKey: (cache: { key: string }, name: string) => `${cache.key}/${name}`,
 }));
 jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
-jest.mock("../../../utils/helpers", () => ({ getEditorUser: () => ({}) }));
 jest.mock("../../articleEdit/use-article-editor-screens", () => ({ __esModule: true, default: () => ({ sm: true }) }));
 jest.mock("antd-style", () => ({
     useTheme: () => ({ marginXS: 8, lineWidth: 1, lineType: "solid", colorBorderSecondary: "#ddd" }),

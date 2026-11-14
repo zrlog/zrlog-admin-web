@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef } from "react";
 import { WritingSkill } from "../writing/writing-assistant.types";
 import type { AiMentionInput } from "./assistant-mentions";
 
@@ -31,7 +31,8 @@ export const useAssistantQueue = (
     const sendRef = useRef(send);
     sendRef.current = send;
 
-    useEffect(() => {
+    // Remove immediately dispatched input before paint so the queue does not flash above the composer.
+    useLayoutEffect(() => {
         if (blocked || current.paused || current.running || !current.items.length) return;
         const [message, ...rest] = current.items;
         current.items = rest;

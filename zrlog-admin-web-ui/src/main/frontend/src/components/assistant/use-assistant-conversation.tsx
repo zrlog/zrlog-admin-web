@@ -774,7 +774,6 @@ export const useAssistantConversation = ({
             };
             let toolContent = (
                 <WritingSkillContent
-                    aiProvider={data.aiProvider}
                     messageIndex={index}
                     messageId={(content as AssistantMessage).messageId}
                     offline={offline}
@@ -870,7 +869,6 @@ export const useAssistantConversation = ({
         <AssistantComposer
             key={queue.key}
             draftKey={scope}
-            aiProvider={data.aiProvider}
             writingContext={articleContext}
             api={axiosInstance}
             fileInput={data.aiFileInput}

@@ -1,8 +1,5 @@
-import { Avatar, Space, Typography } from "antd";
-import { useTheme } from "antd-style";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import RobotIcon from "@zrlog/ui/icons/robot";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { getAppState } from "../../../base/ConfigProviderApp";
@@ -18,7 +15,6 @@ export default function TaskResultMessage({
     taskId: string;
     runId: string;
 }) {
-    const theme = useTheme();
     const [html, setHtml] = useState("");
     useEffect(() => {
         let active = true;
@@ -35,11 +31,7 @@ export default function TaskResultMessage({
         };
     }, [content]);
     return (
-        <div>
-            <Space style={{ marginBottom: theme.marginSM }}>
-                <Avatar icon={<RobotIcon />} />
-                <Typography.Text>{getRes().assistant.title}</Typography.Text>
-            </Space>
+        <div role="group" aria-label={getRes().assistant.title}>
             <HtmlPreviewPanel htmlContent={html} dark={getAppState().dark} />
             <Link
                 to={getRealRouteUrl(

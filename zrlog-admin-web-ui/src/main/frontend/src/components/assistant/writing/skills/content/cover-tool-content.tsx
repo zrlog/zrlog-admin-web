@@ -13,7 +13,6 @@ import BackendImage from "../../../../../common/BackendImage";
 type CoverToolPayload = Extract<WritingSkillPayload, { tool: "cover" }>;
 
 const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayload>> = ({
-    aiProvider,
     messageIndex,
     messageId,
     offline,
@@ -32,7 +31,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
     const url = toolPayload.payload.url || "";
     const coverApplyKey = messageId || `${messageIndex}`;
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             {url && (
                 <BackendImage
                     alt={getRes().articleEdit.cover}

@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type TagsToolPayload = Extract<WritingSkillPayload, { tool: "tags" }>;
 
 const TagsToolContent: FunctionComponent<SpecificToolContentProps<TagsToolPayload>> = ({
-    aiProvider,
     messageIndex,
     offline,
     loadingKey,
@@ -22,7 +21,7 @@ const TagsToolContent: FunctionComponent<SpecificToolContentProps<TagsToolPayloa
 }) => {
     const tags = toolPayload.payload.tags || [];
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <Space direction="vertical" size={8} style={{ width: "100%" }}>
                 <Tags
                     keywords={tags.join(",")}

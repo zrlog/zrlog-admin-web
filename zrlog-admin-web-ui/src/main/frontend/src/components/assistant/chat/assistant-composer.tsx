@@ -3,16 +3,16 @@ import { AiFileCapabilities, AiFileList, AiFilePicker } from "./assistant-files"
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
+import BoltIcon from "@zrlog/ui/icons/bolt";
 import CloseIcon from "@zrlog/ui/icons/close";
 import InfoIcon from "@zrlog/ui/icons/info";
 import { FunctionComponent, useEffect, useId, useRef, useState } from "react";
-import { Button, Space, Typography } from "antd";
+import { Button, Space, Tooltip, Typography } from "antd";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 import type { AxiosInstance } from "axios";
 import { useAssistantMentions } from "./use-assistant-mentions";
 import { AiMentionInput, encodeAiMentions, withAiMentionLabels } from "./assistant-mentions";
 
-import AIIcon from "../../../icons/AIProviderIcon";
 import { getEditorRes } from "@zrlog/editor/dist/editor/lang/editor-lang";
 import { getRes } from "../../../utils/constants";
 import { WritingSkill, WritingSkillButton } from "../writing/writing-assistant.types";
@@ -29,7 +29,6 @@ const REWRITE_MIN_MARKDOWN_LENGTH = 120;
 
 type AssistantComposerProps = {
     draftKey?: string;
-    aiProvider: any;
     writingContext?: boolean;
     disabled: boolean;
     busy: boolean;
@@ -50,7 +49,6 @@ type AssistantComposerProps = {
 
 const AssistantComposer: FunctionComponent<AssistantComposerProps> = ({
     draftKey,
-    aiProvider,
     writingContext = true,
     disabled,
     busy,
@@ -357,7 +355,7 @@ const AssistantComposer: FunctionComponent<AssistantComposerProps> = ({
                         {writingContext && (
                             <Button
                                 type="text"
-                                icon={<AIIcon name={aiProvider} />}
+                                icon={<BoltIcon />}
                                 disabled={disabled}
                                 aria-expanded={showSkillPanel}
                                 aria-controls={showSkillPanel ? skillPanelId : undefined}
@@ -369,30 +367,43 @@ const AssistantComposer: FunctionComponent<AssistantComposerProps> = ({
                     </Space>
                 }
                 action={
-                    <Button
-                        type="primary"
-                        shape="circle"
-                        icon={
-                            busy ? (
-                                <span
-                                    aria-hidden="true"
-                                    style={{
-                                        display: "block",
-                                        width: theme.fontSizeSM,
-                                        height: theme.fontSizeSM,
-                                        background: "currentColor",
-                                        borderRadius: theme.borderRadiusXS,
-                                    }}
-                                />
-                            ) : (
-                                <ArrowUpIcon />
-                            )
-                        }
-                        disabled={busy ? !onStop : cannotSubmit}
-                        onClick={busy ? onStop : submitInput}
-                        title={actionLabel}
-                        aria-label={actionLabel}
-                    />
+                    <Space size={theme.marginXS} style={{ flexShrink: 0 }}>
+                        {busy && (
+                            <Tooltip title={assistantRes.queueHint} trigger={["hover", "focus"]}>
+                                <Button size="small" disabled={cannotSubmit} onClick={submitInput}>
+                                    {assistantRes.addToQueue}
+                                </Button>
+                            </Tooltip>
+                        )}
+                        <Tooltip
+                            title={willQueue && !busy ? assistantRes.queueHint : actionLabel}
+                            trigger={["hover", "focus"]}
+                        >
+                            <Button
+                                type="primary"
+                                shape="circle"
+                                icon={
+                                    busy ? (
+                                        <span
+                                            aria-hidden="true"
+                                            style={{
+                                                display: "block",
+                                                width: theme.fontSizeSM,
+                                                height: theme.fontSizeSM,
+                                                background: "currentColor",
+                                                borderRadius: theme.borderRadiusXS,
+                                            }}
+                                        />
+                                    ) : (
+                                        <ArrowUpIcon />
+                                    )
+                                }
+                                disabled={busy ? !onStop : cannotSubmit}
+                                onClick={busy ? onStop : submitInput}
+                                aria-label={actionLabel}
+                            />
+                        </Tooltip>
+                    </Space>
                 }
             >
                 <div style={{ position: "relative" }}>
@@ -450,18 +461,6 @@ const AssistantComposer: FunctionComponent<AssistantComposerProps> = ({
                     />
                 </div>
             </AiFilePicker>
-            {willQueue && (
-                <Space wrap style={{ marginTop: theme.marginXS, width: "100%", justifyContent: "space-between" }}>
-                    <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
-                        {assistantRes.queueHint}
-                    </Typography.Text>
-                    {busy && (
-                        <Button size="small" disabled={cannotSubmit} onClick={submitInput}>
-                            {assistantRes.addToQueue}
-                        </Button>
-                    )}
-                </Space>
-            )}
             <Typography.Text
                 type="secondary"
                 style={{

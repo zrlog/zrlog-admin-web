@@ -8,14 +8,13 @@ import PublishCheckResult from "./publish-check-result";
 type ScoreToolPayload = Extract<WritingSkillPayload, { tool: "score" | "publishCheck" }>;
 
 const ScoreToolContent: FunctionComponent<SpecificToolContentProps<ScoreToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
     onRefine,
 }) => {
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <PublishCheckResult toolPayload={toolPayload} />
             <WritingSkillRefineActions
                 tool={toolPayload.tool}

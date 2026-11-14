@@ -9,7 +9,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type QuestionsToolPayload = Extract<WritingSkillPayload, { tool: "questions" }>;
 
 const QuestionsToolContent: FunctionComponent<SpecificToolContentProps<QuestionsToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
@@ -18,7 +17,7 @@ const QuestionsToolContent: FunctionComponent<SpecificToolContentProps<Questions
     const readerQuestionsResult = toolPayload.payload;
     const items = readerQuestionsResult.items || [];
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <ToolReportSummary summary={readerQuestionsResult.summary} />
             <ToolReportList>
                 {items.map((item, index) => (

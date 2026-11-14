@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type AliasToolPayload = Extract<WritingSkillPayload, { tool: "alias" }>;
 
 const AliasToolContent: FunctionComponent<SpecificToolContentProps<AliasToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
@@ -20,7 +19,7 @@ const AliasToolContent: FunctionComponent<SpecificToolContentProps<AliasToolPayl
 }) => {
     const alias = toolPayload.payload.alias || "";
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Typography.Text copyable>{alias}</Typography.Text>
                 <Button

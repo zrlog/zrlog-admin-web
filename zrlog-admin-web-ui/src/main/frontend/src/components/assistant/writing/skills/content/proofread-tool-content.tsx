@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type ProofreadToolPayload = Extract<WritingSkillPayload, { tool: "proofread" }>;
 
 const ProofreadToolContent: FunctionComponent<SpecificToolContentProps<ProofreadToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
@@ -19,7 +18,7 @@ const ProofreadToolContent: FunctionComponent<SpecificToolContentProps<Proofread
     const proofreadResult = toolPayload.payload;
     const items = proofreadResult.items || [];
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <ToolReportSummary summary={proofreadResult.summary} />
             {items.length === 0 ? (
                 <Typography.Paragraph type="secondary">

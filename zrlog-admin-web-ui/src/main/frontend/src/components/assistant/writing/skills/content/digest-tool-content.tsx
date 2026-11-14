@@ -9,7 +9,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type DigestToolPayload = Extract<WritingSkillPayload, { tool: "digest" }>;
 
 const DigestToolContent: FunctionComponent<SpecificToolContentProps<DigestToolPayload>> = ({
-    aiProvider,
     offline,
     loadingKey,
     toolPayload,
@@ -19,7 +18,7 @@ const DigestToolContent: FunctionComponent<SpecificToolContentProps<DigestToolPa
 }) => {
     const digest = toolPayload.payload.digest || "";
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Typography.Paragraph style={{ marginBottom: 0 }}>{digest}</Typography.Paragraph>
                 <Button

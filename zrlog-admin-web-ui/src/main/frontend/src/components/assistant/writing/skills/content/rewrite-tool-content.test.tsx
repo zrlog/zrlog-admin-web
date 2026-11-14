@@ -70,7 +70,6 @@ describe("RewriteToolContent", () => {
     };
 
     const baseProps = (): SpecificToolContentProps<RewriteToolPayload> => ({
-        aiProvider: "test",
         messageIndex: 3,
         offline: false,
         currentMarkdown: "Original body",

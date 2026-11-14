@@ -10,7 +10,6 @@ import { SpecificToolContentProps } from "../writing-skill-content.types";
 type TitleToolPayload = Extract<WritingSkillPayload, { tool: "title" }>;
 
 const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayload>> = ({
-    aiProvider,
     messageIndex,
     offline,
     loadingKey,
@@ -28,7 +27,7 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
         return null;
     }
     return (
-        <WritingSkillResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
+        <WritingSkillResultCard tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Radio.Group
                     aria-label={getRes().articleEdit.assistant.titleSuggestion}
