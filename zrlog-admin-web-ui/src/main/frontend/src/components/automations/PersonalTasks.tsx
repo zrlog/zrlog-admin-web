@@ -1,4 +1,4 @@
-import { Button, Dropdown, Empty, Pagination, Space, Typography } from "antd";
+import { Button, Dropdown, Empty, Pagination, Space, Tooltip, Typography } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import MoreIcon from "@zrlog/ui/icons/more";
 import AddIcon from "@zrlog/ui/icons/add";
@@ -13,6 +13,8 @@ import { useAssistantStyles } from "./assistant-styles";
 
 export default function PersonalTasks({
     overview,
+    compact = false,
+    selectedId,
     disabled,
     page,
     onPage,
@@ -23,6 +25,8 @@ export default function PersonalTasks({
     renderStatus,
 }: {
     overview: Overview;
+    compact?: boolean;
+    selectedId?: string;
     disabled: boolean;
     page: number;
     onPage: (page: number) => void;
@@ -37,49 +41,88 @@ export default function PersonalTasks({
     const { modal } = useUiApp();
     return (
         <section aria-label={res.tasks}>
-            <div className={styles.panelHeader}>
-                <Typography.Text type="secondary">
-                    {res.taskCount.replace("{count}", String(overview.total))}
-                </Typography.Text>
-                <Space wrap>
-                    {overview.aiAvailable && (
-                        <Button icon={<RobotIcon />} disabled={disabled} onClick={onPropose}>
-                            {res.askAssistant}
-                        </Button>
-                    )}
-                    <Button type="primary" icon={<AddIcon />} disabled={disabled} onClick={() => onEdit({})}>
+            <div className={compact ? styles.compactTaskActions : styles.panelHeader}>
+                {!compact && (
+                    <Typography.Text type="secondary">
+                        {res.taskCount.replace("{count}", String(overview.total))}
+                    </Typography.Text>
+                )}
+                <Space size={compact ? 4 : undefined} wrap>
+                    <Button
+                        type={compact ? "text" : "primary"}
+                        icon={<AddIcon />}
+                        disabled={disabled}
+                        onClick={() => onEdit({})}
+                    >
                         {res.create}
                     </Button>
+                    {overview.aiAvailable && (
+                        <Tooltip title={compact ? res.askAssistant : undefined}>
+                            <Button
+                                type={compact ? "text" : "default"}
+                                icon={<RobotIcon />}
+                                aria-label={res.askAssistant}
+                                disabled={disabled}
+                                onClick={onPropose}
+                            >
+                                {!compact && res.askAssistant}
+                            </Button>
+                        </Tooltip>
+                    )}
                 </Space>
             </div>
-            {!overview.tasks.length && <Empty description={res.empty} />}
+            {!overview.tasks.length &&
+                (compact ? (
+                    <Typography.Paragraph type="secondary">{res.empty}</Typography.Paragraph>
+                ) : (
+                    <Empty description={res.empty} />
+                ))}
             {overview.tasks.map((task) => {
                 const review = ["needs_attention", "uncertain"].includes(task.lastStatus ?? "");
                 return (
-                    <article key={task.id} className={styles.taskRow}>
+                    <article
+                        key={task.id}
+                        className={compact ? styles.compactTaskRow : styles.taskRow}
+                        data-selected={selectedId === task.id || undefined}
+                    >
                         <div className={styles.taskHeading}>
-                            <button type="button" className={styles.taskOpen} onClick={() => onOpen(task)}>
+                            <button
+                                type="button"
+                                className={styles.taskOpen}
+                                onClick={() => onOpen(task)}
+                                disabled={disabled}
+                                aria-current={selectedId === task.id ? "page" : undefined}
+                            >
                                 <span className={styles.identity}>
-                                    <TaskIcon type={task.type} />
+                                    {!compact && <TaskIcon type={task.type} />}
                                     <span className={styles.details}>
-                                        <span className={styles.title}>{task.name}</span>
-                                        <span>
-                                            {renderStatus(task.activeRunId ? "running" : task.lastStatus)}
-                                            {task.archived ? (
-                                                <Tag>{res.archived}</Tag>
-                                            ) : (
-                                                !task.enabled && !review && <Tag>{res.paused}</Tag>
-                                            )}
+                                        <span
+                                            className={compact ? styles.compactTaskTitle : styles.title}
+                                            title={task.name}
+                                        >
+                                            {task.name}
                                         </span>
-                                        <span className={styles.metadata}>
-                                            {task.lastRunAt
-                                                ? `${res.last}: ${formatDateTime(task.lastRunAt)}`
-                                                : res.never}
-                                        </span>
-                                        {!task.archived && task.enabled && task.nextRunAt && (
-                                            <span className={styles.metadata}>
-                                                {res.next}: {formatDateTime(task.nextRunAt)}
-                                            </span>
+                                        {!compact && (
+                                            <>
+                                                <span>
+                                                    {renderStatus(task.activeRunId ? "running" : task.lastStatus)}
+                                                    {task.archived ? (
+                                                        <Tag>{res.archived}</Tag>
+                                                    ) : (
+                                                        !task.enabled && !review && <Tag>{res.paused}</Tag>
+                                                    )}
+                                                </span>
+                                                <span className={styles.metadata}>
+                                                    {task.lastRunAt
+                                                        ? `${res.last}: ${formatDateTime(task.lastRunAt)}`
+                                                        : res.never}
+                                                </span>
+                                                {!task.archived && task.enabled && task.nextRunAt && (
+                                                    <span className={styles.metadata}>
+                                                        {res.next}: {formatDateTime(task.nextRunAt)}
+                                                    </span>
+                                                )}
+                                            </>
                                         )}
                                     </span>
                                 </span>
@@ -149,6 +192,8 @@ export default function PersonalTasks({
             })}
             {overview.total > 100 && (
                 <Pagination
+                    simple={compact}
+                    size={compact ? "small" : undefined}
                     current={page}
                     pageSize={100}
                     total={overview.total}
