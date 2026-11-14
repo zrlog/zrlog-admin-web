@@ -38,7 +38,7 @@ import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { renderMissingMarkdownContent } from "./article-save-content";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { DraftAiSaveGate, DraftArticleOperationRelease } from "./draft-ai-save-gate";
-import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
+import { ArticleUpdatedEvent } from "../assistant/writing/writing-assistant.types";
 
 import useArticleVersionSync from "./version-sync/use-article-version-sync";
 

@@ -29,10 +29,10 @@ jest.mock("@ant-design/icons", () => {
 jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
 jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
 jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
-jest.mock("./article-ai-assistant/article-ai-assistant-button", () => ({
+jest.mock("../assistant/writing/writing-assistant-button", () => ({
     __esModule: true,
     default: () => null,
-    getArticleAiAssistantDrawerOpen: () => false,
+    getWritingAssistantDrawerOpen: () => false,
 }));
 jest.mock("./shortcut-utils", () => ({
     getShortcutTitle: (title: string) => title,

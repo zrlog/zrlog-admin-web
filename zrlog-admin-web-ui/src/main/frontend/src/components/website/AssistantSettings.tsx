@@ -1,9 +1,9 @@
 import { Space, Typography } from "antd";
-import Automations from "../automations";
+import AssistantWorkspace from "../assistant";
 import { getRes } from "../../utils/constants";
-import TaskSettings from "../automations/TaskSettings";
-import type { SettingsPage } from "../automations/types";
-import { useAssistantRequest } from "../automations/use-assistant-request";
+import TaskSettings from "../assistant/tasks/TaskSettings";
+import type { SettingsPage } from "../assistant/tasks/types";
+import { useAssistantRequest } from "../assistant/use-assistant-request";
 
 export default function AssistantSettings({
     data,
@@ -20,7 +20,7 @@ export default function AssistantSettings({
             {data.maintenance && (
                 <section aria-label={getRes().assistant.systemTasks}>
                     <Typography.Title level={4}>{getRes().assistant.systemTasks}</Typography.Title>
-                    <Automations
+                    <AssistantWorkspace
                         data={data.maintenance}
                         offline={offline}
                         offlineData={offlineData}

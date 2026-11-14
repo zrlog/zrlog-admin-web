@@ -13,7 +13,7 @@ import { getPageDataCacheKeyByPath } from "../../utils/cache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import AssistantSettings from "./AssistantSettings";
 import AIForm from "./AIForm";
-import type { SettingsPage } from "../automations/types";
+import type { SettingsPage } from "../assistant/tasks/types";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
 import ArticleEditForm from "./ArticleEditForm";
 import FeatureLabForm from "./FeatureLabForm";
