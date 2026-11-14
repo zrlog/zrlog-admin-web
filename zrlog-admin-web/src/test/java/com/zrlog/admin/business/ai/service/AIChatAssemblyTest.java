@@ -9,7 +9,7 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.sun.net.httpserver.HttpServer;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.controller.ai.AIArticleController;
+import com.zrlog.admin.web.controller.ai.AssistantChatController;
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
@@ -76,7 +76,7 @@ public class AIChatAssemblyTest {
                                                                     ? (String) args[1]
                                                                     : null);
                                                 case "getUri":
-                                                    return "/api/admin/article/ai";
+                                                    return "/api/admin/assistant/chat";
                                                 case "getRemoteHost":
                                                     return "127.0.0.1";
                                                 case "getContextPath":
@@ -111,10 +111,10 @@ public class AIChatAssemblyTest {
                                             }
                                             return null;
                                         });
-                AIArticleController controller =
-                        (AIArticleController)
+                AssistantChatController controller =
+                        (AssistantChatController)
                                 Controller.buildController(
-                                        AIArticleController.class.getMethod("ai"),
+                                        AssistantChatController.class.getMethod("ai"),
                                         request,
                                         response);
                 controller.ai();

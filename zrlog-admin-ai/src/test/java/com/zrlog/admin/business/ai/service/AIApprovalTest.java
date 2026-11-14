@@ -100,6 +100,7 @@ public class AIApprovalTest {
 
     private ApprovalRequest decision(RunView view, String decision) {
         ApprovalRequest request = new ApprovalRequest();
+        request.articleId = 0L;
         request.articleId = view.articleId;
         request.runId = view.runId;
         request.approvalId = view.approval.id;
@@ -180,7 +181,7 @@ public class AIApprovalTest {
             assertEquals("AI draft", db.scalar("select title from log where logId=?", id));
             assertEquals("Draft body", db.scalar("select markdown from log where logId=?", id));
             assertTrue(wire, wire.contains("\"created\":true"));
-            assertEquals(0, next.articleId);
+            assertEquals(Long.valueOf(0), next.articleId);
             JsonArray messages = created.requests.get(0).getAsJsonArray("messages");
             String metadata = "";
             for (JsonElement element : messages) {
@@ -473,7 +474,7 @@ public class AIApprovalTest {
             applicationConfig = db.config();
             RunView view = pause(update(), db.dataSource());
             ApprovalRequest wrong = decision(view, "approve");
-            wrong.articleId = 0;
+            wrong.articleId = 0L;
             assertThrows(
                     PermissionErrorException.class,
                     () -> new Model(applicationConfig).decide(wrong));
@@ -897,7 +898,7 @@ public class AIApprovalTest {
                             (proxy, method, args) -> {
                                 switch (method.getName()) {
                                     case "getUri":
-                                        return "/api/admin/article/ai";
+                                        return "/api/admin/assistant/chat";
                                     case "getContextPath":
                                         return "";
                                     case "getRemoteHost":
@@ -917,6 +918,7 @@ public class AIApprovalTest {
 
         String start(long articleId) throws Exception {
             ChatRequest input = new ChatRequest();
+            input.articleId = 0L;
             input.input = "Update the title";
             input.articleId = articleId;
             return new String(

@@ -50,7 +50,8 @@ public class AIWritingToolsTest {
 
     private static ChatRequest input() {
         ChatRequest request = new ChatRequest();
-        request.articleId = 7;
+        request.articleId = 0L;
+        request.articleId = 7L;
         request.input = "Generate titles, let me choose, then generate a digest";
         request.contextRevision = REVISION;
         request.editorContext = new GenerateArticleFieldRequest();
@@ -80,6 +81,7 @@ public class AIWritingToolsTest {
 
     private static InputRequest response(RunView view, String value) {
         InputRequest request = new InputRequest();
+        request.articleId = 0L;
         request.articleId = view.articleId;
         request.runId = view.runId;
         request.interactionId = view.interaction.id;
@@ -246,7 +248,7 @@ public class AIWritingToolsTest {
                                     7)
                             .status);
             InputRequest wrong = response(view, "First title");
-            wrong.articleId = 0;
+            wrong.articleId = 0L;
             assertThrows(
                     PermissionErrorException.class, () -> new Model(db.dataSource()).submit(wrong));
             db.execute(

@@ -78,7 +78,7 @@ export const zhCN = {
         exportAiMessagesSuccess: "AI 对话已导出",
         clearAiMessages: "清空对话",
         clearAiMessagesConfirmTitle: "清空 AI 对话？",
-        clearAiMessagesConfirmDescription: "只会删除当前文章的 AI 对话，不会修改文章正文、字段或封面",
+        clearAiMessagesConfirmDescription: "将删除当前会话的聊天消息，文章、任务和执行记录会保留",
         saveInProgress: "文章正在首次保存，请完成后再发起助手请求",
         requestFailed: "请求失败",
         requestFailedStatus: "状态码",
@@ -273,7 +273,7 @@ export const enUS: I18nShape<typeof zhCN> = {
         clearAiMessages: "Clear Chat",
         clearAiMessagesConfirmTitle: "Clear AI chat?",
         clearAiMessagesConfirmDescription:
-            "This only deletes AI chat for the current article. It will not change the article body, fields, or cover",
+            "This deletes chat messages in the current conversation. Articles, tasks and execution records are kept",
         saveInProgress: "The article is being saved for the first time. Wait before starting another assistant request",
         requestFailed: "Request failed",
         requestFailedStatus: "Status",

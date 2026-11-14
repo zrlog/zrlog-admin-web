@@ -41,6 +41,7 @@ export type Plan = {
 };
 export type Task = Plan & {
     systemTask?: boolean;
+    archived?: boolean;
     updatedBy?: number;
     requiredActions?: string[];
     id: string;
@@ -59,6 +60,7 @@ export type Overview = {
     canManageScheduler: boolean;
     runs?: Runs;
     selectedRun?: Run;
+    selectedTask?: Task;
 };
 export type ChildResult = {
     id: string;
@@ -116,5 +118,5 @@ export type Health = {
     };
     errorCode?: string;
 };
-export type SettingsPage = { settings: Settings; internal?: Health; external?: Health };
+export type SettingsPage = { settings: Settings; internal?: Health; external?: Health; maintenance?: Overview };
 export type Request = <T>(path: string, body?: unknown) => Promise<T>;

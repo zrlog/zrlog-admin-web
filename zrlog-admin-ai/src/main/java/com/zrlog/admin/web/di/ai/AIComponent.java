@@ -46,6 +46,9 @@ public interface AIComponent {
                 @BindsInstance ContentToolFactory tools,
                 @BindsInstance UploadService uploads,
                 @BindsInstance WebSiteSettingsService settings,
-                @BindsInstance PluginTokenValidator pluginTokens);
+                @BindsInstance PluginTokenValidator pluginTokens,
+                @BindsInstance
+                        com.zrlog.admin.business.automation.AssistantTaskContextProvider
+                                taskContexts);
     }
 }

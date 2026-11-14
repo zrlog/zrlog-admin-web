@@ -1,21 +1,12 @@
-import {
-    Alert,
-    Button,
-    Popconfirm,
-    Descriptions,
-    Drawer,
-    Pagination,
-    Select,
-    Space,
-    Tabs,
-    Typography,
-    Tooltip,
-} from "antd";
+import AssistantChat from "./AssistantChat";
+import { hasAction } from "../../utils/account-access";
+import { isModuleEnabled } from "../../utils/module-capabilities";
+import { Alert, Button, Popconfirm, Descriptions, Drawer, Pagination, Select, Space, Typography, Tooltip } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { cacheIgnoreReloadTime, getRealRouteUrl, getRes } from "../../utils/constants";
-import { ASSISTANT_ROUTES, AssistantPage } from "../../utils/assistant-page-routes";
+import { AssistantPage } from "../../utils/assistant-page-routes";
 import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
@@ -38,13 +29,14 @@ export default function Automations({
     offline = false,
     offlineData = false,
     activePage = "tasks",
+    maintenanceOnly = false,
 }: Pick<AdminCommonProps<Overview>, "data"> & {
     offline?: boolean;
     offlineData?: boolean;
     activePage?: AssistantPage;
+    maintenanceOnly?: boolean;
 }) {
     const overview = data;
-    const tab = activePage;
     const navigate = useNavigate();
     const mounted = useRef(true);
     useEffect(() => {
@@ -54,6 +46,7 @@ export default function Automations({
         };
     }, []);
     const [editing, setEditing] = useState<Partial<Plan>>();
+    const [tasksOpen, setTasksOpen] = useState(false);
     const [proposing, setProposing] = useState(false);
     const [busy, setBusy] = useState(false);
     const [detail, setDetail] = useState<Run | undefined>(data.selectedRun);
@@ -99,7 +92,7 @@ export default function Automations({
             if (value === undefined || value === "" || (key === "page" && value === 1)) params.delete(key);
             else params.set(key, String(value));
         }
-        navigate(getRealRouteUrl(`${ASSISTANT_ROUTES.history}?${params}`), { replace });
+        setSearchParams(params, { replace });
     };
     const mutate = async (path: string, body: unknown) => {
         if (disabled) return;
@@ -108,7 +101,10 @@ export default function Automations({
             const result = await request<Run>(path, body);
             if (path === "run") setDetail(result);
             setEditing(undefined);
-            reload();
+            if (!maintenanceOnly && path === "save" && result.id) {
+                setTasksOpen(false);
+                navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(result.id)}`));
+            } else reload();
         } catch {
             /* The request boundary displays the error. */
         } finally {
@@ -135,7 +131,8 @@ export default function Automations({
     };
     const date = (value?: number) => (value ? formatDateTime(value) : res.none);
     const showHistory = (task: Task) => {
-        navigate(getRealRouteUrl(`${ASSISTANT_ROUTES.history}?taskId=${encodeURIComponent(task.id)}`));
+        setTasksOpen(false);
+        navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(task.id)}`));
     };
     const taskList = (
         <PersonalTasks
@@ -193,80 +190,155 @@ export default function Automations({
             </div>
         </section>
     );
-    // Preserve existing notification and upgrade links while using canonical page routes.
-    if (activePage === "tasks" && (selectedRun || searchParams.get("tab") === "system")) {
+    if (!maintenanceOnly && (activePage === "system" || searchParams.get("tab") === "system"))
+        return <Navigate replace to={getRealRouteUrl("/website/assistant")} />;
+    if (activePage === "history") {
         const params = new URLSearchParams(searchParams);
-        params.delete("tab");
-        const path = selectedRun ? ASSISTANT_ROUTES.history : ASSISTANT_ROUTES.system;
-        return <Navigate replace to={getRealRouteUrl(`${path}?${params}`)} />;
+        params.set("history", "1");
+        return <Navigate replace to={getRealRouteUrl(`/assistant?${params}`)} />;
     }
+    const task = filter && overview.selectedTask?.id === filter ? overview.selectedTask : undefined;
+    const taskHistory = task ? (
+        <section aria-label={res.history}>
+            <Space wrap style={{ marginBottom: 16 }}>
+                <Typography.Text strong>{task.name}</Typography.Text>
+                {status(task.lastStatus)}
+                {task.systemTask
+                    ? canAccessPage("/website/assistant") && (
+                          <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAssistant.title}</Link>
+                      )
+                    : !task.archived && (
+                          <Button onClick={() => setEditing(task)} disabled={disabled}>
+                              {res.edit}
+                          </Button>
+                      )}
+            </Space>
+
+            {runs.total > runs.pageSize && (
+                <Pagination
+                    size="small"
+                    current={runs.page}
+                    pageSize={runs.pageSize}
+                    total={runs.total}
+                    showSizeChanger={false}
+                    onChange={(page) => updateHistory({ page, runId: undefined })}
+                />
+            )}
+        </section>
+    ) : undefined;
     return (
-        <div className={styles.page}>
-            <div className={styles.header}>
-                <div className={styles.headerText}>
-                    <Typography.Title level={2} style={{ margin: 0 }}>
-                        {res.title}
-                    </Typography.Title>
-                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                        {res.intro}
-                    </Typography.Paragraph>
-                </div>
-                {canAccessPage("/website/assistant") && (
-                    <Tooltip title={getRes().websiteAssistant.title} trigger={["hover", "focus"]}>
-                        <Link
-                            className={styles.settingsLink}
-                            to={getRealRouteUrl("/website/assistant")}
-                            aria-label={getRes().websiteAssistant.title}
-                        >
-                            <SettingsIcon aria-hidden="true" />
-                        </Link>
-                    </Tooltip>
-                )}
-            </div>
-            {offline && <Alert type="info" title={res.offline} />}
-            <Tabs
-                activeKey={tab}
-                onChange={(page) => navigate(getRealRouteUrl(ASSISTANT_ROUTES[page as AssistantPage]))}
-                tabBarExtraContent={
+        <div className={cx(styles.page, !maintenanceOnly && styles.conversationPage)}>
+            {!maintenanceOnly && (
+                <div className={styles.header}>
+                    {task && <Link to={getRealRouteUrl("/assistant")}>{res.generalConversation}</Link>}
+                    <Button onClick={() => setTasksOpen(true)}>{res.tasks}</Button>
+                    <Button
+                        onClick={() =>
+                            setSearchParams((params) => {
+                                params.set("history", "1");
+                                return params;
+                            })
+                        }
+                    >
+                        {res.history}
+                    </Button>
                     <Tooltip title={getRes().common.refresh}>
                         <Button
                             type="text"
                             icon={<RefreshIcon />}
                             aria-label={getRes().common.refresh}
-                            disabled={disabled}
                             onClick={reload}
+                            disabled={disabled}
                         />
                     </Tooltip>
+                    {canAccessPage("/website/assistant") && (
+                        <Tooltip title={getRes().websiteAssistant.title} trigger={["hover", "focus"]}>
+                            <Link
+                                className={styles.settingsLink}
+                                to={getRealRouteUrl("/website/assistant")}
+                                aria-label={getRes().websiteAssistant.title}
+                            >
+                                <SettingsIcon aria-hidden="true" />
+                            </Link>
+                        </Tooltip>
+                    )}
+                </div>
+            )}
+            {offline && <Alert type="info" title={res.offline} />}
+            {maintenanceOnly ? (
+                <SystemTasks
+                    tasks={overview.systemTasks}
+                    definitions={overview.definitions}
+                    disabled={disabled}
+                    onConfigure={setEditing}
+                    onHistory={showHistory}
+                    onEnabled={(task, enabled) =>
+                        void mutate("enabled", { id: task.id, revision: task.revision, enabled })
+                    }
+                />
+            ) : (
+                <div className={cx(styles.panel, styles.conversationPanel)}>
+                    {isModuleEnabled("ai") && hasAction("article.assist") ? (
+                        <AssistantChat
+                            key={task?.id || "general"}
+                            taskId={filter}
+                            offline={offline || offlineData}
+                            leading={taskHistory}
+                            activities={
+                                task
+                                    ? runs.items.map((run) => ({
+                                          id: `execution-${run.id}`,
+                                          createdAt: run.startedAt,
+                                          content: (
+                                              <RunHistory
+                                                  conversation
+                                                  runs={[run]}
+                                                  onDetail={(item) => updateHistory({ runId: item.id })}
+                                                  renderStatus={status}
+                                              />
+                                          ),
+                                      }))
+                                    : []
+                            }
+                        />
+                    ) : task ? (
+                        <>
+                            {taskHistory}
+                            <RunHistory
+                                conversation
+                                runs={runs.items}
+                                onDetail={(run) => updateHistory({ runId: run.id })}
+                                renderStatus={status}
+                            />
+                        </>
+                    ) : (
+                        taskList
+                    )}
+                </div>
+            )}
+            <Drawer
+                title={res.tasks}
+                open={tasksOpen}
+                onClose={() => setTasksOpen(false)}
+                closable={{ placement: "end" }}
+                size={736}
+            >
+                {taskList}
+            </Drawer>
+            <Drawer
+                title={res.history}
+                open={searchParams.get("history") === "1"}
+                onClose={() =>
+                    setSearchParams((params) => {
+                        params.delete("history");
+                        return params;
+                    })
                 }
-                items={[
-                    { key: "tasks", label: res.tasks, children: taskList },
-                    ...(overview.systemTasks.length
-                        ? [
-                              {
-                                  key: "system",
-                                  label: res.systemTasks,
-                                  children: (
-                                      <SystemTasks
-                                          tasks={overview.systemTasks}
-                                          definitions={overview.definitions}
-                                          disabled={disabled}
-                                          onConfigure={setEditing}
-                                          onHistory={showHistory}
-                                          onEnabled={(task, enabled) =>
-                                              void mutate("enabled", {
-                                                  id: task.id,
-                                                  revision: task.revision,
-                                                  enabled,
-                                              })
-                                          }
-                                      />
-                                  ),
-                              },
-                          ]
-                        : []),
-                    { key: "history", label: res.history, children: history },
-                ]}
-            />
+                closable={{ placement: "end" }}
+                size={960}
+            >
+                {history}
+            </Drawer>
             {editing && (
                 <TaskForm
                     plan={editing}
@@ -309,7 +381,7 @@ export default function Automations({
                                     historyTrigger.current = historyPanel.current;
                                     setDetail(undefined);
                                     const lastPage = Math.max(1, Math.ceil((runs.total - 1) / runs.pageSize));
-                                    if (tab === "history") {
+                                    if (searchParams.get("history") === "1" || task) {
                                         updateHistory({ runId: undefined, page: Math.min(runs.page, lastPage) }, true);
                                     } else reload();
                                 } catch {
@@ -338,6 +410,9 @@ export default function Automations({
                 {detail && (
                     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                         <Typography.Title level={4}>{detail.taskName}</Typography.Title>
+                        <Link to={getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(detail.taskId)}`)}>
+                            {res.conversation}
+                        </Link>
                         {status(detail.status)}
                         <Descriptions
                             column={1}

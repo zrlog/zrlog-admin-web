@@ -22,7 +22,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.AIWebSetup;
-import com.zrlog.admin.web.controller.ai.AIArticleController;
+import com.zrlog.admin.web.controller.ai.AssistantChatController;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
@@ -156,14 +156,14 @@ public class AdminArticleControllerDatabaseTest {
                 + "}";
     }
 
-    private static AIArticleController aiController(
+    private static AssistantChatController aiController(
             Map<String, String> params,
             String body,
             ResponseRecorder response,
             DataSourceWrapper testDataSource)
             throws Exception {
-        AIArticleController controller =
-                new AIArticleController(
+        AssistantChatController controller =
+                new AssistantChatController(
                         new UploadService(
                                 () -> null,
                                 AccountServicesFixture.component(testDataSource).identities(),
@@ -992,6 +992,16 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldManageArticleAiMessagesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.execute(
+                    "insert into log(logId,userId,typeId,title,markdown,rubbish,privacy,version) values(?,?,?,?,?,?,?,?)",
+                    9,
+                    1,
+                    1,
+                    "Article",
+                    "Body",
+                    true,
+                    false,
+                    0);
             db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
@@ -1036,7 +1046,7 @@ public class AdminArticleControllerDatabaseTest {
             assertEquals("knowledge", message.getMessageType());
             assertFalse(message.getMessageId().isEmpty());
             assertTrue(updated.getData());
-            assertEquals(2, exported.getData().getMessageCount());
+            assertEquals(1, exported.getData().getMessageCount());
             assertTrue(cleared.getData());
             assertEquals(0, afterClear.getData().getMessageCount());
         }
@@ -1112,7 +1122,7 @@ public class AdminArticleControllerDatabaseTest {
                             AccountServicesFixture.component(db.dataSource())
                                     .requestIdentity()
                                     .current(),
-                            AIArticleController.class.getMethod("ai"),
+                            AssistantChatController.class.getMethod("ai"),
                             request(Map.of(), body));
             org.junit.Assert.assertThrows(
                     PermissionErrorException.class,

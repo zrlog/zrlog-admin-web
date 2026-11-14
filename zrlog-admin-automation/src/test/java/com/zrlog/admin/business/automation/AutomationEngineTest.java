@@ -315,8 +315,16 @@ public class AutomationEngineTest {
         assertEquals(1, runs.size());
         assertEquals("external", runs.get(0).trigger);
         assertEquals("My reminder", runs.get(0).taskName);
+        assertFalse(service.require(actor, task.id).archived);
         service.delete(actor, task.id, completed.revision);
         assertEquals(1, service.runs(actor, task.id, 20, 0).size());
+        var conversation = service.require(actor, task.id);
+        assertTrue(conversation.archived);
+        assertFalse(conversation.enabled);
+        assertEquals(task.id, conversation.id);
+        assertEquals("My reminder", conversation.name);
+        assertEquals(1, service.recentRuns(actor, task.id).size());
+        assertNull(service.recentRuns(actor, task.id).get(0).planSnapshot);
     }
 
     @Test

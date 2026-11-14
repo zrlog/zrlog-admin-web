@@ -10,7 +10,8 @@ public final class AIChatModels {
 
     public static class ChatRequest implements Validator {
         public String input;
-        public long articleId;
+        public Long articleId;
+        public String taskId;
         public com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest editorContext;
         public String contextRevision;
         public List<AIFileModels.Input> files = new ArrayList<>();
@@ -18,6 +19,9 @@ public final class AIChatModels {
         public List<ChatMessage> history = new ArrayList<>();
 
         public void doValid() {
+            com.zrlog.admin.business.ai.service.AIConversationScope.key(articleId, taskId);
+            if (articleId == null && (editorContext != null || contextRevision != null))
+                throw new ArgsException();
             com.zrlog.admin.business.ai.service.AIFileService.validateInputs(files);
             if (references == null || references.size() > 8) throw new ArgsException();
             Set<String> referenceKeys = new HashSet<>();
@@ -44,8 +48,7 @@ public final class AIChatModels {
             if (editorContext != null
                     && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")))
                 throw new ArgsException();
-            if (articleId < 0
-                    || input == null
+            if (input == null
                     || input.trim().isEmpty()
                     || input.length() > 8000
                     || history == null
@@ -67,6 +70,15 @@ public final class AIChatModels {
         public Integer fileIndex;
     }
 
+    public static class ConversationView {
+        public com.zrlog.admin.business.ai.model.AIProviderType aiProvider;
+        public String aiModel;
+        public AIFileModels.Capabilities aiFileInput;
+        public boolean aiConfigured;
+        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry>
+                aiMessages;
+    }
+
     public static class ResolvedReference {
         public String type;
         public com.zrlog.admin.business.knowledge.KnowledgeModels.ArticleResult article;
@@ -82,7 +94,8 @@ public final class AIChatModels {
     }
 
     public static class ApprovalRequest implements Validator {
-        public long articleId;
+        public Long articleId;
+        public String taskId;
         public String runId;
         public String approvalId;
         public String decision;
@@ -94,8 +107,8 @@ public final class AIChatModels {
         }
 
         public void doValid() {
-            if (articleId < 0
-                    || !uuid(runId)
+            com.zrlog.admin.business.ai.service.AIConversationScope.key(articleId, taskId);
+            if (!uuid(runId)
                     || !uuid(approvalId)
                     || !("approve".equals(decision) || "reject".equals(decision)))
                 throw new ArgsException();
@@ -137,7 +150,8 @@ public final class AIChatModels {
     }
 
     public static class InputRequest implements Validator {
-        public long articleId;
+        public Long articleId;
+        public String taskId;
         public String runId;
         public String interactionId;
         public String decision;
@@ -145,8 +159,8 @@ public final class AIChatModels {
         public String contextRevision;
 
         public void doValid() {
-            if (articleId < 0
-                    || !ApprovalRequest.uuid(runId)
+            com.zrlog.admin.business.ai.service.AIConversationScope.key(articleId, taskId);
+            if (!ApprovalRequest.uuid(runId)
                     || !ApprovalRequest.uuid(interactionId)
                     || !Set.of("submit", "cancel").contains(Objects.toString(decision, ""))
                     || value != null && value.length() > 8000
@@ -157,10 +171,12 @@ public final class AIChatModels {
 
     /** Durable execution checkpoint. Never sent to the browser or stored in public settings. */
     public static class Run {
+        public long createdAt;
         public String id = UUID.randomUUID().toString();
         public int userId;
         public int authVersion;
-        public long articleId;
+        public Long articleId;
+        public String taskId;
         public String input;
         public List<AIFileModels.Attachment> attachments;
         public String language;
@@ -191,8 +207,10 @@ public final class AIChatModels {
     }
 
     public static class RunView {
+        public long createdAt;
         public String runId;
-        public long articleId;
+        public Long articleId;
+        public String taskId;
         public String input;
         public List<AIFileModels.Attachment> attachments;
         public String status;

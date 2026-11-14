@@ -52,11 +52,15 @@ describe("knowledge assistant", () => {
         restore = false,
         history = [],
         articleId = 7,
+        taskId,
+        general = false,
     }: {
         scope?: string;
         restore?: boolean;
         history?: ChatMessage[];
         articleId?: number;
+        taskId?: string;
+        general?: boolean;
     }) {
         chat = useArticleChat(
             api,
@@ -64,7 +68,7 @@ describe("knowledge assistant", () => {
             scope,
             onMessagesChange,
             onArticleUpdated,
-            restore ? { articleId, messages: history } : undefined
+            restore ? { articleId: general || taskId ? undefined : articleId, taskId, messages: history } : undefined
         );
         return (
             <>
@@ -74,6 +78,39 @@ describe("knowledge assistant", () => {
             </>
         );
     }
+
+    it("sends and restores general chat without adopting an article returned by a tool", async () => {
+        await act(async () => root.render(<Harness restore general />));
+        expect(get.mock.calls[0][1].params).toEqual({ id: undefined, taskId: undefined });
+        post.mockResolvedValueOnce({
+            data: `data: {"type":"article-updated","articleId":42,"version":1,"created":true}\n\n${completed(
+                "Created",
+                "Create a draft"
+            )}`,
+        });
+        await act(async () => chat.send("Create a draft", [], undefined));
+        expect(post.mock.calls[0][1].articleId).toBeUndefined();
+        expect(post.mock.calls[0][1].editorContext).toBeUndefined();
+        expect(post.mock.calls[0][1].taskId).toBeUndefined();
+        expect(onArticleUpdated).not.toHaveBeenCalled();
+    });
+
+    it("keeps task scope for messages and approval resumption", async () => {
+        const view: ChatRun = {
+            runId: "task-run",
+            taskId: "task-one",
+            input: "Save draft",
+            status: "awaiting_approval",
+        };
+        get.mockResolvedValueOnce({ data: { error: 0, data: view } });
+        await act(async () => root.render(<Harness restore taskId="task-one" />));
+        expect(get.mock.calls[0][1].params).toEqual({ id: undefined, taskId: "task-one" });
+        expect(chat.messages[1].run?.runId).toBe("task-run");
+        post.mockResolvedValueOnce({ data: completed("Saved", "Save draft") });
+        await act(async () => chat.decide(view, "approve", []));
+        expect(post.mock.calls[0][1].taskId).toBe("task-one");
+        expect(post.mock.calls[0][1].articleId).toBeUndefined();
+    });
 
     it("sends document bytes while rendering only safe attachment metadata", async () => {
         const files = [{ name: "sales.csv", data: "YSxiXG4xLDI=" }];
@@ -198,7 +235,7 @@ describe("knowledge assistant", () => {
                 }) + frame({ type: "done" }),
         });
         await act(async () => chat.respond(view, "submit", "Second", revision, chat.messages));
-        expect(post.mock.calls[1][0]).toBe("/api/admin/article/ai/input");
+        expect(post.mock.calls[1][0]).toBe("/api/admin/assistant/chat/input");
         expect(post.mock.calls[1][1]).toMatchObject({
             runId: "run",
             interactionId: "input",
@@ -307,7 +344,7 @@ describe("knowledge assistant", () => {
         await act(async () => {
             await chat.decide(view, "approve", chat.messages);
         });
-        expect(post.mock.calls[1][0]).toBe("/api/admin/article/ai/approval");
+        expect(post.mock.calls[1][0]).toBe("/api/admin/assistant/chat/approval");
         expect(post.mock.calls[1][1]).toEqual({
             articleId: 7,
             runId: "run-1",

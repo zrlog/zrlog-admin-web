@@ -10,10 +10,12 @@ export default function RunHistory({
     runs,
     onDetail,
     renderStatus,
+    conversation = false,
 }: {
     runs: Run[];
     onDetail: (run: Run) => void;
     renderStatus: (status: string) => ReactNode;
+    conversation?: boolean;
 }) {
     const res = getRes().assistant;
     const screens = Grid.useBreakpoint();
@@ -25,7 +27,7 @@ export default function RunHistory({
     );
     const emptyText = <Empty description={res.emptyRuns} />;
 
-    if (screens.lg) {
+    if (screens.lg && !conversation) {
         return (
             <Table<Run>
                 rowKey="id"

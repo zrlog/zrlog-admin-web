@@ -9,6 +9,7 @@ public final class AutomationViews {
 
     public static class Task extends AutomationModels.Plan {
         public boolean systemTask;
+        public boolean archived;
         public Integer updatedBy;
         public List<String> requiredActions = new ArrayList<>();
         public long createdAt;
@@ -28,6 +29,7 @@ public final class AutomationViews {
         public boolean canManageScheduler;
         public Runs runs;
         public Run selectedRun;
+        public Task selectedTask;
     }
 
     public static class Runs {
@@ -45,6 +47,7 @@ public final class AutomationViews {
         public AutomationSettingsService.SettingsView settings;
         public AutomationTickService.Health internal;
         public AutomationTickService.Health external;
+        public Overview maintenance;
     }
 
     public static class Change implements Validator {

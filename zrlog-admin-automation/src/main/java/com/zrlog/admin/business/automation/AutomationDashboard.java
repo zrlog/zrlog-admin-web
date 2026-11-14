@@ -51,8 +51,6 @@ public final class AutomationDashboard {
             response.definitions.add(copy);
         }
         response.aiAvailable = proposals.available(actor);
-        for (StoredTask task : store.systemTasks(tasks.systemTaskIds(actor)))
-            response.systemTasks.add(task(task));
         for (StoredTask task : tasks.tasksFor(actor, offset)) response.tasks.add(task(task));
         response.total = store.taskCount(actor.getUserId());
         var views = new java.util.ArrayList<>(response.systemTasks);
@@ -74,6 +72,13 @@ public final class AutomationDashboard {
         var response = overview(actor, 0);
         response.runs = runs(actor, taskId, page, 20);
         if (runId != null && !runId.isBlank()) response.selectedRun = run(tasks.run(actor, runId));
+        return response;
+    }
+
+    public AutomationViews.Overview conversation(
+            AccountAccess actor, String taskId, int page, String runId) throws SQLException {
+        var response = history(actor, taskId, page, runId);
+        response.selectedTask = tasks.require(actor, taskId);
         return response;
     }
 
@@ -101,6 +106,31 @@ public final class AutomationDashboard {
         response.settings = settings.read(actor);
         response.internal = ticks.health("internal");
         response.external = ticks.health("external");
+        response.maintenance = new AutomationViews.Overview();
+        response.maintenance.canManageScheduler = true;
+        for (AutomationModels.Definition definition : tasks.definitions(actor)) {
+            if (!definition.systemTask) continue;
+            var copy =
+                    AutomationStore.JSON.fromJson(
+                            AutomationStore.JSON.toJson(definition),
+                            AutomationModels.Definition.class);
+            copy.title = text(copy.titleKey);
+            copy.description = text(copy.descriptionKey);
+            copy.defaultSchedule = TaskSchedule.forDisplay(copy.defaultSchedule);
+            copy.unavailableReason = copy.available ? null : text(copy.unavailableReasonKey);
+            for (var field : copy.fields) field.label = text(field.labelKey);
+            response.maintenance.definitions.add(copy);
+        }
+        for (StoredTask stored : tasks.systemTasks(actor)) {
+            var view = task(stored);
+            view.requiredActions =
+                    response.maintenance.definitions.stream()
+                            .filter(definition -> definition.type.equals(view.type))
+                            .findFirst()
+                            .map(definition -> List.copyOf(definition.requiredActions))
+                            .orElse(List.of());
+            response.maintenance.systemTasks.add(view);
+        }
         return response;
     }
 

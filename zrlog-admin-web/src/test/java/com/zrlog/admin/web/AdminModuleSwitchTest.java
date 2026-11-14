@@ -15,7 +15,7 @@ import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.audit.AdminAuditContexts;
-import com.zrlog.admin.web.controller.ai.AIArticleController;
+import com.zrlog.admin.web.controller.ai.AssistantChatController;
 import com.zrlog.admin.web.interceptor.AdminLoginInterceptor;
 import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
 import com.zrlog.admin.web.interceptor.McpInterceptor;
@@ -121,8 +121,8 @@ public class AdminModuleSwitchTest {
                             != null);
             for (String path :
                     new String[] {
-                        "/api/admin/article/ai",
-                        "/api/admin/article/ai/approval",
+                        "/api/admin/assistant/chat",
+                        "/api/admin/assistant/chat/approval",
                         "/api/admin/article/clearAiMessages",
                         "/api/admin/article/cover/apply",
                         "/api/admin/website/ai",
@@ -132,10 +132,16 @@ public class AdminModuleSwitchTest {
                 if (ai) assertNotNull(path, method);
                 else assertNull(path, method);
             }
-            assertEquals(ai, router.getMethod("/api/admin/article/ai/run", HttpMethod.GET) != null);
             assertEquals(
-                    ai, router.getMethod("/api/admin/article/ai/file", HttpMethod.GET) != null);
-            assertNull(router.getMethod("/api/admin/article/ai/file", HttpMethod.POST));
+                    ai,
+                    router.getMethod("/api/admin/assistant/chat/conversation", HttpMethod.GET)
+                            != null);
+            assertNull(router.getMethod("/api/admin/assistant/chat/conversation", HttpMethod.POST));
+            assertEquals(
+                    ai, router.getMethod("/api/admin/assistant/chat/run", HttpMethod.GET) != null);
+            assertEquals(
+                    ai, router.getMethod("/api/admin/assistant/chat/file", HttpMethod.GET) != null);
+            assertNull(router.getMethod("/api/admin/assistant/chat/file", HttpMethod.POST));
             assertEquals(account, router.getMethod("/api/admin/login", HttpMethod.POST) != null);
             assertEquals(
                     content,
@@ -168,8 +174,8 @@ public class AdminModuleSwitchTest {
             if (!content) return;
             if (ai)
                 assertEquals(
-                        AIArticleController.class,
-                        router.getMethod("/api/admin/article/ai", HttpMethod.POST)
+                        AssistantChatController.class,
+                        router.getMethod("/api/admin/assistant/chat", HttpMethod.POST)
                                 .getDeclaringClass());
             assertNotNull(router.getMethod("/api/admin/article/create", HttpMethod.POST));
             db.putWebsite("ai_provider", "OPEN_AI");

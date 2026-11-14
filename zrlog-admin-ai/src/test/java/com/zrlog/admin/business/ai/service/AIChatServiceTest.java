@@ -202,7 +202,8 @@ public class AIChatServiceTest {
                                                         "Answer", "Answer 3"))));
                 for (int turn = 1; turn <= 3; turn++) {
                     ChatRequest input = new ChatRequest();
-                    input.articleId = 36;
+                    input.articleId = 0L;
+                    input.articleId = 36L;
                     input.input = "Question " + turn;
                     // Each browser request creates a new service and restores history from storage.
                     String payload =

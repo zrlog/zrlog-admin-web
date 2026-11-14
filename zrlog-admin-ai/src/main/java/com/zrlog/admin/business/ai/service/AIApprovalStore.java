@@ -40,7 +40,9 @@ final class AIApprovalStore {
         RunView view = new RunView();
         view.attachments = run.attachments;
         view.runId = run.id;
+        view.createdAt = run.createdAt;
         view.articleId = run.articleId;
+        view.taskId = run.taskId;
         view.input = run.input;
         view.status = run.status;
         view.approval = run.approval;
@@ -59,11 +61,15 @@ final class AIApprovalStore {
         return view;
     }
 
-    private String key(int userId, long articleId) {
-        return "ai_pending_u" + userId + "_" + articleId;
+    private String key(int userId, Long articleId, String taskId) {
+        return "ai_pending_u" + userId + "_" + AIConversationScope.key(articleId, taskId);
     }
 
     Run read(int userId, long articleId) throws SQLException {
+        return read(userId, articleId, null);
+    }
+
+    Run read(int userId, Long articleId, String taskId) throws SQLException {
         WebSite row =
                 db.withSession(
                         c ->
@@ -71,12 +77,13 @@ final class AIApprovalStore {
                                         c,
                                         WebSite.class,
                                         "WHERE name=? LIMIT 1",
-                                        key(userId, articleId)));
+                                        key(userId, articleId, taskId)));
         if (row == null || row.getValue() == null) return null;
         Run run = json.fromJson(row.getValue().toString(), Run.class);
         if (run == null
                 || run.userId != userId
-                || run.articleId != articleId
+                || !Objects.equals(run.articleId, articleId)
+                || !Objects.equals(run.taskId, taskId)
                 || !Objects.equals(run.revision, row.getRemark()))
             throw new SQLException("Invalid assistant checkpoint");
         return run;
@@ -88,7 +95,7 @@ final class AIApprovalStore {
             save(run, waiting);
             return;
         }
-        Run old = read(run.userId, run.articleId);
+        Run old = read(run.userId, run.articleId, run.taskId);
         if (active(old)) throw new Changed();
         run.status = waiting;
         run.updatedAt = System.currentTimeMillis();
@@ -107,12 +114,12 @@ final class AIApprovalStore {
                                 db.repository(c, WebSite.class)
                                         .insert(
                                                 WebSiteRepository.entry(
-                                                        key(run.userId, run.articleId),
+                                                        key(run.userId, run.articleId, run.taskId),
                                                         value,
                                                         run.revision)));
             } catch (SQLException e) {
                 run.revision = null;
-                if (read(run.userId, run.articleId) != null) throw new Changed();
+                if (read(run.userId, run.articleId, run.taskId) != null) throw new Changed();
                 throw e;
             }
         } else {
@@ -125,7 +132,7 @@ final class AIApprovalStore {
                                                                 null, value, run.revision),
                                                         List.of("value", "remark"),
                                                         "name=? AND remark=?",
-                                                        key(run.userId, run.articleId),
+                                                        key(run.userId, run.articleId, run.taskId),
                                                         old.revision))
                         != 1) throw new Changed();
             } catch (SQLException | RuntimeException e) {
@@ -153,7 +160,7 @@ final class AIApprovalStore {
                                                     WebSiteRepository.entry(null, value, next),
                                                     List.of("value", "remark"),
                                                     "name=? AND remark=?",
-                                                    key(run.userId, run.articleId),
+                                                    key(run.userId, run.articleId, run.taskId),
                                                     expected))
                     != 1) throw new Changed();
         } catch (SQLException | RuntimeException e) {
@@ -172,7 +179,7 @@ final class AIApprovalStore {
                                 db.scalar(
                                         c,
                                         "select remark from website where name=?",
-                                        key(run.userId, run.articleId)));
+                                        key(run.userId, run.articleId, run.taskId)));
         if (current == null || !Objects.equals(current, run.revision)) throw new Changed();
     }
 

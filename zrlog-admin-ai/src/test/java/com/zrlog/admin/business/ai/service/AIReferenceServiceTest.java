@@ -308,7 +308,7 @@ public class AIReferenceServiceTest {
                                             1,
                                             com.zrlog.admin.web.token.AdminTokenThreadLocal
                                                     .getUserId()))
-                            .exportAIMessage(-1L)
+                            .exportAIMessage(null)
                             .getMessages();
             var answer =
                     saved.stream()

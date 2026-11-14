@@ -39,6 +39,16 @@ public class AIResponseEntry {
         private String content;
         private String reasoningContent;
         private String messageId;
+        private Long createdAt;
+
+        public Long getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(Long createdAt) {
+            this.createdAt = createdAt;
+        }
+
         private List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources;
         private java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment>
                 attachments;

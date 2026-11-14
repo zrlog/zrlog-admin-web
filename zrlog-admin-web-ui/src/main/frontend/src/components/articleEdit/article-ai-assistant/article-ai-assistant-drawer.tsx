@@ -1,3 +1,4 @@
+import AssistantConversationView from "./assistant-conversation-view";
 import { useUiApp } from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import DownloadIcon from "@zrlog/ui/icons/download";
@@ -6,12 +7,9 @@ import { Button, Drawer, Dropdown, Typography } from "antd";
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "antd-style";
-import AIContentItem from "@zrlog/editor/core/ai/AIContentItem";
 import AIIcon from "../../../icons/AIProviderIcon";
 import { AIStateCache, getAIStateCacheKey } from "@zrlog/editor/dist/ai/AIStateCache";
-import { getAppState } from "../../../base/ConfigProviderApp";
 import { getRes } from "../../../utils/constants";
-import { getEditorUser } from "../../../utils/helpers";
 import { ArticleEditState } from "../index.types";
 import useArticleEditorScreens from "../use-article-editor-screens";
 import type { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
@@ -120,12 +118,12 @@ export default function ArticleAiAssistantDrawer({
                         <Button
                             type="text"
                             icon={<AIIcon name={data.aiProvider} />}
-                            aria-label={getRes().websiteAi.label}
+                            aria-label={getRes().assistant.writingAssistant}
                             title={res.conversationActions}
                             loading={actions.exporting || actions.clearing}
                             style={{ flexShrink: 0, paddingInline: theme.paddingXS }}
                         >
-                            {getRes().websiteAi.label}
+                            {getRes().assistant.writingAssistant}
                             <ChevronDownIcon style={{ fontSize: theme.fontSizeSM }} />
                         </Button>
                     </Dropdown>
@@ -173,46 +171,12 @@ export default function ArticleAiAssistantDrawer({
                 body: { padding: 0, overflow: "hidden" },
             }}
         >
-            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                <div
-                    ref={scrollRef}
-                    onScroll={saveScroll}
-                    style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: theme.paddingSM }}
-                >
-                    <div style={{ maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%" }}>
-                        {config.messages.map((content, index) => {
-                            const message = config.renderMessage({
-                                content,
-                                index,
-                                defaultNode: (
-                                    <AIContentItem
-                                        content={content}
-                                        aiProvider={data.aiProvider}
-                                        user={getEditorUser()}
-                                        dark={getAppState().dark}
-                                    />
-                                ),
-                            });
-                            return message === null ? null : (
-                                <div key={index} style={{ paddingBottom: theme.paddingSM }}>
-                                    {message}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-                <div
-                    style={{
-                        borderTop: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
-                        padding: theme.paddingSM,
-                    }}
-                >
-                    <div style={{ maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%" }}>
-                        {config.renderFooter()}
-                    </div>
-                </div>
-            </div>
-            {config.overlays}
+            <AssistantConversationView
+                config={config}
+                aiProvider={data.aiProvider}
+                scrollRef={scrollRef}
+                onScroll={saveScroll}
+            />
         </Drawer>
     );
 }

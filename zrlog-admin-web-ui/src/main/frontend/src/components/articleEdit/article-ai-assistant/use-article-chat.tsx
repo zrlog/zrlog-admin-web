@@ -19,6 +19,7 @@ import type { AiMentionInput } from "./article-ai-mentions";
 
 type Source = { id: number; title: string; url: string; draft: boolean; privateArticle: boolean };
 export type ChatMessage = ToolAwareAIContent & {
+    createdAt?: number;
     messageType?: string;
     messageId?: string;
     sources?: Source[];
@@ -29,8 +30,10 @@ export type ChatMessage = ToolAwareAIContent & {
     run?: ChatRun;
 };
 export type ChatRun = {
+    createdAt?: number;
     runId: string;
-    articleId: number;
+    articleId?: number;
+    taskId?: string;
     input: string;
     attachments?: AiFileAttachment[];
     status:
@@ -180,7 +183,7 @@ export const useArticleChat = (
     scope: string,
     onMessagesChange?: (messages: AIContent[], articleId?: number) => void,
     onArticleUpdated?: (event: ArticleUpdatedEvent) => void,
-    session?: { articleId: number; messages: AIContent[] }
+    session?: { articleId?: number; taskId?: string; messages: AIContent[] }
 ) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [busy, setBusy] = useState(false);
@@ -234,6 +237,7 @@ export const useArticleChat = (
                           content: view.input,
                           attachments: view.attachments,
                           messageType: "knowledge",
+                          createdAt: view.createdAt,
                           runId: view.runId,
                           thinking: false,
                       },
@@ -242,6 +246,7 @@ export const useArticleChat = (
                           role: "assistant",
                           content: "",
                           messageType: "knowledge",
+                          createdAt: view.createdAt,
                           runId: view.runId,
                           run: view,
                           thinking: false,
@@ -254,16 +259,16 @@ export const useArticleChat = (
     }, []);
     const refreshRun = useCallback(
         async (articleId = contextRef.current.session?.articleId) => {
-            if (articleId === undefined) return false;
+            if (articleId === undefined && !contextRef.current.session) return false;
             const revision = generation.current;
             try {
                 const response = await contextRef.current.api.get<{ error: number; data?: ChatRun }>(
-                    "/api/admin/article/ai/run",
-                    { params: { id: articleId } }
+                    "/api/admin/assistant/chat/run",
+                    { params: { id: articleId, taskId: contextRef.current.session?.taskId } }
                 );
                 if (revision !== generation.current || response?.data?.error || !response?.data?.data) return false;
                 const view = response.data.data;
-                if (view.articleId !== articleId) return false;
+                if (view.articleId !== articleId || view.taskId !== contextRef.current.session?.taskId) return false;
                 const created = articleId === 0 ? createdArticleUpdate(view.articleUpdates || []) : undefined;
                 // A completed draft run has moved its conversation to the created article. A fresh
                 // new-article page must not reopen it; an interrupted local turn can still recover it.
@@ -317,15 +322,17 @@ export const useArticleChat = (
     }, [scope]);
 
     const restoreArticleId = session?.articleId;
+    const restoreTaskId = session?.taskId;
+    const restoreEnabled = Boolean(session);
     useEffect(() => {
-        if (!disabled && restoreArticleId !== undefined) void refreshRun(restoreArticleId);
+        if (!disabled && restoreEnabled) void refreshRun(restoreArticleId);
         // Read once when entering an editor. Confirmations use a new POST/SSE, never polling.
-    }, [scope, restoreArticleId, disabled, refreshRun]);
+    }, [scope, restoreArticleId, restoreTaskId, restoreEnabled, disabled, refreshRun]);
 
     const send = async (
         input: string,
         context: AIContent[],
-        articleId: number,
+        articleId: number | undefined,
         approval?: {
             run: ChatRun;
             decision: "approve" | "reject" | "submit" | "cancel";
@@ -357,6 +364,7 @@ export const useArticleChat = (
         restorePending.current = () => (approval ? mergeRun(approval.run, context) : publish(context));
         const question: ChatMessage = {
             role: "user",
+            createdAt: approval?.run.createdAt || Date.now(),
             content: prompt,
             attachments:
                 approval?.run.attachments ||
@@ -374,7 +382,10 @@ export const useArticleChat = (
             runId: approval?.run.runId,
         };
         const base: ChatMessage[] = [...context, question];
-        publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
+        publish([
+            ...base,
+            { role: "assistant", createdAt: question.createdAt, content: "", thinking: true, messageType: "knowledge" },
+        ]);
         let lastReasoning = "";
         let lastContent = "";
         let lastSkillCount = 0;
@@ -417,7 +428,11 @@ export const useArticleChat = (
             const checkpoint = [...events]
                 .reverse()
                 .find((event) => ["approval-required", "interaction-required", "run-state"].includes(event.type));
-            if (checkpoint?.run && checkpoint.run.articleId === articleId) {
+            if (
+                checkpoint?.run &&
+                checkpoint.run.articleId === articleId &&
+                checkpoint.run.taskId === contextRef.current.session?.taskId
+            ) {
                 const view = checkpoint.run;
                 latestCheckpoint = view;
                 // A server-side run may still be active after a client disconnect. Its state
@@ -487,6 +502,7 @@ export const useArticleChat = (
                     ...skillMessages,
                     {
                         role: "assistant",
+                        createdAt: question.createdAt,
                         content,
                         thinking: !content,
                         messageType: "knowledge",
@@ -524,13 +540,14 @@ export const useArticleChat = (
             };
             const response = await api.post(
                 approval?.interaction
-                    ? "/api/admin/article/ai/input"
+                    ? "/api/admin/assistant/chat/input"
                     : approval
-                    ? "/api/admin/article/ai/approval"
-                    : "/api/admin/article/ai",
+                    ? "/api/admin/assistant/chat/approval"
+                    : "/api/admin/assistant/chat",
                 approval
                     ? {
                           articleId,
+                          taskId: contextRef.current.session?.taskId,
                           runId: approval.run.runId,
                           decision: approval.decision,
                           ...(approval.interaction
@@ -540,6 +557,7 @@ export const useArticleChat = (
                     : {
                           input: prompt,
                           articleId,
+                          taskId: contextRef.current.session?.taskId,
                           ...snapshot,
                           ...(files?.length ? { files } : {}),
                           ...(references?.length ? { references } : {}),
@@ -559,6 +577,7 @@ export const useArticleChat = (
                     ...base,
                     {
                         role: "assistant",
+                        createdAt: question.createdAt,
                         content: getErrorMessage(error, res.requestFailed),
                         thinking: false,
                         failed: true,

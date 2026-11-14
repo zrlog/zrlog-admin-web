@@ -46,10 +46,10 @@ public class AIChatAccessPolicy {
         return scopes;
     }
 
-    void authorizeArticle(AccountAccess actor, long articleId) {
+    void authorizeArticle(AccountAccess actor, Long articleId) {
         AccountAccess account = identities.revalidate(actor);
         if (!AccountAction.ARTICLE_ASSIST.allowed(account)) throw new PermissionErrorException();
-        if (articleId > 0) {
+        if (articleId != null && articleId > 0) {
             try {
                 permissionService.article(account, articleId, false);
             } catch (SQLException e) {

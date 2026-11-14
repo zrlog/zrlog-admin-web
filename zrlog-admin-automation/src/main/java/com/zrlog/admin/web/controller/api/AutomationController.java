@@ -86,9 +86,19 @@ public final class AutomationController extends BaseController {
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "automation.read")
     public AdminPageDataResponse<AutomationViews.Overview> index() throws Exception {
         var actor = identities.current();
+        String taskId = request.getParaToStr("taskId");
+        String runId = request.getParaToStr("runId");
+        if ((taskId == null || taskId.isBlank()) && runId != null && !runId.isBlank())
+            taskId = tasks.run(actor, runId).taskId;
         return pages.response(
                 actor,
-                dashboard.overview(actor, request.getParaToInt("offset", 0)),
+                taskId == null || taskId.isBlank()
+                        ? "1".equals(request.getParaToStr("history"))
+                                ? dashboard.history(
+                                        actor, null, request.getParaToInt("page", 1), runId)
+                                : dashboard.overview(actor, request.getParaToInt("offset", 0))
+                        : dashboard.conversation(
+                                actor, taskId, request.getParaToInt("page", 1), runId),
                 "",
                 "/admin/assistant");
     }

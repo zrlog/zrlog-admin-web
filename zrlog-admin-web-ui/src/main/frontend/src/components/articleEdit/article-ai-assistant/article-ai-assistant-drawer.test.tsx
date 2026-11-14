@@ -17,7 +17,7 @@ jest.mock("antd-style", () => ({
 }));
 jest.mock("../../../utils/constants", () => ({
     getRes: () => ({
-        websiteAi: { label: "AI assistant" },
+        assistant: { writingAssistant: "Writing assistant" },
         common: { cancel: "Cancel" },
         articleEdit: {
             assistant: {
@@ -104,10 +104,10 @@ it.each([false, true])("opens conversation actions and confirms clearing (fullsc
         Object.defineProperty(document, "fullscreenElement", { configurable: true, value: container });
     }
     await render();
-    const more = document.querySelector('button[aria-label="AI assistant"]');
+    const more = document.querySelector('button[aria-label="Writing assistant"]');
     const close = document.querySelector(".ant-drawer-close");
     expect(document.querySelector(".ant-drawer-title")!.contains(more)).toBe(true);
-    expect(more!.textContent).toContain("AI assistant");
+    expect(more!.textContent).toContain("Writing assistant");
     expect(document.querySelector(".ant-drawer-extra")).toBeNull();
     await click(more);
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(2);
@@ -132,7 +132,7 @@ it.each([false, true])("opens conversation actions and confirms clearing (fullsc
 
 it("disables session operations while a response is running or the conversation is empty", async () => {
     await render(true);
-    await click(document.querySelector('button[aria-label="AI assistant"]'));
+    await click(document.querySelector('button[aria-label="Writing assistant"]'));
     const items = document.querySelectorAll('[role="menuitem"]');
     expect(items).toHaveLength(2);
     items.forEach((item) => expect(item.getAttribute("aria-disabled")).toBe("true"));

@@ -66,11 +66,12 @@ public class AIExplicitActorBoundaryTest {
     }
 
     private static AdminAuditContext audit() {
-        return new AdminAuditContext(2, "192.0.2.2", "/api/admin/article/ai", null);
+        return new AdminAuditContext(2, "192.0.2.2", "/api/admin/assistant/chat", null);
     }
 
     private static ChatRequest input() {
         var input = new ChatRequest();
+        input.articleId = 0L;
         input.input = "Writer question";
         return input;
     }
