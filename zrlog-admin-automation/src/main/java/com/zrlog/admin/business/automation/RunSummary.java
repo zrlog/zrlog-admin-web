@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 /** Read-only list/notice projection; excludes planSnapshot, result and child payloads. */
 public final class RunSummary {
     static final String COLUMNS =
-            "r.`id`,r.`version`,r.`taskId`,r.`ownerId`,r.`taskName`,r.`taskNameKey`,r.`taskType`,r.`taskRevision`,r.`scheduledAt`,r.`startedAt`,r.`finishedAt`,r.`trigger`,r.`triggeredBy`,r.`executionUserId`,r.`status`,r.`errorCode`,r.`summary`";
+            "r.`id`,r.`version`,r.`updatedAt`,r.`taskId`,r.`ownerId`,r.`taskName`,r.`taskNameKey`,r.`taskType`,r.`taskRevision`,r.`scheduledAt`,r.`startedAt`,r.`finishedAt`,r.`trigger`,r.`triggeredBy`,r.`executionUserId`,r.`status`,r.`errorCode`,r.`summary`";
     public String id;
     public long version;
     public String taskId;
@@ -16,6 +16,7 @@ public final class RunSummary {
     public long taskRevision;
     public Timestamp scheduledAt;
     public Timestamp startedAt;
+    public Timestamp updatedAt;
     public Timestamp finishedAt;
     public String trigger;
     public Integer triggeredBy;
@@ -36,6 +37,7 @@ public final class RunSummary {
         value.taskRevision = taskRevision;
         value.scheduledAt = AssistantRecordMapper.millis(scheduledAt);
         value.startedAt = AssistantRecordMapper.millis(startedAt);
+        value.updatedAt = AssistantRecordMapper.millis(updatedAt);
         value.finishedAt = AssistantRecordMapper.millis(finishedAt);
         value.trigger = trigger;
         value.triggeredBy = triggeredBy;

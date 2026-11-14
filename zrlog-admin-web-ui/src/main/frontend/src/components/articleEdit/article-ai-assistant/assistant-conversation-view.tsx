@@ -6,8 +6,6 @@ import { getEditorUser } from "../../../utils/helpers";
 import type { AIProviderType } from "../../../type";
 import type { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
 
-export type ConversationActivity = { id: string; createdAt: number; content: ReactNode };
-
 /** The existing conversation content, shared by the assistant page and writing surfaces. */
 export default function AssistantConversationView({
     config,
@@ -16,7 +14,6 @@ export default function AssistantConversationView({
     scrollRef,
     onScroll,
     selectedText,
-    activities = [],
 }: {
     config: ReturnType<typeof useArticleAiAssistantConfig>;
     aiProvider: AIProviderType;
@@ -24,7 +21,6 @@ export default function AssistantConversationView({
     scrollRef?: RefObject<HTMLDivElement>;
     onScroll?: UIEventHandler<HTMLDivElement>;
     selectedText?: string;
-    activities?: ConversationActivity[];
 }) {
     const theme = useTheme();
     return (
@@ -37,33 +33,28 @@ export default function AssistantConversationView({
                 >
                     <div style={{ maxWidth: config.contentMaxWidth, margin: "0 auto", width: "100%" }}>
                         {leading}
-                        {[
-                            ...config.messages.map((content, index) => ({
-                                id: (content as { messageId?: string }).messageId || `message-${index}`,
-                                createdAt: (content as { createdAt?: number }).createdAt || 0,
-                                content: config.renderMessage({
-                                    content,
-                                    index,
-                                    defaultNode: (
-                                        <AIContentItem
-                                            content={content}
-                                            aiProvider={aiProvider}
-                                            user={getEditorUser()}
-                                            dark={getAppState().dark}
-                                        />
-                                    ),
-                                }),
-                            })),
-                            ...activities,
-                        ]
-                            .sort((a, b) => (activities.length ? a.createdAt - b.createdAt : 0))
-                            .map((item) =>
-                                item.content === null ? null : (
-                                    <div key={item.id} style={{ paddingBottom: theme.paddingSM }}>
-                                        {item.content}
-                                    </div>
-                                )
-                            )}
+                        {config.messages.map((content, index) => {
+                            const node = config.renderMessage({
+                                content,
+                                index,
+                                defaultNode: (
+                                    <AIContentItem
+                                        content={content}
+                                        aiProvider={aiProvider}
+                                        user={getEditorUser()}
+                                        dark={getAppState().dark}
+                                    />
+                                ),
+                            });
+                            return node === null ? null : (
+                                <div
+                                    key={(content as { messageId?: string }).messageId || `message-${index}`}
+                                    style={{ paddingBottom: theme.paddingSM }}
+                                >
+                                    {node}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
                 <div

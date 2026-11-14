@@ -360,6 +360,38 @@ public final class AutomationStore {
         return result;
     }
 
+    public AssistantTaskContextProvider.FeedbackPage feedback(
+            int ownerId, List<String> systemIds, String taskId, Long before, String beforeId)
+            throws SQLException {
+        var query = visibleRunQuery(ownerId, systemIds, taskId);
+        query.where +=
+                " AND r.finishedAt IS NOT NULL AND r.status<>'running'"
+                        + " AND (r.ownerId<>0 OR r.`trigger`='manual' OR r.notifyOwner=? OR r.status='submitted')";
+        query.parameters.add(true);
+        if (before != null && beforeId != null) {
+            requireRunId(beforeId);
+            query.where += " AND (r.updatedAt<? OR (r.updatedAt=? AND r.id<?))";
+            query.parameters.add(dateParameter(before));
+            query.parameters.add(dateParameter(before));
+            query.parameters.add(beforeId);
+        }
+        query.order = "r.updatedAt DESC,r.id DESC";
+        var rows = summaries(query, 21, 0);
+        var page = new AssistantTaskContextProvider.FeedbackPage();
+        page.hasMore = rows.size() > 20;
+        page.items =
+                rows.stream()
+                        .limit(20)
+                        .map(row -> row.value)
+                        .collect(java.util.stream.Collectors.toList());
+        if (!page.items.isEmpty()) {
+            var last = page.items.get(page.items.size() - 1);
+            page.before = last.updatedAt;
+            page.beforeId = last.id;
+        }
+        return page;
+    }
+
     public long visibleRunCount(int ownerId, List<String> systemIds, String taskId)
             throws SQLException {
         var query = visibleRunQuery(ownerId, systemIds, taskId);

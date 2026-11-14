@@ -93,6 +93,7 @@ public final class AutomationNotificationService {
     private static boolean isNotice(AutomationModels.Run run) {
         return run.finishedAt != null
                 && !"running".equals(run.status)
-                && (ATTENTION.contains(run.status) || run.result != null && run.result.notifyOwner);
+                && (ATTENTION.contains(run.status)
+                        || run.result != null && (run.result.notifyOwner || run.result.recovered));
     }
 }

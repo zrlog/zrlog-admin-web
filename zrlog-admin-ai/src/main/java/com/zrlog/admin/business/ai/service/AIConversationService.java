@@ -183,7 +183,17 @@ public class AIConversationService {
                 run.skillMessages.clear();
                 checkpoints.save(run, "cancelled");
             }
-            if (!mutateMessages(articleId, messages -> new ArrayList<>())) return false;
+            if (!mutateMessages(
+                    articleId,
+                    messages -> {
+                        var cleared = new ArrayList<AIResponseEntry.AIContentEntry>();
+                        if (taskId != null) {
+                            var marker = feedbackMarker();
+                            marker.getTaskFeedbackState().clearedAt = System.currentTimeMillis();
+                            cleared.add(marker);
+                        }
+                        return cleared;
+                    })) return false;
             // A draft checkpoint may still reference files moved into a saved article.
             Set<String> retained = referencedFileIds();
             files.removeIf(file -> retained.contains(file.id));
@@ -257,6 +267,7 @@ public class AIConversationService {
                 info,
                 map,
                 article && map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
+        for (var entry : info.getAiMessages()) TaskResultMessages.localize(entry);
         return info;
     }
 
@@ -334,6 +345,95 @@ public class AIConversationService {
         throw new SQLException("Conversation changed concurrently");
     }
 
+    static AIResponseEntry.AIContentEntry.TaskFeedbackState feedbackState(
+            List<AIResponseEntry.AIContentEntry> messages) {
+        return messages.stream()
+                .map(AIResponseEntry.AIContentEntry::getTaskFeedbackState)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static AIResponseEntry.AIContentEntry feedbackMarker() {
+        var marker = new AIResponseEntry.AIContentEntry("system", "");
+        marker.setMessageId("task-feedback-state");
+        marker.setMessageType("taskFeedbackState");
+        marker.setTaskFeedbackState(new AIResponseEntry.AIContentEntry.TaskFeedbackState());
+        return marker;
+    }
+
+    /**
+     * Materialize authorized feedback in the existing session. CAS merges concurrent chat writes;
+     * execution records remain the durable source if synchronization fails and is retried.
+     */
+    public void synchronizeTaskFeedback(
+            com.zrlog.admin.business.automation.AssistantTaskContextProvider.FeedbackPage page,
+            Long requestedBefore,
+            String requestedBeforeId)
+            throws SQLException {
+        if (taskId == null) throw new IllegalStateException("Task context required");
+        mutateMessages(
+                null,
+                messages -> {
+                    var state = feedbackState(messages);
+                    boolean changed = false;
+                    if (state == null) {
+                        var marker = feedbackMarker();
+                        state = marker.getTaskFeedbackState();
+                        messages.add(0, marker);
+                        changed = true;
+                    }
+                    for (var run : page.items) {
+                        long occurred =
+                                run.updatedAt == null
+                                        ? Objects.requireNonNullElse(run.finishedAt, 0L)
+                                        : run.updatedAt;
+                        if (occurred <= state.clearedAt) continue;
+                        var entry = TaskResultMessages.entry(run);
+                        int index = -1;
+                        for (int i = 0; i < messages.size(); i++)
+                            if (entry.getMessageId().equals(messages.get(i).getMessageId())) {
+                                index = i;
+                                break;
+                            }
+                        if (index < 0) {
+                            messages.add(entry);
+                            changed = true;
+                        } else {
+                            var existing = messages.get(index).getTaskResult();
+                            if (existing != null && existing.version < run.version) {
+                                messages.set(index, entry);
+                                changed = true;
+                            }
+                        }
+                    }
+                    // A fresh-page refresh must not move the older-message cursor backwards.
+                    if (state.before == null
+                            || (Objects.equals(state.before, requestedBefore)
+                                    && Objects.equals(state.beforeId, requestedBeforeId))) {
+                        boolean more =
+                                page.hasMore
+                                        && page.before != null
+                                        && page.before > state.clearedAt;
+                        if (!Objects.equals(state.before, page.before)
+                                || !Objects.equals(state.beforeId, page.beforeId)
+                                || state.hasMore != more) {
+                            state.before = page.before;
+                            state.beforeId = page.beforeId;
+                            state.hasMore = more;
+                            changed = true;
+                        }
+                    }
+                    if (!changed) return null;
+                    messages.sort(
+                            Comparator.comparingLong(
+                                    message ->
+                                            Objects.requireNonNullElse(
+                                                    message.getCreatedAt(), 0L)));
+                    return messages;
+                });
+    }
+
     public boolean saveAIMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId)
             throws SQLException {
         return mutateMessages(articleId, ignored -> new ArrayList<>(messages));
@@ -375,7 +475,11 @@ public class AIConversationService {
     public void ensureSystemMessage(
             List<AIResponseEntry.AIContentEntry> messages, String aiPrompt) {
         boolean hasSystemMessage =
-                messages.stream().anyMatch(message -> Objects.equals(message.getRole(), "system"));
+                messages.stream()
+                        .anyMatch(
+                                message ->
+                                        Objects.equals(message.getRole(), "system")
+                                                && message.getTaskFeedbackState() == null);
         if (!hasSystemMessage) {
             messages.add(0, new AIResponseEntry.AIContentEntry("system", emptyToBlank(aiPrompt)));
         }

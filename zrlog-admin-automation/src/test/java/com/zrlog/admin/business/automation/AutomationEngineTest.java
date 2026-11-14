@@ -109,6 +109,46 @@ public class AutomationEngineTest {
         service = new AutomationService(store, authority, registry, now::get);
     }
 
+    @Test
+    public void feedbackOmitsRoutineMaintenanceButIncludesManualFailureAndRecovery()
+            throws Exception {
+        var task = service.save(actor, plan("interval"));
+        var run = engine().runNow(actor, task.id, task.revision, 60000);
+        var state = store.run(run.id);
+        run.ownerId = 0;
+        run.trigger = "internal";
+        run.taskId = "0000000000.00000000-0000-0000-0000-000000000001";
+        run.result.notifyOwner = false;
+        assertTrue(store.replaceRun(state, run));
+        assertTrue(store.feedback(1, List.of(run.taskId), run.taskId, null, null).items.isEmpty());
+        state = store.run(run.id);
+        run.trigger = "manual";
+        assertTrue(store.replaceRun(state, run));
+        var feedback = store.feedback(1, List.of(run.taskId), run.taskId, null, null).items;
+        assertEquals(1, feedback.size());
+        assertNull(feedback.get(0).planSnapshot);
+        assertNotNull(feedback.get(0).updatedAt);
+        assertTrue(store.feedback(2, List.of(), run.taskId, null, null).items.isEmpty());
+        state = store.run(run.id);
+        run.trigger = "internal";
+        run.status = "failed";
+        assertTrue(store.replaceRun(state, run));
+        assertEquals(
+                1, store.feedback(1, List.of(run.taskId), run.taskId, null, null).items.size());
+
+        executionResult = AutomationModels.Result.success("completed");
+        executionResult.status = "failed";
+        engine().runNow(actor, task.id, task.revision, 60000);
+        executionResult = AutomationModels.Result.success("completed");
+        var recovered = engine().runNow(actor, task.id, task.revision, 60000);
+        assertTrue(recovered.result.recovered);
+        assertFalse(recovered.result.notifyOwner);
+        assertTrue(
+                store.feedback(1, List.of(), task.id, null, null).items.stream()
+                        .anyMatch(item -> item.result.recovered));
+        assertFalse(engine().runNow(actor, task.id, task.revision, 60000).result.recovered);
+    }
+
     @After
     public void close() throws Exception {
         if (db != null) db.close();

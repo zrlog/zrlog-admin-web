@@ -1,3 +1,4 @@
+import TaskResultMessage from "./task-result-message";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 import { getAppState } from "../../../base/ConfigProviderApp";
 import { addToCache, getCacheByKey } from "../../../utils/cache";
@@ -761,6 +762,15 @@ export const useArticleAiAssistantConfig = ({
         ) {
             // The input card owns the options while a choice is pending. Restore the normal result card afterwards.
             return null;
+        }
+        if (toolAwareContent.messageType === "taskResult" && toolAwareContent.taskResult && context?.taskId) {
+            return (
+                <TaskResultMessage
+                    content={content.content}
+                    taskId={context.taskId}
+                    runId={toolAwareContent.taskResult.runId}
+                />
+            );
         }
         if (toolAwareContent.messageType === "articleContext") {
             return null;

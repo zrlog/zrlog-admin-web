@@ -116,6 +116,14 @@ public final class AutomationService implements AssistantTaskContextProvider {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public AssistantTaskContextProvider.FeedbackPage feedback(
+            AccountAccess actor, String taskId, Long before, String beforeId) throws SQLException {
+        // System task visibility is resolved with current permissions, never with stored grants.
+        require(actor, taskId);
+        return store.feedback(actor.getUserId(), systemTaskIds(actor), taskId, before, beforeId);
+    }
+
     List<StoredTask> tasksFor(AccountAccess actor, int offset) throws SQLException {
         return store.tasks(actor.getUserId(), 100, offset).stream()
                 .map(row -> row.value)

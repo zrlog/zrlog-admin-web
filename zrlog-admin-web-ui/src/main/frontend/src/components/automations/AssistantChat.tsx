@@ -1,6 +1,8 @@
+import { getBackgroundTasks, subscribeBackgroundTasks } from "../../utils/background-task-store";
+import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
 import AssistantConversationActions from "./AssistantConversationActions";
-import { Alert, Button, Space, Spin } from "antd";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Button, Space, Spin, Typography } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAxiosBaseInstance } from "../../base/AppBase";
@@ -12,25 +14,40 @@ import type { ArticleEditInfo, ArticleEditState } from "../articleEdit/index.typ
 import type { ApiResponse } from "../../type";
 import { useArticleAiAssistantConfig } from "../articleEdit/article-ai-assistant/article-ai-assistant-button";
 import AssistantConversationView from "../articleEdit/article-ai-assistant/assistant-conversation-view";
-import type { ConversationActivity } from "../articleEdit/article-ai-assistant/assistant-conversation-view";
+import { mergeTaskFeedback } from "./task-feedback-messages";
 
-type ConversationInfo = Pick<ArticleEditInfo, "aiProvider" | "aiModel" | "aiConfigured" | "aiMessages" | "aiFileInput">;
+type ConversationInfo = Pick<
+    ArticleEditInfo,
+    "aiProvider" | "aiModel" | "aiConfigured" | "aiMessages" | "aiFileInput"
+> & {
+    hasEarlierFeedback?: boolean;
+};
 
 function Conversation({
     info,
     taskId,
     offline,
     leading,
-    activities,
+    onEarlier,
+    loadingEarlier,
+    error,
+    onRetry,
 }: {
     info: ConversationInfo;
     taskId?: string;
     offline: boolean;
     leading?: ReactNode;
-    activities?: ConversationActivity[];
+    onEarlier: () => void;
+    loadingEarlier: boolean;
+    error?: string;
+    onRetry: () => void;
 }) {
     const api = useAxiosBaseInstance();
     const [messages, setMessages] = useState(info.aiMessages);
+    useEffect(() => {
+        if (!taskId) return;
+        setMessages((current) => mergeTaskFeedback(current, info.aiMessages));
+    }, [info, taskId]);
     const gate = useMemo(createDraftAiSaveGate, []);
     const scrollRef = useRef<HTMLDivElement>(null);
     const followMessages = useRef(true);
@@ -57,7 +74,8 @@ function Conversation({
         draftAiSaveGate: gate,
         offline,
         axiosInstance: api,
-        onAiMessagesChange: setMessages,
+        onAiMessagesChange: (next) =>
+            setMessages((current) => (taskId && next.length ? mergeTaskFeedback(next, current) : next)),
         onApplyValues: () => undefined,
         getSkillContextRevision: () => "",
     });
@@ -67,6 +85,9 @@ function Conversation({
     const actions = config.conversationActions;
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+            {error && (
+                <Alert type="error" title={error} action={<Button onClick={onRetry}>{getRes().common.retry}</Button>} />
+            )}
             <Space style={{ alignSelf: "flex-end" }}>
                 <AssistantConversationActions actions={actions} />
             </Space>
@@ -85,8 +106,29 @@ function Conversation({
                 <AssistantConversationView
                     config={config}
                     aiProvider={data.aiProvider}
-                    leading={leading}
-                    activities={activities}
+                    leading={
+                        <>
+                            {leading}
+                            {info.hasEarlierFeedback && (
+                                <Button
+                                    type="text"
+                                    loading={loadingEarlier}
+                                    disabled={offline}
+                                    onClick={() => {
+                                        followMessages.current = false;
+                                        onEarlier();
+                                    }}
+                                >
+                                    {getRes().assistant.earlierFeedback}
+                                </Button>
+                            )}
+                            {taskId && messages?.length === 0 && (
+                                <Typography.Paragraph type="secondary">
+                                    {getRes().assistant.feedbackEmpty}
+                                </Typography.Paragraph>
+                            )}
+                        </>
+                    }
                     scrollRef={scrollRef}
                     onScroll={() => {
                         const scroll = scrollRef.current;
@@ -103,27 +145,65 @@ export default function AssistantChat({
     taskId,
     offline,
     leading,
-    activities,
+    revision = 0,
 }: {
     taskId?: string;
     offline: boolean;
     leading?: ReactNode;
-    activities?: ConversationActivity[];
+    revision?: number;
 }) {
     const api = useAxiosBaseInstance();
     const [info, setInfo] = useState<ConversationInfo>();
     const [error, setError] = useState<string>();
-    const [revision, setRevision] = useState(0);
+    const [retry, setRetry] = useState(0);
+    const noticeRevision = useSyncExternalStore(
+        subscribeBackgroundTasks,
+        useCallback(
+            () =>
+                taskId
+                    ? getBackgroundTasks()
+                          .filter((task) => task.taskKey?.startsWith(ASSISTANT_NOTICE_PREFIX))
+                          .map((task) => `${task.taskKey}:${task.updatedAt}:${task.status}`)
+                          .sort()
+                          .join("|")
+                    : "",
+            [taskId]
+        ),
+        () => ""
+    );
+    useEffect(() => {
+        if (!taskId || offline) return;
+        const resume = () => {
+            if (document.visibilityState === "visible") setRetry((value) => value + 1);
+        };
+        document.addEventListener("visibilitychange", resume);
+        return () => document.removeEventListener("visibilitychange", resume);
+    }, [taskId, offline]);
+    const [loadingEarlier, setLoadingEarlier] = useState(false);
+    const loadEarlier = async () => {
+        if (loadingEarlier || offline) return;
+        setLoadingEarlier(true);
+        try {
+            const requestConfig = { params: { taskId, earlier: 1 }, showError: false };
+            const { data } = await api.get<ApiResponse<ConversationInfo>>(
+                "/api/admin/assistant/chat/conversation",
+                requestConfig
+            );
+            if (data.error) throw new Error(data.message || getRes().error.unknown);
+            setInfo(data.data);
+        } catch (error) {
+            setError(getErrorMessage(error, getRes().error.unknown));
+        } finally {
+            setLoadingEarlier(false);
+        }
+    };
     useEffect(() => {
         const controller = new AbortController();
-        setInfo(undefined);
         setError(undefined);
         if (offline) return;
+        const requestConfig = { params: { taskId }, signal: controller.signal, showError: false };
         void api
-            .get<ApiResponse<ConversationInfo>>("/api/admin/assistant/chat/conversation", {
-                params: { taskId },
-                signal: controller.signal,
-            })
+            .get<ApiResponse<ConversationInfo>>("/api/admin/assistant/chat/conversation", requestConfig)
             .then(({ data }) => {
                 if (controller.signal.aborted) return;
                 if (data.error) throw new Error(data.message || getRes().error.unknown);
@@ -133,13 +213,13 @@ export default function AssistantChat({
                 if (!controller.signal.aborted) setError(getErrorMessage(error, getRes().error.unknown));
             });
         return () => controller.abort();
-    }, [api, taskId, offline, revision]);
-    if (error)
+    }, [api, taskId, offline, revision, retry, noticeRevision]);
+    if (error && !info)
         return (
             <Alert
                 type="error"
                 title={error}
-                action={<Button onClick={() => setRevision((value) => value + 1)}>{getRes().common.retry}</Button>}
+                action={<Button onClick={() => setRetry((value) => value + 1)}>{getRes().common.retry}</Button>}
             />
         );
     if (!info)
@@ -158,7 +238,10 @@ export default function AssistantChat({
             taskId={taskId}
             offline={offline}
             leading={leading}
-            activities={activities}
+            onEarlier={() => void loadEarlier()}
+            loadingEarlier={loadingEarlier}
+            error={error}
+            onRetry={() => setRetry((value) => value + 1)}
         />
     );
 }

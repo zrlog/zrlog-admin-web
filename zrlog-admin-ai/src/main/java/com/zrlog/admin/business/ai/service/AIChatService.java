@@ -156,9 +156,8 @@ public class AIChatService {
             existing = invalidatePending(actor, existing);
             return stateResponse(actor, existing);
         }
-        AIConversationService conversations = conversation(actor, input.taskId);
         AIWebSiteInfoWithAIMessages info =
-                conversations.getAiMessageInfoByArticleId(conversationId(actor, input.articleId));
+                loadConversationInfo(actor, input.articleId, input.taskId, false);
         AIService.checkAiConfig(info);
         input.history = history(info.getAiMessages());
         UserPreferences preferences = this.userPreferenceService.effective(actor);
@@ -223,9 +222,32 @@ public class AIChatService {
 
     public AIWebSiteInfoWithAIMessages conversationInfo(
             AccountAccess actor, Long articleId, String taskId) throws SQLException {
+        return conversationInfo(actor, articleId, taskId, false);
+    }
+
+    public AIWebSiteInfoWithAIMessages conversationInfo(
+            AccountAccess actor, Long articleId, String taskId, boolean earlier)
+            throws SQLException {
         authorizeContext(actor, articleId, taskId);
-        return conversation(actor, taskId)
-                .getAiMessageInfoByArticleId(conversationId(actor, articleId));
+        return loadConversationInfo(actor, articleId, taskId, earlier);
+    }
+
+    private AIWebSiteInfoWithAIMessages loadConversationInfo(
+            AccountAccess actor, Long articleId, String taskId, boolean earlier)
+            throws SQLException {
+        var conversation = conversation(actor, taskId);
+        var info = conversation.getAiMessageInfoByArticleId(conversationId(actor, articleId));
+        if (taskId != null) {
+            var state = AIConversationService.feedbackState(info.getAiMessages());
+            Long before = earlier && state != null && state.hasMore ? state.before : null;
+            String beforeId = before == null ? null : state.beforeId;
+            if (!earlier || before != null) {
+                conversation.synchronizeTaskFeedback(
+                        taskContexts.feedback(actor, taskId, before, beforeId), before, beforeId);
+                info = conversation.getAiMessageInfoByArticleId(null);
+            }
+        }
+        return info;
     }
 
     public boolean clearConversation(AccountAccess actor, Long articleId, String taskId)
