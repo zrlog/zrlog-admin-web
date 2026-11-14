@@ -1,11 +1,10 @@
-import ConversationNavigation from "../../automations/ConversationNavigation";
 import type useWritingConversation from "./use-writing-conversation";
 import AssistantConversationView from "./assistant-conversation-view";
 import { useUiApp } from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import DownloadIcon from "@zrlog/ui/icons/download";
 import ChevronDownIcon from "@zrlog/ui/icons/chevron-down";
-import { Alert, Button, Drawer, Dropdown, Space, Typography } from "antd";
+import { Alert, Button, Drawer, Dropdown, Typography } from "antd";
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "antd-style";
@@ -175,39 +174,23 @@ export default function ArticleAiAssistantDrawer({
                 body: { padding: 0, overflow: "hidden" },
             }}
         >
-            <ConversationNavigation
-                compact
-                selection={{ articleId: data.article.logId || 0, sessionId: sessions.sessionId }}
-                articleFilter={data.article.logId || 0}
-                disabled={config.navigationBusy || sessions.loading}
-                revision={sessions.revision}
-                onNew={sessions.create}
-                onSelect={(item) => sessions.select(item.sessionId)}
-                onDeleted={(item) => {
-                    if (item.sessionId === sessions.sessionId) sessions.create();
-                }}
-            >
-                {(toolbar) => (
-                    <div style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
-                        <Space style={{ padding: theme.paddingXS }}>{toolbar}</Space>
-                        {sessions.error && (
-                            <Alert
-                                type="error"
-                                title={sessions.error}
-                                action={<Button onClick={sessions.retry}>{getRes().common.retry}</Button>}
-                            />
-                        )}
-                        <div style={{ flex: 1, minHeight: 0 }}>
-                            <AssistantConversationView
-                                config={config}
-                                aiProvider={data.aiProvider}
-                                scrollRef={scrollRef}
-                                onScroll={saveScroll}
-                            />
-                        </div>
-                    </div>
+            <div style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
+                {sessions.error && (
+                    <Alert
+                        type="error"
+                        title={sessions.error}
+                        action={<Button onClick={sessions.retry}>{getRes().common.retry}</Button>}
+                    />
                 )}
-            </ConversationNavigation>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                    <AssistantConversationView
+                        config={config}
+                        aiProvider={data.aiProvider}
+                        scrollRef={scrollRef}
+                        onScroll={saveScroll}
+                    />
+                </div>
+            </div>
         </Drawer>
     );
 }
