@@ -101,7 +101,8 @@ public class AssistantChatController extends BaseController {
                             tool,
                             articleContext,
                             AdminAuditContexts.from(request, requestIdentity.current().getUserId()),
-                            AdminTokenThreadLocal.getUser());
+                            AdminTokenThreadLocal.getUser(),
+                            sessionId());
         }
         writeStream(streamResponse);
     }
@@ -138,7 +139,7 @@ public class AssistantChatController extends BaseController {
     public ApiStandardResponse<AIChatModels.RunView> aiRun() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
         return new ApiStandardResponse<>(
-                chat.getRun(requestIdentity.current(), articleId(), taskId()));
+                chat.getRun(requestIdentity.current(), articleId(), taskId(), sessionId()));
     }
 
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
@@ -151,7 +152,8 @@ public class AssistantChatController extends BaseController {
                         requestIdentity.current(),
                         articleId(),
                         taskId(),
-                        getParamWithEmptyCheck("fileId"));
+                        getParamWithEmptyCheck("fileId"),
+                        sessionId());
         byte[] bytes = this.aIFileService.read(requestIdentity.current().getUserId(), file);
         response.setContentType(file.mimeType);
         response.write(new ByteArrayInputStream(bytes));
@@ -185,6 +187,10 @@ public class AssistantChatController extends BaseController {
         }
     }
 
+    private String sessionId() {
+        return request.getParaToStr("sessionId");
+    }
+
     private String taskId() {
         return request.getParaToStr("taskId");
     }
@@ -199,7 +205,8 @@ public class AssistantChatController extends BaseController {
                         requestIdentity.current(),
                         articleId(),
                         taskId(),
-                        "1".equals(request.getParaToStr("earlier")));
+                        "1".equals(request.getParaToStr("earlier")),
+                        sessionId());
         var view = new AIChatModels.ConversationView();
         view.hasEarlierFeedback =
                 info.getAiMessages().stream()
@@ -222,6 +229,50 @@ public class AssistantChatController extends BaseController {
                         .filter(entry -> !"system".equals(entry.getRole()))
                         .collect(java.util.stream.Collectors.toList());
         return new ApiStandardResponse<>(view);
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
+    @RequestMethod(method = HttpMethod.GET)
+    public ApiStandardResponse<AIChatModels.SessionPage> sessions() throws SQLException {
+        response.addHeader("Cache-Control", "private, no-store");
+        String before = request.getParaToStr("before");
+        Long cursor;
+        try {
+            cursor = before == null ? null : Long.valueOf(before);
+        } catch (NumberFormatException error) {
+            throw new ArgsException();
+        }
+        return new ApiStandardResponse<>(
+                chat.sessions(
+                        requestIdentity.current(),
+                        articleId(),
+                        request.getParaToStr("id") != null,
+                        request.getParaToStr("query"),
+                        cursor,
+                        request.getParaToStr("beforeKey")));
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<Boolean> renameSession() throws SQLException {
+        return new ApiStandardResponse<>(
+                chat.renameSession(
+                        requestIdentity.current(),
+                        getRequestBodyWithNullCheck(AIChatModels.SessionChange.class)));
+    }
+
+    @ResponseBody
+    @RequiresAction(
+            value = AccountAction.ARTICLE_ASSIST,
+            descriptionKey = "assistant.clearMessages")
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<Boolean> deleteSession() throws SQLException {
+        return new ApiStandardResponse<>(
+                chat.deleteSession(
+                        requestIdentity.current(),
+                        getRequestBodyWithNullCheck(AIChatModels.SessionChange.class)));
     }
 
     private long aiContextId() {
@@ -247,7 +298,12 @@ public class AssistantChatController extends BaseController {
         UpdateAIMessageRequest updateRequest =
                 getRequestBodyWithNullCheck(UpdateAIMessageRequest.class);
         boolean updated =
-                chat.updateMessage(requestIdentity.current(), articleId(), taskId(), updateRequest);
+                chat.updateMessage(
+                        requestIdentity.current(),
+                        articleId(),
+                        taskId(),
+                        updateRequest,
+                        sessionId());
         return new ApiStandardResponse<>(updated);
     }
 
@@ -257,7 +313,9 @@ public class AssistantChatController extends BaseController {
             descriptionKey = "assistant.clearMessages")
     @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<Boolean> clearAiMessages() throws SQLException {
-        boolean cleared = chat.clearConversation(requestIdentity.current(), articleId(), taskId());
+        boolean cleared =
+                chat.clearConversation(
+                        requestIdentity.current(), articleId(), taskId(), sessionId());
         if (!cleared) throw new AIMessageSaveException();
         return new ApiStandardResponse<>(
                 cleared, I18nUtil.getAdminBackendStringFromRes("admin.ai.messages.clear.success"));
@@ -271,7 +329,8 @@ public class AssistantChatController extends BaseController {
     public ApiStandardResponse<ArticleAIMessageExportResponse> exportAiMessages()
             throws SQLException {
         return new ApiStandardResponse<>(
-                chat.exportConversation(requestIdentity.current(), articleId(), taskId()));
+                chat.exportConversation(
+                        requestIdentity.current(), articleId(), taskId(), sessionId()));
     }
 
     @ResponseBody

@@ -45,6 +45,18 @@
       {
         "name": "updateAiMessage",
         "parameterTypes": []
+      },
+      {
+        "name": "sessions",
+        "parameterTypes": []
+      },
+      {
+        "name": "renameSession",
+        "parameterTypes": []
+      },
+      {
+        "name": "deleteSession",
+        "parameterTypes": []
       }
     ]
   },

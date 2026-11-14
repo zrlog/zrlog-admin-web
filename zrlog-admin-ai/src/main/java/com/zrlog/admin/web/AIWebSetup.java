@@ -286,6 +286,16 @@ public class AIWebSetup implements ArticleAssistant {
                 "approveAiOperation");
         router.addMapper(
                 "/api/admin/assistant/chat/input", AssistantChatController.class, "submitAiInput");
+        router.addMapper(
+                "/api/admin/assistant/chat/sessions", AssistantChatController.class, "sessions");
+        router.addMapper(
+                "/api/admin/assistant/chat/sessions/rename",
+                AssistantChatController.class,
+                "renameSession");
+        router.addMapper(
+                "/api/admin/assistant/chat/sessions/delete",
+                AssistantChatController.class,
+                "deleteSession");
         router.addMapper("/api/admin/assistant/chat/run", AssistantChatController.class, "aiRun");
         router.addMapper("/api/admin/assistant/chat/file", AssistantChatController.class, "aiFile");
         router.addMapper(

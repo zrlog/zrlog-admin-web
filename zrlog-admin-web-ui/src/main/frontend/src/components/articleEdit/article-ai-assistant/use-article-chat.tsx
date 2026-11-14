@@ -34,6 +34,7 @@ export type ChatRun = {
     runId: string;
     articleId?: number;
     taskId?: string;
+    sessionId?: string;
     input: string;
     attachments?: AiFileAttachment[];
     status:
@@ -183,7 +184,7 @@ export const useArticleChat = (
     scope: string,
     onMessagesChange?: (messages: AIContent[], articleId?: number) => void,
     onArticleUpdated?: (event: ArticleUpdatedEvent) => void,
-    session?: { articleId?: number; taskId?: string; messages: AIContent[] }
+    session?: { articleId?: number; taskId?: string; sessionId?: string; messages: AIContent[] }
 ) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [busy, setBusy] = useState(false);
@@ -264,11 +265,22 @@ export const useArticleChat = (
             try {
                 const response = await contextRef.current.api.get<{ error: number; data?: ChatRun }>(
                     "/api/admin/assistant/chat/run",
-                    { params: { id: articleId, taskId: contextRef.current.session?.taskId } }
+                    {
+                        params: {
+                            id: articleId,
+                            taskId: contextRef.current.session?.taskId,
+                            sessionId: contextRef.current.session?.sessionId,
+                        },
+                    }
                 );
                 if (revision !== generation.current || response?.data?.error || !response?.data?.data) return false;
                 const view = response.data.data;
-                if (view.articleId !== articleId || view.taskId !== contextRef.current.session?.taskId) return false;
+                if (
+                    view.articleId !== articleId ||
+                    view.taskId !== contextRef.current.session?.taskId ||
+                    view.sessionId !== contextRef.current.session?.sessionId
+                )
+                    return false;
                 const created = articleId === 0 ? createdArticleUpdate(view.articleUpdates || []) : undefined;
                 // A completed draft run has moved its conversation to the created article. A fresh
                 // new-article page must not reopen it; an interrupted local turn can still recover it.
@@ -431,7 +443,8 @@ export const useArticleChat = (
             if (
                 checkpoint?.run &&
                 checkpoint.run.articleId === articleId &&
-                checkpoint.run.taskId === contextRef.current.session?.taskId
+                checkpoint.run.taskId === contextRef.current.session?.taskId &&
+                checkpoint.run.sessionId === contextRef.current.session?.sessionId
             ) {
                 const view = checkpoint.run;
                 latestCheckpoint = view;
@@ -548,6 +561,7 @@ export const useArticleChat = (
                     ? {
                           articleId,
                           taskId: contextRef.current.session?.taskId,
+                          sessionId: contextRef.current.session?.sessionId,
                           runId: approval.run.runId,
                           decision: approval.decision,
                           ...(approval.interaction
@@ -558,6 +572,7 @@ export const useArticleChat = (
                           input: prompt,
                           articleId,
                           taskId: contextRef.current.session?.taskId,
+                          sessionId: contextRef.current.session?.sessionId,
                           ...snapshot,
                           ...(files?.length ? { files } : {}),
                           ...(references?.length ? { references } : {}),

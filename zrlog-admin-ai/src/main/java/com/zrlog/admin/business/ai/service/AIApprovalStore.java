@@ -43,6 +43,7 @@ final class AIApprovalStore {
         view.createdAt = run.createdAt;
         view.articleId = run.articleId;
         view.taskId = run.taskId;
+        view.sessionId = run.sessionId;
         view.input = run.input;
         view.status = run.status;
         view.approval = run.approval;
@@ -61,8 +62,11 @@ final class AIApprovalStore {
         return view;
     }
 
-    private String key(int userId, Long articleId, String taskId) {
-        return "ai_pending_u" + userId + "_" + AIConversationScope.key(articleId, taskId);
+    private String key(int userId, Long articleId, String taskId, String sessionId) {
+        return "ai_pending_u"
+                + userId
+                + "_"
+                + AIConversationScope.key(articleId, taskId, sessionId);
     }
 
     Run read(int userId, long articleId) throws SQLException {
@@ -70,6 +74,10 @@ final class AIApprovalStore {
     }
 
     Run read(int userId, Long articleId, String taskId) throws SQLException {
+        return read(userId, articleId, taskId, null);
+    }
+
+    Run read(int userId, Long articleId, String taskId, String sessionId) throws SQLException {
         WebSite row =
                 db.withSession(
                         c ->
@@ -77,25 +85,33 @@ final class AIApprovalStore {
                                         c,
                                         WebSite.class,
                                         "WHERE name=? LIMIT 1",
-                                        key(userId, articleId, taskId)));
+                                        key(userId, articleId, taskId, sessionId)));
         if (row == null || row.getValue() == null) return null;
         Run run = json.fromJson(row.getValue().toString(), Run.class);
         if (run == null
                 || run.userId != userId
                 || !Objects.equals(run.articleId, articleId)
                 || !Objects.equals(run.taskId, taskId)
+                || !Objects.equals(run.sessionId, sessionId)
                 || !Objects.equals(run.revision, row.getRemark()))
             throw new SQLException("Invalid assistant checkpoint");
         return run;
     }
 
+    void begin(Run run) throws SQLException {
+        claim(run, "running");
+    }
+
     void pause(Run run) throws SQLException {
-        String waiting = run.interaction == null ? "awaiting_approval" : "awaiting_input";
+        claim(run, run.interaction == null ? "awaiting_approval" : "awaiting_input");
+    }
+
+    private void claim(Run run, String waiting) throws SQLException {
         if (run.revision != null) {
             save(run, waiting);
             return;
         }
-        Run old = read(run.userId, run.articleId, run.taskId);
+        Run old = read(run.userId, run.articleId, run.taskId, run.sessionId);
         if (active(old)) throw new Changed();
         run.status = waiting;
         run.updatedAt = System.currentTimeMillis();
@@ -114,12 +130,17 @@ final class AIApprovalStore {
                                 db.repository(c, WebSite.class)
                                         .insert(
                                                 WebSiteRepository.entry(
-                                                        key(run.userId, run.articleId, run.taskId),
+                                                        key(
+                                                                run.userId,
+                                                                run.articleId,
+                                                                run.taskId,
+                                                                run.sessionId),
                                                         value,
                                                         run.revision)));
             } catch (SQLException e) {
                 run.revision = null;
-                if (read(run.userId, run.articleId, run.taskId) != null) throw new Changed();
+                if (read(run.userId, run.articleId, run.taskId, run.sessionId) != null)
+                    throw new Changed();
                 throw e;
             }
         } else {
@@ -132,7 +153,11 @@ final class AIApprovalStore {
                                                                 null, value, run.revision),
                                                         List.of("value", "remark"),
                                                         "name=? AND remark=?",
-                                                        key(run.userId, run.articleId, run.taskId),
+                                                        key(
+                                                                run.userId,
+                                                                run.articleId,
+                                                                run.taskId,
+                                                                run.sessionId),
                                                         old.revision))
                         != 1) throw new Changed();
             } catch (SQLException | RuntimeException e) {
@@ -160,7 +185,11 @@ final class AIApprovalStore {
                                                     WebSiteRepository.entry(null, value, next),
                                                     List.of("value", "remark"),
                                                     "name=? AND remark=?",
-                                                    key(run.userId, run.articleId, run.taskId),
+                                                    key(
+                                                            run.userId,
+                                                            run.articleId,
+                                                            run.taskId,
+                                                            run.sessionId),
                                                     expected))
                     != 1) throw new Changed();
         } catch (SQLException | RuntimeException e) {
@@ -179,7 +208,7 @@ final class AIApprovalStore {
                                 db.scalar(
                                         c,
                                         "select remark from website where name=?",
-                                        key(run.userId, run.articleId, run.taskId)));
+                                        key(run.userId, run.articleId, run.taskId, run.sessionId)));
         if (current == null || !Objects.equals(current, run.revision)) throw new Changed();
     }
 

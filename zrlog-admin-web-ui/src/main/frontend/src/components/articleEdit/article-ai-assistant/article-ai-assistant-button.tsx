@@ -1,3 +1,5 @@
+import { assistantComposerScope } from "./assistant-composer-drafts";
+import useWritingConversation from "./use-writing-conversation";
 import TaskResultMessage from "./task-result-message";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 import { getAppState } from "../../../base/ConfigProviderApp";
@@ -57,7 +59,7 @@ import { DraftAiSaveGate } from "../draft-ai-save-gate";
 import { useArticleAiQueue } from "./use-article-ai-queue";
 import type { AiMentionInput } from "./article-ai-mentions";
 
-export type AssistantConversationContext = { articleId?: number; taskId?: string };
+export type AssistantConversationContext = { articleId?: number; taskId?: string; sessionId?: string };
 
 type ArticleAiAssistantConfigProps = {
     context?: AssistantConversationContext;
@@ -124,9 +126,11 @@ export const useArticleAiAssistantConfig = ({
     latestDataRef.current = data;
     const skillRequest = useRef<AbortController>();
     const fileReadGeneration = useRef(0);
-    const scope = `${getSsDate().key}/${
-        articleContext ? data.article.logId || "draft" : context?.taskId ? `task/${context.taskId}` : "general"
-    }`;
+    const scope = assistantComposerScope(getSsDate().key, {
+        sessionId: context?.sessionId,
+        articleId: articleContext ? data.article.logId || 0 : undefined,
+        taskId: context?.taskId,
+    });
     const scopeRef = useRef(scope);
     scopeRef.current = scope;
     const migrateQueue = useRef<(scope: string) => void>();
@@ -139,12 +143,15 @@ export const useArticleAiAssistantConfig = ({
         onAiMessagesChange,
         (event) => {
             if (articleContext && !data.article.logId && event.created)
-                migrateQueue.current?.(`${getSsDate().key}/${event.articleId}`);
+                migrateQueue.current?.(
+                    `${getSsDate().key}/${context?.sessionId ? `session/${context.sessionId}` : event.articleId}`
+                );
             onArticleUpdated?.(event);
         },
         {
             articleId: articleContext ? data.article.logId || 0 : undefined,
             taskId: context?.taskId,
+            sessionId: context?.sessionId,
             messages: aiMessages,
         }
     );
@@ -224,6 +231,7 @@ export const useArticleAiAssistantConfig = ({
         const params = new URLSearchParams();
         if (articleContext) params.set("id", String(articleId));
         if (context?.taskId) params.set("taskId", context.taskId);
+        if (context?.sessionId) params.set("sessionId", context.sessionId);
         return params.toString();
     };
 
@@ -513,7 +521,9 @@ export const useArticleAiAssistantConfig = ({
             }
             let currentContent = "";
             const { data: responseData, status } = await axiosInstance.post(
-                `/api/admin/assistant/chat?${query.toString()}`,
+                `/api/admin/assistant/chat?${query.toString()}${
+                    context?.sessionId ? "&sessionId=" + context.sessionId : ""
+                }`,
                 tool ? getArticleAiRequestBody(selectedText) : null,
                 {
                     signal: controller.signal,
@@ -749,6 +759,7 @@ export const useArticleAiAssistantConfig = ({
                 api: axiosInstance,
                 articleId: articleContext ? data.article.logId || 0 : undefined,
                 taskId: context?.taskId,
+                sessionId: context?.sessionId,
             });
         const toolAwareContent = content as ToolAwareAIContent;
         if (
@@ -900,6 +911,7 @@ export const useArticleAiAssistantConfig = ({
     const renderFooter = (selectedText?: string) => (
         <ArticleAiAssistantSkillContent
             key={queue.key}
+            draftKey={scope}
             aiProvider={data.aiProvider}
             writingContext={articleContext}
             api={axiosInstance}
@@ -976,6 +988,7 @@ export const useArticleAiAssistantConfig = ({
     );
 
     return {
+        navigationBusy: busy || runningElsewhere || aiMessagesClearing,
         conversationActions: {
             disabled: offline || Boolean(loadingKey) || chat.busy || runningElsewhere || aiMessages.length === 0,
             exporting: aiMessagesExporting,
@@ -1008,7 +1021,9 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
     onOpenChange,
     onAiDrawerSizeChange,
 }) => {
-    const [innerOpen, setInnerOpen] = useState(false);
+    const [innerOpen, setInnerOpen] = useState(() =>
+        new URLSearchParams(window.location.search).has("assistantSession")
+    );
     const screens = useArticleEditorScreens();
     const theme = useTheme();
     const mergedOpen = open ?? innerOpen;
@@ -1016,12 +1031,23 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         setInnerOpen(nextOpen);
         onOpenChange?.(nextOpen);
     };
-    const assistantConfig = useArticleAiAssistantConfig({
-        data,
-        draftAiSaveGate,
-        offline,
+    const sessions = useWritingConversation(
         axiosInstance,
-        onAiMessagesChange,
+        data.article.logId || 0,
+        mergedOpen && !offline,
+        data.aiMessages
+    );
+    const assistantData = { ...data, aiMessages: sessions.messages };
+    const assistantConfig = useArticleAiAssistantConfig({
+        context: { articleId: data.article.logId || 0, sessionId: sessions.sessionId },
+        data: assistantData,
+        draftAiSaveGate,
+        offline: offline || sessions.loading || Boolean(sessions.error),
+        axiosInstance,
+        onAiMessagesChange: (messages, articleId) => {
+            sessions.change(messages);
+            if (!sessions.sessionId) onAiMessagesChange?.(messages, articleId);
+        },
         onArticleUpdated,
         onApplyValues,
         getSkillContextRevision,
@@ -1029,7 +1055,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
     });
     const aiStateCacheKey = `${AI_ASSISTANT_STATE_CACHE_KEY_PREFIX}/${
         data.article.logId ? data.article.logId : "draft"
-    }`;
+    }/${sessions.sessionId || "default"}`;
     const aiStateCache = useMemo<AIStateCache>(
         () => ({
             key: aiStateCacheKey,
@@ -1093,7 +1119,8 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         <>
             {trigger}
             <ArticleAiAssistantDrawer
-                data={data}
+                data={assistantData}
+                sessions={sessions}
                 config={assistantConfig}
                 open={mergedOpen}
                 onClose={() => updateOpen(false)}

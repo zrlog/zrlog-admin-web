@@ -29,6 +29,8 @@ public class AIConversationService {
     private final AIApprovalStore approvals;
     private final Integer conversationUserId;
     private final String taskId;
+    private final String sessionId;
+    private final AIConversationIndex index;
 
     @Inject
     public AIConversationService(
@@ -36,7 +38,8 @@ public class AIConversationService {
             WebsiteKvService websiteKvService,
             jakarta.inject.Provider<WebSiteRepository> websites,
             AIFileService files,
-            AIApprovalStore approvals) {
+            AIApprovalStore approvals,
+            AIConversationIndex index) {
         this.store = store;
         this.websiteKvService = websiteKvService;
         this.websites = websites;
@@ -44,6 +47,8 @@ public class AIConversationService {
         this.approvals = approvals;
         this.conversationUserId = null;
         this.taskId = null;
+        this.sessionId = null;
+        this.index = index;
     }
 
     private AIConversationService(
@@ -53,7 +58,9 @@ public class AIConversationService {
             jakarta.inject.Provider<WebSiteRepository> websites,
             AIFileService files,
             AIApprovalStore approvals,
-            String taskId) {
+            String taskId,
+            String sessionId,
+            AIConversationIndex index) {
         this.store = store;
         this.websiteKvService = websiteKvService;
         this.websites = websites;
@@ -61,6 +68,8 @@ public class AIConversationService {
         this.approvals = approvals;
         this.conversationUserId = userId;
         this.taskId = taskId;
+        this.sessionId = sessionId;
+        this.index = index;
     }
 
     static String buildCacheKey(Long articleId) {
@@ -71,13 +80,51 @@ public class AIConversationService {
     public AIConversationService captureAccount(int userId) {
         if (userId <= 0) throw new PermissionErrorException();
         return new AIConversationService(
-                userId, store, websiteKvService, websites, files, approvals, taskId);
+                userId,
+                store,
+                websiteKvService,
+                websites,
+                files,
+                approvals,
+                taskId,
+                sessionId,
+                index);
     }
 
     public AIConversationService captureTask(String taskId) {
         AIConversationScope.key(null, taskId);
         return new AIConversationService(
-                conversationUserId(), store, websiteKvService, websites, files, approvals, taskId);
+                conversationUserId(),
+                store,
+                websiteKvService,
+                websites,
+                files,
+                approvals,
+                taskId,
+                sessionId,
+                index);
+    }
+
+    public AIConversationService captureSession(String sessionId) {
+        AIConversationScope.validateSession(sessionId, taskId);
+        return new AIConversationService(
+                conversationUserId(),
+                store,
+                websiteKvService,
+                websites,
+                files,
+                approvals,
+                taskId,
+                sessionId,
+                index);
+    }
+
+    AIConversationIndex index() {
+        return index;
+    }
+
+    private Long publicArticleId(Long articleId) {
+        return articleId == null ? null : Math.max(0, articleId);
     }
 
     private Integer conversationUserId() {
@@ -92,7 +139,11 @@ public class AIConversationService {
                 taskId != null || articleId == null
                         ? AIConversationScope.key(articleId, taskId)
                         : articleId.toString();
-        return "ai_chat_message_u" + userId + "_" + scope;
+        return "ai_chat_message_u"
+                + userId
+                + "_"
+                + scope
+                + (sessionId == null ? "" : "_session_" + sessionId);
     }
 
     public boolean migrateDraftAIMessageToArticle(Long articleId) throws SQLException {
@@ -104,6 +155,14 @@ public class AIConversationService {
         if (articleId == null || articleId <= DRAFT_ARTICLE_ID) {
             return false;
         }
+        if (sessionId == null) {
+            for (var item : index.draftSessions(conversationUserId())) {
+                if (item.sessionId != null)
+                    captureSession(item.sessionId)
+                            .migrateDraftAIMessageToArticle(articleId, draftId);
+            }
+        }
+        index.copyDraft(conversationUserId(), sessionId, articleId);
         // Persist stable IDs before copying, so retrying an interrupted migration is idempotent.
         AtomicReference<List<AIResponseEntry.AIContentEntry>> snapshot = new AtomicReference<>();
         if (!mutateMessages(
@@ -112,7 +171,10 @@ public class AIConversationService {
                     if (messages.isEmpty()) return null;
                     snapshot.set(messages);
                     return messages;
-                })) return false;
+                })) {
+            index.hideDraft(conversationUserId(), sessionId);
+            return false;
+        }
         List<AIResponseEntry.AIContentEntry> entries = snapshot.get();
         Set<String> migrated = new HashSet<>();
         for (AIResponseEntry.AIContentEntry entry : entries) migrated.add(entry.getMessageId());
@@ -126,12 +188,15 @@ public class AIConversationService {
                         if (existing.add(entry.getMessageId())) messages.add(entry);
                     return messages;
                 })) return false;
-        return mutateMessages(
-                draftId,
-                messages -> {
-                    messages.removeIf(entry -> migrated.contains(entry.getMessageId()));
-                    return messages;
-                });
+        boolean removed =
+                mutateMessages(
+                        draftId,
+                        messages -> {
+                            messages.removeIf(entry -> migrated.contains(entry.getMessageId()));
+                            return messages;
+                        });
+        index.hideDraft(conversationUserId(), sessionId);
+        return removed;
     }
 
     public boolean removeAIMessage(Long articleId) {
@@ -140,13 +205,17 @@ public class AIConversationService {
         }
         try {
             // Article deletion is already authorized by AdminArticleService.
+            index.removeArticle(articleId);
             this.websites
                     .get()
                     .updateContentWhere(
                             null,
                             UUID.randomUUID().toString(),
-                            "name like ? escape '!'",
-                            "ai!_chat!_message!_u%!_" + articleId);
+                            "(name LIKE ? ESCAPE '!' OR name LIKE ? ESCAPE '!' OR name LIKE ? ESCAPE '!' OR name LIKE ? ESCAPE '!')",
+                            "ai!_chat!_message!_u%!_" + articleId,
+                            "ai!_chat!_message!_u%!_" + articleId + "!_session!_%",
+                            "ai!_pending!_u%!_" + articleId,
+                            "ai!_pending!_u%!_" + articleId + "!_session!_%");
             return this.websiteKvService.remove(buildCacheKey(articleId));
         } catch (SQLException e) {
             throw new IllegalStateException("Unable to remove article AI messages", e);
@@ -166,7 +235,8 @@ public class AIConversationService {
                     checkpoints.read(
                             conversationUserId(),
                             articleId == null ? null : Math.max(0, articleId),
-                            taskId);
+                            taskId,
+                            sessionId);
             List<AIFileModels.Attachment> files = new ArrayList<>();
             for (var entry : getAiMessageInfoByArticleId(articleId).getAiMessages()) {
                 if (entry.getAttachments() != null) files.addAll(entry.getAttachments());
@@ -256,7 +326,7 @@ public class AIConversationService {
         String aiMessageKey = conversationKey(articleId);
         List<String> names = new ArrayList<>(AIConfigService.AI_WEBSITE_INFO_KEYS);
         names.add(aiMessageKey);
-        boolean article = articleId != null && taskId == null;
+        boolean article = articleId != null && taskId == null && sessionId == null;
         if (article && !aiMessageKey.equals(buildCacheKey(articleId)))
             names.add(buildCacheKey(articleId));
         Map<String, Object> map = websites.get().getWebSiteByNameIn(names);
@@ -292,6 +362,7 @@ public class AIConversationService {
             throws SQLException {
         SecurityStore db = this.store;
         String key = conversationKey(articleId);
+        index.check(conversationUserId(), publicArticleId(articleId), taskId, sessionId);
         Gson json = new Gson();
         for (int attempt = 0; attempt < 8; attempt++) {
             WebSite row =
@@ -316,6 +387,7 @@ public class AIConversationService {
                             c ->
                                     db.repository(c, WebSite.class)
                                             .insert(WebSiteRepository.entry(key, value, revision)));
+                    indexMessages(articleId, updated, true);
                     return true;
                 } catch (SQLException e) {
                     if (db.withSession(
@@ -339,10 +411,29 @@ public class AIConversationService {
                                                         previous == null
                                                                 ? new Object[] {key}
                                                                 : new Object[] {key, previous}));
-                if (count == 1) return true;
+                if (count == 1) {
+                    indexMessages(articleId, updated, true);
+                    return true;
+                }
             }
         }
         throw new SQLException("Conversation changed concurrently");
+    }
+
+    void indexMessages(
+            Long articleId, List<AIResponseEntry.AIContentEntry> messages, boolean activity)
+            throws SQLException {
+        // Task titles come from the authorized task plan at the read boundary.
+        if (taskId != null) return;
+        var first = messages.stream().filter(m -> !"system".equals(m.getRole())).findFirst();
+        if (first.isPresent())
+            index.touch(
+                    conversationUserId(),
+                    publicArticleId(articleId),
+                    taskId,
+                    sessionId,
+                    first.get().getContent(),
+                    activity);
     }
 
     static AIResponseEntry.AIContentEntry.TaskFeedbackState feedbackState(

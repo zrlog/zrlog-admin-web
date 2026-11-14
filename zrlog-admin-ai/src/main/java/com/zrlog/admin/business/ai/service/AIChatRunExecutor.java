@@ -163,6 +163,7 @@ public class AIChatRunExecutor {
         run.input = input.input;
         run.articleId = input.articleId;
         run.taskId = input.taskId;
+        run.sessionId = input.sessionId;
         run.attachments = question.attachments;
         run.editorContext = input.editorContext;
         run.contextRevision = input.contextRevision;
@@ -186,7 +187,11 @@ public class AIChatRunExecutor {
                 writingTools.create(
                         run,
                         writingSkills.create(
-                                actor, conversations.captureAccount(actor.getUserId())));
+                                actor,
+                                conversations
+                                        .captureAccount(actor.getUserId())
+                                        .captureTask(run.taskId)
+                                        .captureSession(run.sessionId)));
         while (run.round <= 4) {
             store.check(run);
             List<Tool> definitions =
@@ -199,6 +204,7 @@ public class AIChatRunExecutor {
                 run.allowedTools = new ArrayList<>();
                 for (Tool tool : definitions) run.allowedTools.add(tool.name);
             }
+            if (run.sessionId != null && run.revision == null) store.begin(run);
             Set<String> availableNames = new HashSet<>();
             for (Tool tool : definitions)
                 if (run.allowedTools.contains(tool.name)) availableNames.add(tool.name);

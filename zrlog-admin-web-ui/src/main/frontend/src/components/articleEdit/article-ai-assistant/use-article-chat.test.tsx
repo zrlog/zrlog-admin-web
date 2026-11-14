@@ -53,6 +53,7 @@ describe("knowledge assistant", () => {
         history = [],
         articleId = 7,
         taskId,
+        sessionId,
         general = false,
     }: {
         scope?: string;
@@ -60,6 +61,7 @@ describe("knowledge assistant", () => {
         history?: ChatMessage[];
         articleId?: number;
         taskId?: string;
+        sessionId?: string;
         general?: boolean;
     }) {
         chat = useArticleChat(
@@ -68,7 +70,9 @@ describe("knowledge assistant", () => {
             scope,
             onMessagesChange,
             onArticleUpdated,
-            restore ? { articleId: general || taskId ? undefined : articleId, taskId, messages: history } : undefined
+            restore
+                ? { articleId: general || taskId ? undefined : articleId, taskId, sessionId, messages: history }
+                : undefined
         );
         return (
             <>
@@ -78,6 +82,28 @@ describe("knowledge assistant", () => {
             </>
         );
     }
+
+    it("binds requests to the chosen session and ignores another session checkpoint", async () => {
+        get.mockResolvedValueOnce({
+            data: {
+                error: 0,
+                data: {
+                    runId: "foreign-run",
+                    sessionId: "other-session",
+                    input: "Other prompt",
+                    status: "running",
+                },
+            },
+        });
+        await act(async () => root.render(<Harness scope="session-one" restore general sessionId="session-one" />));
+        expect(get.mock.calls[0][1].params.sessionId).toBe("session-one");
+        expect(container.textContent).not.toContain("Other prompt");
+        post.mockResolvedValueOnce({ data: completed("Own reply", "Own prompt") });
+        await act(async () => {
+            await chat.send("Own prompt", [], undefined);
+        });
+        expect(post.mock.calls[0][1].sessionId).toBe("session-one");
+    });
 
     it("sends and restores general chat without adopting an article returned by a tool", async () => {
         await act(async () => root.render(<Harness restore general />));

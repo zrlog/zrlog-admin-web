@@ -4,6 +4,10 @@ import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 import { App, ConfigProvider } from "antd";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 
+jest.mock("../../automations/ConversationNavigation", () => ({
+    __esModule: true,
+    default: ({ children }: any) => children(null),
+}));
 jest.mock("@zrlog/editor/core/ai/AIContentItem", () => ({ __esModule: true, default: () => null }));
 jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
 jest.mock("@zrlog/editor/dist/ai/AIStateCache", () => ({
@@ -72,6 +76,17 @@ const render = async (disabled = false) => {
             <ConfigProvider theme={{ token: { motion: false } }}>
                 <App>
                     <ArticleAiAssistantDrawer
+                        sessions={{
+                            sessionId: undefined,
+                            messages: [],
+                            loading: false,
+                            error: undefined,
+                            revision: 0,
+                            select: jest.fn(),
+                            change: jest.fn(),
+                            create: jest.fn(),
+                            retry: jest.fn(),
+                        }}
                         open
                         onClose={onClose}
                         getContainer={() => container}

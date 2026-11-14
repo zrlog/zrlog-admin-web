@@ -8,6 +8,19 @@ import com.zrlog.common.exception.ArgsException;
 public final class AIConversationScope {
     private AIConversationScope() {}
 
+    public static String key(Long articleId, String taskId, String sessionId) {
+        validateSession(sessionId, taskId);
+        return key(articleId, taskId) + (sessionId == null ? "" : "_session_" + sessionId);
+    }
+
+    public static void validateSession(String sessionId, String taskId) {
+        if (sessionId != null
+                && (taskId != null
+                        || !sessionId.matches(
+                                "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")))
+            throw new ArgsException();
+    }
+
     public static String key(Long articleId, String taskId) {
         if (taskId != null) {
             if (articleId != null

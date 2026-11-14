@@ -100,7 +100,9 @@ public final class AIServiceDependencies {
                 ApplicationServicesFixture.websiteKv(source),
                 () -> new WebSiteRepository(source),
                 new AIFileService(),
-                approvals(source));
+                approvals(source),
+                new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                        AccountServicesFixture.component(source).security()));
     }
 
     public static DbFileService dbFiles(DataSourceWrapper source) {
