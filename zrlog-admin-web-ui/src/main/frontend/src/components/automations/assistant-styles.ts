@@ -7,6 +7,8 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         max-width: 1280px;
         min-width: 0;
         margin: 0 auto;
+    `,
+    maintenancePage: css`
         padding: ${token.padding}px;
         @media (max-width: ${token.screenSM}px) {
             padding: ${token.paddingXS}px;
@@ -31,15 +33,6 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         flex: 1;
         min-height: 0;
         overflow: auto;
-    `,
-    workspace: css`
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 310px;
-        gap: ${token.marginLG}px;
-        align-items: start;
-        @media (max-width: ${token.screenLG}px) {
-            grid-template-columns: minmax(0, 1fr);
-        }
     `,
     settingsLink: css`
         display: inline-flex;
@@ -78,6 +71,25 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         padding: ${token.padding}px;
         border-top: ${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary};
         min-width: 0;
+    `,
+    taskOpen: css`
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+        border-radius: ${token.borderRadius}px;
+        &:hover {
+            color: ${token.colorLinkHover};
+        }
+        &:focus-visible {
+            outline: ${token.lineWidthBold}px solid ${token.colorPrimary};
+            outline-offset: ${token.lineWidthBold}px;
+        }
     `,
     identity: css`
         display: flex;
@@ -153,24 +165,5 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
     `,
     actions: css`
         margin-inline-start: auto;
-    `,
-    goals: css`
-        padding: ${token.paddingLG}px;
-        min-width: 0;
-    `,
-    goal: css`
-        padding-block: ${token.padding}px;
-        border-top: ${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary};
-        &:last-child {
-            padding-bottom: 0;
-        }
-    `,
-    toolbar: css`
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: ${token.marginSM}px;
-        margin-bottom: ${token.margin}px;
     `,
 }));

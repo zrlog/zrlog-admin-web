@@ -27,6 +27,7 @@ public final class AutomationNativeImageUtils {
                         RunSummary.class,
                         AutomationStore.ExecutionProjection.class,
                         AutomationStore.RunKey.class,
+                        AutomationStore.ConversationKey.class,
                         com.zrlog.admin.data.entity.AssistantTask.class,
                         com.zrlog.admin.data.entity.AssistantTaskRun.class,
                         com.zrlog.admin.data.entity.AssistantNoticeRead.class,

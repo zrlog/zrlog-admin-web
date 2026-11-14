@@ -90,15 +90,21 @@ public final class AutomationController extends BaseController {
         String runId = request.getParaToStr("runId");
         if ((taskId == null || taskId.isBlank()) && runId != null && !runId.isBlank())
             taskId = tasks.run(actor, runId).taskId;
+        boolean conversations =
+                "1".equals(request.getParaToStr("tasks"))
+                        || "1".equals(request.getParaToStr("history"));
+        int offset = request.getParaToInt("offset", 0);
         return pages.response(
                 actor,
                 taskId == null || taskId.isBlank()
-                        ? "1".equals(request.getParaToStr("history"))
-                                ? dashboard.history(
-                                        actor, null, request.getParaToInt("page", 1), runId)
-                                : dashboard.overview(actor, request.getParaToInt("offset", 0))
+                        ? dashboard.overview(actor, offset, conversations)
                         : dashboard.conversation(
-                                actor, taskId, request.getParaToInt("page", 1), runId),
+                                actor,
+                                taskId,
+                                request.getParaToInt("page", 1),
+                                runId,
+                                offset,
+                                conversations),
                 "",
                 "/admin/assistant");
     }

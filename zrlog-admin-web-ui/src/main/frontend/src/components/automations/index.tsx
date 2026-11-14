@@ -1,7 +1,7 @@
 import AssistantChat from "./AssistantChat";
 import { hasAction } from "../../utils/account-access";
 import { isModuleEnabled } from "../../utils/module-capabilities";
-import { Alert, Button, Popconfirm, Descriptions, Drawer, Pagination, Select, Space, Typography, Tooltip } from "antd";
+import { Alert, Button, Popconfirm, Descriptions, Drawer, Pagination, Space, Typography, Tooltip } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
@@ -16,7 +16,7 @@ import RefreshIcon from "@zrlog/ui/icons/refresh";
 import { useAssistantStyles } from "./assistant-styles";
 import SystemTasks from "./SystemTasks";
 import RunChildren from "./RunChildren";
-import RunHistory from "./RunHistory";
+import TaskRunMessage from "./TaskRunMessage";
 import { useAssistantRequest } from "./use-assistant-request";
 import { canAccessPage } from "../../utils/account-access";
 import { removeBackgroundTaskByKey } from "../../utils/background-task-store";
@@ -46,7 +46,6 @@ export default function Automations({
         };
     }, []);
     const [editing, setEditing] = useState<Partial<Plan>>();
-    const [tasksOpen, setTasksOpen] = useState(false);
     const [proposing, setProposing] = useState(false);
     const [busy, setBusy] = useState(false);
     const [detail, setDetail] = useState<Run | undefined>(data.selectedRun);
@@ -65,7 +64,7 @@ export default function Automations({
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedRun = searchParams.get("runId");
     const taskPage = Math.floor(Math.max(0, Number(searchParams.get("offset")) || 0) / 100) + 1;
-    const filter = searchParams.get("taskId") || undefined;
+    const filter = searchParams.get("taskId") || data.selectedTask?.id;
     const runs = overview.runs ?? { items: [], total: 0, page: 1, pageSize: 20 };
     useEffect(() => {
         setDetail(selectedRun && data.selectedRun?.id === selectedRun ? data.selectedRun : undefined);
@@ -102,8 +101,11 @@ export default function Automations({
             if (path === "run") setDetail(result);
             setEditing(undefined);
             if (!maintenanceOnly && path === "save" && result.id) {
-                setTasksOpen(false);
                 navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(result.id)}`));
+            } else if (!maintenanceOnly && path === "delete") {
+                navigate(getRealRouteUrl("/assistant?tasks=1"));
+            } else if (!maintenanceOnly && path === "run" && result.taskId) {
+                navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(result.taskId)}`));
             } else reload();
         } catch {
             /* The request boundary displays the error. */
@@ -131,7 +133,6 @@ export default function Automations({
     };
     const date = (value?: number) => (value ? formatDateTime(value) : res.none);
     const showHistory = (task: Task) => {
-        setTasksOpen(false);
         navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(task.id)}`));
     };
     const taskList = (
@@ -148,61 +149,30 @@ export default function Automations({
             }
             onEdit={setEditing}
             onPropose={() => setProposing(true)}
-            onHistory={showHistory}
+            onOpen={showHistory}
             onMutate={mutate}
             renderStatus={status}
         />
-    );
-    const history = (
-        <section ref={historyPanel} tabIndex={-1} className={cx(styles.panel, styles.goals)} aria-label={res.history}>
-            <div className={styles.toolbar}>
-                <Select
-                    allowClear
-                    style={{ minWidth: 240, maxWidth: "100%" }}
-                    placeholder={res.allTasks}
-                    aria-label={res.allTasks}
-                    value={filter}
-                    onChange={(taskId) => updateHistory({ taskId, page: 1, runId: undefined })}
-                    options={[...(overview.systemTasks ?? []), ...overview.tasks].map((task) => ({
-                        value: task.id,
-                        label: task.name,
-                    }))}
-                />
-            </div>
-            <RunHistory
-                runs={runs.items}
-                onDetail={(run) => {
-                    historyTrigger.current =
-                        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-                    updateHistory({ runId: run.id });
-                }}
-                renderStatus={status}
-            />
-            <div className={styles.footer}>
-                <Typography.Text type="secondary">{res.retention}</Typography.Text>
-                <Pagination
-                    current={runs.page}
-                    pageSize={runs.pageSize}
-                    total={runs.total}
-                    showSizeChanger={false}
-                    onChange={(page) => updateHistory({ page, runId: undefined })}
-                />
-            </div>
-        </section>
     );
     if (!maintenanceOnly && (activePage === "system" || searchParams.get("tab") === "system"))
         return <Navigate replace to={getRealRouteUrl("/website/assistant")} />;
     if (activePage === "history") {
         const params = new URLSearchParams(searchParams);
-        params.set("history", "1");
+        params.delete("history");
+        const taskId = filter || data.selectedRun?.taskId;
+        if (taskId) {
+            params.set("taskId", taskId);
+            params.delete("tasks");
+        } else params.set("tasks", "1");
         return <Navigate replace to={getRealRouteUrl(`/assistant?${params}`)} />;
     }
     const task = filter && overview.selectedTask?.id === filter ? overview.selectedTask : undefined;
     const taskHistory = task ? (
-        <section aria-label={res.history}>
+        <section ref={historyPanel} tabIndex={-1} aria-label={res.conversation}>
             <Space wrap style={{ marginBottom: 16 }}>
                 <Typography.Text strong>{task.name}</Typography.Text>
                 {status(task.lastStatus)}
+                {task.archived && <Tag>{res.archived}</Tag>}
                 {task.systemTask
                     ? canAccessPage("/website/assistant") && (
                           <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAssistant.title}</Link>
@@ -227,20 +197,19 @@ export default function Automations({
         </section>
     ) : undefined;
     return (
-        <div className={cx(styles.page, !maintenanceOnly && styles.conversationPage)}>
+        <div className={cx(styles.page, maintenanceOnly ? styles.maintenancePage : styles.conversationPage)}>
             {!maintenanceOnly && (
                 <div className={styles.header}>
                     {task && <Link to={getRealRouteUrl("/assistant")}>{res.generalConversation}</Link>}
-                    <Button onClick={() => setTasksOpen(true)}>{res.tasks}</Button>
                     <Button
                         onClick={() =>
                             setSearchParams((params) => {
-                                params.set("history", "1");
+                                params.set("tasks", "1");
                                 return params;
                             })
                         }
                     >
-                        {res.history}
+                        {res.tasks}
                     </Button>
                     <Tooltip title={getRes().common.refresh}>
                         <Button
@@ -280,9 +249,9 @@ export default function Automations({
                 <div className={cx(styles.panel, styles.conversationPanel)}>
                     {isModuleEnabled("ai") && hasAction("article.assist") ? (
                         <AssistantChat
-                            key={task?.id || "general"}
+                            key={filter || "general"}
                             taskId={filter}
-                            offline={offline || offlineData}
+                            offline={offline}
                             leading={taskHistory}
                             activities={
                                 task
@@ -290,9 +259,8 @@ export default function Automations({
                                           id: `execution-${run.id}`,
                                           createdAt: run.startedAt,
                                           content: (
-                                              <RunHistory
-                                                  conversation
-                                                  runs={[run]}
+                                              <TaskRunMessage
+                                                  run={run}
                                                   onDetail={(item) => updateHistory({ runId: item.id })}
                                                   renderStatus={status}
                                               />
@@ -304,12 +272,14 @@ export default function Automations({
                     ) : task ? (
                         <>
                             {taskHistory}
-                            <RunHistory
-                                conversation
-                                runs={runs.items}
-                                onDetail={(run) => updateHistory({ runId: run.id })}
-                                renderStatus={status}
-                            />
+                            {[...runs.items].reverse().map((run) => (
+                                <TaskRunMessage
+                                    key={run.id}
+                                    run={run}
+                                    onDetail={(item) => updateHistory({ runId: item.id })}
+                                    renderStatus={status}
+                                />
+                            ))}
                         </>
                     ) : (
                         taskList
@@ -318,26 +288,21 @@ export default function Automations({
             )}
             <Drawer
                 title={res.tasks}
-                open={tasksOpen}
-                onClose={() => setTasksOpen(false)}
+                open={searchParams.get("tasks") === "1" || searchParams.get("history") === "1"}
+                onClose={() => {
+                    setSearchParams(
+                        (params) => {
+                            params.delete("tasks");
+                            params.delete("history");
+                            return params;
+                        },
+                        { replace: true }
+                    );
+                }}
                 closable={{ placement: "end" }}
                 size={736}
             >
                 {taskList}
-            </Drawer>
-            <Drawer
-                title={res.history}
-                open={searchParams.get("history") === "1"}
-                onClose={() =>
-                    setSearchParams((params) => {
-                        params.delete("history");
-                        return params;
-                    })
-                }
-                closable={{ placement: "end" }}
-                size={960}
-            >
-                {history}
             </Drawer>
             {editing && (
                 <TaskForm
@@ -381,7 +346,9 @@ export default function Automations({
                                     historyTrigger.current = historyPanel.current;
                                     setDetail(undefined);
                                     const lastPage = Math.max(1, Math.ceil((runs.total - 1) / runs.pageSize));
-                                    if (searchParams.get("history") === "1" || task) {
+                                    if (task?.archived && runs.total === 1) {
+                                        navigate(getRealRouteUrl("/assistant?tasks=1"));
+                                    } else if (task) {
                                         updateHistory({ runId: undefined, page: Math.min(runs.page, lastPage) }, true);
                                     } else reload();
                                 } catch {
@@ -428,6 +395,7 @@ export default function Automations({
                             ]}
                         />
                         <Typography.Paragraph>{detail.summary}</Typography.Paragraph>
+                        <Typography.Text type="secondary">{res.retention}</Typography.Text>
                         {detail.result?.text && (
                             <Typography.Paragraph style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                                 {detail.result.text}
