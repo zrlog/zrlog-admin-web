@@ -200,7 +200,6 @@ export default function Automations({
         <div className={cx(styles.page, maintenanceOnly ? styles.maintenancePage : styles.conversationPage)}>
             {!maintenanceOnly && (
                 <div className={styles.header}>
-                    {task && <Link to={getRealRouteUrl("/assistant")}>{res.generalConversation}</Link>}
                     <Button
                         onClick={() =>
                             setSearchParams((params) => {
