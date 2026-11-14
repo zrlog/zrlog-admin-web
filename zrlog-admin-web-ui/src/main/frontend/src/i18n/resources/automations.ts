@@ -19,9 +19,9 @@ export const zhCN = {
         conversationTitle: "对话标题",
         taskConversation: "任务",
         stopBeforeNewConversation: "请先停止当前生成，再切换或新建对话",
-        systemTasks: "系统维护",
+        systemTasks: "系统任务",
         requiredPermissions: "所需权限",
-        systemHelp: "全站共用的维护任务，有相应权限的账号可以暂停或调整。自动升级默认关闭。",
+        systemHelp: "系统任务对全站生效，自动升级需手动开启",
         saveSettings: "保存设置",
         on: "已开启",
         off: "未启用",
@@ -91,6 +91,9 @@ export const zhCN = {
         childTasksHelp: "展开可查看本次执行中各子任务的结果",
         runReference: "执行编号",
         scheduleHelp: "执行时间以服务器时区为准；服务恢复后，错过的周期只补执行一次",
+        upgradeChannelHelp:
+            "release 为正式版，preview 为预览版。保存后按此通道更新；切换通道后需重新确认计划。",
+        pluginScheduleHelp: "这里设置触发频率；具体任务及执行时间在插件管理中配置",
         offline: "离线时不能修改或执行任务",
         retention: "成功记录保留 30 天；失败和待处理记录保留至手动删除。",
         deleteRun: "删除执行记录",
@@ -191,10 +194,9 @@ export const enUS: I18nShape<typeof zhCN> = {
         conversationTitle: "Conversation title",
         taskConversation: "Task",
         stopBeforeNewConversation: "Stop the current response before switching or starting a new chat",
-        systemTasks: "System maintenance",
+        systemTasks: "System tasks",
         requiredPermissions: "Required permissions",
-        systemHelp:
-            "These maintenance tasks are shared across the site. Accounts with the required permissions can pause or configure them. Automatic upgrades are off by default.",
+        systemHelp: "System tasks apply site-wide. Automatic upgrades are off by default.",
         saveSettings: "Save settings",
         on: "On",
         off: "Off",
@@ -267,6 +269,10 @@ export const enUS: I18nShape<typeof zhCN> = {
         runReference: "Run reference",
         scheduleHelp:
             "Execution times use the server timezone; missed recurring runs execute once when the service resumes",
+        upgradeChannelHelp:
+            "release is for stable versions; preview is for preview versions. Saving confirms this channel for updates. Review the plan again after changing channels.",
+        pluginScheduleHelp:
+            "Set how often to trigger plugins here. Configure individual tasks and their schedules in plugin management.",
         offline: "Tasks cannot be changed or run while offline",
         retention: "Successful runs are kept for 30 days. Failed and unresolved runs remain until manually deleted.",
         deleteRun: "Delete run record",

@@ -111,6 +111,11 @@ export default function TaskForm({
                         key={field.name}
                         name={["parameters", field.name]}
                         label={field.label}
+                        extra={
+                            definition.type === "system.auto-upgrade" && field.name === "channel"
+                                ? res.upgradeChannelHelp
+                                : undefined
+                        }
                         valuePropName={field.type === "boolean" ? "checked" : "value"}
                         rules={[{ required: field.required }]}
                     >
@@ -155,7 +160,12 @@ export default function TaskForm({
                         </Form.Item>
                     </>
                 )}
-                <Form.Item name={["schedule", "kind"]} label={res.kind} rules={[{ required: true }]}>
+                <Form.Item
+                    name={["schedule", "kind"]}
+                    label={res.kind}
+                    rules={[{ required: true }]}
+                    extra={definition?.type === "plugins.trigger-schedules" ? res.pluginScheduleHelp : undefined}
+                >
                     <Select
                         options={(["once", "interval", "daily", "weekly"] as const)
                             .filter((value) => !definition?.systemTask || value !== "once")
