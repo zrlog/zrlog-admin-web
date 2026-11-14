@@ -216,8 +216,8 @@ describe("knowledge assistant", () => {
         const progress =
             frame({ type: "run-start", runId: "run" }) + frame({ type: "skill-result", messages: [skill] });
         post.mockImplementationOnce(async (_url: unknown, _body: unknown, config: any) => {
-            config.onDownloadProgress({ event: { target: { responseText: progress } } });
-            config.onDownloadProgress({ event: { target: { responseText: progress } } });
+            config.onTextProgress(progress);
+            config.onTextProgress(progress);
             return { data: progress + frame({ type: "interaction-required", run: view }) };
         });
         await act(async () => root.render(<Harness />));
@@ -386,11 +386,7 @@ describe("knowledge assistant", () => {
     it("keeps a received approval card if the first connection closes with a transport error", async () => {
         const view = pausedRun();
         post.mockImplementationOnce(async (_url, _body, config) => {
-            config.onDownloadProgress({
-                event: {
-                    target: { responseText: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` },
-                },
-            });
+            config.onTextProgress(`data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n`);
             throw new Error("connection closed");
         });
         await act(async () => {
@@ -527,15 +523,15 @@ describe("knowledge assistant", () => {
         const first =
             reasoning +
             'data: {"type":"reasoning","reasoningContent":"Think first"}\n\ndata: {"type":"delta","content":"你"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: first } } }));
+        act(() => post.mock.calls[0][2].onTextProgress(first));
         expect(chat.busy).toBe(true);
         expect(chat.messages[1].content).toBe("你");
         expect(chat.messages[1].reasoningContent).toBe("Think first");
         expect(chat.messages[1].messageId).toBeUndefined();
         const second = first + 'data: {"type":"delta","content":"好🙂"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: second } } }));
-        // XHR progress carries the accumulated response, so repeated callbacks must not duplicate text.
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: second } } }));
+        act(() => post.mock.calls[0][2].onTextProgress(second));
+        // Text progress carries the accumulated response, so repeated callbacks must not duplicate text.
+        act(() => post.mock.calls[0][2].onTextProgress(second));
         expect(container.textContent).toContain("你好🙂");
         expect(chat.messages[1].content).toBe("你好🙂");
         await act(async () => {
@@ -558,12 +554,7 @@ describe("knowledge assistant", () => {
             pending = chat.send("Update this article", [], 7);
         });
         const first = 'data: {"type":"article-updated","articleId":7,"version":4}\n\n';
-        const progress = (text: string) =>
-            act(() =>
-                post.mock.calls[0][2].onDownloadProgress({
-                    event: { target: { responseText: text } },
-                })
-            );
+        const progress = (text: string) => act(() => post.mock.calls[0][2].onTextProgress(text));
         progress(first.slice(0, -1));
         expect(onArticleUpdated).not.toHaveBeenCalled();
         progress(first);
@@ -597,7 +588,7 @@ describe("knowledge assistant", () => {
             pending = chat.send("Write a draft", [], 0);
         });
         const wire = 'data: {"type":"article-updated","articleId":18,"version":0,"created":true}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: wire } } }));
+        act(() => post.mock.calls[0][2].onTextProgress(wire));
         expect(onArticleUpdated).not.toHaveBeenCalled();
         expect(chat.busy).toBe(true);
         await act(async () => {
@@ -689,7 +680,7 @@ describe("knowledge assistant", () => {
             pending = chat.send("Hello", [], 7);
         });
         const partial = 'data: {"type":"delta","content":"Unfinished answer"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: partial } } }));
+        act(() => post.mock.calls[0][2].onTextProgress(partial));
         expect(container.textContent).toContain("Unfinished answer");
         await act(async () => {
             resolve({
@@ -747,11 +738,7 @@ describe("knowledge assistant", () => {
         });
         expect(chat.status).toBe(getRes().articleEdit.knowledge.waitingForResponse);
         expect(chat.status).not.toBe(getRes().articleEdit.knowledge.searching);
-        act(() =>
-            post.mock.calls[0][2].onDownloadProgress({
-                event: { target: { responseText: 'data: {"type":"thinking"}\n\n' } },
-            })
-        );
+        act(() => post.mock.calls[0][2].onTextProgress('data: {"type":"thinking"}\n\n'));
         expect(chat.status).toBe(getRes().articleEdit.knowledge.waitingForResponse);
         await act(async () => {
             resolve({ data: completed("Hello", "Hello") });
@@ -774,7 +761,7 @@ describe("knowledge assistant", () => {
         const firstRound =
             'data: {"type":"reasoning","reasoningContent":"Find relevant sources first."}\n\ndata: {"type":"tool","tool":"search_articles"}\n\n';
         act(() => {
-            post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: firstRound } } });
+            post.mock.calls[0][2].onTextProgress(firstRound);
         });
         expect(container.textContent).toContain(getRes().articleEdit.assistant.reasoningProcess);
         expect(container.textContent).toContain("Find relevant sources first.");
@@ -808,7 +795,7 @@ describe("knowledge assistant", () => {
         });
         expect(container.textContent).not.toContain(getRes().articleEdit.assistant.reasoningProcess);
         const reasoning = 'data: {"type":"reasoning","reasoningContent":"Partial thinking"}\n\n';
-        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: reasoning } } }));
+        act(() => post.mock.calls[0][2].onTextProgress(reasoning));
         expect(container.textContent).toContain("Partial thinking");
         await act(async () => {
             resolve({

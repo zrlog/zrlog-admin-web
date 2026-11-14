@@ -428,7 +428,7 @@ export const useAssistantChat = (
             }
             const events = parseChatEvents(text);
             question.runId = events.find((event) => event.type === "run-start")?.runId || question.runId;
-            // XHR supplies the entire response again on each progress callback and at completion.
+            // Text progress and completion both supply the accumulated response.
             // A committed write still needs refreshing if a later model/conversation step fails.
             for (const event of events) {
                 if (event.type === "article-updated")
@@ -540,13 +540,11 @@ export const useAssistantChat = (
             const requestConfig: AxiosRequestConfig & { showError: boolean } = {
                 showError: false,
                 signal: controller.signal,
-                adapter: "xhr",
                 responseType: "text",
                 headers: { accept: "text/event-stream" },
-                onDownloadProgress: (progress) => {
-                    const xhr = progress.event?.target as XMLHttpRequest | undefined;
+                onTextProgress: (text) => {
                     try {
-                        consume(xhr?.responseText || "", false);
+                        consume(text, false);
                     } catch {
                         /* Final response owns error rendering. */
                     }

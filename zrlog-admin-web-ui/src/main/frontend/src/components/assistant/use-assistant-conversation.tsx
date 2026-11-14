@@ -495,17 +495,13 @@ export const useAssistantConversation = ({
                 tool ? getEditorContext(selectedText) : null,
                 {
                     signal: controller.signal,
-                    adapter: "xhr",
                     headers: {
                         accept: "text/event-stream",
                     },
                     validateStatus: () => true,
                     responseType: "text",
-                    onDownloadProgress: (progressEvent) => {
+                    onTextProgress: (responseText) => {
                         if (controller.signal.aborted) return;
-                        const target = progressEvent.event?.target as XMLHttpRequest | undefined;
-                        const currentTarget = progressEvent.event?.currentTarget as XMLHttpRequest | undefined;
-                        const responseText = target?.responseText || currentTarget?.responseText || "";
                         const parsed = parseSseResponse(responseText);
                         if (parsed.errorMessage) {
                             return;

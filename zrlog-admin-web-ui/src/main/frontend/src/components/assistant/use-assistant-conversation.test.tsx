@@ -173,7 +173,7 @@ type Deferred<T> = {
 };
 
 type AxiosPostConfig = {
-    onDownloadProgress?: (event: unknown) => void;
+    onTextProgress?: (text: string) => void;
     signal?: AbortSignal;
 };
 
@@ -1057,13 +1057,7 @@ describe("useAssistantConversation draft request gate", () => {
         expect(requestConfig).toBeDefined();
         expect(requestConfig?.signal?.aborted).toBe(true);
         act(() => {
-            requestConfig?.onDownloadProgress?.({
-                event: {
-                    target: {
-                        responseText: 'data: {"content":"Streaming","messageId":"route-message"}\n\n',
-                    },
-                },
-            });
+            requestConfig?.onTextProgress?.('data: {"content":"Streaming","messageId":"route-message"}\n\n');
         });
         await act(async () => {
             request.resolve({
