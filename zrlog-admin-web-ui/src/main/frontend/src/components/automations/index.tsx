@@ -5,7 +5,7 @@ import AssistantChat from "./AssistantChat";
 import ExecutionRecordsDrawer from "./ExecutionRecordsDrawer";
 import { hasAction } from "../../utils/account-access";
 import { isModuleEnabled } from "../../utils/module-capabilities";
-import { Alert, Button, Popconfirm, Descriptions, Drawer, Space, Typography, Tooltip } from "antd";
+import { Alert, Button, Popconfirm, Descriptions, Drawer, Space, Typography } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
@@ -15,12 +15,10 @@ import { formatDateTime } from "../../utils/date-time";
 import type { AdminCommonProps } from "../../type";
 import TaskForm from "./TaskForm";
 import PersonalTasks from "./PersonalTasks";
-import SettingsIcon from "@zrlog/ui/icons/settings";
 import { useAssistantStyles } from "./assistant-styles";
 import SystemTasks from "./SystemTasks";
 import RunChildren from "./RunChildren";
 import { useAssistantRequest } from "./use-assistant-request";
-import { canAccessPage } from "../../utils/account-access";
 import { removeBackgroundTaskByKey } from "../../utils/background-task-store";
 import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
 import ProposalForm from "./ProposalForm";
@@ -160,12 +158,18 @@ export default function Automations({
     };
     const date = (value?: number) => (value ? formatDateTime(value) : res.none);
     const showHistory = (task: Task) => {
-        navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(task.id)}`));
+        navigate(
+            getRealRouteUrl(
+                `/assistant?taskId=${encodeURIComponent(task.id)}${searchParams.get("tasks") === "1" ? "&tasks=1" : ""}`
+            )
+        );
     };
-    const taskList = (
+    const taskList = (compact = false, onSelected?: () => void) => (
         <PersonalTasks
             overview={overview}
-            disabled={disabled}
+            compact={compact}
+            selectedId={filter}
+            disabled={disabled || (compact && conversationBusy)}
             page={taskPage}
             onPage={(page) =>
                 setSearchParams((params) => {
@@ -176,7 +180,10 @@ export default function Automations({
             }
             onEdit={setEditing}
             onPropose={() => setProposing(true)}
-            onOpen={showHistory}
+            onOpen={(task) => {
+                showHistory(task);
+                onSelected?.();
+            }}
             onMutate={mutate}
             renderStatus={status}
         />
@@ -202,45 +209,16 @@ export default function Automations({
                 <Button type="text" onClick={() => setRecordsOpen(true)} disabled={disabled}>
                     {res.executionRecords}
                 </Button>
-                {task.systemTask
-                    ? canAccessPage("/website/assistant") && (
-                          <Link to={getRealRouteUrl("/website/assistant")}>{getRes().websiteAssistant.title}</Link>
-                      )
-                    : !task.archived && (
-                          <Button onClick={() => setEditing(task)} disabled={disabled}>
-                              {res.edit}
-                          </Button>
-                      )}
+                {!task.systemTask && !task.archived && (
+                    <Button onClick={() => setEditing(task)} disabled={disabled}>
+                        {res.edit}
+                    </Button>
+                )}
             </Space>
         </section>
     ) : undefined;
     return (
         <div className={cx(styles.page, maintenanceOnly ? styles.maintenancePage : styles.conversationPage)}>
-            {!maintenanceOnly && (
-                <div className={styles.header}>
-                    <Button
-                        onClick={() =>
-                            setSearchParams((params) => {
-                                params.set("tasks", "1");
-                                return params;
-                            })
-                        }
-                    >
-                        {res.tasks}
-                    </Button>
-                    {canAccessPage("/website/assistant") && (
-                        <Tooltip title={getRes().websiteAssistant.title} trigger={["hover", "focus"]}>
-                            <Link
-                                className={styles.settingsLink}
-                                to={getRealRouteUrl("/website/assistant")}
-                                aria-label={getRes().websiteAssistant.title}
-                            >
-                                <SettingsIcon aria-hidden="true" />
-                            </Link>
-                        </Tooltip>
-                    )}
-                </div>
-            )}
             {offline && <Alert type="info" title={res.offline} />}
             {maintenanceOnly ? (
                 <SystemTasks
@@ -254,10 +232,27 @@ export default function Automations({
                     }
                 />
             ) : (
-                <div className={cx(styles.panel, styles.conversationPanel)}>
+                <div className={cx(styles.panel, styles.conversationPanel)} role="region" aria-label={res.title}>
                     {isModuleEnabled("ai") && hasAction("article.assist") ? (
                         <ConversationNavigation
                             selection={selection}
+                            tasks={{
+                                expanded: searchParams.get("tasks") === "1" || searchParams.get("history") === "1",
+                                onExpandedChange: (expanded) =>
+                                    setSearchParams(
+                                        (params) => {
+                                            params.delete("history");
+                                            if (expanded) params.set("tasks", "1");
+                                            else {
+                                                params.delete("tasks");
+                                                params.delete("offset");
+                                            }
+                                            return params;
+                                        },
+                                        { replace: true }
+                                    ),
+                                content: (onSelected) => taskList(true, onSelected),
+                            }}
                             disabled={disabled || conversationBusy}
                             revision={sessionRevision}
                             onNew={newConversation}
@@ -308,7 +303,7 @@ export default function Automations({
                             <Alert type="info" title={res.conversationUnavailable} />
                         </>
                     ) : (
-                        taskList
+                        taskList()
                     )}
                 </div>
             )}
@@ -322,24 +317,6 @@ export default function Automations({
                     renderStatus={status}
                 />
             )}
-            <Drawer
-                title={res.tasks}
-                open={searchParams.get("tasks") === "1" || searchParams.get("history") === "1"}
-                onClose={() => {
-                    setSearchParams(
-                        (params) => {
-                            params.delete("tasks");
-                            params.delete("history");
-                            return params;
-                        },
-                        { replace: true }
-                    );
-                }}
-                closable={{ placement: "end" }}
-                size={736}
-            >
-                {taskList}
-            </Drawer>
             {editing && (
                 <TaskForm
                     plan={editing}

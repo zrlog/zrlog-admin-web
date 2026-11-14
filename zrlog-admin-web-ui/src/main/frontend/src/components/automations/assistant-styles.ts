@@ -20,38 +20,10 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         height: var(--admin-content-height);
         min-height: 0;
     `,
-    header: css`
-        display: flex;
-        flex: 0 0 auto;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: flex-end;
-        gap: ${token.marginSM}px;
-        margin-bottom: ${token.marginSM}px;
-    `,
     conversationPanel: css`
         flex: 1;
         min-height: 0;
         overflow: auto;
-    `,
-    settingsLink: css`
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-        width: ${token.controlHeightLG}px;
-        height: ${token.controlHeightLG}px;
-        color: ${token.colorLink};
-        font-size: ${token.fontSizeHeading4}px;
-        border-radius: ${token.borderRadius}px;
-        &:hover {
-            color: ${token.colorLinkHover};
-            background: ${token.colorFillTertiary};
-        }
-        &:focus-visible {
-            outline: ${token.lineWidthBold}px solid ${token.colorPrimary};
-            outline-offset: ${token.lineWidthBold}px;
-        }
     `,
     panel: css`
         min-width: 0;
@@ -66,6 +38,27 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
         gap: ${token.marginSM}px;
         padding: ${token.padding}px;
         flex-wrap: wrap;
+    `,
+    compactTaskActions: css`
+        padding: ${token.paddingXS}px 0;
+    `,
+    compactTaskRow: css`
+        padding: ${token.paddingXS}px;
+        border-radius: ${token.borderRadius}px;
+        &[data-selected="true"] {
+            background: ${token.colorFillSecondary};
+        }
+        & > div {
+            align-items: center;
+            gap: ${token.marginXS}px;
+        }
+    `,
+    compactTaskTitle: css`
+        font-size: ${token.fontSize}px;
+        font-weight: normal;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     `,
     taskRow: css`
         padding: ${token.padding}px;
@@ -153,6 +146,7 @@ export const useAssistantStyles = createStyles(({ token, css }) => ({
     `,
     details: css`
         display: grid;
+        flex: 1;
         gap: ${token.marginXXS}px;
         min-width: 0;
     `,

@@ -2,7 +2,7 @@ import {
     assistantComposerDrafts,
     assistantComposerScope,
 } from "../articleEdit/article-ai-assistant/assistant-composer-drafts";
-import { Alert, Button, Dropdown, Space, Spin, Tooltip, Typography } from "antd";
+import { Alert, Button, Collapse, Dropdown, Space, Spin, Tooltip, Typography } from "antd";
 import Input from "@zrlog/ui/antd/Input";
 import EditIcon from "@zrlog/ui/icons/edit";
 import HistoryIcon from "@zrlog/ui/icons/history";
@@ -34,6 +34,7 @@ export default function ConversationNavigation({
     compact = false,
     disabled = false,
     revision = 0,
+    tasks,
     onSelect,
     onNew,
     onDeleted,
@@ -44,6 +45,11 @@ export default function ConversationNavigation({
     compact?: boolean;
     disabled?: boolean;
     revision?: number | string;
+    tasks?: {
+        expanded: boolean;
+        onExpandedChange: (expanded: boolean) => void;
+        content: (onSelected: () => void) => ReactNode;
+    };
     onSelect: (session: ConversationSummary) => void;
     onNew: () => void;
     onDeleted: (session: ConversationSummary) => void;
@@ -76,6 +82,9 @@ export default function ConversationNavigation({
         if (!overlay) window.localStorage.setItem(preferenceKey, String(value));
         if (!value) requestAnimationFrame(() => toggleRef.current?.focus());
     };
+    useEffect(() => {
+        if (tasks?.expanded) setOpen(true);
+    }, [tasks?.expanded]);
     useEffect(() => {
         setCursor({});
     }, [query, articleFilter, revision]);
@@ -192,6 +201,7 @@ export default function ConversationNavigation({
             : at >= yesterday.getTime()
             ? res.conversationsYesterday
             : res.conversationsEarlier;
+    const conversations = data?.items.filter((item) => !tasks || !item.taskId) || [];
     const panel = (
         <div
             ref={listRef}
@@ -241,12 +251,30 @@ export default function ConversationNavigation({
                 />
             )}
             <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                {!loading && !data?.items.length && (
+                {tasks && (
+                    <Collapse
+                        ghost
+                        size="small"
+                        activeKey={tasks.expanded ? ["tasks"] : []}
+                        onChange={(keys) => tasks.onExpandedChange(keys.includes("tasks"))}
+                        items={[
+                            {
+                                key: "tasks",
+                                label: res.tasks,
+                                styles: { header: { padding: `${theme.paddingXS}px 0` }, body: { padding: 0 } },
+                                children: tasks.content(() => {
+                                    if (overlay) changeOpen(false);
+                                }),
+                            },
+                        ]}
+                    />
+                )}
+                {!loading && !conversations.length && !data?.hasMore && (
                     <Typography.Paragraph type="secondary">
                         {query ? res.noMatchingConversations : res.noConversations}
                     </Typography.Paragraph>
                 )}
-                {data?.items.map((item, index, items) => (
+                {conversations.map((item, index, items) => (
                     <div key={conversationKey(item)}>
                         {(index === 0 || group(item.updatedAt) !== group(items[index - 1].updatedAt)) && (
                             <Typography.Paragraph type="secondary" style={{ marginBlock: theme.marginSM }}>
