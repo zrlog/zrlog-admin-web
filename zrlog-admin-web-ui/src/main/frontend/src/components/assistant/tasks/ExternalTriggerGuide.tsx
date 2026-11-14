@@ -1,29 +1,19 @@
-import { Collapse, Input, Space, Tabs, Typography } from "antd";
-import { useTheme } from "antd-style";
+import { Collapse, Space, Tabs, Typography } from "antd";
+import { useMemo } from "react";
+import { markdownToHtml } from "@zrlog/editor/dist/markdown";
+import { createFencedCodeBlock } from "@zrlog/editor/dist/markdown/fenced-code";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
+import { getAppState } from "../../../base/ConfigProviderApp";
 import { getRes } from "../../../utils/constants";
 import { buildWorkerExample, buildWranglerExample } from "./external-trigger-examples";
 
-function CodeExample({ label, value }: { label: string; value: string }) {
-    const theme = useTheme();
+function CodeExample({ label, value, language = "plaintext" }: { label: string; value: string; language?: string }) {
+    const html = useMemo(() => markdownToHtml(createFencedCodeBlock(value, language)), [value, language]);
     return (
-        <Space
-            role="region"
-            aria-label={label}
-            orientation="vertical"
-            size="small"
-            style={{ width: "100%", minWidth: 0 }}
-        >
-            <Typography.Text strong copyable={{ text: value }}>
-                {label}
-            </Typography.Text>
-            <Input.TextArea
-                aria-label={label}
-                readOnly
-                autoSize={{ minRows: 1, maxRows: 14 }}
-                value={value}
-                style={{ fontFamily: theme.fontFamilyCode }}
-            />
-        </Space>
+        <section aria-label={label} style={{ width: "100%", minWidth: 0 }}>
+            <Typography.Text strong>{label}</Typography.Text>
+            <HtmlPreviewPanel htmlContent={html} dark={getAppState().dark} style={{ width: "100%", minWidth: 0 }} />
+        </section>
     );
 }
 
@@ -39,7 +29,7 @@ export default function ExternalTriggerGuide({ endpoint, curlExample }: { endpoi
                         children: (
                             <Space orientation="vertical" style={{ width: "100%" }}>
                                 <Typography.Paragraph type="secondary">{res.curlHelp}</Typography.Paragraph>
-                                <CodeExample label={res.curlCommand} value={curlExample} />
+                                <CodeExample label={res.curlCommand} value={curlExample} language="bash" />
                             </Space>
                         ),
                     },
@@ -54,7 +44,11 @@ export default function ExternalTriggerGuide({ endpoint, curlExample }: { endpoi
                                 <section>
                                     <Typography.Title level={5}>{res.workerCreate}</Typography.Title>
                                     <Typography.Paragraph>{res.workerCreateHelp}</Typography.Paragraph>
-                                    <CodeExample label="src/index.js" value={buildWorkerExample(res)} />
+                                    <CodeExample
+                                        label="src/index.js"
+                                        value={buildWorkerExample(res)}
+                                        language="javascript"
+                                    />
                                 </section>
                                 <section>
                                     <Typography.Title level={5}>{res.workerVariables}</Typography.Title>
@@ -84,10 +78,12 @@ export default function ExternalTriggerGuide({ endpoint, curlExample }: { endpoi
                                                     </Typography.Paragraph>
                                                     <CodeExample
                                                         label="wrangler.toml"
+                                                        language="toml"
                                                         value={buildWranglerExample(endpoint)}
                                                     />
                                                     <CodeExample
                                                         label={res.workerDeployCommands}
+                                                        language="bash"
                                                         value={
                                                             "npx wrangler secret put ZRLOG_ASSISTANT_TASK_TOKEN\nnpx wrangler deploy"
                                                         }

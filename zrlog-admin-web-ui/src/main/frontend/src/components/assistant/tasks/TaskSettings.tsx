@@ -1,9 +1,10 @@
-import { Alert, Button, Collapse, InputNumber, Space, Spin, Typography } from "antd";
+import { Alert, Button, Collapse, Drawer, InputNumber, Space, Spin, Typography } from "antd";
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useAssistantSettingsStyles } from "./settings-styles";
 import Switch from "@zrlog/ui/antd/Switch";
-import { useCallback, useEffect, useState } from "react";
+import CloseIcon from "@zrlog/ui/icons/close";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatLabelValue, getBackendServerUrl, getRes } from "../../../utils/constants";
 import { formatDateTime } from "../../../utils/date-time";
 import type { Request, Settings, SettingsPage } from "./types";
@@ -23,6 +24,8 @@ export default function TaskSettings({
     const [loadError, setLoadError] = useState<string>();
     const [secret, setSecret] = useState<string>();
     const [budget, setBudget] = useState<number | null>(null);
+    const [examplesOpen, setExamplesOpen] = useState(false);
+    const examplesTrigger = useRef<HTMLButtonElement>(null);
     const res = getRes().websiteAssistant;
     const { styles } = useAssistantSettingsStyles();
     const load = useCallback(async () => {
@@ -193,7 +196,17 @@ export default function TaskSettings({
                                     )}
                                 </div>
                                 <div className={styles.field}>
-                                    <Typography.Text strong>{res.endpoint}</Typography.Text>
+                                    <Space wrap>
+                                        <Typography.Text strong>{res.endpoint}</Typography.Text>
+                                        <Button
+                                            ref={examplesTrigger}
+                                            type="link"
+                                            size="small"
+                                            onClick={() => setExamplesOpen(true)}
+                                        >
+                                            {res.example}
+                                        </Button>
+                                    </Space>
                                     <Typography.Paragraph
                                         copyable
                                         style={{ overflowWrap: "anywhere", marginBottom: 0 }}
@@ -238,22 +251,26 @@ export default function TaskSettings({
                                         {res.externalBudgetHelp}
                                     </p>
                                 </div>
-                                <Collapse
-                                    items={[
-                                        {
-                                            key: "examples",
-                                            label: res.example,
-                                            children: (
-                                                <ExternalTriggerGuide endpoint={endpoint} curlExample={example} />
-                                            ),
-                                        },
-                                    ]}
-                                />
                             </div>
                         ),
                     },
                 ]}
             />
+            <Drawer
+                title={res.example}
+                open={examplesOpen}
+                onClose={() => {
+                    setExamplesOpen(false);
+                    // Restore focus after the closing drawer releases its focus trap.
+                    requestAnimationFrame(() => examplesTrigger.current?.focus({ preventScroll: true }));
+                }}
+                focusable={{ focusTriggerAfterClose: false }}
+                closable={{ placement: "end", closeIcon: <CloseIcon />, "aria-label": getRes().common.close }}
+                size={800}
+                destroyOnHidden
+            >
+                <ExternalTriggerGuide endpoint={endpoint} curlExample={example} />
+            </Drawer>
         </section>
     );
 }
