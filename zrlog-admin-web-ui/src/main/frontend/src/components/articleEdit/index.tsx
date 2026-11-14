@@ -488,7 +488,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                                     },
                                     aiConfig: isModuleEnabled("ai")
                                         ? {
-                                              aiApiUri: "/api/admin/article/ai",
+                                              aiApiUri: "/api/admin/assistant/chat",
                                               configUrl: getRealRouteUrl("/website/ai"),
                                               subject: state.article.title,
                                               aiProvider: state.aiConfigured === true ? state.aiProvider : undefined,

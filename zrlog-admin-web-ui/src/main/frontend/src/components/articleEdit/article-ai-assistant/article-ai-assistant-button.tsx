@@ -1,3 +1,6 @@
+import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
+import { getAppState } from "../../../base/ConfigProviderApp";
+import { addToCache, getCacheByKey } from "../../../utils/cache";
 import { encodeAiFiles } from "./article-ai-files";
 import { Alert, Button, Space, Typography } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
@@ -20,7 +23,6 @@ import AIButton, {
 } from "@zrlog/editor/core/ai/AIButton";
 import AIIcon from "../../../icons/AIProviderIcon";
 import useArticleEditorScreens from "../use-article-editor-screens";
-import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 import { AxiosInstance } from "axios";
 import {
     formatLabelValue,
@@ -30,10 +32,8 @@ import {
     tryAppendBackendServerUrl,
 } from "../../../utils/constants";
 import { getSsDate } from "../../../base/SsData";
-import { getAppState } from "../../../base/ConfigProviderApp";
 import { ArticleChangeableValue, ArticleEditState } from "../index.types";
 import { useTheme } from "antd-style";
-import { addToCache, getCacheByKey } from "../../../utils/cache";
 import ImageCropper from "../../../common/ImageCropper";
 import { parseCoverAspectRatio } from "../cover-aspect-ratio";
 import { resolveBackendCropImageUrl } from "../../../utils/crop-image-url";
@@ -56,7 +56,10 @@ import { DraftAiSaveGate } from "../draft-ai-save-gate";
 import { useArticleAiQueue } from "./use-article-ai-queue";
 import type { AiMentionInput } from "./article-ai-mentions";
 
+export type AssistantConversationContext = { articleId?: number; taskId?: string };
+
 type ArticleAiAssistantConfigProps = {
+    context?: AssistantConversationContext;
     data: ArticleEditState;
     draftAiSaveGate: DraftAiSaveGate;
     offline: boolean;
@@ -91,10 +94,10 @@ const AI_ASSISTANT_SHORTCUT = {
 
 const AI_ASSISTANT_STATE_CACHE_KEY_PREFIX = "ai/chat/state";
 let articleAiAssistantDrawerOpen = false;
-
 export const getArticleAiAssistantDrawerOpen = () => articleAiAssistantDrawerOpen || getAIButtonDrawerOpen();
 
 export const useArticleAiAssistantConfig = ({
+    context,
     data,
     draftAiSaveGate,
     offline,
@@ -105,6 +108,7 @@ export const useArticleAiAssistantConfig = ({
     getSkillContextRevision,
     onApplyGeneratedCover,
 }: ArticleAiAssistantConfigProps) => {
+    const articleContext = context === undefined || context.articleId !== undefined;
     const [loadingKey, setLoadingKey] = useState<string>();
     const [cropModalOpen, setCropModalOpen] = useState<boolean>(false);
     const [croppingImageUrl, setCroppingImageUrl] = useState<string>("");
@@ -119,7 +123,9 @@ export const useArticleAiAssistantConfig = ({
     latestDataRef.current = data;
     const skillRequest = useRef<AbortController>();
     const fileReadGeneration = useRef(0);
-    const scope = `${getSsDate().key}/${data.article.logId || "draft"}`;
+    const scope = `${getSsDate().key}/${
+        articleContext ? data.article.logId || "draft" : context?.taskId ? `task/${context.taskId}` : "general"
+    }`;
     const scopeRef = useRef(scope);
     scopeRef.current = scope;
     const migrateQueue = useRef<(scope: string) => void>();
@@ -131,10 +137,15 @@ export const useArticleAiAssistantConfig = ({
         scope,
         onAiMessagesChange,
         (event) => {
-            if (!data.article.logId && event.created) migrateQueue.current?.(`${getSsDate().key}/${event.articleId}`);
+            if (articleContext && !data.article.logId && event.created)
+                migrateQueue.current?.(`${getSsDate().key}/${event.articleId}`);
             onArticleUpdated?.(event);
         },
-        { articleId: data.article.logId || 0, messages: aiMessages }
+        {
+            articleId: articleContext ? data.article.logId || 0 : undefined,
+            taskId: context?.taskId,
+            messages: aiMessages,
+        }
     );
     const visibleMessages = aiMessages;
     const activeRun = aiMessages.some(
@@ -187,8 +198,8 @@ export const useArticleAiAssistantConfig = ({
     useEffect(() => {
         // A paused tool run may already have created the draft. Keep ordinary creation blocked
         // until its remaining approvals finish and the editor adopts the persisted article ID.
-        if (!data.article.logId && activeRun) return draftAiSaveGate.tryBeginAiRequest(0);
-    }, [data.article.logId, activeRun, draftAiSaveGate]);
+        if (articleContext && !data.article.logId && activeRun) return draftAiSaveGate.tryBeginAiRequest(0);
+    }, [articleContext, data.article.logId, activeRun, draftAiSaveGate]);
 
     useEffect(() => {
         setToolPayloads({});
@@ -208,7 +219,12 @@ export const useArticleAiAssistantConfig = ({
         return requestBody;
     };
 
-    const getArticleIdParam = () => `${latestDataRef.current.article.logId ? latestDataRef.current.article.logId : 0}`;
+    const getContextQuery = (articleId = latestDataRef.current.article.logId || 0) => {
+        const params = new URLSearchParams();
+        if (articleContext) params.set("id", String(articleId));
+        if (context?.taskId) params.set("taskId", context.taskId);
+        return params.toString();
+    };
 
     const downloadJson = (payload: ArticleAiMessageExportResponse) => {
         const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -217,7 +233,12 @@ export const useArticleAiAssistantConfig = ({
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `zrlog-article-${payload.draft ? "draft" : payload.articleId || "draft"}-ai-messages.json`;
+        const contextName = payload.taskId
+            ? `task-${payload.taskId}`
+            : payload.articleId == null
+            ? "general"
+            : `article-${payload.draft ? "draft" : payload.articleId}`;
+        link.download = `zrlog-assistant-${contextName}.json`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -231,7 +252,7 @@ export const useArticleAiAssistantConfig = ({
         setAiMessagesExporting(true);
         try {
             const { data: response } = await axiosInstance.get<ApiResponse<ArticleAiMessageExportResponse>>(
-                `/api/admin/article/ai/messages/export?id=${getArticleIdParam()}`
+                `/api/admin/assistant/chat/messages/export?${getContextQuery()}`
             );
             if (response.error) {
                 await message.error(response.message || getRes().error.unknown);
@@ -251,7 +272,7 @@ export const useArticleAiAssistantConfig = ({
             return;
         }
         const articleId = latestDataRef.current.article.logId || 0;
-        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+        const releaseRequest = articleContext ? draftAiSaveGate.tryBeginAiRequest(articleId) : () => undefined;
         if (!releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return;
@@ -259,7 +280,7 @@ export const useArticleAiAssistantConfig = ({
         try {
             setAiMessagesClearing(true);
             const { data: response } = await axiosInstance.post<ApiResponse<boolean>>(
-                `/api/admin/article/ai/messages/clear?id=${articleId}`
+                `/api/admin/assistant/chat/messages/clear?${getContextQuery()}`
             );
             if (response.error) {
                 await message.error(response.message || getRes().error.unknown);
@@ -370,7 +391,7 @@ export const useArticleAiAssistantConfig = ({
         if (messageId && persist && releaseRequest) {
             void (async () => {
                 try {
-                    await axiosInstance.post(`/api/admin/article/ai/message?id=${articleId}`, {
+                    await axiosInstance.post(`/api/admin/assistant/chat/message?${getContextQuery(articleId)}`, {
                         messageId,
                         tool: toolPayload.tool,
                         payload: toolPayload.payload,
@@ -415,7 +436,7 @@ export const useArticleAiAssistantConfig = ({
             return undefined;
         }
         const articleId = latestDataRef.current.article.logId || 0;
-        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+        const releaseRequest = articleContext ? draftAiSaveGate.tryBeginAiRequest(articleId) : () => undefined;
         if (!releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return undefined;
@@ -432,12 +453,14 @@ export const useArticleAiAssistantConfig = ({
                 await chat.send(
                     tool && references?.length ? `${getAssistantToolLabel(tool)}\n${normalizedInput}` : normalizedInput,
                     aiMessages,
-                    articleId,
+                    articleContext ? articleId : undefined,
                     undefined,
-                    {
-                        editorContext,
-                        contextRevision: editorContextRevision(editorContext),
-                    },
+                    articleContext
+                        ? {
+                              editorContext,
+                              contextRevision: editorContextRevision(editorContext),
+                          }
+                        : undefined,
                     fileInputs,
                     files,
                     references
@@ -489,7 +512,7 @@ export const useArticleAiAssistantConfig = ({
             }
             let currentContent = "";
             const { data: responseData, status } = await axiosInstance.post(
-                `/api/admin/article/ai?${query.toString()}`,
+                `/api/admin/assistant/chat?${query.toString()}`,
                 tool ? getArticleAiRequestBody(selectedText) : null,
                 {
                     signal: controller.signal,
@@ -675,7 +698,9 @@ export const useArticleAiAssistantConfig = ({
                         contextRevision={editorContextRevision(getArticleAiRequestBody())}
                         onExpired={() => void chat.refreshRun(run.articleId)}
                         onRespond={(decision, value) => {
-                            const release = draftAiSaveGate.tryBeginAiRequest(run.articleId);
+                            const release = articleContext
+                                ? draftAiSaveGate.tryBeginAiRequest(run.articleId ?? 0)
+                                : () => undefined;
                             if (!release) {
                                 void message.warning(getRes().articleEdit.assistant.saveInProgress);
                                 return;
@@ -701,7 +726,9 @@ export const useArticleAiAssistantConfig = ({
                     disabled={offline || chat.busy || Boolean(loadingKey)}
                     onRefresh={() => void chat.refreshRun(run.articleId)}
                     onDecide={(decision) => {
-                        const release = draftAiSaveGate.tryBeginAiRequest(run.articleId);
+                        const release = articleContext
+                            ? draftAiSaveGate.tryBeginAiRequest(run.articleId ?? 0)
+                            : () => undefined;
                         if (!release) {
                             void message.warning(getRes().articleEdit.assistant.saveInProgress);
                             return;
@@ -719,7 +746,8 @@ export const useArticleAiAssistantConfig = ({
         if (isChatMessage(content))
             return renderChatMessage({ content, index, defaultNode }, status, {
                 api: axiosInstance,
-                articleId: data.article.logId || 0,
+                articleId: articleContext ? data.article.logId || 0 : undefined,
+                taskId: context?.taskId,
             });
         const toolAwareContent = content as ToolAwareAIContent;
         if (
@@ -863,6 +891,7 @@ export const useArticleAiAssistantConfig = ({
         <ArticleAiAssistantSkillContent
             key={queue.key}
             aiProvider={data.aiProvider}
+            writingContext={articleContext}
             api={axiosInstance}
             fileInput={data.aiFileInput}
             preparingFiles={loadingKey === "files"}
@@ -894,7 +923,9 @@ export const useArticleAiAssistantConfig = ({
                 onError={(errorMessage) => message.error(errorMessage)}
                 onOk={async (croppedDataUrl) => {
                     const articleId = latestDataRef.current.article.logId || 0;
-                    const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+                    const releaseRequest = articleContext
+                        ? draftAiSaveGate.tryBeginAiRequest(articleId)
+                        : () => undefined;
                     if (!releaseRequest) {
                         void message.warning(getRes().articleEdit.assistant.saveInProgress);
                         return;
@@ -1034,10 +1065,10 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
             }}
             onClick={aiConfigured ? () => updateOpen(true) : undefined}
             icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotIcon />}
-            title={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
-            aria-label={getRes().websiteAi.label}
+            title={getShortcutTitle(getRes().assistant.writingAssistant, AI_ASSISTANT_SHORTCUT)}
+            aria-label={getRes().assistant.writingAssistant}
         >
-            {screens.sm && <span>{getRes().websiteAi.label}</span>}
+            {screens.sm && <span>{getRes().assistant.writingAssistant}</span>}
         </Button>
     );
 

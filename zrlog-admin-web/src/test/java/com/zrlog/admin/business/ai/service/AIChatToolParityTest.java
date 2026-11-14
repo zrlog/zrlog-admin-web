@@ -84,7 +84,7 @@ public class AIChatToolParityTest {
                         (proxy, method, args) -> {
                             switch (method.getName()) {
                                 case "getUri":
-                                    return "/api/admin/article/ai";
+                                    return "/api/admin/assistant/chat";
                                 case "getContextPath":
                                     return "";
                                 case "getRemoteHost":
@@ -406,7 +406,7 @@ public class AIChatToolParityTest {
                                 HttpRequest request,
                                 com.zrlog.common.vo.AdminTokenVO credential) {
                             assertEquals(1, actor.getUserId());
-                            assertEquals("/api/admin/article/ai", request.getUri());
+                            assertEquals("/api/admin/assistant/chat", request.getUri());
                             assertEquals("hello", new String(bytes, StandardCharsets.UTF_8));
                             return "/attachment/" + filename;
                         }
@@ -448,6 +448,7 @@ public class AIChatToolParityTest {
 
         String chat(long articleId) throws Exception {
             ChatRequest input = new ChatRequest();
+            input.articleId = 0L;
             input.input = "Save and publish the article as requested";
             input.articleId = articleId;
             String chunk =

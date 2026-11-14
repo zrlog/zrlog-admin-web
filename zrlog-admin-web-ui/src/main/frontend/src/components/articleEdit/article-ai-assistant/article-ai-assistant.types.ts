@@ -183,6 +183,7 @@ export type ArticleAiErrorType =
     | "unknown";
 
 export type ArticleAiMessageExportResponse = {
+    taskId?: string;
     articleId?: number;
     draft?: boolean;
     exportedAt?: number;

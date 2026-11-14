@@ -64,7 +64,7 @@ export const useArticleAiMentions = (
             try {
                 const config = { params: { query: queryText }, signal: controller.signal, showError: false };
                 const response = await api.get<ApiResponse<{ articles: AiMentionArticle[] }>>(
-                    "/api/admin/article/ai/references",
+                    "/api/admin/assistant/chat/references",
                     config
                 );
                 if (controller.signal.aborted) return;

@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * Site and personal task management; task enablement never grants permissions or starts an
  * execution.
  */
-public final class AutomationService {
+public final class AutomationService implements AssistantTaskContextProvider {
     private final AutomationStore store;
     private final TaskAuthority authority;
     private final TaskRegistry registry;
@@ -56,6 +56,45 @@ public final class AutomationService {
 
     public List<StoredTask> tasks(AccountAccess actor, int offset) throws SQLException {
         return tasksFor(authority.current(actor), offset);
+    }
+
+    @Override
+    public AutomationViews.Task require(AccountAccess actor, String taskId) throws SQLException {
+        actor = authority.current(actor);
+        var row = store.task(taskId);
+        if (row != null) {
+            var definition = registry.require(row.value.type).definition;
+            authority.access(actor, row.value, definition);
+            var view = AutomationDashboard.task(row.value);
+            view.requiredActions = List.copyOf(definition.requiredActions);
+            return view;
+        }
+        // Removing a schedule does not remove its retained execution conversation.
+        var retained = store.visibleRuns(actor.getUserId(), systemTaskIds(actor), taskId, 1, 0);
+        if (retained.isEmpty()) throw new PermissionErrorException();
+        var run = retained.get(0).value;
+        var definition = registry.require(run.taskType).definition;
+        for (String action : definition.requiredActions) TaskAuthority.require(actor, action);
+        var view = new AutomationViews.Task();
+        view.type = run.taskType;
+        view.revision = run.taskRevision;
+        view.id = taskId;
+        view.name = AutomationDashboard.run(run).taskName;
+        view.systemTask = run.ownerId == 0;
+        view.archived = true;
+        view.enabled = false;
+        view.lastRunAt = run.startedAt;
+        view.lastStatus = run.status;
+        view.requiredActions = List.copyOf(definition.requiredActions);
+        return view;
+    }
+
+    @Override
+    public List<AutomationModels.Run> recentRuns(AccountAccess actor, String taskId)
+            throws SQLException {
+        return runs(actor, taskId, 5, 0).stream()
+                .map(run -> (AutomationModels.Run) AutomationDashboard.run(run))
+                .collect(Collectors.toList());
     }
 
     List<StoredTask> tasksFor(AccountAccess actor, int offset) throws SQLException {

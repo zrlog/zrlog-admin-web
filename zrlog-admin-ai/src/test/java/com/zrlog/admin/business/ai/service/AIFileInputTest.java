@@ -69,6 +69,7 @@ public class AIFileInputTest {
 
     private static ChatRequest request(long articleId, Input... files) {
         ChatRequest input = new ChatRequest();
+        input.articleId = 0L;
         input.articleId = articleId;
         input.input = "Analyze the supplied document";
         input.files = List.of(files);
@@ -576,7 +577,8 @@ public class AIFileInputTest {
             assertFalse(checkpoint.contains("file_data"));
             assertFalse(checkpoint.contains(png.data));
             ApprovalRequest decision = new ApprovalRequest();
-            decision.articleId = 7;
+            decision.articleId = 0L;
+            decision.articleId = 7L;
             decision.runId = view.runId;
             decision.approvalId = view.approval.id;
             decision.decision = "reject";
@@ -962,8 +964,9 @@ public class AIFileInputTest {
                                     info())
                             .get(0);
             Run run = new Run();
+            run.articleId = 0L;
             run.userId = 1;
-            run.articleId = 0;
+            run.articleId = 0L;
             run.input = "Describe";
             run.attachments = List.of(image);
             AIApprovalStore checkpoints =
@@ -1070,8 +1073,9 @@ public class AIFileInputTest {
                                     com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId(), 0))
                     .appendAIMessageEntries(List.of(entry), -1L);
             Run draft = new Run();
+            draft.articleId = 0L;
             draft.userId = 1;
-            draft.articleId = 0;
+            draft.articleId = 0L;
             draft.input = "Read notes";
             draft.attachments = List.of(file);
             AIApprovalStore store =

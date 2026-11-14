@@ -150,7 +150,7 @@ export default function PersonalTasks({
                                     </div>
                                     <Space wrap className={styles.actions}>
                                         <Button type="link" onClick={() => onHistory(task)}>
-                                            {res.history}
+                                            {res.conversation}
                                         </Button>
                                         <Button disabled={disabled || !!task.activeRunId} onClick={() => onEdit(task)}>
                                             {res.edit}

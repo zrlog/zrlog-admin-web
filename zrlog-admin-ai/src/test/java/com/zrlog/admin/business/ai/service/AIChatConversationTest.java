@@ -73,7 +73,7 @@ public class AIChatConversationTest {
             scope("off", db.dataSource());
             Model model = new Model(applicationConfig, ANSWER);
             ChatRequest request = input();
-            request.articleId = 7;
+            request.articleId = 7L;
             model.service
                     .start(
                             com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
@@ -291,6 +291,7 @@ public class AIChatConversationTest {
 
     private ChatRequest input() {
         ChatRequest r = new ChatRequest();
+        r.articleId = 0L;
         r.input = "What is in the blog?";
         return r;
     }
@@ -386,7 +387,7 @@ public class AIChatConversationTest {
                     false,
                     false);
             ChatRequest request = input();
-            request.articleId = 7;
+            request.articleId = 7L;
             Model model =
                     new Model(
                             applicationConfig,
@@ -430,7 +431,7 @@ public class AIChatConversationTest {
             assertNotNull(reply.getMessageId());
             assertTrue(stream.contains(reply.getMessageId()));
             ChatRequest followup = input();
-            followup.articleId = 7;
+            followup.articleId = 7L;
             followup.input = "Explain the previous answer";
             ChatMessage forged = new ChatMessage();
             forged.role = "assistant";
@@ -478,7 +479,7 @@ public class AIChatConversationTest {
             configure(db);
             Model missing = new Model(applicationConfig, ANSWER);
             ChatRequest request = input();
-            request.articleId = 99;
+            request.articleId = 99L;
             assertThrows(
                     PermissionErrorException.class,
                     () ->
@@ -869,6 +870,127 @@ public class AIChatConversationTest {
         }
     }
 
+    @Test
+    public void generalChatDoesNotReadOrOverwriteTheArticleDraft() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            scope("off", db.dataSource());
+            String draft = "[{\"role\":\"user\",\"content\":\"DRAFT_PRIVATE_CONTEXT\"}]";
+            db.putWebsite("ai_chat_message_u1_-1", draft);
+            Model model = new Model(applicationConfig, ANSWER);
+            ChatRequest request = input();
+            request.articleId = null;
+            var actor = AIServiceDependencies.actor(db.dataSource());
+            for (int turn = 0; turn < 2; turn++) {
+                request.input = "General question " + turn;
+                model.service
+                        .start(
+                                actor,
+                                request,
+                                AIServiceDependencies.audit(db.dataSource()),
+                                AdminTokenThreadLocal.getUser())
+                        .getInputStream()
+                        .readAllBytes();
+            }
+            String prompt = model.requests.get(1).getAsJsonArray("messages").toString();
+            assertTrue(prompt.contains("General question 0"));
+            assertFalse(prompt.contains("DRAFT_PRIVATE_CONTEXT"));
+            assertFalse(prompt.contains("Current editor article metadata"));
+            assertEquals(
+                    draft,
+                    db.scalar("select value from website where name='ai_chat_message_u1_-1'"));
+            var exported = model.service.exportConversation(actor, null, null);
+            assertNull(exported.getArticleId());
+            assertNull(exported.getTaskId());
+            assertFalse(exported.isDraft());
+            assertEquals(4, exported.getMessageCount());
+            assertTrue(exported.getMessages().stream().allMatch(entry -> entry.getCreatedAt() > 0));
+            assertTrue(model.service.clearConversation(actor, null, null));
+            assertEquals(0, model.service.exportConversation(actor, null, null).getMessageCount());
+            assertEquals(
+                    draft,
+                    db.scalar("select value from website where name='ai_chat_message_u1_-1'"));
+        }
+    }
+
+    @Test
+    public void oneTaskKeepsItsConversationAndRechecksAccess() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            scope("off", db.dataSource());
+            java.util.concurrent.atomic.AtomicBoolean allowed =
+                    new java.util.concurrent.atomic.AtomicBoolean(true);
+            Model model =
+                    new Model(
+                            applicationConfig,
+                            (actor, taskId) -> {
+                                if (!allowed.get()
+                                        || !Set.of("task-one", "task-two").contains(taskId))
+                                    throw new PermissionErrorException();
+                                var plan =
+                                        new com.zrlog.admin.business.automation.AutomationModels
+                                                .Plan();
+                                plan.id = taskId;
+                                plan.name = "Authorized task";
+                                return plan;
+                            },
+                            ANSWER);
+            var actor = AIServiceDependencies.actor(db.dataSource());
+            ChatRequest request = input();
+            request.articleId = null;
+            request.taskId = "task-one";
+            request.input = "FIRST_TASK_QUESTION";
+            model.service
+                    .start(
+                            actor,
+                            request,
+                            AIServiceDependencies.audit(db.dataSource()),
+                            AdminTokenThreadLocal.getUser())
+                    .getInputStream()
+                    .readAllBytes();
+            request.input = "Continue this task";
+            model.service
+                    .start(
+                            actor,
+                            request,
+                            AIServiceDependencies.audit(db.dataSource()),
+                            AdminTokenThreadLocal.getUser())
+                    .getInputStream()
+                    .readAllBytes();
+            assertTrue(model.requests.get(1).toString().contains("FIRST_TASK_QUESTION"));
+            assertTrue(model.requests.get(1).toString().contains("Authorized task"));
+            assertEquals(
+                    4, model.service.exportConversation(actor, null, "task-one").getMessageCount());
+            assertEquals(
+                    "task-one",
+                    model.service.exportConversation(actor, null, "task-one").getTaskId());
+            assertEquals(
+                    0, model.service.exportConversation(actor, null, "task-two").getMessageCount());
+            assertEquals(0, model.service.exportConversation(actor, null, null).getMessageCount());
+            allowed.set(false);
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> model.service.conversationInfo(actor, null, "task-one"));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> model.service.getRun(actor, null, "task-one"));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> model.service.clearConversation(actor, null, "task-one"));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> model.service.exportConversation(actor, null, "task-one"));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            model.service.start(
+                                    actor,
+                                    request,
+                                    AIServiceDependencies.audit(db.dataSource()),
+                                    AdminTokenThreadLocal.getUser()));
+        }
+    }
+
     private static class Model extends AIChatModelClient {
         final AIChatService service;
         final AIChatRunExecutor executor;
@@ -877,6 +999,18 @@ public class AIChatConversationTest {
         Runnable afterRequest = () -> {};
 
         Model(ZrLogConfig config, String... responses) {
+            this(
+                    config,
+                    (actor, taskId) -> {
+                        throw new PermissionErrorException();
+                    },
+                    responses);
+        }
+
+        Model(
+                ZrLogConfig config,
+                com.zrlog.admin.business.automation.AssistantTaskContextProvider taskContexts,
+                String... responses) {
             super(new AIFileService());
             this.service =
                     AIServiceDependencies.chat(
@@ -888,7 +1022,8 @@ public class AIChatConversationTest {
                             AIServiceDependencies.writing(
                                     config == null
                                             ? null
-                                            : (DataSourceWrapper) config.getDataSource()));
+                                            : (DataSourceWrapper) config.getDataSource()),
+                            taskContexts);
             this.executor =
                     AIServiceDependencies.executor(
                             config == null ? null : (DataSourceWrapper) config.getDataSource(),

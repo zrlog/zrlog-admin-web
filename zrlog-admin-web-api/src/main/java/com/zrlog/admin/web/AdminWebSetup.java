@@ -112,6 +112,9 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                 zrLogConfig.getServerConfig()::getContextPath))
                 .singleton(TokenService.class, r -> r.get(AccountComponent.class).tokens())
                 .singleton(
+                        com.zrlog.admin.business.automation.AssistantTaskContextProvider.class,
+                        r -> r.get(AutomationComponent.class).tasks())
+                .singleton(
                         AutomationComponent.class,
                         r ->
                                 DaggerAutomationComponent.factory()

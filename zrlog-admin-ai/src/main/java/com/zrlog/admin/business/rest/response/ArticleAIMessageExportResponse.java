@@ -6,6 +6,16 @@ import java.util.List;
 public class ArticleAIMessageExportResponse {
 
     private Long articleId;
+    private String taskId;
+
+    public String getTaskId() {
+        return taskId;
+    }
+
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
+    }
+
     private boolean draft;
     private long exportedAt;
     private int messageCount;

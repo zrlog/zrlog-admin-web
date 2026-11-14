@@ -20,6 +20,26 @@ public final class AIServiceDependencies {
             AIChatModelClient model,
             AIFileService files,
             AIWritingSkillService.Factory skills) {
+        return chat(
+                source,
+                request,
+                tools,
+                model,
+                files,
+                skills,
+                (actor, taskId) -> {
+                    throw new com.zrlog.admin.business.exception.PermissionErrorException();
+                });
+    }
+
+    public static AIChatService chat(
+            DataSourceWrapper source,
+            com.hibegin.http.server.api.HttpRequest request,
+            ContentToolFactory tools,
+            AIChatModelClient model,
+            AIFileService files,
+            AIWritingSkillService.Factory skills,
+            com.zrlog.admin.business.automation.AssistantTaskContextProvider taskContexts) {
         var account = AccountServicesFixture.component(source);
         return new AIChatService(
                 request,
@@ -32,7 +52,8 @@ public final class AIServiceDependencies {
                 conversations(source),
                 references(tools, source),
                 executor(source, model, files, skills),
-                new AIChatSseWriter());
+                new AIChatSseWriter(),
+                taskContexts);
     }
 
     static AIChatRunExecutor executor(
@@ -62,7 +83,7 @@ public final class AIServiceDependencies {
 
     public static com.zrlog.admin.business.audit.AdminAuditContext audit(DataSourceWrapper source) {
         return new com.zrlog.admin.business.audit.AdminAuditContext(
-                actor(source).getUserId(), "127.0.0.1", "/api/admin/article/ai", null);
+                actor(source).getUserId(), "127.0.0.1", "/api/admin/assistant/chat", null);
     }
 
     public static AIConfigService config(DataSourceWrapper source) {

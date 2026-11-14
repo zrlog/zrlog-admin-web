@@ -34,7 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Objects;
 
-public class AIArticleController extends BaseController {
+public class AssistantChatController extends BaseController {
     private final AIConversationService conversations;
 
     private final AIFileService aIFileService;
@@ -48,7 +48,7 @@ public class AIArticleController extends BaseController {
     private final AIPublishCheckService publishingService;
 
     @Inject
-    public AIArticleController(
+    public AssistantChatController(
             UploadService uploadService,
             AIChatService chat,
             AIReferenceService references,
@@ -70,7 +70,7 @@ public class AIArticleController extends BaseController {
         this.uploadService = uploadService;
     }
 
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.POST)
     public void ai() throws IOException, InterruptedException, SQLException {
         String tool = request.getParaToStr("tool", "");
@@ -106,7 +106,7 @@ public class AIArticleController extends BaseController {
         writeStream(streamResponse);
     }
 
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.POST)
     public void approveAiOperation() throws IOException, SQLException {
         java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
@@ -119,7 +119,7 @@ public class AIArticleController extends BaseController {
                         AdminTokenThreadLocal.getUser()));
     }
 
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.POST)
     public void submitAiInput() throws IOException, SQLException {
         java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
@@ -133,23 +133,15 @@ public class AIArticleController extends BaseController {
     }
 
     @ResponseBody
-    @RequiresAction(
-            value = AccountAction.ARTICLE_ASSIST,
-            articleQuery = true,
-            descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.GET)
     public ApiStandardResponse<AIChatModels.RunView> aiRun() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
         return new ApiStandardResponse<>(
-                chat.getRun(
-                        requestIdentity.current(),
-                        Long.parseLong(request.getParaToStr("id", "0"))));
+                chat.getRun(requestIdentity.current(), articleId(), taskId()));
     }
 
-    @RequiresAction(
-            value = AccountAction.ARTICLE_ASSIST,
-            articleQuery = true,
-            descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.GET)
     public void aiFile() throws SQLException, IOException {
         response.addHeader("Cache-Control", "private, no-store");
@@ -157,7 +149,8 @@ public class AIArticleController extends BaseController {
         var file =
                 chat.imageAttachment(
                         requestIdentity.current(),
-                        Long.parseLong(request.getParaToStr("id", "0")),
+                        articleId(),
+                        taskId(),
                         getParamWithEmptyCheck("fileId"));
         byte[] bytes = this.aIFileService.read(requestIdentity.current().getUserId(), file);
         response.setContentType(file.mimeType);
@@ -183,13 +176,50 @@ public class AIArticleController extends BaseController {
         response.write(streamResponse.getInputStream(), streamResponse.getStatusCode());
     }
 
+    private Long articleId() {
+        String id = request.getParaToStr("id");
+        try {
+            return id == null || id.isBlank() ? null : Long.valueOf(id);
+        } catch (NumberFormatException error) {
+            throw new ArgsException();
+        }
+    }
+
+    private String taskId() {
+        return request.getParaToStr("taskId");
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
+    @RequestMethod(method = HttpMethod.GET)
+    public ApiStandardResponse<AIChatModels.ConversationView> conversation() throws SQLException {
+        response.addHeader("Cache-Control", "private, no-store");
+        var info = chat.conversationInfo(requestIdentity.current(), articleId(), taskId());
+        var view = new AIChatModels.ConversationView();
+        view.aiProvider = info.getAi_provider();
+        view.aiModel = info.getAi_model();
+        view.aiFileInput = AIFileService.capabilities(info);
+        view.aiConfigured =
+                info.getAi_provider() != null
+                        && StringUtils.isNotEmpty(info.getAi_model())
+                        && (StringUtils.isNotEmpty(info.getAi_api_key())
+                                || StringUtils.isNotEmpty(info.getAi_base_url()));
+        view.aiMessages =
+                info.getAiMessages().stream()
+                        .filter(entry -> !"system".equals(entry.getRole()))
+                        .collect(java.util.stream.Collectors.toList());
+        return new ApiStandardResponse<>(view);
+    }
+
     private long aiContextId() {
-        long id = Long.parseLong(request.getParaToStr("id", "0"));
+        Long id = articleId();
+        if (id == null || taskId() != null) throw new ArgsException();
+        AIConversationScope.key(id, null);
         return id == 0 ? -(long) requestIdentity.current().getUserId() : id;
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.GET)
     public ApiStandardResponse<KnowledgeModels.SearchResult> aiReferences() throws SQLException {
         response.addHeader("Cache-Control", "private, no-store");
@@ -198,34 +228,23 @@ public class AIArticleController extends BaseController {
     }
 
     @ResponseBody
-    @RequiresAction(
-            value = AccountAction.ARTICLE_ASSIST,
-            articleQuery = true,
-            descriptionKey = "article.aiMessage")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.message")
+    @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<Boolean> updateAiMessage() throws SQLException {
         UpdateAIMessageRequest updateRequest =
                 getRequestBodyWithNullCheck(UpdateAIMessageRequest.class);
         boolean updated =
-                this.conversations
-                        .captureAccount(requestIdentity.current().getUserId())
-                        .updateAIMessagePayload(
-                                aiContextId(),
-                                updateRequest.getMessageId(),
-                                updateRequest.getTool(),
-                                updateRequest.getPayload());
+                chat.updateMessage(requestIdentity.current(), articleId(), taskId(), updateRequest);
         return new ApiStandardResponse<>(updated);
     }
 
     @ResponseBody
     @RequiresAction(
             value = AccountAction.ARTICLE_ASSIST,
-            articleQuery = true,
-            descriptionKey = "article.clearAiMessages")
-    public ApiStandardResponse<Boolean> clearAiMessages() {
-        boolean cleared =
-                this.conversations
-                        .captureAccount(requestIdentity.current().getUserId())
-                        .clearAIMessage(aiContextId());
+            descriptionKey = "assistant.clearMessages")
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<Boolean> clearAiMessages() throws SQLException {
+        boolean cleared = chat.clearConversation(requestIdentity.current(), articleId(), taskId());
         if (!cleared) throw new AIMessageSaveException();
         return new ApiStandardResponse<>(
                 cleared, I18nUtil.getAdminBackendStringFromRes("admin.ai.messages.clear.success"));
@@ -234,13 +253,12 @@ public class AIArticleController extends BaseController {
     @ResponseBody
     @RequiresAction(
             value = AccountAction.ARTICLE_ASSIST,
-            articleQuery = true,
-            descriptionKey = "article.exportAiMessages")
-    public ApiStandardResponse<ArticleAIMessageExportResponse> exportAiMessages() {
+            descriptionKey = "assistant.exportMessages")
+    @RequestMethod(method = HttpMethod.GET)
+    public ApiStandardResponse<ArticleAIMessageExportResponse> exportAiMessages()
+            throws SQLException {
         return new ApiStandardResponse<>(
-                this.conversations
-                        .captureAccount(requestIdentity.current().getUserId())
-                        .exportAIMessage(aiContextId()));
+                chat.exportConversation(requestIdentity.current(), articleId(), taskId()));
     }
 
     @ResponseBody

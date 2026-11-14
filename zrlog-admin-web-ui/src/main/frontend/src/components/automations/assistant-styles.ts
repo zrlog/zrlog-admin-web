@@ -2,23 +2,35 @@ import { createStyles } from "antd-style";
 
 export const useAssistantStyles = createStyles(({ token, css }) => ({
     page: css`
+        box-sizing: border-box;
+        width: 100%;
         max-width: 1280px;
+        min-width: 0;
         margin: 0 auto;
         padding: ${token.padding}px;
         @media (max-width: ${token.screenSM}px) {
             padding: ${token.paddingXS}px;
         }
     `,
+    conversationPage: css`
+        display: flex;
+        flex-direction: column;
+        height: var(--admin-content-height);
+        min-height: 0;
+    `,
     header: css`
         display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
         gap: ${token.marginSM}px;
-        margin-bottom: ${token.marginLG}px;
+        margin-bottom: ${token.marginSM}px;
     `,
-    headerText: css`
+    conversationPanel: css`
         flex: 1;
-        min-width: 0;
+        min-height: 0;
+        overflow: auto;
     `,
     workspace: css`
         display: grid;

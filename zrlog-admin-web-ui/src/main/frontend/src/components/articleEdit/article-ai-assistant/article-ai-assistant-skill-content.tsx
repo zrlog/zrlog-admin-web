@@ -1,33 +1,34 @@
-import {AiFileCapabilities, AiFileList, AiFilePicker} from "./article-ai-files";
+import { AiFileCapabilities, AiFileList, AiFilePicker } from "./article-ai-files";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
 import CloseIcon from "@zrlog/ui/icons/close";
 import InfoIcon from "@zrlog/ui/icons/info";
-import {FunctionComponent, useEffect, useId, useRef, useState} from "react";
-import {Button, Space, Typography} from "antd";
-import type {TextAreaRef} from "antd/es/input/TextArea";
-import type {AxiosInstance} from "axios";
-import {useArticleAiMentions} from "./use-article-ai-mentions";
-import {AiMentionInput, encodeAiMentions, withAiMentionLabels} from "./article-ai-mentions";
+import { FunctionComponent, useEffect, useId, useRef, useState } from "react";
+import { Button, Space, Typography } from "antd";
+import type { TextAreaRef } from "antd/es/input/TextArea";
+import type { AxiosInstance } from "axios";
+import { useArticleAiMentions } from "./use-article-ai-mentions";
+import { AiMentionInput, encodeAiMentions, withAiMentionLabels } from "./article-ai-mentions";
 
 import AIIcon from "../../../icons/AIProviderIcon";
-import {getEditorRes} from "@zrlog/editor/dist/editor/lang/editor-lang";
-import {getRes} from "../../../utils/constants";
-import {AssistantTool, AssistantToolButton} from "./article-ai-assistant.types";
+import { getEditorRes } from "@zrlog/editor/dist/editor/lang/editor-lang";
+import { getRes } from "../../../utils/constants";
+import { AssistantTool, AssistantToolButton } from "./article-ai-assistant.types";
 import {
     buildAssistantToolButtons,
     buildAssistantToolGroups,
     getAssistantToolLabel,
 } from "./tool/article-ai-assistant-tools";
 import ArticleAiAssistantSkillPanel from "./article-ai-assistant-skill-panel";
-import {QueuedAiMessage} from "./use-article-ai-queue";
+import { QueuedAiMessage } from "./use-article-ai-queue";
 
-const {TextArea} = Input;
+const { TextArea } = Input;
 const REWRITE_MIN_MARKDOWN_LENGTH = 120;
 
 type ArticleAiAssistantSkillContentProps = {
     aiProvider: any;
+    writingContext?: boolean;
     disabled: boolean;
     busy: boolean;
     waiting: boolean;
@@ -46,23 +47,24 @@ type ArticleAiAssistantSkillContentProps = {
 };
 
 const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillContentProps> = ({
-                                                                                                    aiProvider,
-                                                                                                    disabled,
-                                                                                                    busy,
-                                                                                                    waiting,
-                                                                                                    onStop,
-                                                                                                    queuedMessages,
-                                                                                                    queuePaused,
-                                                                                                    onRemoveQueued,
-                                                                                                    onResumeQueue,
-                                                                                                    theme,
-                                                                                                    selectedText,
-                                                                                                    markdownLength,
-                                                                                                    onSubmit,
-                                                                                                    fileInput,
-                                                                                                    preparingFiles,
-                                                                                                    api,
-                                                                                                }) => {
+    aiProvider,
+    writingContext = true,
+    disabled,
+    busy,
+    waiting,
+    onStop,
+    queuedMessages,
+    queuePaused,
+    onRemoveQueued,
+    onResumeQueue,
+    theme,
+    selectedText,
+    markdownLength,
+    onSubmit,
+    fileInput,
+    preparingFiles,
+    api,
+}) => {
     const [input, setInput] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [selectedTool, setSelectedTool] = useState<AssistantTool>();
@@ -80,9 +82,9 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const assistantRes = getRes().articleEdit.assistant;
     const selectedTextValue = selectedText?.trim() || "";
     const rewriteDisabled = markdownLength < REWRITE_MIN_MARKDOWN_LENGTH;
-    const toolButtons = buildAssistantToolButtons().map((tool) =>
+    const toolButtons = (writingContext ? buildAssistantToolButtons() : []).map((tool) =>
         tool.key === "rewrite" && rewriteDisabled
-            ? {...tool, disabled: true, disabledReason: assistantRes.rewriteDraftRequired}
+            ? { ...tool, disabled: true, disabledReason: assistantRes.rewriteDraftRequired }
             : tool
     );
     const toolGroups = buildAssistantToolGroups();
@@ -148,16 +150,16 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const submit = (message: string, tool?: AssistantTool) => {
         const accepted = mentions.mentions.length
             ? onSubmit(
-                withAiMentionLabels(message, mentions.mentions),
-                tool,
-                files,
-                encodeAiMentions(mentions.mentions, files)
-            )
+                  withAiMentionLabels(message, mentions.mentions),
+                  tool,
+                  files,
+                  encodeAiMentions(mentions.mentions, files)
+              )
             : files.length
-                ? onSubmit(message, tool, files)
-                : tool
-                    ? onSubmit(message, tool)
-                    : onSubmit(message);
+            ? onSubmit(message, tool, files)
+            : tool
+            ? onSubmit(message, tool)
+            : onSubmit(message);
         if (accepted) {
             setFiles([]);
             mentions.reset();
@@ -192,7 +194,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             (!input.trim() && !files.length && !mentions.mentions.length) ||
             !submit(
                 input.trim() ||
-                (mentions.mentions.length ? assistantRes.mentions.prompt : getRes().articleEdit.files.prompt)
+                    (mentions.mentions.length ? assistantRes.mentions.prompt : getRes().articleEdit.files.prompt)
             )
         )
             return;
@@ -249,7 +251,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
         setInput(nextValue);
     };
 
-    const showSkillPanel = skillPanelOpen || (input.trimStart().startsWith("/") && !parseSkillCommand(input));
+    const showSkillPanel =
+        writingContext && (skillPanelOpen || (input.trimStart().startsWith("/") && !parseSkillCommand(input)));
     const parsedSkillCommand = parseSkillCommand(input);
     const selectedToolButton = selectedTool ? toolButtons.find((tool) => tool.key === selectedTool) : undefined;
     const activeToolDisabledReason = selectedToolButton?.disabledReason || parsedSkillCommand?.disabledReason;
@@ -261,8 +264,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const actionLabel = busy
         ? getRes().articleEdit.knowledge.stop
         : willQueue
-            ? assistantRes.addToQueue
-            : assistantRes.send;
+        ? assistantRes.addToQueue
+        : assistantRes.send;
 
     return (
         <>
@@ -286,14 +289,14 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 </div>
             )}
             {queuedMessages.length > 0 && (
-                <div style={{marginBottom: theme.marginSM}}>
+                <div style={{ marginBottom: theme.marginSM }}>
                     <Space wrap>
                         <Typography.Text type="secondary" role="status">
                             {queuePaused
                                 ? assistantRes.queuePaused
                                 : waiting
-                                    ? assistantRes.queueWaiting
-                                    : assistantRes.queuedMessages}
+                                ? assistantRes.queueWaiting
+                                : assistantRes.queuedMessages}
                         </Typography.Text>
                         {queuePaused && (
                             <Button size="small" disabled={disabled || busy || waiting} onClick={onResumeQueue}>
@@ -301,17 +304,17 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                             </Button>
                         )}
                     </Space>
-                    <div style={{maxHeight: 144, overflowY: "auto"}}>
+                    <div style={{ maxHeight: 144, overflowY: "auto" }}>
                         {queuedMessages.map((message) => (
-                            <div key={message.id} style={{display: "flex", gap: theme.marginXS, alignItems: "start"}}>
-                                <div style={{flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>
+                            <div key={message.id} style={{ display: "flex", gap: theme.marginXS, alignItems: "start" }}>
+                                <div style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                                     {message.tool && <Tag>{getAssistantToolLabel(message.tool)}</Tag>}
                                     {message.input}
-                                    <AiFileList files={message.files} compact/>
+                                    <AiFileList files={message.files} compact />
                                 </div>
                                 <Button
                                     type="text"
-                                    icon={<CloseIcon/>}
+                                    icon={<CloseIcon />}
                                     aria-label={assistantRes.removeQueued}
                                     title={assistantRes.removeQueued}
                                     onClick={() => onRemoveQueued(message.id)}
@@ -338,16 +341,18 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                         >
                             @
                         </Button>
-                        <Button
-                            type="text"
-                            icon={<AIIcon name={aiProvider}/>}
-                            disabled={disabled}
-                            aria-expanded={showSkillPanel}
-                            aria-controls={showSkillPanel ? skillPanelId : undefined}
-                            onClick={() => setSkillPanelOpen((prevState) => !prevState)}
-                        >
-                            {getRes().articleEdit.assistant.skill}
-                        </Button>
+                        {writingContext && (
+                            <Button
+                                type="text"
+                                icon={<AIIcon name={aiProvider} />}
+                                disabled={disabled}
+                                aria-expanded={showSkillPanel}
+                                aria-controls={showSkillPanel ? skillPanelId : undefined}
+                                onClick={() => setSkillPanelOpen((prevState) => !prevState)}
+                            >
+                                {getRes().articleEdit.assistant.skill}
+                            </Button>
+                        )}
                     </Space>
                 }
                 action={
@@ -367,7 +372,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                                     }}
                                 />
                             ) : (
-                                <ArrowUpIcon/>
+                                <ArrowUpIcon />
                             )
                         }
                         disabled={busy ? !onStop : cannotSubmit}
@@ -377,30 +382,34 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     />
                 }
             >
-                <div style={{position: "relative"}}>
+                <div style={{ position: "relative" }}>
                     {mentions.panel}
                     {mentions.tags}
                     {selectedTool && (
-                        <Space style={{marginBottom: 6}}>
+                        <Space style={{ marginBottom: 6 }}>
                             <Tag closable color="processing" onClose={() => setSelectedTool(undefined)}>
                                 {getAssistantToolLabel(selectedTool)}
                             </Tag>
                         </Space>
                     )}
                     {activeToolDisabledReason ? (
-                        <Typography.Text type="secondary" style={{display: "block", fontSize: 12, marginBottom: 6}}>
+                        <Typography.Text type="secondary" style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
                             {activeToolDisabledReason}
                         </Typography.Text>
                     ) : null}
                     <TextArea
                         ref={inputRef}
                         {...mentions.inputProps}
-                        autoSize={{minRows: 1, maxRows: 5}}
+                        autoSize={{ minRows: 1, maxRows: 5 }}
                         variant="borderless"
                         disabled={disabled}
                         aria-label={assistantRes.messageInput}
                         value={input}
-                        placeholder={getRes().articleEdit.assistant.inputPlaceholder}
+                        placeholder={
+                            writingContext
+                                ? getRes().articleEdit.assistant.inputPlaceholder
+                                : getRes().assistant.messagePlaceholder
+                        }
                         onChange={(e) => {
                             mentions.setCaret(e.target.selectionStart);
                             updateInput(e.target.value);
@@ -429,8 +438,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 </div>
             </AiFilePicker>
             {willQueue && (
-                <Space wrap style={{marginTop: theme.marginXS, width: "100%", justifyContent: "space-between"}}>
-                    <Typography.Text type="secondary" style={{fontSize: theme.fontSizeSM}}>
+                <Space wrap style={{ marginTop: theme.marginXS, width: "100%", justifyContent: "space-between" }}>
+                    <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
                         {assistantRes.queueHint}
                     </Typography.Text>
                     {busy && (
@@ -451,7 +460,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     marginTop: 8,
                 }}
             >
-                <InfoIcon/>
+                <InfoIcon />
                 {getEditorRes("ai").contentTips}
             </Typography.Text>
         </>

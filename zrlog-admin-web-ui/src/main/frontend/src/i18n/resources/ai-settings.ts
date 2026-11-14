@@ -3,7 +3,6 @@ import type { I18nShape } from "../types";
 export const zhCN = {
     websiteAi: {
         title: "AI 设置",
-        label: "AI",
         summary: "配置全站共用的 AI 提供方、模型、接口和提示词",
         privacyBoundaryTitle: "外部 AI 请求边界",
         privacyBoundaryDesc:
@@ -54,7 +53,6 @@ export const zhCN = {
 export const enUS: I18nShape<typeof zhCN> = {
     websiteAi: {
         title: "AI settings",
-        label: "AI",
         summary: "Configure site-wide AI providers, models, endpoints and prompts",
         privacyBoundaryTitle: "External AI request boundary",
         privacyBoundaryDesc:

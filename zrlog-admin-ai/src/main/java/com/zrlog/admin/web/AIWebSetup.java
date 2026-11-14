@@ -21,9 +21,9 @@ import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.util.AdminSseEmitter;
-import com.zrlog.admin.web.controller.ai.AIArticleController;
 import com.zrlog.admin.web.controller.ai.AICommentController;
 import com.zrlog.admin.web.controller.ai.AIWebSiteController;
+import com.zrlog.admin.web.controller.ai.AssistantChatController;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.ai.AIComponent;
 import com.zrlog.admin.web.di.ai.DaggerAIComponent;
@@ -65,10 +65,14 @@ public class AIWebSetup implements ArticleAssistant {
                                                 r.get(ContentToolFactory.class),
                                                 r.get(UploadService.class),
                                                 r.get(WebSiteSettingsService.class),
-                                                r.get(PluginTokenValidator.class)))
+                                                r.get(PluginTokenValidator.class),
+                                                r.get(
+                                                        com.zrlog.admin.business.automation
+                                                                .AssistantTaskContextProvider
+                                                                .class)))
                 .singleton(AIReferenceService.class, r -> r.get(AIComponent.class).references())
                 .controller(
-                        AIArticleController.class,
+                        AssistantChatController.class,
                         (r, request, response) ->
                                 r.get(AIComponent.class).requests().create(request).articles())
                 .controller(
@@ -249,19 +253,19 @@ public class AIWebSetup implements ArticleAssistant {
                 "/api/admin/internal/ai/comment/analyze", AICommentController.class, "analyze");
         router.addMapper(
                 "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/cover/apply",
-                AIArticleController.class,
+                AssistantChatController.class,
                 "applyCover");
         router.addMapper(
-                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/message",
-                AIArticleController.class,
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/assistant/chat/message",
+                AssistantChatController.class,
                 "updateAiMessage");
         router.addMapper(
-                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/clear",
-                AIArticleController.class,
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/assistant/chat/messages/clear",
+                AssistantChatController.class,
                 "clearAiMessages");
         router.addMapper(
-                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/export",
-                AIArticleController.class,
+                "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/assistant/chat/messages/export",
+                AssistantChatController.class,
                 "exportAiMessages");
         router.addMapper(
                 "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/description/optimize",
@@ -271,22 +275,36 @@ public class AIWebSetup implements ArticleAssistant {
                 "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/ai/prompt/optimize",
                 AIWebSiteController.class,
                 "optimizeAiPrompt");
-        router.addMapper("/api/admin/article/ai", AIArticleController.class, "ai");
+        router.addMapper("/api/admin/assistant/chat", AssistantChatController.class, "ai");
         router.addMapper(
-                "/api/admin/article/ai/approval", AIArticleController.class, "approveAiOperation");
-        router.addMapper("/api/admin/article/ai/input", AIArticleController.class, "submitAiInput");
-        router.addMapper("/api/admin/article/ai/run", AIArticleController.class, "aiRun");
-        router.addMapper("/api/admin/article/ai/file", AIArticleController.class, "aiFile");
+                "/api/admin/assistant/chat/conversation",
+                AssistantChatController.class,
+                "conversation");
         router.addMapper(
-                "/api/admin/article/ai/references", AIArticleController.class, "aiReferences");
-        router.addMapper("/api/admin/article/applyCover", AIArticleController.class, "applyCover");
+                "/api/admin/assistant/chat/approval",
+                AssistantChatController.class,
+                "approveAiOperation");
         router.addMapper(
-                "/api/admin/article/updateAiMessage", AIArticleController.class, "updateAiMessage");
+                "/api/admin/assistant/chat/input", AssistantChatController.class, "submitAiInput");
+        router.addMapper("/api/admin/assistant/chat/run", AssistantChatController.class, "aiRun");
+        router.addMapper("/api/admin/assistant/chat/file", AssistantChatController.class, "aiFile");
         router.addMapper(
-                "/api/admin/article/clearAiMessages", AIArticleController.class, "clearAiMessages");
+                "/api/admin/assistant/chat/references",
+                AssistantChatController.class,
+                "aiReferences");
+        router.addMapper(
+                "/api/admin/article/applyCover", AssistantChatController.class, "applyCover");
+        router.addMapper(
+                "/api/admin/article/updateAiMessage",
+                AssistantChatController.class,
+                "updateAiMessage");
+        router.addMapper(
+                "/api/admin/article/clearAiMessages",
+                AssistantChatController.class,
+                "clearAiMessages");
         router.addMapper(
                 "/api/admin/article/exportAiMessages",
-                AIArticleController.class,
+                AssistantChatController.class,
                 "exportAiMessages");
         router.addMapper("/api/admin/website/ai", AIWebSiteController.class, "ai");
         router.addMapper(

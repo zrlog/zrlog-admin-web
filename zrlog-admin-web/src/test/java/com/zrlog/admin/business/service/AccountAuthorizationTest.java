@@ -85,7 +85,8 @@ public class AccountAuthorizationTest {
             db.loadAdminWebModules();
             ServerConfig config = db.config().getServerConfig();
             assertFalse(config.getRouter().getRouterMap().containsKey("/api/admin/knowledge/chat"));
-            assertNotNull(config.getRouter().getMethod("/api/admin/article/ai", HttpMethod.POST));
+            assertNotNull(
+                    config.getRouter().getMethod("/api/admin/assistant/chat", HttpMethod.POST));
             java.lang.reflect.Method commentAnalyze =
                     AICommentController.class.getMethod("analyze");
             assertEquals(

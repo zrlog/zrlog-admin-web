@@ -28,6 +28,7 @@ public class AIConversationService {
     private final AIFileService files;
     private final AIApprovalStore approvals;
     private final Integer conversationUserId;
+    private final String taskId;
 
     @Inject
     public AIConversationService(
@@ -42,6 +43,7 @@ public class AIConversationService {
         this.files = files;
         this.approvals = approvals;
         this.conversationUserId = null;
+        this.taskId = null;
     }
 
     private AIConversationService(
@@ -50,13 +52,15 @@ public class AIConversationService {
             WebsiteKvService websiteKvService,
             jakarta.inject.Provider<WebSiteRepository> websites,
             AIFileService files,
-            AIApprovalStore approvals) {
+            AIApprovalStore approvals,
+            String taskId) {
         this.store = store;
         this.websiteKvService = websiteKvService;
         this.websites = websites;
         this.files = files;
         this.approvals = approvals;
         this.conversationUserId = userId;
+        this.taskId = taskId;
     }
 
     static String buildCacheKey(Long articleId) {
@@ -67,7 +71,13 @@ public class AIConversationService {
     public AIConversationService captureAccount(int userId) {
         if (userId <= 0) throw new PermissionErrorException();
         return new AIConversationService(
-                userId, store, websiteKvService, websites, files, approvals);
+                userId, store, websiteKvService, websites, files, approvals, taskId);
+    }
+
+    public AIConversationService captureTask(String taskId) {
+        AIConversationScope.key(null, taskId);
+        return new AIConversationService(
+                conversationUserId(), store, websiteKvService, websites, files, approvals, taskId);
     }
 
     private Integer conversationUserId() {
@@ -78,7 +88,11 @@ public class AIConversationService {
     private String conversationKey(Long articleId) {
         Integer userId = conversationUserId();
         if (userId == null) throw new PermissionErrorException();
-        return "ai_chat_message_u" + userId + "_" + articleId;
+        String scope =
+                taskId != null || articleId == null
+                        ? AIConversationScope.key(articleId, taskId)
+                        : articleId.toString();
+        return "ai_chat_message_u" + userId + "_" + scope;
     }
 
     public boolean migrateDraftAIMessageToArticle(Long articleId) throws SQLException {
@@ -140,15 +154,19 @@ public class AIConversationService {
     }
 
     public boolean clearAIMessage(Long articleId) {
-        if (articleId == null
-                || (articleId < DRAFT_ARTICLE_ID
+        if (articleId != null
+                && (articleId < DRAFT_ARTICLE_ID
                         && articleId
                                 != -(long) Objects.requireNonNullElse(conversationUserId(), 0))) {
             return false;
         }
         try {
             AIApprovalStore checkpoints = this.approvals;
-            AIChatModels.Run run = checkpoints.read(conversationUserId(), Math.max(0, articleId));
+            AIChatModels.Run run =
+                    checkpoints.read(
+                            conversationUserId(),
+                            articleId == null ? null : Math.max(0, articleId),
+                            taskId);
             List<AIFileModels.Attachment> files = new ArrayList<>();
             for (var entry : getAiMessageInfoByArticleId(articleId).getAiMessages()) {
                 if (entry.getAttachments() != null) files.addAll(entry.getAttachments());
@@ -213,10 +231,14 @@ public class AIConversationService {
         AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
         ArticleAIMessageExportResponse response = new ArticleAIMessageExportResponse();
         response.setArticleId(articleId);
+        response.setTaskId(taskId);
         response.setDraft(articleId != null && articleId <= DRAFT_ARTICLE_ID);
         response.setExportedAt(System.currentTimeMillis());
-        response.setMessages(info.getAiMessages());
-        response.setMessageCount(info.getAiMessages().size());
+        response.setMessages(
+                info.getAiMessages().stream()
+                        .filter(entry -> !"system".equals(entry.getRole()))
+                        .collect(java.util.stream.Collectors.toList()));
+        response.setMessageCount(response.getMessages().size());
         return response;
     }
 
@@ -224,13 +246,17 @@ public class AIConversationService {
         String aiMessageKey = conversationKey(articleId);
         List<String> names = new ArrayList<>(AIConfigService.AI_WEBSITE_INFO_KEYS);
         names.add(aiMessageKey);
-        if (!aiMessageKey.equals(buildCacheKey(articleId))) names.add(buildCacheKey(articleId));
+        boolean article = articleId != null && taskId == null;
+        if (article && !aiMessageKey.equals(buildCacheKey(articleId)))
+            names.add(buildCacheKey(articleId));
         Map<String, Object> map = websites.get().getWebSiteByNameIn(names);
         AIWebSiteInfoWithAIMessages info =
                 AIConfigService.normalizeAIWebSiteInfo(
                         ResultBeanUtils.convert(map, AIWebSiteInfoWithAIMessages.class));
         fillAiMessages(
-                info, map, map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
+                info,
+                map,
+                article && map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
         return info;
     }
 
