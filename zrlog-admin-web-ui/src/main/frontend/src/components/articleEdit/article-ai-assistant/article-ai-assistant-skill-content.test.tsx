@@ -55,6 +55,7 @@ const render = (props: Partial<ComponentProps<typeof ArticleAiAssistantSkillCont
         root.render(
             <ConfigProvider theme={{ token: { motion: false } }}>
                 <ArticleAiAssistantSkillContent
+                    key={props.draftKey}
                     aiProvider="OPEN_AI"
                     disabled={false}
                     busy
@@ -360,4 +361,20 @@ it("keeps the prompt while article search fails and supports retry without sendi
     } finally {
         jest.useRealTimers();
     }
+});
+
+it("keeps unsent text and files separate when switching conversations", () => {
+    render({ fileInput, draftKey: "draft-first" });
+    type("Unsent in the first chat");
+    const file = new File(["a note"], "note.txt", { type: "text/plain" });
+    attach(file);
+    render({ fileInput, draftKey: "draft-second" });
+    expect(input().value).toBe("");
+    expect(container.textContent).not.toContain("note.txt");
+    type("Unsent in the second chat");
+    render({ fileInput, draftKey: "draft-first" });
+    expect(input().value).toBe("Unsent in the first chat");
+    expect(container.textContent).toContain("note.txt");
+    render({ fileInput, draftKey: "draft-second" });
+    expect(input().value).toBe("Unsent in the second chat");
 });

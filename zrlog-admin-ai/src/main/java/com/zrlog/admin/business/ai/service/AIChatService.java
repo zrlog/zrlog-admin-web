@@ -128,17 +128,33 @@ public class AIChatService {
             AdminAuditContext audit,
             AdminTokenVO credential)
             throws IOException, InterruptedException, SQLException {
+        return startStreamResponse(
+                actor, input, articleId, tool, articleContext, audit, credential, null);
+    }
+
+    public AIStreamResponse startStreamResponse(
+            AccountAccess actor,
+            String input,
+            Long articleId,
+            String tool,
+            GenerateArticleFieldRequest articleContext,
+            AdminAuditContext audit,
+            AdminTokenVO credential,
+            String sessionId)
+            throws IOException, InterruptedException, SQLException {
         if (articleId < 0 && articleId != -(long) actor.getUserId())
             throw new PermissionErrorException();
         long id = articleId <= 0 ? 0 : articleId;
         if (tool != null && !tool.isBlank()) {
-            access.authorizeArticle(actor, id);
-            return writingSkillService(actor)
+            authorizeSession(actor, id, null, sessionId);
+            return writingSkills
+                    .create(actor, conversation(actor, null, sessionId))
                     .startStreamResponse(input, articleId, tool, articleContext);
         }
         ChatRequest request = new ChatRequest();
         request.input = input;
         request.articleId = id;
+        request.sessionId = sessionId;
         return start(actor, request, audit, credential);
     }
 
@@ -149,15 +165,16 @@ public class AIChatService {
             AdminTokenVO credential)
             throws IOException, SQLException {
         input.doValid();
-        var task = authorizeContext(actor, input.articleId, input.taskId);
+        var task = authorizeSession(actor, input.articleId, input.taskId, input.sessionId);
         AIApprovalStore store = this.approvalStore;
-        Run existing = store.read(actor.getUserId(), input.articleId, input.taskId);
+        Run existing =
+                store.read(actor.getUserId(), input.articleId, input.taskId, input.sessionId);
         if (AIApprovalStore.active(existing)) {
             existing = invalidatePending(actor, existing);
             return stateResponse(actor, existing);
         }
         AIWebSiteInfoWithAIMessages info =
-                loadConversationInfo(actor, input.articleId, input.taskId, false);
+                loadConversationInfo(actor, input.articleId, input.taskId, false, input.sessionId);
         AIService.checkAiConfig(info);
         input.history = history(info.getAiMessages());
         UserPreferences preferences = this.userPreferenceService.effective(actor);
@@ -197,6 +214,15 @@ public class AIChatService {
         run.preferences = gson.toJson(settings);
         run.provider = info.getAi_provider().name();
         run.model = info.getAi_model();
+        conversations
+                .index()
+                .touch(
+                        actor.getUserId(),
+                        input.articleId,
+                        input.taskId,
+                        input.sessionId,
+                        task == null ? input.input : task.name,
+                        true);
         return stream(run, info, settings, actor, audit, credential, null);
     }
 
@@ -205,8 +231,14 @@ public class AIChatService {
     }
 
     public RunView getRun(AccountAccess actor, Long articleId, String taskId) throws SQLException {
-        authorizeContext(actor, articleId, taskId);
-        return visibleRun(actor, this.approvalStore.read(actor.getUserId(), articleId, taskId));
+        return getRun(actor, articleId, taskId, null);
+    }
+
+    public RunView getRun(AccountAccess actor, Long articleId, String taskId, String sessionId)
+            throws SQLException {
+        authorizeSession(actor, articleId, taskId, sessionId);
+        return visibleRun(
+                actor, this.approvalStore.read(actor.getUserId(), articleId, taskId, sessionId));
     }
 
     private com.zrlog.admin.business.automation.AutomationModels.Plan authorizeContext(
@@ -216,8 +248,71 @@ public class AIChatService {
         return taskId == null ? null : taskContexts.require(actor, taskId);
     }
 
-    private AIConversationService conversation(AccountAccess actor, String taskId) {
-        return this.conversations.captureAccount(actor.getUserId()).captureTask(taskId);
+    private AIConversationService conversation(
+            AccountAccess actor, String taskId, String sessionId) {
+        return this.conversations
+                .captureAccount(actor.getUserId())
+                .captureTask(taskId)
+                .captureSession(sessionId);
+    }
+
+    private com.zrlog.admin.business.automation.AutomationModels.Plan authorizeSession(
+            AccountAccess actor, Long articleId, String taskId, String sessionId)
+            throws SQLException {
+        AIConversationScope.validateSession(sessionId, taskId);
+        var task = authorizeContext(actor, articleId, taskId);
+        conversations.index().check(actor.getUserId(), articleId, taskId, sessionId);
+        return task;
+    }
+
+    public SessionPage sessions(
+            AccountAccess actor,
+            Long articleId,
+            boolean filterArticle,
+            String query,
+            Long before,
+            String beforeKey)
+            throws SQLException {
+        authorizeContext(actor, articleId, null);
+        var page =
+                conversations
+                        .index()
+                        .list(
+                                actor.getUserId(),
+                                articleId,
+                                filterArticle,
+                                query,
+                                before,
+                                beforeKey);
+        var visible = new ArrayList<Session>();
+        for (var item : page.items) {
+            try {
+                authorizeContext(actor, item.articleId, item.taskId);
+                visible.add(item);
+            } catch (PermissionErrorException ignored) {
+                /* Revoked contexts stay private. */
+            }
+        }
+        page.items = visible;
+        return page;
+    }
+
+    public boolean renameSession(AccountAccess actor, SessionChange input) throws SQLException {
+        input.doValid();
+        authorizeSession(actor, input.articleId, input.taskId, input.sessionId);
+        conversations.index().rename(actor.getUserId(), input);
+        return true;
+    }
+
+    public boolean deleteSession(AccountAccess actor, SessionChange input) throws SQLException {
+        input.doValid();
+        if (input.taskId != null) throw new ArgsException();
+        if (!clearConversation(actor, input.articleId, input.taskId, input.sessionId))
+            throw new AIMessageSaveException();
+        conversations
+                .index()
+                .remove(actor.getUserId(), input.articleId, input.taskId, input.sessionId);
+        return true;
     }
 
     public AIWebSiteInfoWithAIMessages conversationInfo(
@@ -228,14 +323,20 @@ public class AIChatService {
     public AIWebSiteInfoWithAIMessages conversationInfo(
             AccountAccess actor, Long articleId, String taskId, boolean earlier)
             throws SQLException {
-        authorizeContext(actor, articleId, taskId);
-        return loadConversationInfo(actor, articleId, taskId, earlier);
+        return conversationInfo(actor, articleId, taskId, earlier, null);
+    }
+
+    public AIWebSiteInfoWithAIMessages conversationInfo(
+            AccountAccess actor, Long articleId, String taskId, boolean earlier, String sessionId)
+            throws SQLException {
+        authorizeSession(actor, articleId, taskId, sessionId);
+        return loadConversationInfo(actor, articleId, taskId, earlier, sessionId);
     }
 
     private AIWebSiteInfoWithAIMessages loadConversationInfo(
-            AccountAccess actor, Long articleId, String taskId, boolean earlier)
+            AccountAccess actor, Long articleId, String taskId, boolean earlier, String sessionId)
             throws SQLException {
-        var conversation = conversation(actor, taskId);
+        var conversation = conversation(actor, taskId, sessionId);
         var info = conversation.getAiMessageInfoByArticleId(conversationId(actor, articleId));
         if (taskId != null) {
             var state = AIConversationService.feedbackState(info.getAiMessages());
@@ -247,19 +348,47 @@ public class AIChatService {
                 info = conversation.getAiMessageInfoByArticleId(null);
             }
         }
+        if (taskId != null
+                && info.getAiMessages().stream().anyMatch(m -> !"system".equals(m.getRole()))) {
+            conversations
+                    .index()
+                    .touch(
+                            actor.getUserId(),
+                            null,
+                            taskId,
+                            null,
+                            taskContexts.require(actor, taskId).name,
+                            false);
+        } else
+            conversation.indexMessages(
+                    conversationId(actor, articleId), info.getAiMessages(), false);
         return info;
     }
 
     public boolean clearConversation(AccountAccess actor, Long articleId, String taskId)
             throws SQLException {
-        authorizeContext(actor, articleId, taskId);
-        return conversation(actor, taskId).clearAIMessage(conversationId(actor, articleId));
+        return clearConversation(actor, articleId, taskId, null);
+    }
+
+    public boolean clearConversation(
+            AccountAccess actor, Long articleId, String taskId, String sessionId)
+            throws SQLException {
+        authorizeSession(actor, articleId, taskId, sessionId);
+        return conversation(actor, taskId, sessionId)
+                .clearAIMessage(conversationId(actor, articleId));
     }
 
     public com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse exportConversation(
             AccountAccess actor, Long articleId, String taskId) throws SQLException {
-        authorizeContext(actor, articleId, taskId);
-        return conversation(actor, taskId).exportAIMessage(conversationId(actor, articleId));
+        return exportConversation(actor, articleId, taskId, null);
+    }
+
+    public com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse exportConversation(
+            AccountAccess actor, Long articleId, String taskId, String sessionId)
+            throws SQLException {
+        authorizeSession(actor, articleId, taskId, sessionId);
+        return conversation(actor, taskId, sessionId)
+                .exportAIMessage(conversationId(actor, articleId));
     }
 
     public boolean updateMessage(
@@ -268,8 +397,18 @@ public class AIChatService {
             String taskId,
             com.zrlog.admin.business.rest.request.UpdateAIMessageRequest input)
             throws SQLException {
-        authorizeContext(actor, articleId, taskId);
-        return conversation(actor, taskId)
+        return updateMessage(actor, articleId, taskId, input, null);
+    }
+
+    public boolean updateMessage(
+            AccountAccess actor,
+            Long articleId,
+            String taskId,
+            com.zrlog.admin.business.rest.request.UpdateAIMessageRequest input,
+            String sessionId)
+            throws SQLException {
+        authorizeSession(actor, articleId, taskId, sessionId);
+        return conversation(actor, taskId, sessionId)
                 .updateAIMessagePayload(
                         conversationId(actor, articleId),
                         input.getMessageId(),
@@ -285,17 +424,24 @@ public class AIChatService {
 
     public AIFileModels.Attachment imageAttachment(
             AccountAccess actor, Long articleId, String taskId, String fileId) throws SQLException {
-        authorizeContext(actor, articleId, taskId);
+        return imageAttachment(actor, articleId, taskId, fileId, null);
+    }
+
+    public AIFileModels.Attachment imageAttachment(
+            AccountAccess actor, Long articleId, String taskId, String fileId, String sessionId)
+            throws SQLException {
+        authorizeSession(actor, articleId, taskId, sessionId);
         List<AIFileModels.Attachment> files = new ArrayList<>();
         for (var message :
                 this.conversations
                         .captureAccount(actor.getUserId())
                         .captureTask(taskId)
+                        .captureSession(sessionId)
                         .getAiMessageInfoByArticleId(conversationId(actor, articleId))
                         .getAiMessages()) {
             if (message.getAttachments() != null) files.addAll(message.getAttachments());
         }
-        Run run = this.approvalStore.read(actor.getUserId(), articleId, taskId);
+        Run run = this.approvalStore.read(actor.getUserId(), articleId, taskId, sessionId);
         if (run != null && !"cancelled".equals(run.status) && run.attachments != null)
             files.addAll(run.attachments);
         return files.stream()
@@ -316,9 +462,9 @@ public class AIChatService {
             AdminTokenVO credential)
             throws IOException, SQLException {
         input.doValid();
-        authorizeContext(actor, input.articleId, input.taskId);
+        authorizeSession(actor, input.articleId, input.taskId, input.sessionId);
         AIApprovalStore store = this.approvalStore;
-        Run run = store.read(actor.getUserId(), input.articleId, input.taskId);
+        Run run = store.read(actor.getUserId(), input.articleId, input.taskId, input.sessionId);
         if (run == null || !run.id.equals(input.runId)) throw new PermissionErrorException();
         run = invalidatePending(actor, run);
         if (!"awaiting_approval".equals(AIApprovalStore.view(run).status)
@@ -329,6 +475,7 @@ public class AIChatService {
                 this.conversations
                         .captureAccount(actor.getUserId())
                         .captureTask(input.taskId)
+                        .captureSession(input.sessionId)
                         .getAiMessageInfoByArticleId(conversationId(actor, input.articleId));
         if (!sameContext(run, actor, settings, info)) {
             run.error = "permission";
@@ -340,7 +487,8 @@ public class AIChatService {
             store.save(run, "running");
         } catch (AIApprovalStore.Changed e) {
             return stateResponse(
-                    actor, store.read(actor.getUserId(), input.articleId, input.taskId));
+                    actor,
+                    store.read(actor.getUserId(), input.articleId, input.taskId, input.sessionId));
         }
         return stream(run, info, settings, actor, audit, credential, input.decision);
     }
@@ -352,9 +500,9 @@ public class AIChatService {
             AdminTokenVO credential)
             throws IOException, SQLException {
         input.doValid();
-        authorizeContext(actor, input.articleId, input.taskId);
+        authorizeSession(actor, input.articleId, input.taskId, input.sessionId);
         AIApprovalStore store = this.approvalStore;
-        Run run = store.read(actor.getUserId(), input.articleId, input.taskId);
+        Run run = store.read(actor.getUserId(), input.articleId, input.taskId, input.sessionId);
         if (run == null || !run.id.equals(input.runId)) throw new PermissionErrorException();
         run = invalidatePending(actor, run);
         if (!"awaiting_input".equals(AIApprovalStore.view(run).status)
@@ -366,6 +514,7 @@ public class AIChatService {
                 this.conversations
                         .captureAccount(actor.getUserId())
                         .captureTask(input.taskId)
+                        .captureSession(input.sessionId)
                         .getAiMessageInfoByArticleId(conversationId(actor, input.articleId));
         if (!sameContext(run, actor, settings, info)) {
             run.error = "permission";
@@ -435,7 +584,8 @@ public class AIChatService {
             store.save(run, "running");
         } catch (AIApprovalStore.Changed e) {
             return stateResponse(
-                    actor, store.read(actor.getUserId(), input.articleId, input.taskId));
+                    actor,
+                    store.read(actor.getUserId(), input.articleId, input.taskId, input.sessionId));
         }
         return stream(run, info, settings, actor, audit, credential, null);
     }
@@ -462,6 +612,7 @@ public class AIChatService {
                     conversations
                             .captureAccount(actor.getUserId())
                             .captureTask(run.taskId)
+                            .captureSession(run.sessionId)
                             .getAiMessageInfoByArticleId(conversationId(actor, run.articleId));
             allowed = sameContext(run, actor, settings, info);
             if (allowed && run.approval != null && run.nextTool < run.toolCalls.size()) {
@@ -498,7 +649,7 @@ public class AIChatService {
             try {
                 store.save(run, "failed");
             } catch (AIApprovalStore.Changed e) {
-                return store.read(run.userId, run.articleId, run.taskId);
+                return store.read(run.userId, run.articleId, run.taskId, run.sessionId);
             }
         }
         return run;
@@ -539,7 +690,7 @@ public class AIChatService {
             String decision)
             throws IOException {
         AIApprovalStore store = this.approvalStore;
-        AIConversationService conversations = conversation(actor, run.taskId);
+        AIConversationService conversations = conversation(actor, run.taskId, run.sessionId);
         // Each HTTP request uses the account and assistant settings checked at its entry point.
         // Tool operations retain their own authorization; model output does not query permissions.
         ToolProvider knowledge =
@@ -616,7 +767,10 @@ public class AIChatService {
                                     });
                         } catch (AIApprovalStore.Changed e) {
                             emitState(
-                                    actor, sink, store.read(run.userId, run.articleId, run.taskId));
+                                    actor,
+                                    sink,
+                                    store.read(
+                                            run.userId, run.articleId, run.taskId, run.sessionId));
                         } catch (Exception e) {
                             run.error = errorCode(e);
                             if (run.revision != null

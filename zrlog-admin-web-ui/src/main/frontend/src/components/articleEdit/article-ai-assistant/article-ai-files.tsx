@@ -94,7 +94,7 @@ export type AiFileCapabilities = {
 };
 export type AiFileInput = { name: string; data: string };
 export type AiFileAttachment = { id?: string; name: string; size: number; mimeType?: string; expiresAt?: number };
-export type AiFilePreviewContext = { api: AxiosInstance; articleId?: number; taskId?: string };
+export type AiFilePreviewContext = { api: AxiosInstance; articleId?: number; taskId?: string; sessionId?: string };
 
 // Keep local bytes outside serializable messages, exports and browser storage.
 const localPreviews = new WeakMap<AiFileAttachment, File>();
@@ -178,6 +178,7 @@ function AiFileCard({
     const api = previewContext?.api;
     const articleId = previewContext?.articleId;
     const taskId = previewContext?.taskId;
+    const sessionId = previewContext?.sessionId;
     useEffect(() => {
         setPreview(undefined);
         setPreviewFailed(false);
@@ -192,7 +193,7 @@ function AiFileCard({
         if (localFile) show(localFile.slice(0, localFile.size, mime));
         else if (fileId && api) {
             const config: AxiosRequestConfig & { showError: boolean } = {
-                params: { id: articleId, taskId, fileId },
+                params: { id: articleId, taskId, sessionId, fileId },
                 responseType: "blob",
                 signal: controller.signal,
                 showError: false,
@@ -217,7 +218,7 @@ function AiFileCard({
             controller.abort();
             if (url) URL.revokeObjectURL(url);
         };
-    }, [localFile, mime, fileId, api, articleId, taskId, retry]);
+    }, [localFile, mime, fileId, api, articleId, taskId, sessionId, retry]);
     const res = getRes().articleEdit.files;
     const extension = file.name.includes(".") ? file.name.split(".").pop()?.toUpperCase() : undefined;
     return (

@@ -125,7 +125,10 @@ public class AIApprovalTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource()),
+                                    new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .security()))
                             .captureAccount(
                                     Math.max(
                                             1,
@@ -267,7 +270,10 @@ public class AIApprovalTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource()),
+                                    new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .security()))
                                     .captureAccount(
                                             Math.max(
                                                     1,
@@ -387,7 +393,12 @@ public class AIApprovalTest {
                                                     () -> new WebSiteRepository(db.dataSource()),
                                                     new AIFileService(),
                                                     AIServiceDependencies.approvals(
-                                                            db.dataSource()))
+                                                            db.dataSource()),
+                                                    new com.zrlog.admin.business.ai.service
+                                                            .AIConversationIndex(
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .security()))
                                             .captureAccount(
                                                     Math.max(
                                                             1,
@@ -670,7 +681,10 @@ public class AIApprovalTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource()),
+                                    new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .security()))
                             .captureAccount(
                                     Math.max(
                                             1,
@@ -690,7 +704,10 @@ public class AIApprovalTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource()),
+                                    new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .security()))
                             .captureAccount(
                                     Math.max(
                                             1,
@@ -717,7 +734,10 @@ public class AIApprovalTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSiteRepository(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource()),
+                                    new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .security()))
                             .captureAccount(
                                     Math.max(
                                             1,
@@ -789,7 +809,12 @@ public class AIApprovalTest {
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSiteRepository(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.approvals(db.dataSource()))
+                                            AIServiceDependencies.approvals(db.dataSource()),
+                                            new com.zrlog.admin.business.ai.service
+                                                    .AIConversationIndex(
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .security()))
                                     .captureAccount(
                                             Math.max(
                                                     1,
@@ -801,7 +826,12 @@ public class AIApprovalTest {
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSiteRepository(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.approvals(db.dataSource()))
+                                            AIServiceDependencies.approvals(db.dataSource()),
+                                            new com.zrlog.admin.business.ai.service
+                                                    .AIConversationIndex(
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .security()))
                                     .captureAccount(
                                             Math.max(
                                                     1,
@@ -843,7 +873,10 @@ public class AIApprovalTest {
                                         ApplicationServicesFixture.websiteKv(db.dataSource()),
                                         () -> new WebSiteRepository(db.dataSource()),
                                         new AIFileService(),
-                                        AIServiceDependencies.approvals(db.dataSource()))
+                                        AIServiceDependencies.approvals(db.dataSource()),
+                                        new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                                AccountServicesFixture.component(db.dataSource())
+                                                        .security()))
                                 .captureAccount(
                                         Math.max(
                                                 1,

@@ -1,3 +1,6 @@
+import { newAssistantSessionId } from "../../utils/assistant-session";
+import ConversationNavigation, { conversationKey } from "./ConversationNavigation";
+import { getSsDate } from "../../base/SsData";
 import AssistantChat from "./AssistantChat";
 import ExecutionRecordsDrawer from "./ExecutionRecordsDrawer";
 import { hasAction } from "../../utils/account-access";
@@ -64,8 +67,31 @@ export default function Automations({
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedRun = searchParams.get("runId");
     const taskPage = Math.floor(Math.max(0, Number(searchParams.get("offset")) || 0) / 100) + 1;
-    const filter = searchParams.get("taskId") || data.selectedTask?.id;
+    const filter = searchParams.has("sessionId") ? undefined : searchParams.get("taskId") || data.selectedTask?.id;
     const [feedbackRevision, setFeedbackRevision] = useState(0);
+    const [conversationBusy, setConversationBusy] = useState(false);
+    const [sessionRevision, setSessionRevision] = useState(0);
+    const sessionId = searchParams.get("sessionId") || undefined;
+    const selection = { taskId: filter, sessionId };
+    const newConversation = () => {
+        const id = newAssistantSessionId();
+        window.localStorage.setItem(`${getSsDate().key}/assistant/general`, id);
+        navigate(getRealRouteUrl(`/assistant?sessionId=${id}`));
+    };
+    useEffect(() => {
+        if (!maintenanceOnly && !filter && !sessionId && !searchParams.has("tasks")) {
+            const previous = window.localStorage.getItem(`${getSsDate().key}/assistant/general`);
+            if (previous && /^[a-f0-9-]{36}$/.test(previous)) {
+                setSearchParams(
+                    (params) => {
+                        params.set("sessionId", previous);
+                        return params;
+                    },
+                    { replace: true }
+                );
+            }
+        }
+    }, [maintenanceOnly, filter, sessionId, setSearchParams, searchParams]);
     useEffect(() => {
         setDetail(selectedRun && data.selectedRun?.id === selectedRun ? data.selectedRun : undefined);
     }, [selectedRun, data.selectedRun]);
@@ -230,13 +256,52 @@ export default function Automations({
             ) : (
                 <div className={cx(styles.panel, styles.conversationPanel)}>
                     {isModuleEnabled("ai") && hasAction("article.assist") ? (
-                        <AssistantChat
-                            key={filter || "general"}
-                            taskId={filter}
-                            offline={offline}
-                            leading={taskHistory}
-                            revision={feedbackRevision}
-                        />
+                        <ConversationNavigation
+                            selection={selection}
+                            disabled={disabled || conversationBusy}
+                            revision={sessionRevision}
+                            onNew={newConversation}
+                            onDeleted={(item) => {
+                                if (conversationKey(item) === conversationKey(selection)) newConversation();
+                            }}
+                            onSelect={(item) => {
+                                if (item.articleId !== undefined)
+                                    navigate(
+                                        getRealRouteUrl(
+                                            `/article-edit${
+                                                item.articleId ? `?id=${item.articleId}&` : "?"
+                                            }assistantSession=${item.sessionId || "default"}`
+                                        )
+                                    );
+                                else if (item.taskId)
+                                    navigate(getRealRouteUrl(`/assistant?taskId=${encodeURIComponent(item.taskId)}`));
+                                else {
+                                    window.localStorage.setItem(
+                                        `${getSsDate().key}/assistant/general`,
+                                        item.sessionId || "default"
+                                    );
+                                    navigate(
+                                        getRealRouteUrl(
+                                            `/assistant${item.sessionId ? `?sessionId=${item.sessionId}` : ""}`
+                                        )
+                                    );
+                                }
+                            }}
+                        >
+                            {(toolbar) => (
+                                <AssistantChat
+                                    key={sessionId || filter || "general"}
+                                    taskId={filter}
+                                    sessionId={sessionId}
+                                    toolbar={toolbar}
+                                    onBusyChange={setConversationBusy}
+                                    onSaved={() => setSessionRevision((value) => value + 1)}
+                                    offline={offline}
+                                    leading={taskHistory}
+                                    revision={feedbackRevision}
+                                />
+                            )}
+                        </ConversationNavigation>
                     ) : task ? (
                         <>
                             {taskHistory}

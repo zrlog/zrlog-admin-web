@@ -24,7 +24,9 @@ public class AIConversationServiceTest {
                                             "Database is unavailable in this test");
                                 },
                                 new AIFileService(),
-                                AIServiceDependencies.approvals(null))
+                                AIServiceDependencies.approvals(null),
+                                new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                        AccountServicesFixture.component(null).security()))
                         .captureAccount(
                                 Math.max(
                                         1,
@@ -59,7 +61,9 @@ public class AIConversationServiceTest {
                                             "Database is unavailable in this test");
                                 },
                                 new AIFileService(),
-                                AIServiceDependencies.approvals(null))
+                                AIServiceDependencies.approvals(null),
+                                new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                        AccountServicesFixture.component(null).security()))
                         .captureAccount(
                                 Math.max(
                                         1,
@@ -88,7 +92,9 @@ public class AIConversationServiceTest {
                                             "Database is unavailable in this test");
                                 },
                                 new AIFileService(),
-                                AIServiceDependencies.approvals(null))
+                                AIServiceDependencies.approvals(null),
+                                new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                        AccountServicesFixture.component(null).security()))
                         .captureAccount(
                                 Math.max(
                                         1,

@@ -20,7 +20,9 @@ public class TaskFeedbackConversationTest {
                         ApplicationServicesFixture.websiteKv(db.dataSource()),
                         () -> new WebSiteRepository(db.dataSource()),
                         new AIFileService(),
-                        AIServiceDependencies.approvals(db.dataSource()))
+                        AIServiceDependencies.approvals(db.dataSource()),
+                        new com.zrlog.admin.business.ai.service.AIConversationIndex(
+                                AccountServicesFixture.component(db.dataSource()).security()))
                 .captureAccount(userId)
                 .captureTask("system.refresh");
     }

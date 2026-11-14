@@ -2,6 +2,23 @@ import type { I18nShape } from "../types";
 
 export const zhCN = {
     assistant: {
+        newConversation: "新对话",
+        historyConversations: "历史对话",
+        closeConversations: "收起历史对话",
+        searchConversations: "搜索对话标题",
+        noConversations: "还没有对话，发送消息后会保存在这里",
+        noMatchingConversations: "没有找到匹配的对话",
+        conversationsToday: "今天",
+        conversationsYesterday: "昨天",
+        conversationsEarlier: "更早",
+        moreConversations: "加载更多对话",
+        renameConversation: "重命名",
+        deleteConversation: "删除对话",
+        deleteConversationConfirm: "删除后无法恢复这段对话。文章内容和任务执行记录会保留。",
+        conversationMenu: "对话操作",
+        conversationTitle: "对话标题",
+        taskConversation: "任务",
+        stopBeforeNewConversation: "请先停止当前生成，再切换或新建对话",
         systemTasks: "系统维护",
         requiredPermissions: "所需权限",
         systemHelp: "全站共用的维护任务，有相应权限的账号可以暂停或调整。自动升级默认关闭。",
@@ -153,6 +170,24 @@ export const zhCN = {
 
 export const enUS: I18nShape<typeof zhCN> = {
     assistant: {
+        newConversation: "New chat",
+        historyConversations: "Chat history",
+        closeConversations: "Close chat history",
+        searchConversations: "Search chat titles",
+        noConversations: "Your conversations will appear here after you send a message",
+        noMatchingConversations: "No matching conversations",
+        conversationsToday: "Today",
+        conversationsYesterday: "Yesterday",
+        conversationsEarlier: "Earlier",
+        moreConversations: "Load more conversations",
+        renameConversation: "Rename",
+        deleteConversation: "Delete conversation",
+        deleteConversationConfirm:
+            "This conversation cannot be restored after deletion. Articles and task execution records will be kept.",
+        conversationMenu: "Conversation actions",
+        conversationTitle: "Conversation title",
+        taskConversation: "Task",
+        stopBeforeNewConversation: "Stop the current response before switching or starting a new chat",
         systemTasks: "System maintenance",
         requiredPermissions: "Required permissions",
         systemHelp:

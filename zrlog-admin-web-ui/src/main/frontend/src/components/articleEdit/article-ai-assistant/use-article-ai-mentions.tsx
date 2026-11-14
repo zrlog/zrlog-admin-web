@@ -23,13 +23,14 @@ export const useArticleAiMentions = (
     disabled: boolean,
     theme: any,
     focus: (caret: number) => void,
-    api?: AxiosInstance
+    api?: AxiosInstance,
+    initialMentions?: AiMention[]
 ) => {
     const res = getRes().articleEdit.assistant.mentions;
     const id = useId();
     const [caret, setCaret] = useState(0);
     const [dismissed, setDismissed] = useState<string>();
-    const [selected, setSelected] = useState<AiMention[]>([]);
+    const [selected, setSelected] = useState<AiMention[]>(initialMentions || []);
     const [active, setActive] = useState(0);
     const [retry, setRetry] = useState(0);
     const [search, setSearch] =

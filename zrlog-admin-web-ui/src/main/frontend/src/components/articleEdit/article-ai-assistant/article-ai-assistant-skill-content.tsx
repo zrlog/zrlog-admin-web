@@ -1,3 +1,4 @@
+import { assistantComposerDrafts as composerDrafts } from "./assistant-composer-drafts";
 import { AiFileCapabilities, AiFileList, AiFilePicker } from "./article-ai-files";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
@@ -27,6 +28,7 @@ const { TextArea } = Input;
 const REWRITE_MIN_MARKDOWN_LENGTH = 120;
 
 type ArticleAiAssistantSkillContentProps = {
+    draftKey?: string;
     aiProvider: any;
     writingContext?: boolean;
     disabled: boolean;
@@ -47,6 +49,7 @@ type ArticleAiAssistantSkillContentProps = {
 };
 
 const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillContentProps> = ({
+    draftKey,
     aiProvider,
     writingContext = true,
     disabled,
@@ -65,9 +68,10 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     preparingFiles,
     api,
 }) => {
-    const [input, setInput] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
-    const [selectedTool, setSelectedTool] = useState<AssistantTool>();
+    const initialDraft = draftKey ? composerDrafts.get(draftKey) : undefined;
+    const [input, setInput] = useState(initialDraft?.input || "");
+    const [files, setFiles] = useState<File[]>(initialDraft?.files || []);
+    const [selectedTool, setSelectedTool] = useState<AssistantTool | undefined>(initialDraft?.selectedTool);
     const [skillPanelOpen, setSkillPanelOpen] = useState(false);
     const skillPanelId = useId();
     const inputRef = useRef<TextAreaRef>(null);
@@ -77,7 +81,25 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             inputRef.current?.resizableTextArea?.textArea.setSelectionRange(caret, caret);
         });
     };
-    const mentions = useArticleAiMentions(input, setInput, files, disabled, theme, focusInput, api);
+    const mentions = useArticleAiMentions(
+        input,
+        setInput,
+        files,
+        disabled,
+        theme,
+        focusInput,
+        api,
+        initialDraft?.mentions
+    );
+    useEffect(() => {
+        if (!draftKey) return;
+        if (input || files.length || selectedTool || mentions.mentions.length)
+            composerDrafts.set(draftKey, { input, files, selectedTool, mentions: mentions.mentions });
+        else composerDrafts.delete(draftKey);
+    }, [draftKey, input, files, selectedTool, mentions.mentions]);
+    useEffect(() => {
+        if (draftKey && !disabled) inputRef.current?.focus();
+    }, [draftKey]);
 
     const assistantRes = getRes().articleEdit.assistant;
     const selectedTextValue = selectedText?.trim() || "";

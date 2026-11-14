@@ -26,6 +26,10 @@ type ConversationInfo = Pick<
 function Conversation({
     info,
     taskId,
+    sessionId,
+    toolbar,
+    onBusyChange,
+    onSaved,
     offline,
     leading,
     onEarlier,
@@ -35,6 +39,10 @@ function Conversation({
 }: {
     info: ConversationInfo;
     taskId?: string;
+    sessionId?: string;
+    toolbar?: ReactNode;
+    onBusyChange?: (busy: boolean) => void;
+    onSaved?: () => void;
     offline: boolean;
     leading?: ReactNode;
     onEarlier: () => void;
@@ -69,7 +77,7 @@ function Conversation({
         saving: { rubbishSaving: false, previewIng: false, autoSaving: false, releaseSaving: false },
     };
     const config = useArticleAiAssistantConfig({
-        context: { taskId },
+        context: { taskId, sessionId },
         data,
         draftAiSaveGate: gate,
         offline,
@@ -82,13 +90,24 @@ function Conversation({
     useEffect(() => {
         if (followMessages.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }, [config.messages]);
+    useEffect(() => {
+        onBusyChange?.(config.navigationBusy);
+        return () => onBusyChange?.(false);
+    }, [config.navigationBusy, onBusyChange]);
+    const lastMessageId = (messages?.[messages.length - 1] as { messageId?: string } | undefined)?.messageId;
+    const previousSaved = useRef(lastMessageId);
+    useEffect(() => {
+        if (lastMessageId && previousSaved.current !== lastMessageId) onSaved?.();
+        previousSaved.current = lastMessageId;
+    }, [lastMessageId, onSaved]);
     const actions = config.conversationActions;
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
             {error && (
                 <Alert type="error" title={error} action={<Button onClick={onRetry}>{getRes().common.retry}</Button>} />
             )}
-            <Space style={{ alignSelf: "flex-end" }}>
+            <Space style={{ justifyContent: "space-between", padding: 8 }}>
+                {toolbar}
                 <AssistantConversationActions actions={actions} />
             </Space>
             {info.aiConfigured !== true && (
@@ -143,16 +162,26 @@ function Conversation({
 
 export default function AssistantChat({
     taskId,
+    sessionId,
+    toolbar,
+    onBusyChange,
+    onSaved,
     offline,
     leading,
     revision = 0,
 }: {
     taskId?: string;
+    sessionId?: string;
+    toolbar?: ReactNode;
+    onBusyChange?: (busy: boolean) => void;
+    onSaved?: () => void;
     offline: boolean;
     leading?: ReactNode;
     revision?: number;
 }) {
     const api = useAxiosBaseInstance();
+    const onSavedRef = useRef(onSaved);
+    onSavedRef.current = onSaved;
     const [info, setInfo] = useState<ConversationInfo>();
     const [error, setError] = useState<string>();
     const [retry, setRetry] = useState(0);
@@ -184,7 +213,7 @@ export default function AssistantChat({
         if (loadingEarlier || offline) return;
         setLoadingEarlier(true);
         try {
-            const requestConfig = { params: { taskId, earlier: 1 }, showError: false };
+            const requestConfig = { params: { taskId, sessionId, earlier: 1 }, showError: false };
             const { data } = await api.get<ApiResponse<ConversationInfo>>(
                 "/api/admin/assistant/chat/conversation",
                 requestConfig
@@ -201,41 +230,50 @@ export default function AssistantChat({
         const controller = new AbortController();
         setError(undefined);
         if (offline) return;
-        const requestConfig = { params: { taskId }, signal: controller.signal, showError: false };
+        const requestConfig = { params: { taskId, sessionId }, signal: controller.signal, showError: false };
         void api
             .get<ApiResponse<ConversationInfo>>("/api/admin/assistant/chat/conversation", requestConfig)
             .then(({ data }) => {
                 if (controller.signal.aborted) return;
                 if (data.error) throw new Error(data.message || getRes().error.unknown);
                 setInfo(data.data);
+                // Reading a legacy/task conversation may have just added its directory entry.
+                if (data.data.aiMessages.length) onSavedRef.current?.();
             })
             .catch((error) => {
                 if (!controller.signal.aborted) setError(getErrorMessage(error, getRes().error.unknown));
             });
         return () => controller.abort();
-    }, [api, taskId, offline, revision, retry, noticeRevision]);
-    if (error && !info)
-        return (
-            <Alert
-                type="error"
-                title={error}
-                action={<Button onClick={() => setRetry((value) => value + 1)}>{getRes().common.retry}</Button>}
-            />
-        );
+    }, [api, taskId, sessionId, offline, revision, retry, noticeRevision]);
     if (!info)
-        return offline ? (
-            <>
-                {leading}
-                <Alert type="info" title={getRes().assistant.offline} />
-            </>
-        ) : (
-            <Spin />
+        return (
+            <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: 8 }}>{toolbar}</div>
+                {error ? (
+                    <Alert
+                        type="error"
+                        title={error}
+                        action={<Button onClick={() => setRetry((value) => value + 1)}>{getRes().common.retry}</Button>}
+                    />
+                ) : offline ? (
+                    <>
+                        {leading}
+                        <Alert type="info" title={getRes().assistant.offline} />
+                    </>
+                ) : (
+                    <Spin />
+                )}
+            </div>
         );
     return (
         <Conversation
-            key={taskId || "general"}
+            key={sessionId || taskId || "general"}
             info={info}
             taskId={taskId}
+            sessionId={sessionId}
+            toolbar={toolbar}
+            onBusyChange={onBusyChange}
+            onSaved={onSaved}
             offline={offline}
             leading={leading}
             onEarlier={() => void loadEarlier()}
