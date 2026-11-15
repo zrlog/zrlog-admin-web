@@ -35,6 +35,9 @@ function requestWithCa(protocol, port, pathname, headers, ca) {
 for (const protocol of ["http", "https"]) {
     test(`CRA development middleware works over ${protocol} and rejects hostile hosts`, async (t) => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "zrlog-dev-server-"));
+        // Cache restores reset ctime, so WDS can reuse an expired certificate.
+        // Generate this test's certificate in its own temporary cache instead.
+        t.mock.method(DevServer, "findCacheDir", () => path.join(directory, "webpack-dev-server"));
         fs.writeFileSync(path.join(directory, "entry.js"), 'console.log("development fixture");');
         const compiler = webpack({
             mode: "development", entry: path.join(directory, "entry.js"),
