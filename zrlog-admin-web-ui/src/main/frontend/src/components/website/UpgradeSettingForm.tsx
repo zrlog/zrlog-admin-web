@@ -73,7 +73,7 @@ const UpgradeSettingForm = ({
             if (data.data.upgrade && data.data.version) {
                 modal.info({
                     width: narrow ? "calc(100vw - 32px)" : 682,
-                    title: getRes().upgrade.detectedVersion.replace("{version}", data.data.version.version),
+                    title: getRes().upgrade.detectedVersion,
                     content: (
                         <div
                             style={{
