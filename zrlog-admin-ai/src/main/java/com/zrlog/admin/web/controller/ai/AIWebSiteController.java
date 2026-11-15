@@ -4,7 +4,7 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.service.AIConfigService;
 import com.zrlog.admin.business.ai.service.AIToolService;
-import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
+import com.zrlog.admin.business.rest.request.AISettingsRequest;
 import com.zrlog.admin.business.rest.request.OptimizeAiPromptRequest;
 import com.zrlog.admin.business.rest.request.OptimizeWebsiteDescriptionRequest;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
@@ -77,7 +77,7 @@ public class AIWebSiteController extends BaseController {
     public AdminPageDataResponse<AIWebSiteInfoResponse> ai() throws SQLException {
         if (isPost()) {
             this.aIConfigService.updateAi(
-                    getRequestBodyWithNullCheck(AIWebSiteInfo.class),
+                    getRequestBodyWithNullCheck(AISettingsRequest.class),
                     AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                     settingsService);
         }

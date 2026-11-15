@@ -7,6 +7,10 @@ import java.util.List;
 
 public class AIWebSiteInfoResponse extends AIWebSiteInfo {
 
+    public List<AIConnectionResponse> ai_connections;
+    public String ai_connection_id;
+    public String ai_image_connection_id;
+
     private List<AIProvider> allProviders;
     private List<AIProvider> allImageProviders;
     private boolean hasAiApiKey;

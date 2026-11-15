@@ -58,6 +58,9 @@ public final class AiNativeImageUtils {
                         com.zrlog.admin.business.rest.response.PublishCheckResponse.class,
                         com.zrlog.admin.business.rest.response.PublishCheckToolPayload.class,
                         com.zrlog.admin.business.rest.base.AIWebSiteInfo.class,
+                        com.zrlog.admin.business.rest.request.AISettingsRequest.class,
+                        com.zrlog.admin.business.rest.response.AIConnectionResponse.class,
+                        com.zrlog.admin.business.ai.service.AIConnectionStore.Connection.class,
                         com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages.class,
                         com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse.class,
                         com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse.AIProvider

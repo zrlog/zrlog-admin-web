@@ -10,9 +10,9 @@ import Form from "antd/es/form";
 import Button from "antd/es/button";
 
 import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { AI, AIProvider } from "./index";
+import { AI, AIConnection, AIProvider } from "./index";
 import Select, { DefaultOptionType } from "antd/es/select";
 import AutoComplete from "antd/es/auto-complete";
 
@@ -37,7 +37,41 @@ const layout = {
 const normalizeAiSettings = (settings: AI): AI => ({
     ...settings,
     ai_reasoning_enabled: settings.ai_reasoning_enabled ?? true,
+    ai_connection_name:
+        settings.ai_connections?.find((c) => c.ai_connection_id === settings.ai_connection_id)?.ai_connection_name ||
+        "",
+    ai_image_connection_name:
+        settings.ai_connections?.find((c) => c.ai_connection_id === settings.ai_image_connection_id)
+            ?.ai_connection_name || "",
 });
+
+const connectionFields = (connection?: AIConnection, image = false): Partial<AI> =>
+    image
+        ? {
+              ai_image_connection_id: connection?.ai_connection_id || "",
+              ai_image_connection_name: connection?.ai_connection_name || "",
+              ai_image_provider: connection?.ai_provider,
+              ai_image_model: connection?.ai_model || "",
+              ai_image_base_url: connection?.ai_base_url || "",
+              ai_image_api_key: "",
+          }
+        : {
+              ai_connection_id: connection?.ai_connection_id || "",
+              ai_connection_name: connection?.ai_connection_name || "",
+              ai_provider: connection?.ai_provider || "",
+              ai_model: connection?.ai_model || "",
+              ai_base_url: connection?.ai_base_url || "",
+              ai_api_key: "",
+          };
+
+const connectionDraft = (settings: AI, image: boolean): Partial<AI> =>
+    Object.fromEntries(Object.keys(connectionFields(undefined, image)).map((key) => [key, settings[key as keyof AI]]));
+
+const normalizedEndpoint = (url?: string) => {
+    const value = (url || "").trim();
+    const query = value.indexOf("?");
+    return query < 0 ? value.replace(/\/+$/, "") : value.slice(0, query).replace(/\/+$/, "") + value.slice(query);
+};
 
 const validateAiServiceUrl = (_: unknown, value?: string) => {
     if (!value) {
@@ -74,26 +108,83 @@ const AIForm = ({
     const [optimizingPrompt, setOptimizingPrompt] = useState(false);
     const [promptEditorRevision, setPromptEditorRevision] = useState(0);
     const [form] = Form.useForm();
+    const connectionDrafts = useRef<Record<string, Partial<AI>>>({});
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
     const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
-    const endpointChanged =
-        state.ai_provider !== data.ai_provider || (state.ai_base_url || "") !== (data.ai_base_url || "");
-    const canReuseApiKey = Boolean(data.hasAiApiKey) && !endpointChanged;
-    const imageEndpointChanged =
-        state.ai_image_provider !== data.ai_image_provider ||
-        (state.ai_image_base_url || "") !== (data.ai_image_base_url || "");
-    const canReuseImageApiKey = Boolean(data.hasAiImageApiKey) && !imageEndpointChanged;
+    const selectedConnection = data.ai_connections?.find((c) => c.ai_connection_id === state.ai_connection_id);
+    const selectedImageConnection = data.ai_connections?.find(
+        (c) => c.ai_connection_id === state.ai_image_connection_id
+    );
+    const canReuseApiKey =
+        Boolean(selectedConnection?.hasAiApiKey) &&
+        selectedConnection?.ai_provider === state.ai_provider &&
+        normalizedEndpoint(selectedConnection?.ai_base_url) === normalizedEndpoint(state.ai_base_url);
+    const canReuseImageApiKey =
+        Boolean(selectedImageConnection?.hasAiApiKey) &&
+        selectedImageConnection?.ai_provider === state.ai_image_provider &&
+        normalizedEndpoint(selectedImageConnection?.ai_base_url) === normalizedEndpoint(state.ai_image_base_url);
     const imageUsesTextEndpoint =
         Boolean(state.ai_image_provider) &&
         state.ai_image_provider === state.ai_provider &&
-        (state.ai_image_base_url || "") === (state.ai_base_url || "");
+        normalizedEndpoint(state.ai_image_base_url) === normalizedEndpoint(state.ai_base_url);
     const canReuseTextApiKeyForImage = imageUsesTextEndpoint && (canReuseApiKey || Boolean(state.ai_api_key));
     const textModelSelectStyle = { width: 200, maxWidth: "100%" };
     const serviceUrlInputStyle = { width: 420, maxWidth: "100%" };
     const imageModelSelectStyle = { width: 260, maxWidth: "100%" };
+
+    const rememberConnection = (image: boolean) => {
+        const id = image ? state.ai_image_connection_id : state.ai_connection_id;
+        const provider = image ? state.ai_image_provider : state.ai_provider;
+        const draft = connectionDraft(state, image);
+        if (id) connectionDrafts.current[id] = draft;
+        if (provider) connectionDrafts.current[`${image}:provider:${provider}`] = draft;
+    };
+
+    const selectConnection = (id: string, image: boolean) => {
+        rememberConnection(image);
+        const connection = data.ai_connections?.find((c) => c.ai_connection_id === id);
+        const fields = connectionDrafts.current[id] || connectionFields(connection, image);
+        setState((current) => ({ ...current, ...fields }));
+        form.setFieldsValue(fields);
+    };
+
+    const renderConnections = (image: boolean) => (
+        <>
+            <Form.Item
+                label={image ? getRes().websiteAi.aiImageConnection : getRes().websiteAi.aiConnection}
+                extra={getRes().websiteAi.aiConnectionTip}
+            >
+                <Select
+                    aria-label={image ? getRes().websiteAi.aiImageConnection : getRes().websiteAi.aiConnection}
+                    style={serviceUrlInputStyle}
+                    value={(image ? state.ai_image_connection_id : state.ai_connection_id) || "new"}
+                    onChange={(id) => selectConnection(id, image)}
+                    options={[
+                        ...(data.ai_connections || [])
+                            .filter((c) => c.ai_kind === (image ? "image" : "text"))
+                            .map((c) => ({
+                                value: c.ai_connection_id,
+                                label: `${c.ai_connection_name} · ${c.ai_model}`,
+                            })),
+                        { value: "new", label: getRes().websiteAi.aiConnectionNew },
+                    ]}
+                />
+            </Form.Item>
+            <Form.Item
+                name={image ? "ai_image_connection_name" : "ai_connection_name"}
+                label={getRes().websiteAi.aiConnectionName}
+            >
+                <Input
+                    style={serviceUrlInputStyle}
+                    maxLength={80}
+                    placeholder={getRes().websiteAi.aiConnectionNamePlaceholder}
+                />
+            </Form.Item>
+        </>
+    );
     const getProviderModelOptions = (provider?: AIProvider): DefaultOptionType[] =>
         (provider?.models || []).map((name) => {
             const retired = provider?.modelEntries?.find((model) => model.name === name)?.retired;
@@ -156,6 +247,7 @@ const AIForm = ({
 
     useEffect(() => {
         const normalizedData = normalizeAiSettings(data);
+        connectionDrafts.current = {};
         setState(normalizedData);
         setPromptDraft(data.ai_prompt);
         form.setFieldsValue({
@@ -222,33 +314,45 @@ const AIForm = ({
                 disabled={offline || offlineData}
                 initialValues={data}
                 onValuesChange={(changedValues, values) => {
-                    const nextValues = {
+                    let nextValues: AI = {
                         ...state,
                         ...values,
-                        ai_model: Object.prototype.hasOwnProperty.call(changedValues, "ai_provider")
-                            ? ""
-                            : values.ai_model,
-                        ai_base_url: Object.prototype.hasOwnProperty.call(changedValues, "ai_provider")
-                            ? ""
-                            : values.ai_base_url,
-                        ai_image_model: Object.prototype.hasOwnProperty.call(changedValues, "ai_image_provider")
-                            ? ""
-                            : values.ai_image_model,
-                        ai_image_base_url: Object.prototype.hasOwnProperty.call(changedValues, "ai_image_provider")
-                            ? ""
-                            : values.ai_image_base_url,
                     };
-                    if (Object.prototype.hasOwnProperty.call(changedValues, "ai_provider")) {
-                        form.setFieldsValue({
-                            ai_model: "",
-                            ai_base_url: "",
-                        });
-                    }
-                    if (Object.prototype.hasOwnProperty.call(changedValues, "ai_image_provider")) {
-                        form.setFieldsValue({
-                            ai_image_model: "",
-                            ai_image_base_url: "",
-                        });
+                    for (const image of [false, true]) {
+                        const providerKey = image ? "ai_image_provider" : "ai_provider";
+                        const urlKey = image ? "ai_image_base_url" : "ai_base_url";
+                        const apiKey = image ? "ai_image_api_key" : "ai_api_key";
+                        if (Object.prototype.hasOwnProperty.call(changedValues, providerKey)) {
+                            rememberConnection(image);
+                            const provider = values[providerKey];
+                            // A blank form starts a new connection; changing an existing provider
+                            // restores its draft or saved connection without carrying credentials.
+                            const saved =
+                                state[providerKey] && provider
+                                    ? connectionDrafts.current[`${image}:provider:${provider}`] ||
+                                      connectionFields(
+                                          data.ai_connections?.find(
+                                              (c) =>
+                                                  c.ai_kind === (image ? "image" : "text") && c.ai_provider === provider
+                                          ),
+                                          image
+                                      )
+                                    : connectionFields(undefined, image);
+                            const nameKey = image ? "ai_image_connection_name" : "ai_connection_name";
+                            const fields = {
+                                ...saved,
+                                [providerKey]: provider,
+                                ...(!state[providerKey] ? { [nameKey]: values[nameKey] } : {}),
+                            };
+                            nextValues = { ...nextValues, ...fields };
+                            form.setFieldsValue(fields);
+                        } else if (
+                            Object.prototype.hasOwnProperty.call(changedValues, urlKey) &&
+                            normalizedEndpoint(values[urlKey]) !== normalizedEndpoint(state[urlKey])
+                        ) {
+                            nextValues = { ...nextValues, [apiKey]: "" };
+                            form.setFieldsValue({ [apiKey]: "" });
+                        }
                     }
                     setState(nextValues);
                 }}
@@ -278,6 +382,7 @@ const AIForm = ({
                 >
                     {getRes().websiteAi.textModel}
                 </div>
+                {renderConnections(false)}
                 <Form.Item name="ai_provider" label={getRes().websiteAi.aiProvider} required={true}>
                     <Select style={textModelSelectStyle} options={getAiProviderOptions()} />
                 </Form.Item>
@@ -347,6 +452,7 @@ const AIForm = ({
                 >
                     {getRes().websiteAi.imageModel}
                 </div>
+                {renderConnections(true)}
                 <Form.Item
                     name="ai_image_provider"
                     label={getRes().websiteAi.aiImageProvider}

@@ -76,10 +76,7 @@ public class WebSiteSettingsService {
     }
 
     public void update(Object settings, AdminAuditContext audit) throws SQLException {
-        this.adminAuditService.record(
-                audit,
-                AdminAuditAction.UPDATE_SETTING,
-                settingAuditContent(settings, audit.getUri()));
+        recordUpdate(settings, audit);
         Map<String, Object> values = BeanUtil.convert(settings, Map.class);
         if (values != null) {
             WebSiteRepository webSite = this.webSiteProvider.get();
@@ -91,6 +88,13 @@ public class WebSiteSettingsService {
         if (initData != null) {
             initData.setWebSite(this.webSiteProvider.get().getPublicWebSite());
         }
+    }
+
+    public void recordUpdate(Object settings, AdminAuditContext audit) {
+        this.adminAuditService.record(
+                audit,
+                AdminAuditAction.UPDATE_SETTING,
+                settingAuditContent(settings, audit.getUri()));
     }
 
     public void updateAdmin(AdminWebSiteInfo settings, AdminAuditContext audit)
