@@ -286,7 +286,8 @@ public class AdminDtoContractTest {
                                 "text-model", AIModelCapability.TEXT)
                         .supports(AIModelCapability.IMAGE_GENERATION));
 
-        assertEquals("deepseek-flash", AIProviderType.DEEP_SEEK.getModels().get(0));
+        // Synchronization follows official catalog order while retaining historical model IDs.
+        assertTrue(AIProviderType.DEEP_SEEK.getModels().contains("deepseek-flash"));
         assertTrue(AIProviderType.DEEP_SEEK.getModels().contains("deepseek-chat"));
         assertTrue(
                 AIProviderType.DEEP_SEEK.getModelEntries().stream()
@@ -294,19 +295,19 @@ public class AdminDtoContractTest {
                         .findFirst()
                         .orElseThrow()
                         .isRetired());
-        assertEquals("gpt-6-astra", AIProviderType.OPEN_AI.getModels().get(0));
+        assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-6-astra"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-sol"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-terra"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-luna"));
-        assertEquals("qwen3.8-max", AIProviderType.QWEN.getModels().get(0));
-        assertEquals("gemini-3.8-flash", AIProviderType.GOOGLE_GEMINI.getModels().get(0));
+        assertTrue(AIProviderType.QWEN.getModels().contains("qwen3.8-max"));
+        assertTrue(AIProviderType.GOOGLE_GEMINI.getModels().contains("gemini-3.8-flash"));
         assertFalse(
                 AIProviderType.GOOGLE_GEMINI.getModels().contains("gemini-3.1-flash-lite-preview"));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2"));
-        assertEquals("gpt-image-2.5-sunburst", AIProviderType.OPEN_AI.getImageModels().get(0));
+        assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2.5-sunburst"));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2.5-flare"));
-        assertEquals(
-                "gemini-3.1-flash-image", AIProviderType.GOOGLE_GEMINI.getImageModels().get(0));
+        assertTrue(
+                AIProviderType.GOOGLE_GEMINI.getImageModels().contains("gemini-3.1-flash-image"));
         assertNotNull(AIProviderType.OPEN_AI.getBaseUrl());
         assertFalse(AIProviderType.DEEP_SEEK.getModels().isEmpty());
         assertTrue(AIProviderType.DEEP_SEEK.getImageModels().isEmpty());
