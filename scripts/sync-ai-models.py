@@ -33,6 +33,9 @@ class CatalogPage(HTMLParser):
         self.links = []
         self.tables = []
         self.table = None
+        self.row = None
+        self.headings = []
+        self.heading = None
         self.hidden = 0
         self.feed(html)
 
@@ -43,12 +46,24 @@ class CatalogPage(HTMLParser):
             return
         if tag == "table":
             self.table = []
+        if tag == "tr" and self.table is not None:
+            self.row = []
+        if re.fullmatch(r"h[1-6]", tag):
+            self.heading = (int(tag[1]), len(self.text))
         if tag == "a":
             self.links.extend(value for key, value in attrs if key == "href" and value)
 
     def handle_endtag(self, tag):
         if tag in ("script", "style"):
             self.hidden = max(0, self.hidden - 1)
+        if self.hidden:
+            return
+        if re.fullmatch(r"h[1-6]", tag) and self.heading is not None:
+            self.headings.append((*self.heading, len(self.text)))
+            self.heading = None
+        if tag == "tr" and self.table is not None and self.row is not None:
+            self.table.append(self.row)
+            self.row = None
         if tag == "table" and self.table is not None:
             self.tables.append(self.table)
             self.table = None
@@ -56,8 +71,36 @@ class CatalogPage(HTMLParser):
     def handle_data(self, data):
         if not self.hidden and data.strip():
             self.text.append(data.strip())
-            if self.table is not None:
-                self.table.append(data.strip())
+            if self.row is not None:
+                self.row.append(data.strip())
+
+    def section_text(self, title):
+        for index, (level, start, end) in enumerate(self.headings):
+            if "".join(self.text[start:end]) == title:
+                boundary = next((start for next_level, start, _ in self.headings[index + 1:]
+                                 if next_level <= level), len(self.text))
+                return self.text[end:boundary]
+        raise ValueError(f"Official catalog is missing the {title!r} section")
+
+
+def gemini_candidates(page):
+    # Google serves both HTML tables and Markdoc tables inside a <pre> document.
+    # Inspect rows independently: a retired model must not hide active siblings.
+    retired = re.compile(r"\b(?:shut\s+down|deprecated)\b", re.IGNORECASE)
+    candidates = []
+    for table in page.tables:
+        if any("Endpoint" in row for row in table):
+            for row in table:
+                if not retired.search(" ".join(row)):
+                    candidates.extend(row)
+    for table in re.findall(r"{%\s*table\b[^%]*%}(.*?){%\s*/table\s*%}", "\n".join(page.text), re.DOTALL):
+        rows = re.split(r"(?m)^\s*---\s*$", table)
+        if not re.search(r"(?m)^\s*\*\s+Endpoint\s*$", rows[0]):
+            continue
+        for row in rows[1:]:
+            if not retired.search(row):
+                candidates.extend(re.findall(r"`([^`\s]+)`", row))
+    return candidates
 
 
 def extract_models(provider, html):
@@ -70,7 +113,8 @@ def extract_models(provider, html):
         text_pattern = r"gpt-\d+(?:\.\d+)?(?:-(?:astra|sol|terra|luna|mini|nano))?"
         image_pattern = r"gpt-image-\d+(?:\.\d+)?(?:-(?:sunburst|flare|mini))?"
     elif provider == "DEEP_SEEK":
-        for table in page.tables:
+        for rows in page.tables:
+            table = [value for row in rows for value in row]
             if table and table[0] == "MODEL":
                 candidates = table[1:next(i for i, value in enumerate(table) if value.startswith("BASE URL"))]
                 break
@@ -78,15 +122,11 @@ def extract_models(provider, html):
         image_pattern = r"(?!)"
     elif provider == "QWEN":
         # Only the text-generation section; vision input does not imply image output.
-        start = page.text.index("文本生成") + 1
-        end = page.text.index("图像与视频", start)
-        candidates = page.text[start:end]
+        candidates = page.section_text("文本生成")
         text_pattern = r"qwen(?:\d+(?:\.\d+)?)?-(?:max|plus|flash)(?:-latest)?"
         image_pattern = r"(?!)"
     elif provider == "GOOGLE_GEMINI":
-        for table in page.tables:
-            if "Endpoint" in table and not any("Shut down" in value or "Deprecated" in value for value in table):
-                candidates.extend(table)
+        candidates = gemini_candidates(page)
         text_pattern = r"gemini-\d+(?:\.\d+)?-(?:flash|pro)(?:-lite)?(?:-preview)?"
         image_pattern = r"gemini-\d+(?:\.\d+)?-(?:flash|pro)(?:-lite)?-image(?:-preview)?"
     else:
