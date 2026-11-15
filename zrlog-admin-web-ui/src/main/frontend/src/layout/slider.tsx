@@ -173,7 +173,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             key: "/article",
             text: getRes().article.title,
             link: "/article",
-            iconKey: "container",
+            iconKey: "file-text",
         },
         {
             key: "/comment",
@@ -221,7 +221,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
                     key: "/article",
                     text: getRes().article.title,
                     link: "/article",
-                    iconKey: "container",
+                    iconKey: "file-text",
                 }),
                 getItem({
                     key: "/article-type",

@@ -19,6 +19,7 @@ import MessageIcon from "@zrlog/ui/icons/message";
 import ReadIcon from "@zrlog/ui/icons/read";
 import CpuIcon from "@zrlog/ui/icons/cpu";
 import RobotIcon from "@zrlog/ui/icons/robot";
+import AiIcon from "@zrlog/ui/icons/ai";
 import SecurityIcon from "@zrlog/ui/icons/security";
 import SearchIcon from "@zrlog/ui/icons/search";
 import SettingsIcon from "@zrlog/ui/icons/settings";
@@ -118,6 +119,7 @@ export type AdminDashboardRouteIconKey =
     | "read"
     | "cpu"
     | "robot"
+    | "ai"
     | "safety-certificate"
     | "search"
     | "setting"
@@ -175,6 +177,8 @@ export const renderAdminDashboardRouteIcon = (
             return <CpuIcon selected={selected} style={style} />;
         case "robot":
             return <RobotIcon selected={selected} style={style} />;
+        case "ai":
+            return <AiIcon selected={selected} style={style} />;
         case "safety-certificate":
             return <SecurityIcon selected={selected} style={style} />;
         case "search":
@@ -391,7 +395,7 @@ export const createAdminDashboardRoutes = (
             {
                 id: "website_ai",
                 title: () => getRes().websiteAi.title,
-                iconKey: "cpu",
+                iconKey: "ai",
                 keywords: ["ai", "settings", "model", "gemini", "chatgpt", "模型", "人工智能"],
             },
         ],
@@ -552,14 +556,14 @@ export const createAdminDashboardRoutes = (
             {
                 id: "article",
                 title: () => getRes().article.title,
-                iconKey: "container",
+                iconKey: "file-text",
                 keywords: ["article", "list", "文章", "列表", "管理"],
             },
             {
                 id: "article_draft",
                 title: () => getRes().article.status.draft,
                 path: "/article?status=draft",
-                iconKey: "container",
+                iconKey: "edit",
                 keywords: ["draft", "article", "草稿", "文章", "caogao"],
             },
         ],

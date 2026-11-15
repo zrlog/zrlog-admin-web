@@ -7,6 +7,7 @@ import MessageIcon from "@zrlog/ui/icons/message";
 import ImageIcon from "@zrlog/ui/icons/image";
 import SearchIcon from "@zrlog/ui/icons/search";
 import StarIcon from "@zrlog/ui/icons/star";
+import ChecklistIcon from "@zrlog/ui/icons/checklist";
 import TagsIcon from "@zrlog/ui/icons/tags";
 import { getRes } from "../../../../utils/constants";
 import { WritingSkill, WritingSkillButton, WritingSkillGroup } from "../writing-assistant.types";
@@ -87,7 +88,7 @@ export const buildWritingSkillButtons = (): WritingSkillButton[] => [
     {
         key: "publishCheck",
         command: "publish-check",
-        icon: <StarIcon />,
+        icon: <ChecklistIcon />,
         label: getRes().articleEdit.assistant.publishCheck,
         prompt: getRes().articleEdit.assistant.publishCheckPrompt,
         group: "publishCheck",

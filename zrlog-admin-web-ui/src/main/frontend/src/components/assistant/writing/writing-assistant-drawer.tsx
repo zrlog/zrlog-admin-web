@@ -8,7 +8,7 @@ import { Alert, Button, Drawer, Dropdown, Typography } from "antd";
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "antd-style";
-import AIIcon from "../../../icons/AIProviderIcon";
+import AiWritingIcon from "@zrlog/ui/icons/ai-writing";
 import { AIStateCache, getAIStateCacheKey } from "@zrlog/editor/dist/ai/AIStateCache";
 import { getRes } from "../../../utils/constants";
 import useArticleEditorScreens from "../../articleEdit/use-article-editor-screens";
@@ -119,7 +119,7 @@ export default function WritingAssistantDrawer({
                     >
                         <Button
                             type="text"
-                            icon={<AIIcon name={data.aiProvider} />}
+                            icon={<AiWritingIcon />}
                             aria-label={getRes().assistant.writingAssistant}
                             title={res.conversationActions}
                             loading={actions.exporting || actions.clearing}
