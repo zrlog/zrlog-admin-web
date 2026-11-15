@@ -132,32 +132,6 @@ export const zhCN = {
         faas: "当前为 FaaS 环境，请配置外部触发",
         endpoint: "触发地址",
         example: "调用示例",
-        curlHelp: "将以下命令添加到 crontab 或其他支持命令调用的外部调度器中",
-        curlCommand: "cURL 命令",
-        workerHelp: "使用 Cloudflare 定时触发助手任务。先生成并复制本页令牌，确认“允许 Bearer 令牌触发”已开启。",
-        workerCreate: "1. 创建 Worker",
-        workerCreateHelp:
-            "在 Cloudflare 的 Workers & Pages 中创建 Worker，用下方代码替换默认代码并部署。访问 Worker 地址可查看说明，任务由定时触发器执行。",
-        workerVariables: "2. 配置地址和令牌",
-        workerVariablesHelp: "在 Worker 设置的 Variables and Secrets 中添加以下文本变量",
-        workerUrlHelp:
-            "地址需能从公网通过 HTTPS 直接访问。若当前从内网访问后台，请换成站点公开地址，保留子路径和完整触发路径。",
-        workerSecretHelp:
-            "添加名为 ZRLOG_ASSISTANT_TASK_TOKEN 的 Secret，值为本页生成的令牌。生成新令牌后，请同步更新此 Secret。",
-        workerSchedule: "3. 添加定时触发器",
-        workerScheduleHelp:
-            "在 Worker 设置的 Triggers 中添加 Cron Trigger，填入下方表达式，每分钟检查到期任务。任务按各自计划执行；Cloudflare Cron 使用 UTC。",
-        workerCron: "Cron 表达式",
-        workerVerify:
-            "配置后等待一次触发，刷新本页查看“最近外部触发”，再打开对应任务的会话查看结果。触发失败时查看 Worker 日志；HTTP 401 请检查令牌和本页外部触发开关。",
-        workerWrangler: "使用 Wrangler 部署",
-        workerWranglerHelp:
-            "也可在本地项目中保存 src/index.js 和下方 wrangler.toml，将 name 改为已创建的 Worker 名称。运行命令时按提示输入本页令牌，再部署配置。",
-        workerDeployCommands: "配置 Secret 并部署",
-        workerRunning: "ZrLog 助手触发器已部署，请配置 Cron 并在助手设置中查看最近外部触发",
-        workerConfigRequired: "请配置 ZRLOG_ASSISTANT_TRIGGER_URL 和 ZRLOG_ASSISTANT_TASK_TOKEN",
-        workerRequestFailed: "助手触发请求失败（HTTP {status}），请检查 Worker 配置和 ZrLog 服务日志",
-        workerResponseFailed: "助手未接受触发请求，请检查 ZrLog 服务日志",
         token: "触发令牌",
         tokenHelp: "此令牌只能触发已配置的到期任务，不能创建或修改任务。建议每分钟调用一次。",
         rotate: "生成新令牌",
@@ -312,35 +286,6 @@ export const enUS: I18nShape<typeof zhCN> = {
         faas: "This FaaS deployment requires an external trigger",
         endpoint: "Trigger endpoint",
         example: "Example request",
-        curlHelp: "Add this command to crontab or another external scheduler that supports shell commands",
-        curlCommand: "cURL command",
-        workerHelp:
-            'Use Cloudflare to trigger assistant tasks on a schedule. First generate and copy a token on this page, and check that "Allow Bearer token triggers" is on.',
-        workerCreate: "1. Create a Worker",
-        workerCreateHelp:
-            "Create a Worker in Cloudflare Workers & Pages, replace the default code with the example below, and deploy. Opening the Worker URL shows instructions; Cron triggers run the tasks.",
-        workerVariables: "2. Configure the URL and token",
-        workerVariablesHelp: "In the Worker settings, open Variables and Secrets and add this text variable",
-        workerUrlHelp:
-            "Use a public HTTPS URL that can be reached directly. If you access the admin through a private address, replace it with the public site address and keep the subpath and full trigger path.",
-        workerSecretHelp:
-            "Add a Secret named ZRLOG_ASSISTANT_TASK_TOKEN with the token generated on this page. Update this Secret whenever you generate a new token.",
-        workerSchedule: "3. Add a Cron Trigger",
-        workerScheduleHelp:
-            "In the Worker settings, open Triggers and add a Cron Trigger with the expression below to check due tasks every minute. Tasks follow their own schedules; Cloudflare Cron uses UTC.",
-        workerCron: "Cron expression",
-        workerVerify:
-            "After the next trigger, refresh this page to check “Last external trigger”, then open the corresponding task conversation for results. Check Worker logs if triggering fails. For HTTP 401, check the token and the external trigger switch on this page.",
-        workerWrangler: "Deploy with Wrangler",
-        workerWranglerHelp:
-            "You can also save src/index.js and the wrangler.toml below in a local project. Set name to the Worker you created. Run the commands, enter this page’s token when prompted, then deploy the configuration.",
-        workerDeployCommands: "Set the Secret and deploy",
-        workerRunning:
-            "ZrLog assistant trigger deployed. Configure Cron and check the last external trigger in Assistant settings.",
-        workerConfigRequired: "Configure ZRLOG_ASSISTANT_TRIGGER_URL and ZRLOG_ASSISTANT_TASK_TOKEN",
-        workerRequestFailed:
-            "Assistant trigger request failed (HTTP {status}); check the Worker configuration and ZrLog server logs",
-        workerResponseFailed: "The assistant rejected the trigger; check the ZrLog server logs",
         token: "Trigger token",
         tokenHelp:
             "This token can only trigger configured tasks that are due. It cannot create or edit tasks. Call once a minute.",

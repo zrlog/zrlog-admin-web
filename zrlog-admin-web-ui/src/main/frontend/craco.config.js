@@ -7,12 +7,17 @@ module.exports = {
                 ...jestConfig.moduleNameMapper,
                 '^@rc-component/picker/(locale|generate)/(.*)$': '<rootDir>/node_modules/@rc-component/picker/lib/$1/$2',
                 '^@ant-design/colors/es/(.*)$': '<rootDir>/node_modules/@ant-design/colors/lib/$1',
+                '^marked$': '<rootDir>/node_modules/marked/lib/marked.umd.js',
             };
             return jestConfig;
         },
     },
     webpack: {
         configure: (webpackConfig) => {
+            webpackConfig.module.rules.find((rule) => rule.oneOf).oneOf.unshift({
+                test: /\.md$/i,
+                type: 'asset/source',
+            });
             webpackConfig.optimization.splitChunks = {
                 chunks: 'all',
                 maxSize: 2500000,
