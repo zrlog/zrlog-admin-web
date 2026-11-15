@@ -1,0 +1,95 @@
+<!-- Representative table rows from https://ai.google.dev/gemini-api/docs/models,
+     retrieved 2026-11-15; unrelated rows and model cards omitted. -->
+# Models
+
+## All Gemini 3 models  {% id="all-gemini-3-models" %}
+
+{% table variant="model" %}
+  * Model
+  * Endpoint
+
+  ---
+
+  * [Gemini 3.8 Flash](/docs/models/gemini-3.8-flash)
+  * `gemini-3.8-flash`
+
+  ---
+
+  * [Gemini 3.8 Live](/docs/models/gemini-3.8-live)
+  * `gemini-3.8-live`
+
+  ---
+
+  * [Gemini 3.8 Flash TTS](/docs/models/gemini-3.8-flash-tts)
+  * `gemini-3.8-flash-tts`
+
+  ---
+
+  * [Nano Banana 2](/docs/models/gemini-3.1-flash-image)
+  * `gemini-3.1-flash-image`
+{% /table %}
+
+## Generative media models  {% id="generative-media-models" %}
+
+{% table variant="model" %}
+  * Model
+  * Description
+  * Endpoint
+
+  ---
+
+  * [Nano Banana 2](/docs/models/gemini-3.1-flash-image)
+  * High-efficiency production-scale visual creation, combining the intelligence
+    of the Gemini 3 series with lightning-fast generation speeds.
+  * `gemini-3.1-flash-image`
+
+  ---
+
+  * [Nano Banana 2 Lite](/docs/models/gemini-3.1-flash-lite-image)
+  * Our fastest and cheapest Gemini image model, engineered for velocity and
+    scale where speed and cost are the primary operational constraints. Not
+    optimized for multiple reference inputs or multi-turn sequential editing.
+  * `gemini-3.1-flash-lite-image`
+
+  ---
+
+  * [Gemini Omni Flash](/docs/models/gemini-omni-flash)
+  * Fast video generation and editing up to 15 seconds with native audio,
+    keyframe interpolation, and video extension.
+  * `gemini-omni-1.2-flash`
+    `gemini-omni-1.1-flash`
+
+  ---
+
+  * Imagen 4 (Shut down)
+  * Text-to-image model featuring fast and ultra-fast generation (shut down).
+  * `imagen-4.0-generate`
+{% /table %}
+
+## Previous models  {% id="previous-models" %}
+
+{% table variant="model" %}
+  * Model
+  * Description
+  * Endpoint
+
+  ---
+
+  * [Gemini 2.0 Flash](/docs/models/gemini-2.0-flash) (Shut down)
+  * Our second generation workhorse model, with next-gen features and improved
+    capabilities, including superior speed, native tool use, and a 1M token
+    context window.
+  * `gemini-2.0-flash`
+
+  ---
+
+  * [Gemini 3.1 Flash-Lite Preview](/docs/models/gemini-3.1-flash-lite-preview)
+    (Shut down)
+  * Our most cost-efficient multimodal model, offering the fastest performance
+    for high-frequency, lightweight tasks.
+  * `gemini-3.1-flash-lite-preview`
+{% /table %}
+
+## Model version name patterns
+
+For example: `gemini-2.5-flash-preview-09-2025`.
