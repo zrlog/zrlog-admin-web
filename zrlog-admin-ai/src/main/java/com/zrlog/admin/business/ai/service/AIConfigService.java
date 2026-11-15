@@ -6,16 +6,19 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
+import com.zrlog.admin.business.rest.request.AISettingsRequest;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.service.DistributedLock;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class AIConfigService {
@@ -57,15 +60,30 @@ public class AIConfigService {
     }
 
     public void updateAi(
-            AIWebSiteInfo settings, AdminAuditContext audit, WebSiteSettingsService settingsService)
+            AISettingsRequest settings,
+            AdminAuditContext audit,
+            WebSiteSettingsService settingsService)
             throws SQLException {
-        mergeRetainedApiKeys(settings, ai());
-        settingsService.update(settings, audit);
+        settings.doValid();
+        try (DistributedLock lock = new DistributedLock(webSiteProvider, "ai_settings")) {
+            if (!lock.tryLock(10, TimeUnit.SECONDS)) {
+                throw new SQLException("AI settings are being updated");
+            }
+            AIConnectionStore store = new AIConnectionStore(webSiteProvider.get());
+            mergeRetainedApiKeys(settings, store.retainedSettings(settings));
+            store.save(settings);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new SQLException("AI settings update interrupted", interrupted);
+        }
+        settingsService.recordUpdate(settings, audit);
     }
 
     public AIWebSiteInfoResponse aiResponse() {
-        AIWebSiteInfo ai = ai();
+        AIConnectionStore store = new AIConnectionStore(webSiteProvider.get());
+        AIWebSiteInfo ai = store.current;
         AIWebSiteInfoResponse response = BeanUtil.convert(ai, AIWebSiteInfoResponse.class);
+        store.fillResponse(response);
         response.setHasAiApiKey(StringUtils.isNotEmpty(ai.getAi_api_key()));
         response.setHasAiImageApiKey(StringUtils.isNotEmpty(ai.getAi_image_api_key()));
         response.setAi_api_key("");

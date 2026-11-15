@@ -72,6 +72,11 @@ export interface Other {
 }
 
 export interface AI {
+    ai_connections?: AIConnection[];
+    ai_connection_id?: string;
+    ai_connection_name?: string;
+    ai_image_connection_id?: string;
+    ai_image_connection_name?: string;
     ai_provider: string;
     ai_api_key: string;
     ai_model: string;
@@ -87,6 +92,16 @@ export interface AI {
     hasAiImageApiKey?: boolean;
     allProviders: AIProvider[];
     allImageProviders: AIProvider[];
+}
+
+export interface AIConnection {
+    ai_connection_id: string;
+    ai_connection_name: string;
+    ai_kind: "text" | "image";
+    ai_provider: string;
+    ai_model: string;
+    ai_base_url?: string;
+    hasAiApiKey: boolean;
 }
 
 export interface AIProvider {
@@ -233,8 +248,8 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
             if (activeKey === "admin" && session === getSsDate().key) {
                 await refreshUserInfo(axiosInstance).catch(() => undefined);
             }
-            await messageApi.success(data.message);
             onChanged(data.data);
+            await messageApi.success(data.message);
             return true;
         } catch (e) {
             setLoading(false);
