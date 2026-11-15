@@ -4,7 +4,7 @@ import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
 import { useUiMessage } from "@zrlog/ui/feedback";
-import IdeaIcon from "@zrlog/ui/icons/idea";
+import AiWritingIcon from "@zrlog/ui/icons/ai-writing";
 import EditIcon from "@zrlog/ui/icons/edit";
 import Form from "antd/es/form";
 import Button from "antd/es/button";
@@ -498,7 +498,7 @@ const AIForm = ({
                     >
                         <Button
                             type="link"
-                            icon={<IdeaIcon />}
+                            icon={<AiWritingIcon />}
                             loading={optimizingPrompt}
                             onClick={optimizePromptDraft}
                             style={{ paddingInline: 0, color: getAppState().colorPrimary }}

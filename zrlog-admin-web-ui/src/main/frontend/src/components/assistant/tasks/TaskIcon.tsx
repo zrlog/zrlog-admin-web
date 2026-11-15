@@ -1,8 +1,9 @@
 import CalendarIcon from "@zrlog/ui/icons/calendar";
 import RobotIcon from "@zrlog/ui/icons/robot";
 import NotificationIcon from "@zrlog/ui/icons/notifications";
-import EditIcon from "@zrlog/ui/icons/edit";
-import DatabaseIcon from "@zrlog/ui/icons/database";
+import SendIcon from "@zrlog/ui/icons/send";
+import RefreshIcon from "@zrlog/ui/icons/refresh";
+import ClearIcon from "@zrlog/ui/icons/clear";
 import DownloadIcon from "@zrlog/ui/icons/cloud-download";
 import SettingsIcon from "@zrlog/ui/icons/settings";
 import { useAssistantStyles } from "../assistant-styles";
@@ -15,9 +16,11 @@ export default function TaskIcon({ type }: { type: string }) {
             : type === "assistant.reminder"
             ? NotificationIcon
             : type === "article.publish"
-            ? EditIcon
-            : type === "site.refresh-cache" || type === "system.cleanup-temporary"
-            ? DatabaseIcon
+            ? SendIcon
+            : type === "site.refresh-cache"
+            ? RefreshIcon
+            : type === "system.cleanup-temporary"
+            ? ClearIcon
             : type === "system.auto-upgrade" || type === "system.check-version"
             ? DownloadIcon
             : type.startsWith("plugin.")

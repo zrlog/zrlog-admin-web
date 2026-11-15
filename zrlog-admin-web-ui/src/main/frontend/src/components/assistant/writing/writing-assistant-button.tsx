@@ -4,10 +4,9 @@ import { useAssistantConversation, AssistantConversationProps } from "../use-ass
 import { getAppState } from "../../../base/ConfigProviderApp";
 import { addToCache, getCacheByKey } from "../../../utils/cache";
 import { Button } from "antd";
-import RobotIcon from "@zrlog/ui/icons/robot";
+import AiWritingIcon from "@zrlog/ui/icons/ai-writing";
 import { FunctionComponent, useEffect, useMemo, useState } from "react";
 import AIButton, { AIStateCache, getAIButtonDrawerOpen } from "@zrlog/editor/core/ai/AIButton";
-import AIIcon from "../../../icons/AIProviderIcon";
 import useArticleEditorScreens from "../../articleEdit/use-article-editor-screens";
 import { getRealRouteUrl, getRes } from "../../../utils/constants";
 import { useTheme } from "antd-style";
@@ -128,7 +127,7 @@ const WritingAssistantButton: FunctionComponent<WritingAssistantButtonProps> = (
                 border: "none",
             }}
             onClick={aiConfigured ? () => updateOpen(true) : undefined}
-            icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotIcon />}
+            icon={<AiWritingIcon selected={mergedOpen} />}
             title={getShortcutTitle(getRes().assistant.writingAssistant, AI_ASSISTANT_SHORTCUT)}
             aria-label={getRes().assistant.writingAssistant}
         >

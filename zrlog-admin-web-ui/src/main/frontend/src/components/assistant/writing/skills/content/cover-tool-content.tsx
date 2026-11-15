@@ -1,4 +1,4 @@
-import CutIcon from "@zrlog/ui/icons/cut";
+import CropIcon from "@zrlog/ui/icons/crop";
 import { Button, Space } from "antd";
 import { FunctionComponent } from "react";
 
@@ -88,7 +88,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                 {url && (
                     <Button
                         size="small"
-                        icon={<CutIcon />}
+                        icon={<CropIcon />}
                         disabled={applyDisabled}
                         onClick={() => onCropCover(tryAppendBackendServerUrl(url))}
                     >

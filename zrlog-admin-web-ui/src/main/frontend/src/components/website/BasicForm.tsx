@@ -1,6 +1,6 @@
 import Input from "@zrlog/ui/antd/Input";
 import { useUiMessage } from "@zrlog/ui/feedback";
-import IdeaIcon from "@zrlog/ui/icons/idea";
+import AiWritingIcon from "@zrlog/ui/icons/ai-writing";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import Form from "antd/es/form";
 
@@ -103,7 +103,7 @@ const BasicForm = ({
                         <Button
                             type="link"
                             size="small"
-                            icon={<IdeaIcon />}
+                            icon={<AiWritingIcon />}
                             style={{ padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary }}
                             disabled={offline || offlineData}
                             loading={optimizingDescription}
