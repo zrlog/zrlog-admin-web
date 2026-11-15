@@ -70,6 +70,18 @@
           ]
         },
         {
+          "name": "gpt-image-2.6-sunburst",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-image-2.6-flare",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
           "name": "gpt-image-2.5-sunburst",
           "capabilities": [
             "IMAGE_GENERATION"
@@ -160,12 +172,6 @@
       "source": "https://help.aliyun.com/zh/model-studio/models",
       "models": [
         {
-          "name": "qwen3.8-max",
-          "capabilities": [
-            "TEXT"
-          ]
-        },
-        {
           "name": "qwen3.7-plus",
           "capabilities": [
             "TEXT"
@@ -173,6 +179,12 @@
         },
         {
           "name": "qwen3.8-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3.8-max",
           "capabilities": [
             "TEXT"
           ]
