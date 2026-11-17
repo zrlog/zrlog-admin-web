@@ -2,6 +2,7 @@ package com.zrlog.admin.web;
 
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.EnvKit;
+import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.http.server.api.Interceptor;
 import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.automation.ReminderTaskProvider;
@@ -40,9 +41,11 @@ import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSiteInfoProvider;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.logging.Logger;
 
 public class AdminWebSetup implements WebSetup, TokenServiceProvider {
 
+    private static final Logger LOGGER = LoggerUtil.getLogger(AdminWebSetup.class);
     private final ZrLogConfig zrLogConfig;
 
     public AdminWebSetup(ZrLogConfig zrLogConfig) {
@@ -549,6 +552,10 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                 .get(ServiceComponent.class)
                 .cacheManager()
                 .setExternallyScheduled(true);
+        if (EnvKit.isFaaSMode()) {
+            LOGGER.info("Skip assistant maintenance task initialization check in FaaS mode");
+            return;
+        }
         try {
             var automations =
                     zrLogConfig
@@ -568,15 +575,22 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
         var services = zrLogConfig.getServerConfig().getBindings().build();
         var core = zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class);
         if (zrLogConfig.isInstalled() && core != null && core.supportsHostScheduler()) {
-            try {
-                // Called during plugin assembly, before any process starts. Keep legacy scans if
-                // migration cannot finish.
-                core.setExternallyScheduled(
-                        services.get(AutomationComponent.class)
-                                .defaults()
-                                .initializePluginTrigger());
-            } catch (java.sql.SQLException error) {
-                throw new IllegalStateException("Unable to migrate plugin schedule trigger", error);
+            if (EnvKit.isFaaSMode()) {
+                // Explicit triggers initialize defaults before executing scheduled tasks.
+                core.setExternallyScheduled(true);
+                LOGGER.info("Skip plugin schedule initialization check in FaaS mode");
+            } else {
+                try {
+                    // Called during plugin assembly, before any process starts. Keep legacy scans
+                    // if migration cannot finish.
+                    core.setExternallyScheduled(
+                            services.get(AutomationComponent.class)
+                                    .defaults()
+                                    .initializePluginTrigger());
+                } catch (java.sql.SQLException error) {
+                    throw new IllegalStateException(
+                            "Unable to migrate plugin schedule trigger", error);
+                }
             }
         }
         iPlugins.add(services.get(AutomationComponent.class).plugin());

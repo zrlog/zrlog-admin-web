@@ -205,11 +205,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         }
 
         @Override
-        public long getCurrentSqlVersion() {
-            return 0;
-        }
-
-        @Override
         public long getWebSiteVersion() {
             return 0;
         }
