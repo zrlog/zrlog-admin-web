@@ -240,7 +240,7 @@ public class AIChatService {
 
     public RunView getRun(AccountAccess actor, Long articleId, String taskId, String sessionId)
             throws SQLException {
-        authorizeSession(actor, articleId, taskId, sessionId);
+        if (!authorizeSessionRead(actor, articleId, taskId, sessionId)) return null;
         return visibleRun(
                 actor, this.approvalStore.read(actor.getUserId(), articleId, taskId, sessionId));
     }
@@ -267,6 +267,20 @@ public class AIChatService {
         var task = authorizeContext(actor, articleId, taskId);
         conversations.index().check(actor.getUserId(), articleId, taskId, sessionId);
         return task;
+    }
+
+    private boolean authorizeSessionRead(
+            AccountAccess actor, Long articleId, String taskId, String sessionId)
+            throws SQLException {
+        if (Long.valueOf(0).equals(articleId) && taskId == null && sessionId == null) {
+            // A new article editor can read the default draft before it opens a named draft.
+            authorizeContext(actor, articleId, taskId);
+            return !conversations
+                    .index()
+                    .isRemoved(actor.getUserId(), articleId, taskId, sessionId);
+        }
+        authorizeSession(actor, articleId, taskId, sessionId);
+        return true;
     }
 
     public SessionPage sessions(
@@ -342,7 +356,9 @@ public class AIChatService {
     public AIWebSiteInfoWithAIMessages conversationInfo(
             AccountAccess actor, Long articleId, String taskId, boolean earlier, String sessionId)
             throws SQLException {
-        authorizeSession(actor, articleId, taskId, sessionId);
+        if (!authorizeSessionRead(actor, articleId, taskId, sessionId)) {
+            return conversations.emptyConversationInfo();
+        }
         return loadConversationInfo(actor, articleId, taskId, earlier, sessionId);
     }
 

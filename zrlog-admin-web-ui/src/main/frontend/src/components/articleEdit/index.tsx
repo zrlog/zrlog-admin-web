@@ -1,6 +1,6 @@
 import { useUiApp, useUiMessage } from "@zrlog/ui/feedback";
 import { isModuleEnabled } from "../../utils/module-capabilities";
-import { FunctionComponent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { InputRef } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
@@ -48,6 +48,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
 }) => {
     const location = useLocation();
     const editCardRef = useRef<HTMLDivElement>(null);
+    const getEditCard = useCallback(() => editCardRef.current as HTMLElement, []);
     const suppressedEditorMarkdownRef = useRef<string>();
     const [publishReviewOpen, setPublishReviewOpen] = useState(false);
     const [publishReviewMode, setPublishReviewMode] = useState<"publish" | "preview">("publish");
@@ -78,10 +79,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const digestRef = useRef<InputRef>(null);
     const [messageApi, messageContextHolder] = useUiMessage({
         maxCount: 3,
-        getContainer: () => editCardRef.current as HTMLElement,
+        getContainer: getEditCard,
     });
     const { modal } = useUiApp();
-    const axiosInstance = useAxiosBaseInstance(() => editCardRef.current as HTMLElement);
+    const axiosInstance = useAxiosBaseInstance(getEditCard);
     const navigate = useNavigate();
     const writingDraftConversation = useRef<string>();
     const draftAiSaveGate = useMemo(createDraftAiSaveGate, []);

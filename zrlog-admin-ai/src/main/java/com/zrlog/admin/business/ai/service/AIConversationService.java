@@ -429,15 +429,26 @@ public class AIConversationService {
         if (article && !aiMessageKey.equals(buildCacheKey(articleId)))
             names.add(buildCacheKey(articleId));
         Map<String, Object> map = websites.get().getWebSiteByNameIn(names);
-        AIWebSiteInfoWithAIMessages info =
-                AIConfigService.normalizeAIWebSiteInfo(
-                        ResultBeanUtils.convert(map, AIWebSiteInfoWithAIMessages.class));
+        AIWebSiteInfoWithAIMessages info = conversationInfo(map);
         fillAiMessages(
                 info,
                 map,
                 article && map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
         for (var entry : info.getAiMessages()) TaskResultMessages.localize(entry);
         return info;
+    }
+
+    AIWebSiteInfoWithAIMessages emptyConversationInfo() {
+        var info =
+                conversationInfo(
+                        websites.get().getWebSiteByNameIn(AIConfigService.AI_WEBSITE_INFO_KEYS));
+        info.setAiMessages(List.of());
+        return info;
+    }
+
+    private AIWebSiteInfoWithAIMessages conversationInfo(Map<String, Object> settings) {
+        return AIConfigService.normalizeAIWebSiteInfo(
+                ResultBeanUtils.convert(settings, AIWebSiteInfoWithAIMessages.class));
     }
 
     void fillAiMessages(

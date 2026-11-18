@@ -13,6 +13,6 @@ final class AdminInterceptorSupport {
         if (Objects.isNull(tokenService)) {
             return null;
         }
-        return tokenService.getAdminTokenVO(request);
+        return tokenService.getAdminTokenVOForAdmin(request);
     }
 }

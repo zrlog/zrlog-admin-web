@@ -15,6 +15,16 @@ const readSelected = (articleId: number, draftConversationId?: string) => {
     return value && /^[a-f0-9-]{36}$/.test(value) ? value : undefined;
 };
 
+const loadConversation = async (api: AxiosInstance, id: number, sessionId?: string, signal?: AbortSignal) => {
+    const config = { params: { id, sessionId }, signal, showError: false };
+    const { data } = await api.get<ApiResponse<{ aiMessages: AIContent[] }>>(
+        "/api/admin/assistant/chat/conversation",
+        config
+    );
+    if (data.error) throw new Error(data.message || getRes().error.unknown);
+    return data.data.aiMessages;
+};
+
 export default function useWritingConversation(
     api: AxiosInstance,
     articleId: number,
@@ -33,16 +43,9 @@ export default function useWritingConversation(
     const [retry, setRetry] = useState(0);
     const priorArticle = useRef(articleId);
     const loaded = useRef<string>();
+    const apiRef = useRef(api);
+    apiRef.current = api;
     const loadKey = `${articleId}/${sessionId || "default"}/${retry}`;
-    const loadConversation = async (id: number, selected?: string, signal?: AbortSignal) => {
-        const config = { params: { id, sessionId: selected }, signal, showError: false };
-        const { data } = await api.get<ApiResponse<{ aiMessages: AIContent[] }>>(
-            "/api/admin/assistant/chat/conversation",
-            config
-        );
-        if (data.error) throw new Error(data.message || getRes().error.unknown);
-        return data.data.aiMessages;
-    };
     const ensureDraft = () => {
         if (articleId > 0 || sessionId) return Promise.resolve({ sessionId, messages });
         if (!pendingDraft.current) {
@@ -54,7 +57,7 @@ export default function useWritingConversation(
                 if (data.error || !data.data?.conversationId)
                     throw new Error(data.message || getRes().error.unknown);
                 const id = data.data.conversationId;
-                const history = await loadConversation(0, id);
+                const history = await loadConversation(api, 0, id);
                 canonicalDraft.current = id;
                 loaded.current = `0/${id}/${retry}`;
                 setMessages(history);
@@ -89,7 +92,7 @@ export default function useWritingConversation(
         const controller = new AbortController();
         setLoading(true);
         setError(undefined);
-        void loadConversation(articleId, sessionId, controller.signal)
+        void loadConversation(apiRef.current, articleId, sessionId, controller.signal)
             .then((history) => {
                 if (controller.signal.aborted) return;
                 loaded.current = loadKey;
@@ -102,7 +105,7 @@ export default function useWritingConversation(
                 if (!controller.signal.aborted) setLoading(false);
             });
         return () => controller.abort();
-    }, [api, articleId, sessionId, open, loadKey]);
+    }, [articleId, sessionId, open, loadKey]);
     return {
         sessionId,
         messages,

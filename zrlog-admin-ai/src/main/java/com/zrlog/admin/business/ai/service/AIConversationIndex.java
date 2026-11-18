@@ -128,8 +128,13 @@ public final class AIConversationIndex {
 
     public void check(int userId, Long articleId, String taskId, String sessionId)
             throws SQLException {
+        if (isRemoved(userId, articleId, taskId, sessionId)) throw new PermissionErrorException();
+    }
+
+    boolean isRemoved(int userId, Long articleId, String taskId, String sessionId)
+            throws SQLException {
         WebSite row = row(userId, articleId, taskId, sessionId);
-        if (row != null && row.getValue() == null) throw new PermissionErrorException();
+        return row != null && row.getValue() == null;
     }
 
     public void touch(
