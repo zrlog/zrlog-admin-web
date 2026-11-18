@@ -12,6 +12,7 @@ import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
@@ -281,6 +282,9 @@ public class AdminInterceptorRoutingTest {
                         request(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH)));
         assertTrue(
                 adminPwaInterceptor.isHandleAble(request(AdminConstants.ADMIN_SERVICE_WORKER_JS)));
+        assertTrue(
+                adminPwaInterceptor.isHandleAble(request(AdminResource.ADMIN_ASSET_MANIFEST_JSON)));
+        assertFalse(adminPwaInterceptor.isHandleAble(request("/admin/template/preview-image")));
         assertFalse(adminPwaInterceptor.isHandleAble(request("/admin/pwa/missing.json")));
     }
 
