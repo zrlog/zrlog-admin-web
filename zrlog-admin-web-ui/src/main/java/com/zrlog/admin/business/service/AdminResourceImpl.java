@@ -20,9 +20,10 @@ import java.util.stream.Collectors;
 public class AdminResourceImpl implements AdminResource {
 
     private final Set<String> pageUris;
-    private final Set<String> staticUris;
-    private final Set<String> apiUris;
-    private final long fileBuildId;
+    // Only page routes are needed at startup. These per-application caches use synchronized access.
+    private Set<String> staticUris;
+    private Set<String> apiUris;
+    private Long fileBuildId;
     private final String basePath;
     private final String contextPath;
 
@@ -38,18 +39,23 @@ public class AdminResourceImpl implements AdminResource {
         this.basePath = contextPath + "/";
         this.contextPath = contextPath;
         this.pageUris = wrapperUris(getUris("/conf/pwa-page.txt"));
-        this.apiUris = getUris("/conf/pwa-api.txt");
-        this.staticUris = getStaticUri();
+    }
+
+    private synchronized long getFileBuildId() {
+        if (fileBuildId != null) {
+            return fileBuildId;
+        }
         Map<String, Object> resourceMap = new TreeMap<>();
         resourceMap.put("uris", pageUris);
-        resourceMap.put("static", staticUris);
+        resourceMap.put("static", getAdminStaticResourceUris());
         resourceMap.put("documentTitleMap", AdminConstants.TITLE_MAP);
         try {
             resourceMap.put("manifestIcons", ManifestUtils.getManifestIcons());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        this.fileBuildId = Math.abs(SecurityUtils.md5(new Gson().toJson(resourceMap)).hashCode());
+        fileBuildId = (long) Math.abs(SecurityUtils.md5(new Gson().toJson(resourceMap)).hashCode());
+        return fileBuildId;
     }
 
     private Set<String> getStaticUri() {
@@ -84,7 +90,7 @@ public class AdminResourceImpl implements AdminResource {
         String withoutContextPath =
                 adminResourceUrl.substring(0, adminResourceUrl.length() - contextPath.length());
         // HTML embeds account identity and article data, so only precache static assets.
-        staticUris.forEach(uri -> realUris.add(withoutContextPath + uri));
+        getAdminStaticResourceUris().forEach(uri -> realUris.add(withoutContextPath + uri));
         String newUrls =
                 "const urlsToCache = "
                         + new Gson()
@@ -103,7 +109,7 @@ public class AdminResourceImpl implements AdminResource {
 
     @Override
     public String getStaticResourceBuildId() {
-        return Math.abs(fileBuildId + siteVersion.getAsLong()) + "";
+        return Math.abs(getFileBuildId() + siteVersion.getAsLong()) + "";
     }
 
     private Set<String> getUris(String resourceName) {
@@ -134,7 +140,10 @@ public class AdminResourceImpl implements AdminResource {
     }
 
     @Override
-    public Set<String> getAdminStaticResourceUris() {
+    public synchronized Set<String> getAdminStaticResourceUris() {
+        if (staticUris == null) {
+            staticUris = getStaticUri();
+        }
         return staticUris;
     }
 
@@ -155,7 +164,10 @@ public class AdminResourceImpl implements AdminResource {
     }
 
     @Override
-    public Set<String> getAdminCacheableApiUris() {
+    public synchronized Set<String> getAdminCacheableApiUris() {
+        if (apiUris == null) {
+            apiUris = getUris("/conf/pwa-api.txt");
+        }
         return apiUris;
     }
 }
