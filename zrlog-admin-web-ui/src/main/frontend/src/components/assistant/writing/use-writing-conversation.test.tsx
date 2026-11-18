@@ -10,8 +10,16 @@ const api = { get, post } as unknown as AxiosInstance;
 let root: Root;
 let container: HTMLDivElement;
 let session: ReturnType<typeof useWritingConversation>;
-function Harness({ articleId = 0, open = true }: { articleId?: number; open?: boolean }) {
-    session = useWritingConversation(api, articleId, open);
+function Harness({
+    articleId = 0,
+    open = true,
+    client = api,
+}: {
+    articleId?: number;
+    open?: boolean;
+    client?: AxiosInstance;
+}) {
+    session = useWritingConversation(client, articleId, open);
     return <div>{session.messages.map((m) => m.content).join("|")}</div>;
 }
 beforeEach(() => {
@@ -22,6 +30,27 @@ beforeEach(() => {
     post.mockReset();
     container = document.createElement("div");
     root = createRoot(container);
+});
+
+it("retries a failed history read only when requested after the API client changes", async () => {
+    get.mockResolvedValueOnce({ data: { error: 9016, message: "Conversation unavailable" } });
+    await act(async () => root.render(<Harness />));
+    expect(session.error).toBe("Conversation unavailable");
+    expect(session.loading).toBe(false);
+    const history = [{ role: "assistant", content: "Restored history" }];
+    const latestGet = jest.fn<Promise<any>, any[]>().mockResolvedValue({
+        data: { error: 0, data: { aiMessages: history } },
+    });
+    await act(async () => root.render(<Harness client={{ get: latestGet } as unknown as AxiosInstance} />));
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(latestGet).not.toHaveBeenCalled();
+    expect(session.error).toBe("Conversation unavailable");
+
+    await act(async () => session.retry());
+    expect(latestGet).toHaveBeenCalledTimes(1);
+    expect(latestGet.mock.calls[0][1].params).toEqual({ id: 0, sessionId: undefined });
+    expect(session.error).toBeUndefined();
+    expect(container.textContent).toBe("Restored history");
 });
 afterEach(() => {
     act(() => root.unmount());

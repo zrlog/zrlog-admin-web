@@ -13,6 +13,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.exception.DAOException;
 import com.zrlog.data.security.AccountAction;
 import java.lang.reflect.Proxy;
 import java.util.List;
@@ -92,6 +93,25 @@ public class AccountAuthorizationBoundaryTest {
             db.execute("delete from user where userId=1");
             assertThrows(PermissionErrorException.class, () -> identities.account(token(1, 1)));
             assertThrows(PermissionErrorException.class, () -> identities.account(null));
+        }
+    }
+
+    @Test
+    public void identityReadFailureRemainsADatabaseError() throws Exception {
+        try (var db = open()) {
+            var identities = AccountServicesFixture.component(db.dataSource()).identities();
+            AdminTokenVO credentials = token(1, 0);
+            var actor = identities.account(credentials);
+            db.execute("drop table user");
+
+            assertEquals(
+                    9101,
+                    assertThrows(DAOException.class, () -> identities.account(credentials))
+                            .getError());
+            assertEquals(
+                    9101,
+                    assertThrows(DAOException.class, () -> identities.revalidate(actor))
+                            .getError());
         }
     }
 

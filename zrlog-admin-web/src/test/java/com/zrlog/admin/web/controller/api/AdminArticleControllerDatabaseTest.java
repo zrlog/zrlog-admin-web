@@ -419,9 +419,72 @@ public class AdminArticleControllerDatabaseTest {
         }
     }
 
+    @Test
+    public void shouldReadAnEmptyDefaultDraftAfterDeletingItsLegacyConversation() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            applicationConfig = db.config();
+            setAdminToken();
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-4o");
+            db.putWebsite("ai_base_url", "https://example.test/v1");
+
+            var conversations = db.component(AIComponent.class).conversations().captureAccount(1);
+            var message = new AIResponseEntry.AIContentEntry("user", "Legacy draft");
+            assertTrue(conversations.saveAIMessage(List.of(message), -1L));
+            var defaultDraft = assistantController(db, Map.of("id", "0"));
+            assertEquals(
+                    "Legacy draft",
+                    defaultDraft.conversation().getData().aiMessages.get(0).getContent());
+
+            assertTrue(
+                    assistantController(db, Map.of(), "{\"articleId\":0}")
+                            .deleteSession()
+                            .getData());
+            var emptyDraft = defaultDraft.conversation().getData();
+            assertTrue(emptyDraft.aiMessages.isEmpty());
+            assertTrue(emptyDraft.aiConfigured);
+            assertEquals("gpt-4o", emptyDraft.aiModel);
+            assertNull(defaultDraft.aiRun().getData());
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> conversations.saveAIMessage(List.of(message), -1L));
+
+            var deletedId = UUID.randomUUID().toString();
+            assertTrue(
+                    conversations.captureSession(deletedId).saveAIMessage(List.of(message), -1L));
+            assertTrue(
+                    assistantController(
+                                    db,
+                                    Map.of(),
+                                    "{\"articleId\":0,\"sessionId\":\"" + deletedId + "\"}")
+                            .deleteSession()
+                            .getData());
+            var deletedDraft = assistantController(db, Map.of("id", "0", "sessionId", deletedId));
+            assertThrows(PermissionErrorException.class, deletedDraft::conversation);
+            assertThrows(PermissionErrorException.class, deletedDraft::aiRun);
+
+            String draftId = defaultDraft.openDraftConversation().getData().conversationId;
+            assertTrue(conversations.captureSession(draftId).saveAIMessage(List.of(message), -1L));
+            assertEquals(
+                    "Legacy draft",
+                    assistantController(db, Map.of("id", "0", "sessionId", draftId))
+                            .conversation()
+                            .getData()
+                            .aiMessages
+                            .get(0)
+                            .getContent());
+        }
+    }
+
     private static AssistantChatController assistantController(
             InMemoryZrLogDatabase db, Map<String, String> params) throws Exception {
-        HttpRequest draftRequest = request(params, null);
+        return assistantController(db, params, null);
+    }
+
+    private static AssistantChatController assistantController(
+            InMemoryZrLogDatabase db, Map<String, String> params, String body) throws Exception {
+        HttpRequest draftRequest = request(params, body);
         var assistant = db.component(AIComponent.class).requests().create(draftRequest).articles();
         setControllerField(assistant, "request", draftRequest);
         setControllerField(assistant, "response", new ResponseRecorder().response());

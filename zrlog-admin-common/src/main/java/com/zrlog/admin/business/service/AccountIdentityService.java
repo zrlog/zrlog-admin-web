@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.data.repository.AccountIdentityRepository;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.exception.DAOException;
 import com.zrlog.data.security.AccountAccess;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -20,26 +21,25 @@ public final class AccountIdentityService {
     }
 
     public AccountAccess account(AdminTokenVO token) {
-        try {
-            if (token == null) throw new PermissionErrorException();
-            AccountAccess account = users.get().accessById(token.getUserId());
-            if (!account.isEnabled() || token.getAuthVersion() != account.getAuthVersion()) {
-                throw new PermissionErrorException();
-            }
-            return account;
-        } catch (SQLException e) {
+        if (token == null) throw new PermissionErrorException();
+        AccountAccess account = loadAccount(token.getUserId());
+        if (!account.isEnabled() || token.getAuthVersion() != account.getAuthVersion()) {
             throw new PermissionErrorException();
         }
+        return account;
     }
 
     /** Recheck a short-lived actor without discarding its immutable delegation restrictions. */
     public AccountAccess revalidate(AccountAccess actor) {
+        if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
+        return requireUnchanged(actor, loadAccount(actor.getUserId()));
+    }
+
+    private AccountAccess loadAccount(int userId) {
         try {
-            if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
-            AccountAccess current = users.get().accessById(actor.getUserId());
-            return requireUnchanged(actor, current);
+            return users.get().accessById(userId);
         } catch (SQLException e) {
-            throw new PermissionErrorException();
+            throw new DAOException(e);
         }
     }
 
