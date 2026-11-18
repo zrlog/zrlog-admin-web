@@ -10,6 +10,7 @@ import com.hibegin.http.server.util.NativeImageUtils;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.model.AIModelCatalog;
+import com.zrlog.admin.business.ai.prompt.AIInstructionPrompt;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import java.io.InputStream;
@@ -59,6 +60,8 @@ public class AdminNativeImageUtilsTest {
         assertTrue(resources.contains(AdminResource.ADMIN_ASSET_MANIFEST_JSON));
         assertTrue(resources.contains(AdminConstants.BUILD_SYSTEM_INFO_MD));
         assertTrue(resources.contains(AIModelCatalog.RESOURCE));
+        assertTrue(resources.containsAll(AIInstructionPrompt.resources()));
+        for (var prompt : AIInstructionPrompt.values()) assertFalse(prompt.text().isBlank());
         assertTrue(resources.stream().anyMatch(resource -> resource.endsWith("zh_CN.md")));
         assertTrue(resources.stream().anyMatch(resource -> resource.endsWith("en_US.md")));
     }
