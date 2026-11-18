@@ -46,13 +46,13 @@
       "source": "https://developers.openai.com/api/docs/models",
       "models": [
         {
-          "name": "gpt-6-astra",
+          "name": "gpt-6.2-astra",
           "capabilities": [
             "TEXT"
           ]
         },
         {
-          "name": "gpt-6.1-sol",
+          "name": "gpt-6.2-sol",
           "capabilities": [
             "TEXT"
           ]
@@ -91,6 +91,18 @@
           "name": "gpt-image-2.5-flare",
           "capabilities": [
             "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-6-astra",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-6.1-sol",
+          "capabilities": [
+            "TEXT"
           ]
         },
         {
@@ -171,6 +183,12 @@
       "name": "QWEN",
       "source": "https://help.aliyun.com/zh/model-studio/models",
       "models": [
+        {
+          "name": "qwen4-max",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
         {
           "name": "qwen3.7-plus",
           "capabilities": [
