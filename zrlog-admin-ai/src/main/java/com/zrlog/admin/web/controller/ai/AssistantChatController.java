@@ -197,6 +197,19 @@ public class AssistantChatController extends BaseController {
 
     @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<AIChatModels.DraftConversation> openDraftConversation()
+            throws SQLException {
+        response.addHeader("Cache-Control", "private, no-store");
+        String conversationId =
+                conversations
+                        .captureAccount(requestIdentity.current().getUserId())
+                        .openDraftConversation();
+        return new ApiStandardResponse<>(new AIChatModels.DraftConversation(conversationId));
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "assistant.chat")
     @RequestMethod(method = HttpMethod.GET)
     public ApiStandardResponse<AIChatModels.ConversationView> conversation() throws SQLException {
         response.addHeader("Cache-Control", "private, no-store");
@@ -348,6 +361,7 @@ public class AssistantChatController extends BaseController {
                         coverRequest,
                         getRequest(),
                         aiContextId(),
+                        sessionId(),
                         uploadService);
         return new ApiStandardResponse<>(uploadFileResponse);
     }

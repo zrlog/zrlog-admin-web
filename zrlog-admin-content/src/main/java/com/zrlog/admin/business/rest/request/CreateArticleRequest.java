@@ -25,6 +25,7 @@ public class CreateArticleRequest implements Validator {
     private String editorType;
     private boolean transparentPublish;
     private Long publishAt;
+    private String conversationId;
 
     /** Optional publication time, Unix epoch milliseconds. */
     public Long getPublishAt() {
@@ -34,8 +35,6 @@ public class CreateArticleRequest implements Validator {
     public void setPublishAt(Long publishAt) {
         this.publishAt = publishAt;
     }
-
-    private boolean preserveDraftAiMessages;
 
     public String getContent() {
         return content;
@@ -165,12 +164,13 @@ public class CreateArticleRequest implements Validator {
         this.transparentPublish = transparentPublish;
     }
 
-    public boolean isPreserveDraftAiMessages() {
-        return preserveDraftAiMessages;
+    /** Optional writing conversation to bind on the first save of this article. */
+    public String getConversationId() {
+        return conversationId;
     }
 
-    public void setPreserveDraftAiMessages(boolean preserveDraftAiMessages) {
-        this.preserveDraftAiMessages = preserveDraftAiMessages;
+    public void setConversationId(String conversationId) {
+        this.conversationId = conversationId;
     }
 
     @Override

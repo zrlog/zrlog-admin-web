@@ -220,16 +220,18 @@ public class AdminArticleServiceDatabaseTest {
             assertEquals(Long.valueOf(1), loaded.getTypeId());
             assertTrue(loaded.getPreviewUrl().contains("/hello-article"));
             assertNotNull(loaded.getSocialPreview());
-            assertEquals(
-                    1,
+            assertTrue(
                     conversationService
                             .getAiMessageInfoByArticleId(response.getLogId())
                             .getAiMessages()
-                            .size());
+                            .isEmpty());
             assertEquals(
-                    "[]",
-                    db.queryOne("select value from website where name=?", "ai_chat_message_u1_-1")
-                            .get("value"));
+                    "draft",
+                    conversationService
+                            .getAiMessageInfoByArticleId(-1L)
+                            .getAiMessages()
+                            .get(0)
+                            .getContent());
         }
     }
 
@@ -288,8 +290,6 @@ public class AdminArticleServiceDatabaseTest {
                     conversationService.saveAIMessage(
                             List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
             CreateArticleRequest request = article("Imported draft", "imported-draft");
-            request.setPreserveDraftAiMessages(true);
-
             CreateOrUpdateArticleResponse response =
                     service.create(
                             AccountServicesFixture.component(ignored.dataSource())

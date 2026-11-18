@@ -91,18 +91,12 @@ public class AIWebSetup implements ArticleAssistant {
     }
 
     @Override
-    public void articleCreated(long articleId, int userId) {
-        try {
-            components()
-                    .conversations()
-                    .captureAccount(userId)
-                    .migrateDraftAIMessageToArticle(articleId, -(long) userId);
-        } catch (Exception e) {
-            LOGGER.log(
-                    Level.FINE,
-                    "Migrate draft article AI messages failed, articleId=" + articleId,
-                    e);
-        }
+    public DraftConversationBinding prepareDraftConversationBinding(
+            AccountAccess actor, String conversationId, String runId) throws java.sql.SQLException {
+        return components()
+                .conversations()
+                .captureAccount(actor.getUserId())
+                .prepareDraftConversationBinding(conversationId, runId);
     }
 
     @Override
@@ -117,12 +111,21 @@ public class AIWebSetup implements ArticleAssistant {
     @Override
     public ArticleGlobalResponse enrichEditor(
             ArticleGlobalResponse article, long articleId, int userId) {
+        var conversations = components().conversations().captureAccount(userId);
+        String draftConversationId = null;
+        if (articleId <= 0) {
+            try {
+                draftConversationId = conversations.draftConversationId();
+            } catch (java.sql.SQLException error) {
+                throw new IllegalStateException("Unable to load writing draft", error);
+            }
+        }
         AIWebSiteInfoWithAIMessages ai =
-                components()
-                        .conversations()
-                        .captureAccount(userId)
-                        .getAiMessageInfoByArticleId(articleId);
+                conversations
+                        .captureSession(draftConversationId)
+                        .getAiMessageInfoByArticleId(articleId <= 0 ? -(long) userId : articleId);
         AIArticleGlobalResponse response = new AIArticleGlobalResponse(article);
+        response.setDraftConversationId(draftConversationId);
         response.setAiProvider(ai.getAi_provider());
         response.setAiModel(ai.getAi_model());
         response.setAiFileInput(AIFileService.capabilities(ai));
@@ -132,9 +135,11 @@ public class AIWebSetup implements ArticleAssistant {
                         && (StringUtils.isNotEmpty(ai.getAi_api_key())
                                 || StringUtils.isNotEmpty(ai.getAi_base_url())));
         response.setAiMessages(
-                ai.getAiMessages().stream()
-                        .filter(e -> !Objects.equals(e.getRole(), "system"))
-                        .collect(Collectors.toList()));
+                articleId <= 0 && draftConversationId == null
+                        ? java.util.List.of()
+                        : ai.getAiMessages().stream()
+                                .filter(e -> !Objects.equals(e.getRole(), "system"))
+                                .collect(Collectors.toList()));
         return response;
     }
 
@@ -276,6 +281,10 @@ public class AIWebSetup implements ArticleAssistant {
                 AIWebSiteController.class,
                 "optimizeAiPrompt");
         router.addMapper("/api/admin/assistant/chat", AssistantChatController.class, "ai");
+        router.addMapper(
+                "/api/admin/assistant/chat/draft",
+                AssistantChatController.class,
+                "openDraftConversation");
         router.addMapper(
                 "/api/admin/assistant/chat/conversation",
                 AssistantChatController.class,

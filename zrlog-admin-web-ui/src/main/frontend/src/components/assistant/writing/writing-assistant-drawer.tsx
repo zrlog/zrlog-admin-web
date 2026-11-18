@@ -12,12 +12,12 @@ import AiWritingIcon from "@zrlog/ui/icons/ai-writing";
 import { AIStateCache, getAIStateCacheKey } from "@zrlog/editor/dist/ai/AIStateCache";
 import { getRes } from "../../../utils/constants";
 import useArticleEditorScreens from "../../articleEdit/use-article-editor-screens";
-import type { useAssistantConversation, AssistantConversationData } from "../use-assistant-conversation";
+import type { useAssistantConversation } from "../use-assistant-conversation";
 
 type Props = {
-    data: AssistantConversationData;
+    articleTitle: string;
     config: ReturnType<typeof useAssistantConversation>;
-    sessions: ReturnType<typeof useWritingConversation>;
+    sessions: Pick<ReturnType<typeof useWritingConversation>, "loading" | "error" | "retry">;
     open: boolean;
     onClose: () => void;
     getContainer?: () => HTMLElement;
@@ -27,7 +27,7 @@ type Props = {
 };
 
 export default function WritingAssistantDrawer({
-    data,
+    articleTitle,
     config,
     sessions,
     open,
@@ -102,7 +102,11 @@ export default function WritingAssistantDrawer({
                                     icon: <DeleteIcon />,
                                     label: res.clearAiMessages,
                                     danger: true,
-                                    disabled: actions.disabled || actions.exporting || actions.clearing,
+                                    disabled:
+                                        actions.disabled ||
+                                        actions.clearDisabled ||
+                                        actions.exporting ||
+                                        actions.clearing,
                                     onClick: () =>
                                         modal.confirm({
                                             title: res.clearAiMessagesConfirmTitle,
@@ -129,11 +133,11 @@ export default function WritingAssistantDrawer({
                             <ChevronDownIcon style={{ fontSize: theme.fontSizeSM }} />
                         </Button>
                     </Dropdown>
-                    {data.article.title && (
+                    {articleTitle && (
                         <Typography.Text
                             type="secondary"
                             ellipsis
-                            title={data.article.title}
+                            title={articleTitle}
                             style={{
                                 flex: "1 1 0",
                                 minWidth: 0,
@@ -142,7 +146,7 @@ export default function WritingAssistantDrawer({
                                 textOverflow: "ellipsis",
                             }}
                         >
-                            {data.article.title}
+                            {articleTitle}
                         </Typography.Text>
                     )}
                 </div>

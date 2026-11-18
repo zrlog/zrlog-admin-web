@@ -13,6 +13,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Small private directory rows; listing never reads message or checkpoint payloads. */
 public final class AIConversationIndex {
@@ -48,13 +49,81 @@ public final class AIConversationIndex {
 
     private WebSite row(int userId, Long articleId, String taskId, String sessionId)
             throws SQLException {
-        return db.withSession(
+        return row(key(userId, articleId, taskId, sessionId));
+    }
+
+    private WebSite row(String key) throws SQLException {
+        return db.withSession(c -> db.firstEntity(c, WebSite.class, "WHERE name=? LIMIT 1", key));
+    }
+
+    private String draftKey(int userId) {
+        if (userId <= 0) throw new PermissionErrorException();
+        return "ai_writing_draft_u" + userId;
+    }
+
+    private String bindingKey(int userId, String conversationId) {
+        AIConversationScope.validateSession(conversationId, null);
+        if (conversationId == null) throw new ArgsException();
+        return draftKey(userId) + "_bound_" + conversationId;
+    }
+
+    String draftConversationId(int userId) throws SQLException {
+        WebSite draft = row(draftKey(userId));
+        if (draft == null || draft.getValue() == null) return null;
+        String id = draft.getValue().toString();
+        WebSite binding = row(bindingKey(userId, id));
+        return binding == null || binding.getRemark() == null ? id : null;
+    }
+
+    boolean hasDraftConversationSlot(int userId) throws SQLException {
+        return row(draftKey(userId)) != null;
+    }
+
+    /** Called with the account's draft lock held. */
+    String openDraftConversation(int userId) throws SQLException {
+        String current = draftConversationId(userId);
+        if (current != null) return current;
+        String key = draftKey(userId);
+        String id = UUID.randomUUID().toString();
+        WebSite draft = row(key);
+        if (draft == null) {
+            db.withSession(
+                    c ->
+                            db.repository(c, WebSite.class)
+                                    .insert(WebSiteRepository.entry(key, id, null)));
+        } else {
+            update(draft, WebSiteRepository.entry(null, id, null), List.of("value"));
+        }
+        return id;
+    }
+
+    Long draftBinding(int userId, String conversationId) throws SQLException {
+        WebSite binding = row(bindingKey(userId, conversationId));
+        return binding == null ? null : Long.valueOf(binding.getValue().toString());
+    }
+
+    /** Store the target before copying so an interrupted retry cannot claim another article. */
+    boolean claimDraftBinding(int userId, String conversationId, long articleId)
+            throws SQLException {
+        String key = bindingKey(userId, conversationId);
+        WebSite binding = row(key);
+        if (binding != null) {
+            if (!Long.toString(articleId).equals(binding.getValue().toString()))
+                throw new ArgsException();
+            return binding.getRemark() == null;
+        }
+        db.withSession(
                 c ->
-                        db.firstEntity(
-                                c,
-                                WebSite.class,
-                                "WHERE name=? LIMIT 1",
-                                key(userId, articleId, taskId, sessionId)));
+                        db.repository(c, WebSite.class)
+                                .insert(
+                                        WebSiteRepository.entry(
+                                                key, Long.toString(articleId), null)));
+        return true;
+    }
+
+    void completeDraftBinding(int userId, String conversationId) throws SQLException {
+        WebSite binding = row(bindingKey(userId, conversationId));
+        update(binding, WebSiteRepository.entry(null, null, "complete"), List.of("remark"));
     }
 
     public void check(int userId, Long articleId, String taskId, String sessionId)
@@ -181,21 +250,6 @@ public final class AIConversationIndex {
         WebSite row = row(userId, 0L, null, sessionId);
         if (row == null) return;
         update(row, WebSiteRepository.entry(null, null, null), List.of("remark"));
-    }
-
-    public List<AIChatModels.Session> draftSessions(int userId) throws SQLException {
-        String pattern = escape(prefix(userId) + "0:") + "%";
-        return db
-                .withSession(
-                        c ->
-                                db.entities(
-                                        c,
-                                        WebSite.class,
-                                        "WHERE name LIKE ? ESCAPE '!' AND value IS NOT NULL AND remark IS NOT NULL",
-                                        pattern))
-                .stream()
-                .map(row -> json.fromJson(row.getValue(), AIChatModels.Session.class))
-                .collect(java.util.stream.Collectors.toList());
     }
 
     private void update(WebSite expected, WebSite changes, List<String> columns)

@@ -124,7 +124,23 @@ public class AIImageService extends AIService {
             Long articleId,
             UploadService uploadService)
             throws SQLException {
+        return applyArticleCover(
+                actor, credential, applyRequest, request, articleId, null, uploadService);
+    }
+
+    public UploadFileResponse applyArticleCover(
+            AccountAccess actor,
+            AdminTokenVO credential,
+            ApplyArticleCoverRequest applyRequest,
+            HttpRequest request,
+            Long articleId,
+            String sessionId,
+            UploadService uploadService)
+            throws SQLException {
         authorize(actor);
+        var conversation =
+                conversations.captureAccount(actor.getUserId()).captureSession(sessionId);
+        if (articleId <= 0) conversation.requireOpenDraft(sessionId);
         String source = applyRequest.getDataUrl();
         if (source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)
                 && !actor.isAdministrator()
@@ -148,13 +164,11 @@ public class AIImageService extends AIService {
             uploadFileResponse = new UploadFileResponse(applyRequest.getDataUrl());
         }
         if (StringUtils.isNotEmpty(applyRequest.getMessageId())) {
-            this.conversations
-                    .captureAccount(actor.getUserId())
-                    .updateAIMessagePayload(
-                            articleId,
-                            applyRequest.getMessageId(),
-                            "cover",
-                            new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
+            conversation.updateAIMessagePayload(
+                    articleId,
+                    applyRequest.getMessageId(),
+                    "cover",
+                    new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
         }
         return uploadFileResponse;
     }

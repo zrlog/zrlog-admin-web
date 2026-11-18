@@ -180,6 +180,7 @@ type UseArticleSaveCoordinatorOptions = {
     data: ArticleEditInfo;
     draftAiPendingCount: number;
     draftAiSaveGate: DraftAiSaveGate;
+    writingDraftConversation?: RefObject<string | undefined>;
     digestRef: RefObject<InputRef>;
     editCardRef: RefObject<HTMLDivElement>;
     location: Location;
@@ -202,6 +203,7 @@ const useArticleSaveCoordinator = ({
     data,
     draftAiPendingCount,
     draftAiSaveGate,
+    writingDraftConversation,
     digestRef,
     editCardRef,
     location,
@@ -227,6 +229,7 @@ const useArticleSaveCoordinator = ({
     // A notification is a refresh target; versionRef advances only after accepting server data.
     const latestArticleUpdateRef = useRef<ArticleUpdatedEvent>();
     const createdArticleRef = useRef<number>();
+    const createdConversationRef = useRef<string>();
     const articleRefreshContextRef = useRef({ axiosInstance, data, updateCache, messageApi });
     articleRefreshContextRef.current = { axiosInstance, data, updateCache, messageApi };
     const savingRef = useRef(state.saving);
@@ -527,7 +530,8 @@ const useArticleSaveCoordinator = ({
         create: boolean,
         autoSave: boolean,
         showMessage = true,
-        preserveLocalEdits = false
+        preserveLocalEdits = false,
+        conversationId?: string
     ) => {
         if (response.documentTitle) {
             updateDocumentTitle(response.documentTitle);
@@ -550,6 +554,7 @@ const useArticleSaveCoordinator = ({
         if (create || Number(url.searchParams.get("id")) <= 0) {
             url.searchParams.set("id", responseArticle.logId);
         }
+        if (create && conversationId) url.searchParams.set("assistantSession", conversationId);
         let nextArticle: ArticleEntry;
         if (create) {
             nextArticle = { ...baseArticle, ...responseArticle };
@@ -655,6 +660,7 @@ const useArticleSaveCoordinator = ({
             return true;
         }
         const create = article.logId === undefined || article.logId === null || article.logId <= 0;
+        const conversationId = create ? writingDraftConversation?.current ?? undefined : undefined;
         const releaseCreate = acquiredCreateRelease || draftAiSaveGate.tryBeginCreate(article.logId);
         if (!releaseCreate) {
             if (autoSave) {
@@ -688,11 +694,12 @@ const useArticleSaveCoordinator = ({
         let preserveLocalEdits = false;
         try {
             newArticle = await renderMissingMarkdownContent(newArticle, markdownToHtml);
+            const request = conversationId ? { ...newArticle, conversationId } : newArticle;
             let responseData;
             try {
                 const response = newArticle.transparentPublish
-                    ? await postArticleWithTransparentPublish(uri, newArticle)
-                    : (await axiosInstance.post(uri, newArticle, autoSave ? ({ showError: false } as any) : undefined))
+                    ? await postArticleWithTransparentPublish(uri, request)
+                    : (await axiosInstance.post(uri, request, autoSave ? ({ showError: false } as any) : undefined))
                           .data;
                 responseData = response;
                 if (response.error) {
@@ -744,7 +751,8 @@ const useArticleSaveCoordinator = ({
                     create,
                     autoSave,
                     !newArticle.transparentPublish && responseData.data.publicationSchedule?.state !== "failed",
-                    preserveLocalEdits
+                    preserveLocalEdits,
+                    conversationId
                 );
                 if (responseData.data.publicationSchedule?.state === "failed") {
                     messageApi.error(responseData.message);
@@ -976,29 +984,33 @@ const useArticleSaveCoordinator = ({
     markDraftBlockedRef.current = draftSync.markBlocked;
     markDraftCommittedRef.current = draftSync.markCommitted;
 
-    const onArticleUpdated = useCallback((event: ArticleUpdatedEvent) => {
-        if (
-            !Number.isSafeInteger(event.articleId) ||
-            event.articleId <= 0 ||
-            !Number.isSafeInteger(event.version) ||
-            event.version < 0
-        )
-            return;
-        if (event.created && logIdRef.current <= 0 && event.articleId > 0) {
-            // Reserve the saved identity before any deferred draft autosave can create a duplicate.
-            createdArticleRef.current = event.articleId;
-            logIdRef.current = event.articleId;
-            versionRef.current = -1;
-            setState((previous) => ({ ...previous, article: { ...previous.article, logId: event.articleId } }));
-        }
-        if (event.articleId !== logIdRef.current || event.version <= versionRef.current) return;
-        const latest = latestArticleUpdateRef.current;
-        if (latest?.articleId === event.articleId && latest.version > event.version) return;
-        latestArticleUpdateRef.current = event;
-        setArticleUpdate((previous) =>
-            previous?.articleId === event.articleId && previous.version >= event.version ? previous : event
-        );
-    }, []);
+    const onArticleUpdated = useCallback(
+        (event: ArticleUpdatedEvent) => {
+            if (
+                !Number.isSafeInteger(event.articleId) ||
+                event.articleId <= 0 ||
+                !Number.isSafeInteger(event.version) ||
+                event.version < 0
+            )
+                return;
+            if (event.created && logIdRef.current <= 0 && event.articleId > 0) {
+                // Reserve the saved identity before any deferred draft autosave can create a duplicate.
+                createdArticleRef.current = event.articleId;
+                createdConversationRef.current = writingDraftConversation?.current ?? undefined;
+                logIdRef.current = event.articleId;
+                versionRef.current = -1;
+                setState((previous) => ({ ...previous, article: { ...previous.article, logId: event.articleId } }));
+            }
+            if (event.articleId !== logIdRef.current || event.version <= versionRef.current) return;
+            const latest = latestArticleUpdateRef.current;
+            if (latest?.articleId === event.articleId && latest.version > event.version) return;
+            latestArticleUpdateRef.current = event;
+            setArticleUpdate((previous) =>
+                previous?.articleId === event.articleId && previous.version >= event.version ? previous : event
+            );
+        },
+        [writingDraftConversation]
+    );
 
     const receiveServerArticle = draftSync.receiveServerArticle;
     const saving = Object.values(state.saving).some(Boolean);
@@ -1053,7 +1065,11 @@ const useArticleSaveCoordinator = ({
                 const currentContext = articleRefreshContextRef.current;
                 const created = createdArticleRef.current === serverArticle.logId;
                 const url = getArticleRouteUrl();
-                if (created) url.searchParams.set("id", String(serverArticle.logId));
+                if (created) {
+                    url.searchParams.set("id", String(serverArticle.logId));
+                    if (createdConversationRef.current)
+                        url.searchParams.set("assistantSession", createdConversationRef.current);
+                }
                 const cacheKey = created ? getLocalCacheKey(url) : articlePageCacheKey;
                 const aiMessages = created
                     ? migrateArticleAiMessageScope(articlePageCacheKey, cacheKey, response.data.aiMessages)
@@ -1061,6 +1077,7 @@ const useArticleSaveCoordinator = ({
                 currentContext.updateCache?.({ ...response.data, aiMessages }, cacheKey);
                 if (created) {
                     createdArticleRef.current = undefined;
+                    createdConversationRef.current = undefined;
                     removeLocalArticleCache();
                     migrateUiStateToArticle(serverArticle.logId!);
                     replaceCreatedArticleRoute(url);
@@ -1208,11 +1225,14 @@ const useArticleSaveCoordinator = ({
         }
     };
 
-    const applyGeneratedCover = async (cover?: {
-        dataUrl: string;
-        extension?: string;
-        messageId?: string;
-    }): Promise<string | undefined> => {
+    const applyGeneratedCover = async (
+        cover?: {
+            dataUrl: string;
+            extension?: string;
+            messageId?: string;
+        },
+        sessionId?: string
+    ): Promise<string | undefined> => {
         if (!cover?.dataUrl) {
             return undefined;
         }
@@ -1223,7 +1243,9 @@ const useArticleSaveCoordinator = ({
             return undefined;
         }
         try {
-            const { data } = await axiosInstance.post(`/api/admin/article/cover/apply?id=${articleId}`, {
+            const params = new URLSearchParams({ id: String(articleId) });
+            if (sessionId) params.set("sessionId", sessionId);
+            const { data } = await axiosInstance.post(`/api/admin/article/cover/apply?${params}`, {
                 dataUrl: cover.dataUrl,
                 extension: cover.extension,
                 messageId: cover.messageId,

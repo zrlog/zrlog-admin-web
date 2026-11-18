@@ -2,6 +2,7 @@ package com.zrlog.admin.web.controller.api;
 
 import static org.junit.Assert.*;
 
+import com.google.gson.JsonParser;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -24,6 +25,7 @@ import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.AIWebSetup;
 import com.zrlog.admin.web.controller.ai.AssistantChatController;
 import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.ai.AIComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
@@ -49,6 +51,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
@@ -352,6 +355,88 @@ public class AdminArticleControllerDatabaseTest {
             assertEquals("", explicit.getStatus());
             assertEquals(List.of("releaseTime,DESC"), explicit.getSort());
         }
+    }
+
+    @Test
+    public void shouldBindAnExplicitOwnedWritingConversationOnlyOnce() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            applicationConfig = db.config();
+            setAdminToken();
+
+            var ai = db.component(AIComponent.class);
+            String conversationId =
+                    assistantController(db, Map.of())
+                            .openDraftConversation()
+                            .getData()
+                            .conversationId;
+            assertEquals(conversationId, UUID.fromString(conversationId).toString());
+            var draft = ai.conversations().captureAccount(1).captureSession(conversationId);
+            String draftMessage = "Continue writing this draft";
+            assertTrue(
+                    draft.saveAIMessage(
+                            List.of(new AIResponseEntry.AIContentEntry("user", draftMessage)),
+                            -1L));
+
+            long unrelatedId = createDraftThroughController(db, "independent-article", null);
+            assertTrue(draft.getAiMessageInfoByArticleId(unrelatedId).getAiMessages().isEmpty());
+            assertEquals(
+                    draftMessage,
+                    assistantController(db, Map.of("id", "0", "sessionId", conversationId))
+                            .conversation()
+                            .getData()
+                            .aiMessages
+                            .get(0)
+                            .getContent());
+
+            String foreignId = ai.conversations().captureAccount(2).openDraftConversation();
+            assertThrows(
+                    ArgsException.class,
+                    () -> createDraftThroughController(db, "foreign-draft", foreignId));
+            assertNull(db.scalar("select logId from log where alias='foreign-draft'"));
+
+            long articleId = createDraftThroughController(db, "bound-draft", conversationId);
+            assertEquals(
+                    draftMessage,
+                    assistantController(
+                                    db,
+                                    Map.of(
+                                            "id",
+                                            Long.toString(articleId),
+                                            "sessionId",
+                                            conversationId))
+                            .conversation()
+                            .getData()
+                            .aiMessages
+                            .get(0)
+                            .getContent());
+            assertTrue(draft.getAiMessageInfoByArticleId(-1L).getAiMessages().isEmpty());
+
+            assertThrows(
+                    ArgsException.class,
+                    () -> createDraftThroughController(db, "second-binding", conversationId));
+            assertNull(db.scalar("select logId from log where alias='second-binding'"));
+        }
+    }
+
+    private static AssistantChatController assistantController(
+            InMemoryZrLogDatabase db, Map<String, String> params) throws Exception {
+        HttpRequest draftRequest = request(params, null);
+        var assistant = db.component(AIComponent.class).requests().create(draftRequest).articles();
+        setControllerField(assistant, "request", draftRequest);
+        setControllerField(assistant, "response", new ResponseRecorder().response());
+        return assistant;
+    }
+
+    private long createDraftThroughController(
+            InMemoryZrLogDatabase db, String alias, String conversationId) throws Exception {
+        var body = JsonParser.parseString(articleBody(alias, alias, true)).getAsJsonObject();
+        if (conversationId != null) body.addProperty("conversationId", conversationId);
+        ResponseRecorder recorder = new ResponseRecorder();
+        controller(db.cacheService(), Map.of(), body.toString(), recorder, db.dataSource())
+                .create();
+        var response = (AdminPageDataResponse<?>) recorder.rendered;
+        return ((ArticleGlobalResponse) response.getData()).getArticle().getLogId();
     }
 
     @Test

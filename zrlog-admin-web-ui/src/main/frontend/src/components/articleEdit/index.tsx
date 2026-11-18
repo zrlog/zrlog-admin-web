@@ -22,6 +22,9 @@ import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useNavigate } from "react-router-dom";
 import PublishStatusBar from "./publish-status-bar";
 import { useAssistantConversation } from "../assistant/use-assistant-conversation";
+import { assistantComposerScope } from "../assistant/chat/assistant-composer-drafts";
+import useWritingConversation from "../assistant/writing/use-writing-conversation";
+import { getSsDate } from "../../base/SsData";
 import useArticleEditUiState from "./use-article-edit-ui-state";
 import ArticleVersionConflict from "./version-sync/article-version-conflict";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
@@ -80,6 +83,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const { modal } = useUiApp();
     const axiosInstance = useAxiosBaseInstance(() => editCardRef.current as HTMLElement);
     const navigate = useNavigate();
+    const writingDraftConversation = useRef<string>();
     const draftAiSaveGate = useMemo(createDraftAiSaveGate, []);
     const draftAiPendingCount = useSyncExternalStore(
         draftAiSaveGate.subscribe,
@@ -108,6 +112,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         data,
         draftAiPendingCount,
         draftAiSaveGate,
+        writingDraftConversation,
         digestRef,
         editCardRef,
         location,
@@ -303,16 +308,49 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         handleValuesChange({ markdown: nextMarkdown });
     };
 
-    const assistantConfig = useAssistantConversation({
-        data: state,
-        draftAiSaveGate,
-        offline,
+    const writingSessions = useWritingConversation(
         axiosInstance,
-        onAiMessagesChange: updateAiMessageCache,
-        onArticleUpdated,
-        onApplyValues: fieldAi.applyGeneratedValues,
-        getSkillContextRevision: fieldAi.getSkillContextRevision,
-        onApplyGeneratedCover: applyGeneratedCover,
+        state.article.logId || 0,
+        isModuleEnabled("ai") && state.aiConfigured && !offline,
+        state.aiMessages,
+        data.draftConversationId
+    );
+    writingDraftConversation.current =
+        !state.article.logId && !writingSessions.readOnly ? writingSessions.sessionId : undefined;
+    // The editor stays mounted when the draft is saved. Keep the same running turn and unsent queue.
+    const assistantScope = useRef(
+        assistantComposerScope(getSsDate().key, {
+            articleId: state.article.logId || 0,
+            sessionId: writingSessions.sessionId,
+        })
+    );
+    const assistantData = { ...state, aiMessages: writingSessions.messages };
+    const assistantConfig = useAssistantConversation({
+        context: { articleId: state.article.logId || 0, sessionId: writingSessions.sessionId },
+        editor: {
+            article: state.article,
+            coverAspectRatio: state.articleCoverAspectRatio,
+            scopeKey: assistantScope.current,
+            ensureDraftConversation: async () => {
+                const draft = await writingSessions.ensureDraft();
+                writingDraftConversation.current = draft.sessionId;
+                return draft;
+            },
+            readOnly: writingSessions.readOnly,
+            draftAiSaveGate,
+            onArticleUpdated,
+            onApplyValues: fieldAi.applyGeneratedValues,
+            getSkillContextRevision: fieldAi.getSkillContextRevision,
+            onApplyGeneratedCover: (cover) => applyGeneratedCover(cover, writingSessions.sessionId),
+        },
+        data: assistantData,
+        offline: offline || writingSessions.loading || Boolean(writingSessions.error),
+        axiosInstance,
+        onAiMessagesChange: (messages, articleId) => {
+            writingSessions.change(messages);
+            if (!writingSessions.sessionId && !writingDraftConversation.current)
+                updateAiMessageCache(messages, articleId);
+        },
     });
 
     const aiDrawerCacheKey = "ai/chat/drawer/width";
@@ -413,7 +451,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         dataDigest={state.article.digest}
                         state={state}
                         draftAiPending={draftAiPending}
-                        draftAiSaveGate={draftAiSaveGate}
+                        writingAssistant={{ data: assistantData, sessions: writingSessions, config: assistantConfig }}
                         fullScreen={fullScreen}
                         offline={offline}
                         shortcutsDisabled={publishReviewOpen}
@@ -440,17 +478,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         stateCacheKey={articleEditUiStateCacheKey}
                         saving={isSaving}
                         onValuesChange={handleValuesChange}
-                        onApplyAiValues={fieldAi.applyGeneratedValues}
-                        getSkillContextRevision={fieldAi.getSkillContextRevision}
-                        onApplyGeneratedCover={applyGeneratedCover}
                         onSettingsOpenChange={updateSettingsOpen}
                         onVersionOpenChange={updateVersionDrawerOpen}
                         onRollback={onRollback}
                         onSubmit={onSubmit}
                         onRequestPublish={openPublishReview}
                         onPreview={openContentPreview}
-                        onAiMessagesChange={updateAiMessageCache}
-                        onArticleUpdated={onArticleUpdated}
                         onAiDrawerSizeChange={updateAiDrawerWidth}
                         onInsertMarkdownFromAsset={insertAssetToMarkdown}
                         getCurrentMarkdown={getCurrentMarkdown}
@@ -492,14 +525,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                                               configUrl: getRealRouteUrl("/website/ai"),
                                               subject: state.article.title,
                                               aiProvider: state.aiConfigured === true ? state.aiProvider : undefined,
-                                              aiMessages: state.aiMessages ? state.aiMessages : [],
+                                              aiMessages: writingSessions.messages,
                                               messages: assistantConfig.messages,
                                               contentMaxWidth: assistantConfig.contentMaxWidth,
                                               renderMessage: assistantConfig.renderMessage,
                                               renderFooter: ({ selectedText }: { selectedText?: string }) =>
                                                   assistantConfig.renderFooter(selectedText),
                                               overlays: assistantConfig.overlays,
-                                              onAiMessagesChange: updateAiMessageCache,
+                                              onAiMessagesChange: writingSessions.change,
                                               drawerWidth: getDefaultAiDrawerWidth(),
                                               stateCache: articleAiStateCache,
                                               user: getEditorUser(),

@@ -4,6 +4,16 @@ import com.zrlog.admin.business.ai.model.AIProviderType;
 import java.util.List;
 
 public class AIArticleGlobalResponse extends ArticleGlobalResponse {
+    private String draftConversationId;
+
+    public String getDraftConversationId() {
+        return draftConversationId;
+    }
+
+    public void setDraftConversationId(String draftConversationId) {
+        this.draftConversationId = draftConversationId;
+    }
+
     private AIProviderType aiProvider;
     private String aiModel;
     private com.zrlog.admin.business.ai.model.AIFileModels.Capabilities aiFileInput;

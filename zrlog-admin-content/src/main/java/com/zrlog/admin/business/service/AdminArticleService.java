@@ -134,21 +134,23 @@ public class AdminArticleService {
 
     public CreateOrUpdateArticleResponse create(
             AccountAccess actor, CreateArticleRequest createArticleRequest) throws SQLException {
-        CreateOrUpdateArticleResponse response = save(actor, createArticleRequest);
-        if (!createArticleRequest.isPreserveDraftAiMessages()) {
-            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE)
-                    .articleCreated(response.getLogId(), actor.getUserId());
-        }
-        return response;
+        return create(actor, createArticleRequest, null);
+    }
+
+    CreateOrUpdateArticleResponse create(
+            AccountAccess actor, CreateArticleRequest createArticleRequest, String runId)
+            throws SQLException {
+        return save(actor, createArticleRequest, runId);
     }
 
     public CreateOrUpdateArticleResponse update(
             AccountAccess actor, UpdateArticleRequest updateArticleRequest) throws SQLException {
-        return save(actor, updateArticleRequest);
+        return save(actor, updateArticleRequest, null);
     }
 
     private CreateOrUpdateArticleResponse save(
-            AccountAccess actor, CreateArticleRequest createArticleRequest) throws SQLException {
+            AccountAccess actor, CreateArticleRequest createArticleRequest, String runId)
+            throws SQLException {
         if (Objects.isNull(createArticleRequest)
                 || StringUtils.isEmpty(createArticleRequest.getTitle())) {
             throw new ArticleMissingTitleException();
@@ -175,6 +177,20 @@ public class AdminArticleService {
             if (!createArticleRequest.isRubbish()
                     && !createArticleRequest.isPrivacy()
                     && !access.canPublish()) throw new PermissionErrorException();
+            String conversationId =
+                    createArticleRequest instanceof UpdateArticleRequest
+                            ? null
+                            : createArticleRequest.getConversationId();
+            if (conversationId != null) {
+                ArticleAssistant provider =
+                        Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE);
+                try (var binding =
+                        provider.prepareDraftConversationBinding(access, conversationId, runId)) {
+                    var saved = persistArticle(access, createArticleRequest, null, false);
+                    binding.bind(saved.getLogId());
+                    return saved;
+                }
+            }
             Log row = null;
             if (createArticleRequest instanceof UpdateArticleRequest) {
                 row =

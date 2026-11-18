@@ -66,7 +66,6 @@ public class ArticleResourceServiceDatabaseTest {
     private static void fields(CreateArticleRequest body) {
         body.setTypeId(1L);
         body.setAlias("article-resources");
-        body.setPreserveDraftAiMessages(true);
         body.setArrange_plugin("article-arranger");
         body.setPrivacy(false);
         body.setRubbish(false);

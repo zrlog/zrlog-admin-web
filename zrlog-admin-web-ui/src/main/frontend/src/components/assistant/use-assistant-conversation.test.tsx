@@ -263,7 +263,15 @@ describe("useAssistantConversation draft request gate", () => {
             });
             const props = {
                 data,
-                draftAiSaveGate: gate,
+                context: { articleId: data.article.logId || 0 },
+                editor: {
+                    article: data.article,
+                    coverAspectRatio: data.articleCoverAspectRatio,
+                    draftAiSaveGate: gate,
+                    onApplyValues: fieldAi.applyGeneratedValues,
+                    getSkillContextRevision: fieldAi.getSkillContextRevision,
+                    onApplyGeneratedCover,
+                },
                 offline: false,
                 axiosInstance: { get: jest.fn(), post } as never,
                 onAiMessagesChange: (messages: AIContent[], articleId?: number) => {
@@ -273,9 +281,6 @@ describe("useAssistantConversation draft request gate", () => {
                         redraw((revision) => revision + 1);
                     }
                 },
-                onApplyValues: fieldAi.applyGeneratedValues,
-                getSkillContextRevision: fieldAi.getSkillContextRevision,
-                onApplyGeneratedCover,
             };
             config = useAssistantConversation(props);
             secondConfig = useAssistantConversation(props);

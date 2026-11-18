@@ -5,17 +5,21 @@ import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIChatModels;
 import com.zrlog.admin.business.ai.model.AIFileModels;
+import com.zrlog.admin.business.content.ArticleAssistant.DraftConversationBinding;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
 import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.repository.WebSiteRepository;
+import com.zrlog.data.service.DistributedLock;
 import com.zrlog.model.WebSite;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
@@ -123,6 +127,108 @@ public class AIConversationService {
         return index;
     }
 
+    public String draftConversationId() throws SQLException {
+        int userId = conversationUserId();
+        String current = index.draftConversationId(userId);
+        return current != null && index.draftBinding(userId, current) == null ? current : null;
+    }
+
+    public String openDraftConversation() throws SQLException {
+        try (DistributedLock ignored = lockDraft()) {
+            if (AIApprovalStore.active(approvals.read(conversationUserId(), DRAFT_ARTICLE_ID))) {
+                throw new ArgsException();
+            }
+            String current = index.draftConversationId(conversationUserId());
+            if (current != null) {
+                Long articleId = index.draftBinding(conversationUserId(), current);
+                if (articleId != null) finishDraftBinding(current, articleId);
+            }
+            return index.openDraftConversation(conversationUserId());
+        }
+    }
+
+    private DistributedLock lockDraft() throws SQLException {
+        DistributedLock lock =
+                new DistributedLock(websites, "assistant_draft_u" + conversationUserId());
+        try {
+            if (lock.tryLock(5, TimeUnit.SECONDS)) return lock;
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new SQLException("Interrupted while acquiring writing draft", interrupted);
+        }
+        throw new SQLException("Writing draft is being updated");
+    }
+
+    private boolean isCurrentDraft(String id) throws SQLException {
+        return Objects.equals(index.draftConversationId(conversationUserId()), id);
+    }
+
+    boolean isCurrentNamedDraft(String id) throws SQLException {
+        return id != null
+                && isCurrentDraft(id)
+                && index.draftBinding(conversationUserId(), id) == null;
+    }
+
+    void requireOpenDraft(String id) throws SQLException {
+        if (id == null
+                ? index.hasDraftConversationSlot(conversationUserId())
+                : !isCurrentNamedDraft(id)) {
+            throw new ArgsException();
+        }
+    }
+
+    void beginDraftRun(AIChatModels.Run run) throws SQLException {
+        try (DistributedLock ignored = lockDraft()) {
+            requireOpenDraft(run.sessionId);
+            approvals.begin(run);
+        }
+    }
+
+    public DraftConversationBinding prepareDraftConversationBinding(
+            String conversationId, String runId) throws SQLException {
+        AIConversationScope.validateSession(conversationId, null);
+        if (conversationId == null) throw new ArgsException();
+        DistributedLock lock = lockDraft();
+        try {
+            int userId = conversationUserId();
+            if (!isCurrentNamedDraft(conversationId)) throw new ArgsException();
+            var run = approvals.read(userId, DRAFT_ARTICLE_ID, null, conversationId);
+            if (runId == null
+                    ? AIApprovalStore.active(run)
+                    : run == null || !runId.equals(run.id) || !"executing".equals(run.status)) {
+                throw new ArgsException();
+            }
+            return new DraftConversationBinding() {
+                @Override
+                public void bind(long articleId) throws SQLException {
+                    if (articleId <= DRAFT_ARTICLE_ID) throw new ArgsException();
+                    finishDraftBinding(conversationId, articleId);
+                }
+
+                @Override
+                public void close() throws SQLException {
+                    lock.close();
+                }
+            };
+        } catch (SQLException | RuntimeException error) {
+            try {
+                lock.close();
+            } catch (SQLException closeError) {
+                error.addSuppressed(closeError);
+            }
+            throw error;
+        }
+    }
+
+    private void finishDraftBinding(String conversationId, long articleId) throws SQLException {
+        int userId = conversationUserId();
+        if (index.claimDraftBinding(userId, conversationId, articleId)) {
+            captureSession(conversationId)
+                    .migrateDraftAIMessageToArticle(articleId, -(long) userId);
+            index.completeDraftBinding(userId, conversationId);
+        }
+    }
+
     private Long publicArticleId(Long articleId) {
         return articleId == null ? null : Math.max(0, articleId);
     }
@@ -154,13 +260,6 @@ public class AIConversationService {
             throws SQLException {
         if (articleId == null || articleId <= DRAFT_ARTICLE_ID) {
             return false;
-        }
-        if (sessionId == null) {
-            for (var item : index.draftSessions(conversationUserId())) {
-                if (item.sessionId != null)
-                    captureSession(item.sessionId)
-                            .migrateDraftAIMessageToArticle(articleId, draftId);
-            }
         }
         index.copyDraft(conversationUserId(), sessionId, articleId);
         // Persist stable IDs before copying, so retrying an interrupted migration is idempotent.

@@ -147,6 +147,7 @@ public class AIChatService {
         long id = articleId <= 0 ? 0 : articleId;
         if (tool != null && !tool.isBlank()) {
             authorizeSession(actor, id, null, sessionId);
+            if (id == 0) conversation(actor, null, sessionId).requireOpenDraft(sessionId);
             return writingSkills
                     .create(actor, conversation(actor, null, sessionId))
                     .startStreamResponse(input, articleId, tool, articleContext);
@@ -173,6 +174,8 @@ public class AIChatService {
             existing = invalidatePending(actor, existing);
             return stateResponse(actor, existing);
         }
+        if (Long.valueOf(0).equals(input.articleId))
+            conversation(actor, null, input.sessionId).requireOpenDraft(input.sessionId);
         AIWebSiteInfoWithAIMessages info =
                 loadConversationInfo(actor, input.articleId, input.taskId, false, input.sessionId);
         AIService.checkAiConfig(info);
@@ -285,9 +288,13 @@ public class AIChatService {
                                 before,
                                 beforeKey);
         var visible = new ArrayList<Session>();
+        String draftConversationId = conversations.index().draftConversationId(actor.getUserId());
         for (var item : page.items) {
             try {
                 authorizeContext(actor, item.articleId, item.taskId);
+                if (Long.valueOf(0).equals(item.articleId)
+                        && draftConversationId != null
+                        && draftConversationId.equals(item.sessionId)) item.temporaryDraft = true;
                 visible.add(item);
             } catch (PermissionErrorException ignored) {
                 /* Revoked contexts stay private. */
@@ -307,6 +314,11 @@ public class AIChatService {
     public boolean deleteSession(AccountAccess actor, SessionChange input) throws SQLException {
         input.doValid();
         if (input.taskId != null) throw new ArgsException();
+        if (Long.valueOf(0).equals(input.articleId)
+                && input.sessionId != null
+                && input.sessionId.equals(
+                        conversations.index().draftConversationId(actor.getUserId())))
+            throw new ArgsException();
         if (!clearConversation(actor, input.articleId, input.taskId, input.sessionId))
             throw new AIMessageSaveException();
         conversations
@@ -606,7 +618,13 @@ public class AIChatService {
         if (view == null) return null;
         boolean allowed = false;
         try {
-            authorizeContext(actor, editorArticleId(run), run.taskId);
+            Long articleId = editorArticleId(run);
+            Long boundArticleId =
+                    Long.valueOf(0).equals(articleId) && run.sessionId != null
+                            ? conversations.index().draftBinding(actor.getUserId(), run.sessionId)
+                            : null;
+            authorizeContext(
+                    actor, boundArticleId == null ? articleId : boundArticleId, run.taskId);
             UserPreferences.Assistant settings = userPreferenceService.assistant(actor);
             AIWebSiteInfo info =
                     conversations
@@ -615,6 +633,14 @@ public class AIChatService {
                             .captureSession(run.sessionId)
                             .getAiMessageInfoByArticleId(conversationId(actor, run.articleId));
             allowed = sameContext(run, actor, settings, info);
+            if (allowed && boundArticleId != null) {
+                var update = new Event("article-updated");
+                update.articleId = boundArticleId;
+                update.version = access.currentArticleContext(actor, boundArticleId).version;
+                update.created = true;
+                view.articleUpdates = new ArrayList<>(view.articleUpdates);
+                view.articleUpdates.add(update);
+            }
             if (allowed && run.approval != null && run.nextTool < run.toolCalls.size()) {
                 AIProviderRequests.ToolCall call = run.toolCalls.get(run.nextTool);
                 access.approvalArticle(

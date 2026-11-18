@@ -154,8 +154,28 @@ public final class ContentToolService {
             HttpRequest request,
             AdminAuditContext audit)
             throws SQLException {
+        return save(account, operation, args, scopes, request, audit, null, null);
+    }
+
+    public SavedArticle save(
+            AccountAccess account,
+            String operation,
+            JsonObject args,
+            Set<String> scopes,
+            HttpRequest request,
+            AdminAuditContext audit,
+            String conversationId,
+            String runId)
+            throws SQLException {
         return saveWithRefresh(
-                account, operation, args, scopes, audit, () -> refresh.accept(request));
+                account,
+                operation,
+                args,
+                scopes,
+                audit,
+                () -> refresh.accept(request),
+                conversationId,
+                runId);
     }
 
     /** Non-HTTP callers supply their own bounded refresh operation. */
@@ -166,6 +186,20 @@ public final class ContentToolService {
             Set<String> scopes,
             AdminAuditContext audit,
             Runnable refreshOperation)
+            throws SQLException {
+        return saveWithRefresh(
+                account, operation, args, scopes, audit, refreshOperation, null, null);
+    }
+
+    private SavedArticle saveWithRefresh(
+            AccountAccess account,
+            String operation,
+            JsonObject args,
+            Set<String> scopes,
+            AdminAuditContext audit,
+            Runnable refreshOperation,
+            String conversationId,
+            String runId)
             throws SQLException {
         boolean create = operation.equals("create_article");
         permissionService.require(
@@ -179,6 +213,7 @@ public final class ContentToolService {
             body.setRubbish(true);
             body.setCanComment(true);
             body.setEditorType("markdown");
+            body.setConversationId(conversationId);
         } else {
             int id = args.get("id").getAsInt();
             old = permissionService.article(account, id, false);
@@ -206,7 +241,6 @@ public final class ContentToolService {
                 old != null && Boolean.TRUE.equals(old.getPrivacy()),
                 body.isRubbish(),
                 body.isPrivacy())) throw new PermissionErrorException();
-        body.setPreserveDraftAiMessages(true);
         body.doValid();
         body.doClean();
         if (this.typeProvider.get().loadById((long) (body.getTypeId())) == null)
@@ -219,7 +253,7 @@ public final class ContentToolService {
         }
         CreateOrUpdateArticleResponse saved =
                 create
-                        ? publishing.create(account, body, audit)
+                        ? publishing.create(account, body, audit, runId)
                         : publishing.update(account, (UpdateArticleRequest) body, audit);
         SavedArticle result = new SavedArticle();
         result.id = saved.getLogId();

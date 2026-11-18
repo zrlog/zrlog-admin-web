@@ -114,7 +114,6 @@ public class ArticlePublishingServiceDatabaseTest {
             create.setTypeId(1L);
             create.setContent("Original content");
             create.setRubbish(true);
-            create.setPreserveDraftAiMessages(true);
             int id =
                     publishing
                             .create(
@@ -190,7 +189,6 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setTitle("Direct publication");
             body.setTypeId(1L);
             body.setContent("Published content");
-            body.setPreserveDraftAiMessages(true);
             new ArticlePublishingService(
                             new AdminArticleService(
                                     ApplicationServicesFixture.capability(
