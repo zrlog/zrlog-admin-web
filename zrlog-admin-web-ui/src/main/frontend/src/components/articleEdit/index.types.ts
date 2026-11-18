@@ -105,6 +105,7 @@ export type ArticleEditInfo = {
     aiFileInput?: import("../assistant/chat/assistant-files").AiFileCapabilities;
     aiConfigured?: boolean;
     aiMessages: AIContent[];
+    draftConversationId?: string;
     linkPreviewEnabled?: boolean;
     publishCheckEnabled?: boolean;
     articleCoverAspectRatio?: string;

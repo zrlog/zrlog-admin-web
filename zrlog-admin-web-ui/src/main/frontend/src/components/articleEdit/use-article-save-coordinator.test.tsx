@@ -234,6 +234,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     let harnessLocation: { pathname: string; search: string; key: string };
     let updateCache: (cache: ArticleEditInfo, cacheKey: string) => void;
     let draftAiSaveGate: DraftAiSaveGate;
+    let writingDraftConversation: { current: string | undefined };
     let fieldAi: ReturnType<typeof useArticleFieldAi>;
     let editorDocument: ReturnType<typeof useArticleEditorDocument>;
 
@@ -249,6 +250,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             data: harnessData,
             draftAiPendingCount,
             draftAiSaveGate,
+            writingDraftConversation,
             digestRef: { current: null },
             editCardRef: { current: container },
             location: harnessLocation as never,
@@ -315,6 +317,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         migrateUiStateToArticle = jest.fn();
         navigate = jest.fn();
         draftAiSaveGate = createDraftAiSaveGate();
+        writingDraftConversation = { current: undefined };
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -998,6 +1001,27 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             expect.objectContaining({ logId: 18, version: 0 }),
             undefined
         );
+    });
+
+    it("binds the unbound writing conversation on first save and opens it on the new article", async () => {
+        const conversationId = "aaabbbcc-1111-4222-8333-aaaabbbbcccc";
+        const draft = { ...data, article: { ...initialArticle, logId: undefined, version: -1 } };
+        remountWith(draft);
+        writingDraftConversation.current = conversationId;
+        const saved = { ...initialArticle, logId: 18, version: 0 };
+        mockArticlePost.mockResolvedValue({ data: { error: 0, data: { ...data, article: saved } } });
+        await act(async () => {
+            expect(await coordinator.onSubmit(coordinator.state.article, false, false, false)).toBe(true);
+        });
+        expect(mockArticlePost).toHaveBeenCalledWith(
+            "/api/admin/article/create",
+            expect.objectContaining({ conversationId }),
+            undefined
+        );
+        expect(navigate).toHaveBeenCalledWith(`/article-edit?id=18&assistantSession=${conversationId}`, {
+            replace: true,
+            state: { articleCreatedFrom: "draft-location" },
+        });
     });
 
     it("does not switch an existing article to an AI-created article", () => {

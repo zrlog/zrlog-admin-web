@@ -18,7 +18,7 @@ import { AIButtonRenderMessageOptions } from "@zrlog/editor/core/ai/AIButton";
 import { AxiosInstance } from "axios";
 import { formatLabelValue, getLabelValueSeparator, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import { getSsDate } from "../../base/SsData";
-import { ArticleChangeableValue, ArticleEditState } from "../articleEdit/index.types";
+import { ArticleChangeableValue, ArticleEntry } from "../articleEdit/index.types";
 import { useTheme } from "antd-style";
 import ImageCropper from "../../common/ImageCropper";
 import { parseCoverAspectRatio } from "../articleEdit/cover-aspect-ratio";
@@ -26,6 +26,7 @@ import { resolveBackendCropImageUrl } from "../../utils/crop-image-url";
 import { AssistantErrorMeta, AssistantMessageExportResponse, AssistantMessage } from "./chat/assistant-chat.types";
 import {
     ArticleUpdatedEvent,
+    EditorSnapshot,
     WritingSkill,
     WritingSkillPayload,
     isWritingSkill,
@@ -34,26 +35,27 @@ import { parseSseResponse } from "./chat/assistant-sse";
 import { getWritingSkillLabel } from "./writing/skills/writing-skills";
 import WritingSkillContent from "./writing/skills/writing-skill-content";
 import AssistantComposer from "./chat/assistant-composer";
-import { ApiResponse } from "../../type";
+import { AIProviderType, ApiResponse } from "../../type";
 import { DraftAiSaveGate } from "../articleEdit/draft-ai-save-gate";
 import { useAssistantQueue } from "./chat/use-assistant-queue";
 import type { AiMentionInput } from "./chat/assistant-mentions";
+import type { AiFileCapabilities } from "./chat/assistant-files";
 
-/** Data consumed by a conversation; editor-only save/layout state stays with the editor. */
-export type AssistantConversationData = Pick<
-    ArticleEditState,
-    "article" | "aiProvider" | "aiModel" | "aiConfigured" | "aiMessages" | "aiFileInput" | "articleCoverAspectRatio"
->;
+export type AssistantConversationData = {
+    aiProvider: AIProviderType;
+    aiModel?: string;
+    aiConfigured?: boolean;
+    aiMessages: AIContent[];
+    aiFileInput?: AiFileCapabilities;
+};
 
-export type AssistantConversationContext = { articleId?: number; taskId?: string; sessionId?: string };
-
-export type AssistantConversationProps = {
-    context?: AssistantConversationContext;
-    data: AssistantConversationData;
+type ArticleEditorContext = {
+    article: ArticleEntry;
+    coverAspectRatio: string;
     draftAiSaveGate: DraftAiSaveGate;
-    offline: boolean;
-    axiosInstance: AxiosInstance;
-    onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
+    scopeKey?: string;
+    ensureDraftConversation?: () => Promise<{ sessionId?: string; messages: AIContent[] }>;
+    readOnly?: boolean;
     onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
     onApplyValues: ApplyAiValues;
     getSkillContextRevision: SkillContextRevision;
@@ -65,21 +67,29 @@ export type AssistantConversationProps = {
     }) => Promise<string | undefined>;
 };
 
+type AssistantConversationProps = {
+    data: AssistantConversationData;
+    offline: boolean;
+    axiosInstance: AxiosInstance;
+    onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
+} & (
+    | { context: { articleId: number; taskId?: never; sessionId?: string }; editor: ArticleEditorContext }
+    | { context: { articleId?: never; taskId?: string; sessionId?: string }; editor?: never }
+);
+
 const CHAT_CONTENT_MAX_WIDTH = 768;
 
 export const useAssistantConversation = ({
     context,
+    editor,
     data,
-    draftAiSaveGate,
     offline,
     axiosInstance,
     onAiMessagesChange,
-    onArticleUpdated,
-    onApplyValues,
-    getSkillContextRevision,
-    onApplyGeneratedCover,
 }: AssistantConversationProps) => {
-    const articleContext = context === undefined || context.articleId !== undefined;
+    const { articleId, taskId, sessionId } = context;
+    const draftAiSaveGate = editor?.draftAiSaveGate;
+    const readOnly = editor?.readOnly === true;
     const [loadingKey, setLoadingKey] = useState<string>();
     const [cropModalOpen, setCropModalOpen] = useState<boolean>(false);
     const [croppingImageUrl, setCroppingImageUrl] = useState<string>("");
@@ -90,15 +100,11 @@ export const useAssistantConversation = ({
     const [aiMessagesClearing, setAiMessagesClearing] = useState(false);
     const { message } = useUiApp();
     const theme = useTheme();
-    const latestDataRef = useRef(data);
-    latestDataRef.current = data;
+    const latestArticleRef = useRef(editor?.article);
+    latestArticleRef.current = editor?.article;
     const skillRequest = useRef<AbortController>();
     const fileReadGeneration = useRef(0);
-    const scope = assistantComposerScope(getSsDate().key, {
-        sessionId: context?.sessionId,
-        articleId: articleContext ? data.article.logId || 0 : undefined,
-        taskId: context?.taskId,
-    });
+    const scope = editor?.scopeKey ?? assistantComposerScope(getSsDate().key, context);
     const scopeRef = useRef(scope);
     scopeRef.current = scope;
     const migrateQueue = useRef<(scope: string) => void>();
@@ -110,18 +116,11 @@ export const useAssistantConversation = ({
         scope,
         onAiMessagesChange,
         (event) => {
-            if (articleContext && !data.article.logId && event.created)
-                migrateQueue.current?.(
-                    `${getSsDate().key}/${context?.sessionId ? `session/${context.sessionId}` : event.articleId}`
-                );
-            onArticleUpdated?.(event);
+            if (!editor?.scopeKey && articleId === 0 && event.created)
+                migrateQueue.current?.(`${getSsDate().key}/${sessionId ? `session/${sessionId}` : event.articleId}`);
+            editor?.onArticleUpdated?.(event);
         },
-        {
-            articleId: articleContext ? data.article.logId || 0 : undefined,
-            taskId: context?.taskId,
-            sessionId: context?.sessionId,
-            messages: aiMessages,
-        }
+        { ...context, messages: aiMessages }
     );
     const visibleMessages = aiMessages;
     const activeRun = aiMessages.some(
@@ -159,7 +158,7 @@ export const useAssistantConversation = ({
         files?: File[],
         references?: AiMentionInput[]
     ) => {
-        if (!input.trim() || offline || data.aiConfigured !== true || aiMessagesClearing) return false;
+        if (!input.trim() || offline || readOnly || data.aiConfigured !== true || aiMessagesClearing) return false;
         queue.add(input.trim(), tool, selectedText, files, references);
         return true;
     };
@@ -174,32 +173,33 @@ export const useAssistantConversation = ({
     useEffect(() => {
         // A paused tool run may already have created the draft. Keep ordinary creation blocked
         // until its remaining approvals finish and the editor adopts the persisted article ID.
-        if (articleContext && !data.article.logId && activeRun) return draftAiSaveGate.tryBeginAiRequest(0);
-    }, [articleContext, data.article.logId, activeRun, draftAiSaveGate]);
+        if (articleId === 0 && activeRun) return draftAiSaveGate?.tryBeginAiRequest(0);
+    }, [articleId, activeRun, draftAiSaveGate]);
 
     useEffect(() => {
         setToolPayloads({});
         setSelectedTitles({});
-    }, [data.article.logId]);
+    }, [articleId]);
 
-    const getEditorContext = (selectedText?: string) => {
-        const requestBody = {
-            title: latestDataRef.current.article.title || "",
-            alias: latestDataRef.current.article.alias || "",
-            markdown: latestDataRef.current.article.markdown || "",
-            digest: latestDataRef.current.article.digest || "",
-            keywords: latestDataRef.current.article.keywords || "",
-            thumbnail: latestDataRef.current.article.thumbnail || "",
+    const getEditorContext = (selectedText?: string): EditorSnapshot["editorContext"] | undefined => {
+        const article = latestArticleRef.current;
+        if (!article) return undefined;
+        return {
+            title: article.title || "",
+            alias: article.alias || "",
+            markdown: article.markdown || "",
+            digest: article.digest || "",
+            keywords: article.keywords || "",
+            thumbnail: article.thumbnail || "",
             selectedText: selectedText?.trim() || "",
         };
-        return requestBody;
     };
 
-    const getContextQuery = (articleId = latestDataRef.current.article.logId || 0) => {
+    const getContextQuery = (id = articleId) => {
         const params = new URLSearchParams();
-        if (articleContext) params.set("id", String(articleId));
-        if (context?.taskId) params.set("taskId", context.taskId);
-        if (context?.sessionId) params.set("sessionId", context.sessionId);
+        if (id !== undefined) params.set("id", String(id));
+        if (taskId) params.set("taskId", taskId);
+        if (sessionId) params.set("sessionId", sessionId);
         return params.toString();
     };
 
@@ -245,12 +245,11 @@ export const useAssistantConversation = ({
     };
 
     const clearAiMessages = async () => {
-        if (aiMessagesClearing || visibleMessages.length === 0) {
+        if (readOnly || aiMessagesClearing || visibleMessages.length === 0) {
             return;
         }
-        const articleId = latestDataRef.current.article.logId || 0;
-        const releaseRequest = articleContext ? draftAiSaveGate.tryBeginAiRequest(articleId) : () => undefined;
-        if (!releaseRequest) {
+        const releaseRequest = draftAiSaveGate?.tryBeginAiRequest(articleId);
+        if (draftAiSaveGate && !releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return;
         }
@@ -273,7 +272,7 @@ export const useAssistantConversation = ({
             await message.error(e instanceof Error ? e.message : getRes().error.unknown);
         } finally {
             setAiMessagesClearing(false);
-            releaseRequest();
+            releaseRequest?.();
         }
     };
 
@@ -340,8 +339,8 @@ export const useAssistantConversation = ({
         startedArticleId?: number
     ) => {
         const messageId = (aiMessages[messageIndex] as AssistantMessage | undefined)?.messageId;
-        const articleId = startedArticleId ?? latestDataRef.current.article.logId ?? 0;
-        const releaseRequest = messageId && persist ? draftAiSaveGate.tryBeginAiRequest(articleId) : undefined;
+        const targetId = startedArticleId ?? articleId;
+        const releaseRequest = messageId && persist ? draftAiSaveGate?.tryBeginAiRequest(targetId) : undefined;
         if (messageId && persist && !releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return;
@@ -359,7 +358,7 @@ export const useAssistantConversation = ({
                         payload: toolPayload.payload,
                     } as AssistantMessage;
                 }),
-                articleId
+                targetId
             );
         } catch (error) {
             releaseRequest?.();
@@ -368,7 +367,7 @@ export const useAssistantConversation = ({
         if (messageId && persist && releaseRequest) {
             void (async () => {
                 try {
-                    await axiosInstance.post(`/api/admin/assistant/chat/message?${getContextQuery(articleId)}`, {
+                    await axiosInstance.post(`/api/admin/assistant/chat/message?${getContextQuery(targetId)}`, {
                         messageId,
                         tool: toolPayload.tool,
                         payload: toolPayload.payload,
@@ -409,16 +408,36 @@ export const useAssistantConversation = ({
         references?: AiMentionInput[]
     ): Promise<boolean | undefined> => {
         const normalizedInput = messageInput.trim();
-        if (!normalizedInput || loadingKey || chat.busy || activeRun) {
+        if (!normalizedInput || readOnly || loadingKey || chat.busy || activeRun) {
             return undefined;
         }
-        const articleId = latestDataRef.current.article.logId || 0;
-        const releaseRequest = articleContext ? draftAiSaveGate.tryBeginAiRequest(articleId) : () => undefined;
-        if (!releaseRequest) {
+        const releaseRequest = draftAiSaveGate?.tryBeginAiRequest(articleId);
+        if (draftAiSaveGate && !releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return undefined;
         }
-        if (!tool || files?.length || references?.length) {
+        let requestSessionId = sessionId;
+        let conversationHistory = aiMessages;
+        if (articleId === 0 && !requestSessionId && editor?.ensureDraftConversation) {
+            setLoadingKey("chat");
+            const generation = fileReadGeneration.current;
+            try {
+                const draft = await editor.ensureDraftConversation();
+                if (scopeRef.current !== scope || fileReadGeneration.current !== generation) {
+                    if (scopeRef.current === scope) setLoadingKey(undefined);
+                    releaseRequest?.();
+                    return false;
+                }
+                requestSessionId = draft.sessionId;
+                conversationHistory = draft.messages;
+            } catch (error) {
+                void message.error(error instanceof Error ? error.message : getRes().error.unknown);
+                setLoadingKey(undefined);
+                releaseRequest?.();
+                return undefined;
+            }
+        }
+        if (!editor || !tool || files?.length || references?.length) {
             setLoadingKey(files?.length ? "files" : "chat");
             try {
                 const fileRead = fileReadGeneration.current;
@@ -429,10 +448,10 @@ export const useAssistantConversation = ({
                 setLoadingKey("chat");
                 await chat.send(
                     tool && references?.length ? `${getWritingSkillLabel(tool)}\n${normalizedInput}` : normalizedInput,
-                    aiMessages,
-                    articleContext ? articleId : undefined,
+                    conversationHistory,
+                    articleId,
                     undefined,
-                    articleContext
+                    editorContext
                         ? {
                               editorContext,
                               contextRevision: editorContextRevision(editorContext),
@@ -440,7 +459,8 @@ export const useAssistantConversation = ({
                         : undefined,
                     fileInputs,
                     files,
-                    references
+                    references,
+                    requestSessionId
                 );
 
                 return chat.outcome.current;
@@ -449,12 +469,12 @@ export const useAssistantConversation = ({
                 return false;
             } finally {
                 if (scopeRef.current === scope) setLoadingKey(undefined);
-                releaseRequest();
+                releaseRequest?.();
             }
         }
         const controller = new AbortController();
         skillRequest.current = controller;
-        const baseContents = [...aiMessages];
+        const baseContents = [...conversationHistory];
         const userContent: AssistantMessage = {
             role: "user",
             content: normalizedInput,
@@ -487,11 +507,10 @@ export const useAssistantConversation = ({
             if (tool) {
                 query.set("tool", tool);
             }
+            if (requestSessionId) query.set("sessionId", requestSessionId);
             let currentContent = "";
             const { data: responseData, status } = await axiosInstance.post(
-                `/api/admin/assistant/chat?${query.toString()}${
-                    context?.sessionId ? "&sessionId=" + context.sessionId : ""
-                }`,
+                `/api/admin/assistant/chat?${query.toString()}`,
                 tool ? getEditorContext(selectedText) : null,
                 {
                     signal: controller.signal,
@@ -579,7 +598,7 @@ export const useAssistantConversation = ({
                 skillRequest.current = undefined;
                 setLoadingKey(undefined);
             }
-            releaseRequest();
+            releaseRequest?.();
         }
     };
 
@@ -664,24 +683,24 @@ export const useAssistantConversation = ({
         }
         if (isChatMessage(content) && content.run) {
             const run = content.run;
-            if (run.interaction)
+            if (run.interaction) {
+                const editorContext = getEditorContext();
+                const revision = editorContext ? editorContextRevision(editorContext) : run.interaction.contextRevision;
                 return (
                     <AssistantInputRequest
                         key={run.interaction.id}
                         run={run}
-                        disabled={offline || chat.busy || Boolean(loadingKey)}
-                        contextRevision={editorContextRevision(getEditorContext())}
+                        disabled={offline || readOnly || chat.busy || Boolean(loadingKey)}
+                        contextRevision={revision}
                         onExpired={() => void chat.refreshRun(run.articleId)}
                         onRespond={(decision, value) => {
-                            const release = articleContext
-                                ? draftAiSaveGate.tryBeginAiRequest(run.articleId ?? 0)
-                                : () => undefined;
-                            if (!release) {
+                            const release = draftAiSaveGate?.tryBeginAiRequest(run.articleId);
+                            if (draftAiSaveGate && !release) {
                                 void message.warning(getRes().articleEdit.assistant.saveInProgress);
                                 return;
                             }
                             void chat
-                                .respond(run, decision, value, editorContextRevision(getEditorContext()), aiMessages)
+                                .respond(run, decision, value, revision, aiMessages)
                                 .then(() => {
                                     if (!chat.outcome.current) queue.pause();
                                 })
@@ -689,16 +708,15 @@ export const useAssistantConversation = ({
                         }}
                     />
                 );
+            }
             return (
                 <AssistantApproval
                     run={run}
-                    disabled={offline || chat.busy || Boolean(loadingKey)}
+                    disabled={offline || readOnly || chat.busy || Boolean(loadingKey)}
                     onRefresh={() => void chat.refreshRun(run.articleId)}
                     onDecide={(decision) => {
-                        const release = articleContext
-                            ? draftAiSaveGate.tryBeginAiRequest(run.articleId ?? 0)
-                            : () => undefined;
-                        if (!release) {
+                        const release = draftAiSaveGate?.tryBeginAiRequest(run.articleId);
+                        if (draftAiSaveGate && !release) {
                             void message.warning(getRes().articleEdit.assistant.saveInProgress);
                             return;
                         }
@@ -715,9 +733,7 @@ export const useAssistantConversation = ({
         if (isChatMessage(content))
             return renderChatMessage({ content, index, defaultNode }, status, {
                 api: axiosInstance,
-                articleId: articleContext ? data.article.logId || 0 : undefined,
-                taskId: context?.taskId,
-                sessionId: context?.sessionId,
+                ...context,
             });
         const toolAwareContent = content as AssistantMessage;
         if (
@@ -732,11 +748,11 @@ export const useAssistantConversation = ({
             // The input card owns the options while a choice is pending. Restore the normal result card afterwards.
             return null;
         }
-        if (toolAwareContent.messageType === "taskResult" && toolAwareContent.taskResult && context?.taskId) {
+        if (toolAwareContent.messageType === "taskResult" && toolAwareContent.taskResult && taskId) {
             return (
                 <TaskResultMessage
                     content={content.content}
-                    taskId={context.taskId}
+                    taskId={taskId}
                     runId={toolAwareContent.taskResult.runId}
                 />
             );
@@ -749,7 +765,8 @@ export const useAssistantConversation = ({
         }
         const toolPayload = content.role === "assistant" ? getToolPayload(content, index) : undefined;
         const messageTool = content.role === "user" ? getMessageTool(content) : undefined;
-        if (toolPayload) {
+        if (toolPayload && editor) {
+            const { getSkillContextRevision, onApplyValues, onApplyGeneratedCover } = editor;
             const contract = toolAwareContent.skillContract;
             if (
                 toolAwareContent.messageType === "writingSkill" &&
@@ -760,9 +777,10 @@ export const useAssistantConversation = ({
             )
                 return <Alert type="warning" title={getRes().articleEdit.interaction.invalidResult} />;
             const stale = contract && contract.contextRevision !== getSkillContextRevision(toolAwareContent);
-            const applyDisabled = Boolean(contract && (stale || activeRun || busy));
+            const applyDisabled = readOnly || Boolean(contract && (stale || activeRun || busy));
             const applyValues = (values: ArticleChangeableValue) => {
                 if (
+                    readOnly ||
                     scopeRef.current !== scope ||
                     (contract && applicationBlockedRef.current) ||
                     !canApplySkillValues(toolAwareContent, getSkillContextRevision(toolAwareContent), values)
@@ -780,7 +798,7 @@ export const useAssistantConversation = ({
                     loadingKey={loadingKey}
                     applyingCoverMessageId={applyingCoverMessageId}
                     selectedTitle={selectedTitles[index]}
-                    currentMarkdown={data.article.markdown || ""}
+                    currentMarkdown={editor.article.markdown || ""}
                     toolPayload={toolPayload}
                     applyDisabled={applyDisabled}
                     onApplyValues={applyValues}
@@ -869,11 +887,11 @@ export const useAssistantConversation = ({
         <AssistantComposer
             key={queue.key}
             draftKey={scope}
-            writingContext={articleContext}
+            writingContext={Boolean(editor)}
             api={axiosInstance}
             fileInput={data.aiFileInput}
             preparingFiles={loadingKey === "files"}
-            disabled={offline || data.aiConfigured !== true || aiMessagesClearing}
+            disabled={offline || readOnly || data.aiConfigured !== true || aiMessagesClearing}
             busy={busy}
             waiting={activeRun}
             onStop={busy ? stopGeneration : undefined}
@@ -883,27 +901,24 @@ export const useAssistantConversation = ({
             onResumeQueue={queue.resume}
             theme={theme}
             selectedText={selectedText}
-            markdownLength={(data.article.markdown || "").trim().length}
+            markdownLength={(editor?.article.markdown || "").trim().length}
             onSubmit={(messageInput, tool, files, references) =>
                 submitMessage(messageInput, tool, selectedText, files, references)
             }
         />
     );
 
-    const overlays = (
+    const overlays = editor && (
         <>
             <ImageCropper
                 open={cropModalOpen}
                 imageUrl={croppingImageUrl}
-                aspectRatio={parseCoverAspectRatio(data.articleCoverAspectRatio)}
+                aspectRatio={parseCoverAspectRatio(editor.coverAspectRatio)}
                 resolveImageUrl={resolveBackendCropImageUrl}
                 onCancel={() => setCropModalOpen(false)}
                 onError={(errorMessage) => message.error(errorMessage)}
                 onOk={async (croppedDataUrl) => {
-                    const articleId = latestDataRef.current.article.logId || 0;
-                    const releaseRequest = articleContext
-                        ? draftAiSaveGate.tryBeginAiRequest(articleId)
-                        : () => undefined;
+                    const releaseRequest = editor.draftAiSaveGate.tryBeginAiRequest(articleId);
                     if (!releaseRequest) {
                         void message.warning(getRes().articleEdit.assistant.saveInProgress);
                         return;
@@ -947,6 +962,7 @@ export const useAssistantConversation = ({
         navigationBusy: busy || runningElsewhere || aiMessagesClearing,
         conversationActions: {
             disabled: offline || Boolean(loadingKey) || chat.busy || runningElsewhere || aiMessages.length === 0,
+            clearDisabled: readOnly,
             exporting: aiMessagesExporting,
             clearing: aiMessagesClearing,
             onExport: exportAiMessages,

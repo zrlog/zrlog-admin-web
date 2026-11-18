@@ -194,8 +194,14 @@ public class ArticlePublishingService {
     public CreateOrUpdateArticleResponse create(
             AccountAccess actor, CreateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
+        return create(actor, body, audit, null);
+    }
+
+    CreateOrUpdateArticleResponse create(
+            AccountAccess actor, CreateArticleRequest body, AdminAuditContext audit, String runId)
+            throws SQLException {
         boolean scheduled = preparePublication(actor, body);
-        CreateOrUpdateArticleResponse response = articleService.create(actor, body);
+        CreateOrUpdateArticleResponse response = articleService.create(actor, body, runId);
         schedulePublication(actor, body, response, audit, scheduled);
         this.adminAuditService.record(audit, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
         recordPublication(body, response, audit);

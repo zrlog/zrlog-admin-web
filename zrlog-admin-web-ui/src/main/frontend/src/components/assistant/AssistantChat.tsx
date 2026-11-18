@@ -2,24 +2,19 @@ import { getBackgroundTasks, subscribeBackgroundTasks } from "../../utils/backgr
 import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
 import AssistantConversationActions from "./AssistantConversationActions";
 import { Alert, Button, Space, Spin, Typography } from "antd";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { getErrorMessage } from "../../utils/error-message";
 import { hasAction } from "../../utils/account-access";
-import { createDraftAiSaveGate } from "../articleEdit/draft-ai-save-gate";
-import type { ArticleEditInfo } from "../articleEdit/index.types";
 import type { ApiResponse } from "../../type";
 import { useAssistantConversation, AssistantConversationData } from "./use-assistant-conversation";
 import AssistantConversationView from "./chat/assistant-conversation-view";
 import { mergeTaskFeedback } from "./tasks/task-feedback-messages";
 
-type ConversationInfo = Pick<
-    ArticleEditInfo,
-    "aiProvider" | "aiModel" | "aiConfigured" | "aiMessages" | "aiFileInput"
-> & {
+type ConversationInfo = AssistantConversationData & {
     hasEarlierFeedback?: boolean;
 };
 
@@ -56,27 +51,15 @@ function Conversation({
         if (!taskId) return;
         setMessages((current) => mergeTaskFeedback(current, info.aiMessages));
     }, [info, taskId]);
-    const gate = useMemo(createDraftAiSaveGate, []);
     const scrollRef = useRef<HTMLDivElement>(null);
     const followMessages = useRef(true);
-    // General and task conversations never restore the article editor's local draft.
-    const data: AssistantConversationData = {
-        ...info,
-        aiConfigured: info.aiConfigured === true,
-        aiMessages: messages,
-        article: { title: "", version: 0, rubbish: true },
-        articleCoverAspectRatio: "16:9",
-    };
     const config = useAssistantConversation({
         context: { taskId, sessionId },
-        data,
-        draftAiSaveGate: gate,
+        data: { ...info, aiMessages: messages },
         offline,
         axiosInstance: api,
         onAiMessagesChange: (next) =>
             setMessages((current) => (taskId && next.length ? mergeTaskFeedback(next, current) : next)),
-        onApplyValues: () => undefined,
-        getSkillContextRevision: () => "",
     });
     useEffect(() => {
         if (followMessages.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

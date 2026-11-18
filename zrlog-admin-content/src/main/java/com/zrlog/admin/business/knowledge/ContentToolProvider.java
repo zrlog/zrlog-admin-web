@@ -18,6 +18,7 @@ import dagger.assisted.AssistedInject;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -83,6 +84,20 @@ public final class ContentToolProvider implements ToolProvider {
 
     @Override
     public Object call(String name, JsonObject arguments) throws Exception {
+        return call(name, arguments, null, null);
+    }
+
+    public Object createArticleFromDraftConversation(
+            JsonObject arguments, String conversationId, String runId) throws Exception {
+        return call(
+                "create_article",
+                arguments,
+                Objects.requireNonNull(conversationId),
+                Objects.requireNonNull(runId));
+    }
+
+    private Object call(String name, JsonObject arguments, String conversationId, String runId)
+            throws Exception {
         AccountAccess account = identities.revalidate(actor);
         if (!allowed(name, account)) throw new PermissionErrorException();
         JsonObject args = arguments == null ? new JsonObject() : arguments;
@@ -108,7 +123,8 @@ public final class ContentToolProvider implements ToolProvider {
             case "create_article":
             case "update_article":
             case "publish_article":
-                return content.save(account, name, args, scopes, request, audit);
+                return content.save(
+                        account, name, args, scopes, request, audit, conversationId, runId);
             case "upload_attachment":
                 return upload(account, args);
             default:

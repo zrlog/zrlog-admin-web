@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import ArticleEditActionBar from "./article-edit-action-bar";
 import { ArticleEditState } from "./index.types";
 import { AIProviderType } from "../../type";
-import { createDraftAiSaveGate } from "./draft-ai-save-gate";
 
 import { hasAction } from "../../utils/account-access";
 
@@ -112,15 +111,12 @@ describe("ArticleEditActionBar", () => {
                 <ArticleEditActionBar
                     data={data}
                     draftAiPending={draftAiPending}
-                    draftAiSaveGate={createDraftAiSaveGate()}
                     fullScreen={false}
                     offline={false}
                     shortcutsDisabled={shortcutsDisabled}
                     onSubmit={onSubmit}
                     onRequestPublish={onRequestPublish}
                     onPreview={onPreview}
-                    getSkillContextRevision={() => ""}
-                    onApplyAiValues={jest.fn()}
                 />
             );
         });

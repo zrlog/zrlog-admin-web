@@ -11,6 +11,10 @@
         "parameterTypes": []
       },
       {
+        "name": "openDraftConversation",
+        "parameterTypes": []
+      },
+      {
         "name": "approveAiOperation",
         "parameterTypes": []
       },

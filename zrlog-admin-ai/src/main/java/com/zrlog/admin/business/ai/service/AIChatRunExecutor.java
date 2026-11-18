@@ -12,6 +12,7 @@ import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.ContentToolCatalog;
 import com.zrlog.admin.business.knowledge.ContentToolModels.SavedArticle;
+import com.zrlog.admin.business.knowledge.ContentToolProvider;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.admin.business.knowledge.ToolProvider;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
@@ -204,7 +205,11 @@ public class AIChatRunExecutor {
                 run.allowedTools = new ArrayList<>();
                 for (Tool tool : definitions) run.allowedTools.add(tool.name);
             }
-            if (run.sessionId != null && run.revision == null) store.begin(run);
+            if (run.sessionId != null && run.revision == null) {
+                if (Long.valueOf(0).equals(run.articleId))
+                    conversations.captureAccount(actor.getUserId()).beginDraftRun(run);
+                else store.begin(run);
+            }
             Set<String> availableNames = new HashSet<>();
             for (Tool tool : definitions)
                 if (run.allowedTools.contains(tool.name)) availableNames.add(tool.name);
@@ -255,10 +260,21 @@ public class AIChatRunExecutor {
                             progress.tool = call.function.name;
                             events.emit(progress);
                             if (write) store.save(run, "executing");
-                            result =
-                                    call.function.name.startsWith("writing_")
-                                            ? writing.call(call.function.name, args)
-                                            : knowledge.call(call.function.name, args);
+                            if (call.function.name.startsWith("writing_")) {
+                                result = writing.call(call.function.name, args);
+                            } else if ("create_article".equals(call.function.name)
+                                    && Long.valueOf(0).equals(editorArticleId(run))
+                                    && conversations
+                                            .captureAccount(actor.getUserId())
+                                            .isCurrentNamedDraft(run.sessionId)
+                                    && knowledge instanceof ContentToolProvider) {
+                                result =
+                                        ((ContentToolProvider) knowledge)
+                                                .createArticleFromDraftConversation(
+                                                        args, run.sessionId, run.id);
+                            } else {
+                                result = knowledge.call(call.function.name, args);
+                            }
                         }
                     } catch (PermissionErrorException e) {
                         run.status = "running";
@@ -328,6 +344,7 @@ public class AIChatRunExecutor {
                     if (updated != null
                             && Boolean.TRUE.equals(updated.created)
                             && Long.valueOf(0).equals(run.articleId)
+                            && run.sessionId == null
                             && Objects.equals(editorArticleId(run), updated.articleId)) {
                         this.conversations
                                 .captureAccount(actor.getUserId())

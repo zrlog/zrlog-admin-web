@@ -72,17 +72,14 @@ const render = async (disabled = false) => {
                 <App>
                     <WritingAssistantDrawer
                         sessions={{
-                            sessionId: undefined,
-                            messages: [],
                             loading: false,
                             error: undefined,
-                            change: jest.fn(),
                             retry: jest.fn(),
                         }}
                         open
                         onClose={onClose}
                         getContainer={() => container}
-                        data={{ article: { title: "Article" } } as never}
+                        articleTitle="Article"
                         stateCache={{ key: "test", read: () => undefined, write: jest.fn() }}
                         config={
                             {

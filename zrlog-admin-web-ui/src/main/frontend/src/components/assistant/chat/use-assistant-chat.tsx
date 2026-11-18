@@ -354,8 +354,10 @@ export const useAssistantChat = (
         snapshot?: EditorSnapshot,
         files?: AiFileInput[],
         localFiles?: File[],
-        references?: AiMentionInput[]
+        references?: AiMentionInput[],
+        sessionId = contextRef.current.session?.sessionId
     ) => {
+        const taskId = contextRef.current.session?.taskId;
         if (approval)
             context = (context as ChatMessage[]).filter(
                 (message) =>
@@ -444,8 +446,8 @@ export const useAssistantChat = (
             if (
                 checkpoint?.run &&
                 checkpoint.run.articleId === articleId &&
-                checkpoint.run.taskId === contextRef.current.session?.taskId &&
-                checkpoint.run.sessionId === contextRef.current.session?.sessionId
+                checkpoint.run.taskId === taskId &&
+                checkpoint.run.sessionId === sessionId
             ) {
                 const view = checkpoint.run;
                 latestCheckpoint = view;
@@ -559,8 +561,8 @@ export const useAssistantChat = (
                 approval
                     ? {
                           articleId,
-                          taskId: contextRef.current.session?.taskId,
-                          sessionId: contextRef.current.session?.sessionId,
+                          taskId,
+                          sessionId,
                           runId: approval.run.runId,
                           decision: approval.decision,
                           ...(approval.interaction
@@ -570,8 +572,8 @@ export const useAssistantChat = (
                     : {
                           input: prompt,
                           articleId,
-                          taskId: contextRef.current.session?.taskId,
-                          sessionId: contextRef.current.session?.sessionId,
+                          taskId,
+                          sessionId,
                           ...snapshot,
                           ...(files?.length ? { files } : {}),
                           ...(references?.length ? { references } : {}),

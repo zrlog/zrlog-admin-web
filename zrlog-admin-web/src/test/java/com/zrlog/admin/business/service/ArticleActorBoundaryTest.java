@@ -7,7 +7,6 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
-import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
@@ -76,33 +75,34 @@ public class ArticleActorBoundaryTest {
             var content = db.component(ContentComponent.class);
             var conversations = db.component(AIComponent.class).conversations();
             var author = accounts.identities().account(token(2));
-            conversations
-                    .captureAccount(1)
-                    .saveAIMessage(
-                            List.of(
-                                    new AIResponseEntry.AIContentEntry(
-                                            "user", "administrator draft")),
-                            -1L);
-            conversations
-                    .captureAccount(2)
-                    .saveAIMessage(
-                            List.of(new AIResponseEntry.AIContentEntry("user", "author draft")),
-                            -2L);
+            var adminConversations = conversations.captureAccount(1);
+            var adminDraft =
+                    adminConversations.captureSession(adminConversations.openDraftConversation());
+            adminDraft.saveAIMessage(
+                    List.of(new AIResponseEntry.AIContentEntry("user", "administrator draft")),
+                    -1L);
+            var authorConversations = conversations.captureAccount(2);
+            String conversationId = authorConversations.openDraftConversation();
+            var authorDraft = authorConversations.captureSession(conversationId);
+            authorDraft.saveAIMessage(
+                    List.of(new AIResponseEntry.AIContentEntry("user", "author draft")), -2L);
             assertEquals(1, AdminTokenThreadLocal.getUserId());
-            long id = content.articles().create(author, article("Original")).getLogId();
+            var original = article("Original");
+            original.setConversationId(conversationId);
+            long id = content.articles().create(author, original).getLogId();
             assertEquals(
                     2, ((Number) db.scalar("select userId from log where logId=?", id)).intValue());
             AdminTokenThreadLocal.remove();
-            var editor =
-                    (AIArticleGlobalResponse)
-                            content.queries()
-                                    .loadDetailById(author, Long.toString(id), request())
-                                    .getData();
-            assertEquals("author draft", editor.getAiMessages().get(0).getContent());
+            assertEquals(
+                    "author draft",
+                    authorDraft
+                            .getAiMessageInfoByArticleId(id)
+                            .getAiMessages()
+                            .get(0)
+                            .getContent());
             assertEquals(
                     "administrator draft",
-                    conversations
-                            .captureAccount(1)
+                    adminDraft
                             .getAiMessageInfoByArticleId(-1L)
                             .getAiMessages()
                             .get(0)

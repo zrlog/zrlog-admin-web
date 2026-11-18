@@ -5,7 +5,8 @@ import type { AxiosInstance } from "axios";
 import useWritingConversation from "./use-writing-conversation";
 
 const get = jest.fn<Promise<any>, any[]>();
-const api = { get } as unknown as AxiosInstance;
+const post = jest.fn<Promise<any>, any[]>();
+const api = { get, post } as unknown as AxiosInstance;
 let root: Root;
 let container: HTMLDivElement;
 let session: ReturnType<typeof useWritingConversation>;
@@ -18,6 +19,7 @@ beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, "", "/");
     get.mockReset().mockResolvedValue({ data: { error: 0, data: { aiMessages: [] } } });
+    post.mockReset();
     container = document.createElement("div");
     root = createRoot(container);
 });
@@ -55,4 +57,26 @@ it("discards an old article response and keeps the current article conversation 
     expect(container.textContent).not.toContain("Old history");
     act(() => session.change([{ role: "user", content: "New history", thinking: false }]));
     expect(container.textContent).toContain("New history");
+});
+
+it("opens one writing conversation on send and follows it to the saved article", async () => {
+    const id = "aaabbbcc-1111-4222-8333-aaaabbbbcccc";
+    const previous = { role: "user", content: "Existing draft history" };
+    post.mockResolvedValue({ data: { error: 0, data: { conversationId: id } } });
+    await act(async () => root.render(<Harness />));
+    expect(post).not.toHaveBeenCalled();
+    get.mockResolvedValueOnce({ data: { error: 0, data: { aiMessages: [previous] } } });
+    await act(async () => {
+        const first = session.ensureDraft();
+        expect(session.ensureDraft()).toBe(first);
+        expect(await first).toEqual({ sessionId: id, messages: [previous] });
+    });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith("/api/admin/assistant/chat/draft", {});
+    expect(get.mock.calls[1][1].params).toEqual({ id: 0, sessionId: id });
+    expect(session.sessionId).toBe(id);
+    await act(async () => root.render(<Harness articleId={7} />));
+    expect(session.sessionId).toBe(id);
+    expect(container.textContent).toContain(previous.content);
+    expect(get).toHaveBeenCalledTimes(2);
 });

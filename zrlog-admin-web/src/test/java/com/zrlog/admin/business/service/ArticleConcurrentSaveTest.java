@@ -35,7 +35,6 @@ public class ArticleConcurrentSaveTest {
     private static CreateArticleRequest article(String title) {
         CreateArticleRequest request = new CreateArticleRequest();
         fields(request, title);
-        request.setPreserveDraftAiMessages(true);
         return request;
     }
 

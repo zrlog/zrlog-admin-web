@@ -1,8 +1,7 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import LockIcon from "@zrlog/ui/icons/lock";
 import StarIcon from "@zrlog/ui/icons/star";
-import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
-import { ArticleUpdatedEvent } from "../assistant/writing/writing-assistant.types";
+import type { WritingAssistantState } from "../assistant/writing/writing-assistant-button";
 import { InputRef } from "antd";
 import Select from "antd/es/select";
 
@@ -13,11 +12,9 @@ import ArticleEditActionBar from "./article-edit-action-bar";
 import ArticleEditMoreActions from "./article-edit-more-actions";
 import ArticleEditSettingButton from "./article-edit-setting-button";
 import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useTheme } from "antd-style";
 import { MarkdownImportApplyOptions } from "./markdown-import-modal";
-import { DraftAiSaveGate } from "./draft-ai-save-gate";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;
@@ -25,7 +22,7 @@ type ArticleEditHeaderProps = {
     dataDigest?: string;
     state: ArticleEditState;
     draftAiPending: boolean;
-    draftAiSaveGate: DraftAiSaveGate;
+    writingAssistant: WritingAssistantState;
     fullScreen: boolean;
     offline: boolean;
     shortcutsDisabled?: boolean;
@@ -48,17 +45,12 @@ type ArticleEditHeaderProps = {
     stateCacheKey: string;
     saving: boolean;
     onValuesChange: (cv: ArticleChangeableValue) => void;
-    onApplyAiValues: ApplyAiValues;
-    getSkillContextRevision: SkillContextRevision;
-    onApplyGeneratedCover: (cover: { dataUrl: string; extension?: string }) => Promise<string | undefined>;
     onSettingsOpenChange: (open: boolean) => void;
     onVersionOpenChange: (open: boolean) => void;
     onRollback: (targetVersion: number) => Promise<void>;
     onSubmit: (article: ArticleEntry, release: boolean, preview: boolean, autoSave: boolean) => Promise<boolean>;
     onRequestPublish: () => void;
     onPreview?: () => Promise<void>;
-    onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
-    onAiMessagesChange: (messages: AIContent[], articleId?: number) => void;
     onAiDrawerSizeChange: (newSize: number) => void;
     onInsertMarkdownFromAsset: (path: string) => void;
     getCurrentMarkdown: () => string;
@@ -75,7 +67,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     dataDigest,
     state,
     draftAiPending,
-    draftAiSaveGate,
+    writingAssistant,
     fullScreen,
     offline,
     shortcutsDisabled,
@@ -98,17 +90,12 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     stateCacheKey,
     saving,
     onValuesChange,
-    onApplyAiValues,
-    getSkillContextRevision,
-    onApplyGeneratedCover,
     onSettingsOpenChange,
     onVersionOpenChange,
     onRollback,
     onSubmit,
     onRequestPublish,
     onPreview,
-    onAiMessagesChange,
-    onArticleUpdated,
     onAiDrawerSizeChange,
     onInsertMarkdownFromAsset,
     getCurrentMarkdown,
@@ -263,7 +250,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         getContainer={getContainer}
                         offline={offline}
                         draftAiPending={draftAiPending}
-                        draftAiSaveGate={draftAiSaveGate}
+                        writingAssistant={writingAssistant}
                         shortcutsDisabled={shortcutsDisabled}
                         fullScreen={fullScreen}
                         data={state}
@@ -271,8 +258,6 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         onOpenSettings={() => onSettingsOpenChange(true)}
                         onOpenVersionHistory={() => onVersionOpenChange(true)}
                         canOpenVersionHistory={Boolean(state.article.logId)}
-                        onAiMessagesChange={onAiMessagesChange}
-                        onArticleUpdated={onArticleUpdated}
                         onSubmit={onSubmit}
                         onRequestPublish={onRequestPublish}
                         aiDrawerOpen={articleAssistantOpen}
@@ -280,9 +265,6 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         aiDrawerWidth={aiDrawerWidth}
                         aiStateCache={aiStateCache}
                         onAiDrawerSizeChange={onAiDrawerSizeChange}
-                        onApplyAiValues={onApplyAiValues}
-                        getSkillContextRevision={getSkillContextRevision}
-                        onApplyGeneratedCover={onApplyGeneratedCover}
                     />
                     <ArticleEditMoreActions
                         fullScreen={fullScreen}

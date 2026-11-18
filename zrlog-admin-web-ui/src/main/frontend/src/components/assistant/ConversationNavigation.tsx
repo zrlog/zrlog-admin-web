@@ -17,7 +17,12 @@ import useArticleEditorScreens from "../articleEdit/use-article-editor-screens";
 import type { ApiResponse } from "../../type";
 
 export type ConversationSelection = { sessionId?: string; articleId?: number; taskId?: string };
-export type ConversationSummary = ConversationSelection & { title: string; createdAt: number; updatedAt: number };
+export type ConversationSummary = ConversationSelection & {
+    title: string;
+    createdAt: number;
+    updatedAt: number;
+    temporaryDraft?: boolean;
+};
 type SessionPage = { items: ConversationSummary[]; hasMore: boolean; before?: number; beforeKey?: string };
 export const conversationKey = (value: ConversationSelection) =>
     `${value.taskId || (value.articleId === undefined ? "general" : `article/${value.articleId}`)}/${
@@ -355,7 +360,7 @@ export default function ConversationNavigation({
                                                 setTitle(item.title);
                                             },
                                         },
-                                        ...(!item.taskId
+                                        ...(!item.taskId && !item.temporaryDraft
                                             ? [
                                                   {
                                                       key: "delete",

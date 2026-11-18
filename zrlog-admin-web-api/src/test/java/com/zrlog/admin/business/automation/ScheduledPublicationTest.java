@@ -58,7 +58,6 @@ public class ScheduledPublicationTest {
         body.setEditorType("html");
         body.setRubbish(true);
         body.setTypeId(1L);
-        body.setPreserveDraftAiMessages(true);
         return content.publishing().create(actor, body, audit).getLogId().intValue();
     }
 

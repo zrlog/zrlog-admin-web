@@ -3,8 +3,10 @@ package com.zrlog.admin.business.content;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
 import com.zrlog.admin.util.AdminSseEmitter;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.web.WebSetup;
+import java.sql.SQLException;
 
 /** Optional article assistance supplied by an enabled WebSetup. Content also works without it. */
 public interface ArticleAssistant extends WebSetup {
@@ -13,7 +15,17 @@ public interface ArticleAssistant extends WebSetup {
     @Override
     default void setup() {}
 
-    default void articleCreated(long articleId, int userId) {}
+    default DraftConversationBinding prepareDraftConversationBinding(
+            AccountAccess actor, String conversationId, String runId) throws SQLException {
+        throw new ArgsException("conversationId");
+    }
+
+    interface DraftConversationBinding extends AutoCloseable {
+        void bind(long articleId) throws SQLException;
+
+        @Override
+        void close() throws SQLException;
+    }
 
     default void articleDeleted(long articleId) {}
 

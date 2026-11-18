@@ -1,6 +1,7 @@
-import useWritingConversation from "./use-writing-conversation";
+import type useWritingConversation from "./use-writing-conversation";
 import WritingAssistantDrawer from "./writing-assistant-drawer";
-import { useAssistantConversation, AssistantConversationProps } from "../use-assistant-conversation";
+import type { useAssistantConversation } from "../use-assistant-conversation";
+import type { ArticleEditState } from "../../articleEdit/index.types";
 import { getAppState } from "../../../base/ConfigProviderApp";
 import { addToCache, getCacheByKey } from "../../../utils/cache";
 import { Button } from "antd";
@@ -12,7 +13,13 @@ import { getRealRouteUrl, getRes } from "../../../utils/constants";
 import { useTheme } from "antd-style";
 import { getShortcutTitle, isTouchLikeDevice } from "../../articleEdit/shortcut-utils";
 
-type WritingAssistantButtonProps = AssistantConversationProps & {
+export type WritingAssistantState = {
+    data: Pick<ArticleEditState, "article" | "aiConfigured">;
+    sessions: ReturnType<typeof useWritingConversation>;
+    config: ReturnType<typeof useAssistantConversation>;
+};
+
+type WritingAssistantButtonProps = WritingAssistantState & {
     getContainer?: () => HTMLElement;
     aiDrawerWidth?: number | "default" | "large";
     stateCache?: AIStateCache;
@@ -33,14 +40,8 @@ export const getWritingAssistantDrawerOpen = () => writingAssistantDrawerOpen ||
 
 const WritingAssistantButton: FunctionComponent<WritingAssistantButtonProps> = ({
     data,
-    draftAiSaveGate,
-    offline,
-    axiosInstance,
-    onAiMessagesChange,
-    onArticleUpdated,
-    onApplyValues,
-    getSkillContextRevision,
-    onApplyGeneratedCover,
+    sessions,
+    config,
     getContainer,
     aiDrawerWidth,
     stateCache,
@@ -58,28 +59,6 @@ const WritingAssistantButton: FunctionComponent<WritingAssistantButtonProps> = (
         setInnerOpen(nextOpen);
         onOpenChange?.(nextOpen);
     };
-    const sessions = useWritingConversation(
-        axiosInstance,
-        data.article.logId || 0,
-        mergedOpen && !offline,
-        data.aiMessages
-    );
-    const assistantData = { ...data, aiMessages: sessions.messages };
-    const assistantConfig = useAssistantConversation({
-        context: { articleId: data.article.logId || 0, sessionId: sessions.sessionId },
-        data: assistantData,
-        draftAiSaveGate,
-        offline: offline || sessions.loading || Boolean(sessions.error),
-        axiosInstance,
-        onAiMessagesChange: (messages, articleId) => {
-            sessions.change(messages);
-            if (!sessions.sessionId) onAiMessagesChange?.(messages, articleId);
-        },
-        onArticleUpdated,
-        onApplyValues,
-        getSkillContextRevision,
-        onApplyGeneratedCover,
-    });
     const aiStateCacheKey = `${AI_ASSISTANT_STATE_CACHE_KEY_PREFIX}/${
         data.article.logId ? data.article.logId : "draft"
     }/${sessions.sessionId || "default"}`;
@@ -146,9 +125,9 @@ const WritingAssistantButton: FunctionComponent<WritingAssistantButtonProps> = (
         <>
             {trigger}
             <WritingAssistantDrawer
-                data={assistantData}
+                articleTitle={data.article.title}
                 sessions={sessions}
-                config={assistantConfig}
+                config={config}
                 open={mergedOpen}
                 onClose={() => updateOpen(false)}
                 getContainer={getContainer}

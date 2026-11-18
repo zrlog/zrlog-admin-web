@@ -6,6 +6,7 @@ import com.zrlog.admin.business.ai.model.AIChatModels;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.exception.ArgsException;
 import java.util.List;
 import java.util.UUID;
 import org.junit.Test;
@@ -107,11 +108,16 @@ public class AIConversationSessionsTest {
     }
 
     @Test
-    public void savingAnArticleKeepsEachWritingSessionSeparate() throws Exception {
+    public void bindingOnlyMovesTheCurrentAccountWritingDraft() throws Exception {
         try (var db = open()) {
             var conversations =
                     AIServiceDependencies.conversations(db.dataSource()).captureAccount(1);
-            String firstId = UUID.randomUUID().toString(), secondId = UUID.randomUUID().toString();
+            String firstId = conversations.openDraftConversation();
+            String secondId = UUID.randomUUID().toString();
+            var otherAccount =
+                    AIServiceDependencies.conversations(db.dataSource()).captureAccount(2);
+            assertEquals(firstId, conversations.openDraftConversation());
+            assertNotEquals(firstId, otherAccount.openDraftConversation());
             conversations
                     .captureSession(firstId)
                     .appendAIMessageEntries(
@@ -120,7 +126,13 @@ public class AIConversationSessionsTest {
                     .captureSession(secondId)
                     .appendAIMessageEntries(
                             List.of(new AIContentEntry("user", "Second writing")), -1L);
-            conversations.migrateDraftAIMessageToArticle(7L, -1L);
+            assertThrows(
+                    ArgsException.class,
+                    () -> otherAccount.prepareDraftConversationBinding(firstId, null));
+            try (var binding = conversations.prepareDraftConversationBinding(firstId, null)) {
+                binding.bind(7L);
+                binding.bind(7L);
+            }
             assertEquals(
                     "First writing",
                     conversations
@@ -133,13 +145,19 @@ public class AIConversationSessionsTest {
                     "Second writing",
                     conversations
                             .captureSession(secondId)
-                            .exportAIMessage(7L)
+                            .exportAIMessage(-1L)
                             .getMessages()
                             .get(0)
                             .getContent());
-            assertEquals(2, conversations.index().list(1, 7L, true, "", null, null).items.size());
-            assertTrue(conversations.index().list(1, 0L, true, "", null, null).items.isEmpty());
-            conversations.migrateDraftAIMessageToArticle(7L, -1L);
+            assertEquals(1, conversations.index().list(1, 7L, true, "", null, null).items.size());
+            assertEquals(
+                    secondId,
+                    conversations.index().list(1, 0L, true, "", null, null).items.get(0).sessionId);
+            assertThrows(
+                    ArgsException.class,
+                    () -> conversations.prepareDraftConversationBinding(firstId, null));
+            assertNull(conversations.draftConversationId());
+            assertNotEquals(firstId, conversations.openDraftConversation());
             assertEquals(
                     1, conversations.captureSession(firstId).exportAIMessage(7L).getMessageCount());
         }
@@ -150,14 +168,31 @@ public class AIConversationSessionsTest {
         try (var db = open()) {
             var conversations =
                     AIServiceDependencies.conversations(db.dataSource()).captureAccount(1);
-            String id = UUID.randomUUID().toString();
+            String id = conversations.openDraftConversation();
             conversations.index().touch(1, 0L, null, id, "Create a draft", true);
             var rename = new AIChatModels.SessionChange();
             rename.articleId = 0L;
             rename.sessionId = id;
             rename.title = "My writing project";
             conversations.index().rename(1, rename);
-            conversations.migrateDraftAIMessageToArticle(7L, -1L);
+            var run = new AIChatModels.Run();
+            run.userId = 1;
+            run.articleId = 0L;
+            run.sessionId = id;
+            conversations.beginDraftRun(run);
+            assertThrows(
+                    ArgsException.class,
+                    () -> conversations.prepareDraftConversationBinding(id, null));
+            var approvals = AIServiceDependencies.approvals(db.dataSource());
+            approvals.save(run, "executing");
+            assertThrows(
+                    ArgsException.class,
+                    () ->
+                            conversations.prepareDraftConversationBinding(
+                                    id, UUID.randomUUID().toString()));
+            try (var binding = conversations.prepareDraftConversationBinding(id, run.id)) {
+                binding.bind(7L);
+            }
             conversations
                     .captureSession(id)
                     .appendAIMessageEntries(
@@ -166,6 +201,28 @@ public class AIConversationSessionsTest {
             assertEquals(
                     "My writing project",
                     conversations.index().list(1, 7L, true, "", null, null).items.get(0).title);
+        }
+    }
+
+    @Test
+    public void interruptedDraftBindingResumesToTheOriginalArticleBeforeOpeningAnother()
+            throws Exception {
+        try (var db = open()) {
+            var conversations =
+                    AIServiceDependencies.conversations(db.dataSource()).captureAccount(1);
+            String id = conversations.openDraftConversation();
+            var draft = conversations.captureSession(id);
+            draft.appendAIMessageEntries(
+                    List.of(new AIContentEntry("user", "Original writing")), -1L);
+            assertTrue(conversations.index().claimDraftBinding(1, id, 7L));
+            assertThrows(
+                    ArgsException.class,
+                    () -> conversations.prepareDraftConversationBinding(id, null));
+            assertNotEquals(id, conversations.openDraftConversation());
+            assertEquals(
+                    "Original writing",
+                    draft.exportAIMessage(7L).getMessages().get(0).getContent());
+            assertEquals(0, draft.exportAIMessage(-1L).getMessageCount());
         }
     }
 

@@ -1,7 +1,5 @@
 import SaveIcon from "@zrlog/ui/icons/save";
 import SendIcon from "@zrlog/ui/icons/send";
-import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
-import { ArticleUpdatedEvent } from "../assistant/writing/writing-assistant.types";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { hasAction } from "../../utils/account-access";
 import { Button } from "antd";
@@ -9,19 +7,19 @@ import { Button } from "antd";
 import { getRes } from "../../utils/constants";
 import { ArticleEditState, ArticleEntry } from "./index.types";
 import { FunctionComponent, useEffect, useRef } from "react";
-import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
-import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getAiDrawerOpen } from "@zrlog/editor/core/ai/AIDrawer";
 import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
-import WritingAssistantButton, { getWritingAssistantDrawerOpen } from "../assistant/writing/writing-assistant-button";
-import { DraftAiSaveGate } from "./draft-ai-save-gate";
+import WritingAssistantButton, {
+    getWritingAssistantDrawerOpen,
+    WritingAssistantState,
+} from "../assistant/writing/writing-assistant-button";
 import useArticleEditorScreens from "./use-article-editor-screens";
 
 type ArticleEditActionBarProps = {
     data: ArticleEditState;
     draftAiPending: boolean;
-    draftAiSaveGate: DraftAiSaveGate;
+    writingAssistant?: WritingAssistantState;
     fullScreen: boolean;
     offline: boolean;
     shortcutsDisabled?: boolean;
@@ -32,22 +30,17 @@ type ArticleEditActionBarProps = {
     onOpenVersionHistory?: () => void;
     canOpenVersionHistory?: boolean;
     getContainer?: () => HTMLElement;
-    onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
-    onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
     onAiDrawerSizeChange?: (newSize: number) => void;
     aiDrawerOpen?: boolean;
     onAiDrawerOpenChange?: (open: boolean) => void;
     aiDrawerWidth?: number | "default" | "large";
     aiStateCache?: AIStateCache;
-    onApplyAiValues: ApplyAiValues;
-    getSkillContextRevision: SkillContextRevision;
-    onApplyGeneratedCover?: (cover: { dataUrl: string; extension?: string }) => Promise<string | undefined>;
 };
 
 const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
     data,
     draftAiPending,
-    draftAiSaveGate,
+    writingAssistant,
     offline,
     shortcutsDisabled = false,
     onSubmit,
@@ -57,23 +50,16 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
     onOpenVersionHistory,
     canOpenVersionHistory,
     getContainer,
-    onAiMessagesChange,
-    onArticleUpdated,
     onAiDrawerSizeChange,
     aiDrawerOpen,
     onAiDrawerOpenChange,
     aiDrawerWidth,
     aiStateCache,
-    onApplyAiValues,
-    getSkillContextRevision,
-    onApplyGeneratedCover,
 }) => {
     const enterBtnRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
     const saveDraftBtnRef = useRef<HTMLButtonElement>(null);
 
     const screens = useArticleEditorScreens();
-
-    const axiosInstance = useAxiosBaseInstance(getContainer);
 
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
@@ -175,23 +161,15 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                 }
                 onClick={async () => await onSubmit(data.article, false, false, false)}
             />
-            {isModuleEnabled("ai") && (
+            {isModuleEnabled("ai") && writingAssistant && (
                 <WritingAssistantButton
-                    data={data}
-                    draftAiSaveGate={draftAiSaveGate}
-                    offline={offline}
-                    axiosInstance={axiosInstance}
+                    {...writingAssistant}
                     getContainer={getContainer}
-                    onAiMessagesChange={onAiMessagesChange}
-                    onArticleUpdated={onArticleUpdated}
                     onAiDrawerSizeChange={onAiDrawerSizeChange}
                     open={aiDrawerOpen}
                     onOpenChange={onAiDrawerOpenChange}
                     aiDrawerWidth={aiDrawerWidth}
                     stateCache={aiStateCache}
-                    onApplyValues={onApplyAiValues}
-                    getSkillContextRevision={getSkillContextRevision}
-                    onApplyGeneratedCover={onApplyGeneratedCover}
                 />
             )}
             {hasAction("article.publish") && (

@@ -76,6 +76,7 @@ public final class AIChatModels {
         public String sessionId;
         public Long articleId;
         public String taskId;
+        public Boolean temporaryDraft;
         public String title;
         public long updatedAt;
         public long createdAt;
@@ -110,6 +111,14 @@ public final class AIChatModels {
         public boolean aiConfigured;
         public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry>
                 aiMessages;
+    }
+
+    public static class DraftConversation {
+        public String conversationId;
+
+        public DraftConversation(String conversationId) {
+            this.conversationId = conversationId;
+        }
     }
 
     public static class ResolvedReference {
