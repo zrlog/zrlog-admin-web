@@ -7,38 +7,30 @@ import com.hibegin.http.server.util.MimeTypeUtil;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.business.service.TemplateInfoHelper;
 import jakarta.inject.Inject;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /** 不检查 pwa 的 json 文件的请求 */
 public class AdminPwaInterceptor implements HandleAbleInterceptor {
 
+    // Theme previews use their controller route and load theme metadata on demand.
+    private static final Set<String> RESOURCE_URIS =
+            Set.of(AdminResource.ADMIN_ASSET_MANIFEST_JSON, AdminConstants.ADMIN_SERVICE_WORKER_JS);
+
     private final AdminResource resources;
-    private final List<String> resourceUris = new ArrayList<>();
 
     @Inject
     public AdminPwaInterceptor(AdminResource resources) {
         this.resources = Objects.requireNonNull(resources);
-        resourceUris.add(AdminResource.ADMIN_ASSET_MANIFEST_JSON);
-        TemplateInfoHelper.getClassPathTemplates()
-                .forEach(
-                        clazz -> {
-                            if (Objects.nonNull(clazz)) {
-                                resourceUris.add(clazz.getAdminPreviewImage());
-                            }
-                        });
-        resourceUris.add(AdminConstants.ADMIN_SERVICE_WORKER_JS);
     }
 
     @Override
     public boolean isHandleAble(HttpRequest request) {
-        if (resourceUris.contains(request.getUri())) {
+        if (RESOURCE_URIS.contains(request.getUri())) {
             return true;
         }
         return AdminConstants.ADMIN_PWA_MANIFEST_JSON.equals(request.getUri())
@@ -57,7 +49,7 @@ public class AdminPwaInterceptor implements HandleAbleInterceptor {
                 return false;
             }
         }
-        if (resourceUris.contains(request.getUri())) {
+        if (RESOURCE_URIS.contains(request.getUri())) {
             response.addHeader(
                     "Content-Type",
                     MimeTypeUtil.getMimeStrByExt(

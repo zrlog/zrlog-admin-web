@@ -7,6 +7,7 @@ import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.controller.api.AdminDevController;
 import com.zrlog.admin.web.controller.page.AdminPageController;
+import com.zrlog.admin.web.controller.page.AdminTemplatePageController;
 import com.zrlog.admin.web.interceptor.*;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
@@ -61,6 +62,11 @@ public class AdminWebSetupProviderTest {
                 config.getServerConfig().getStaticResourceMapper().containsKey("/admin/static/"));
         AdminUiWebSetup ui = new AdminUiWebSetup(config, "/blog");
         ui.setup();
+        assertEquals(
+                AdminTemplatePageController.class.getMethod("previewImage"),
+                config.getServerConfig()
+                        .getRouter()
+                        .getMethod("/admin/template/preview-image", HttpMethod.GET));
         assertEquals(
                 AdminPageController.class.getMethod("index"),
                 config.getServerConfig().getRouter().getMethod("/admin/dev/ui", HttpMethod.GET));
