@@ -8,9 +8,9 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DevInfoResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
+import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.WebsiteCacheService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.DevKit;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -19,11 +19,14 @@ import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.LockVO;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.LockManager;
 import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class AdminDevController extends Controller {
     private final AdminRequestIdentity requestIdentity;
@@ -77,10 +80,21 @@ public class AdminDevController extends Controller {
     public AdminPageDataResponse<DevInfoResponse> index() throws Exception {
         DevInfoResponse devInfoResponse = new DevInfoResponse();
         devInfoResponse.setLocks(lockManager.getLocks());
-        devInfoResponse.setCacheEntries(this.websiteCacheService.listEntries());
+        devInfoResponse.setCacheEntries(
+                websiteCacheService.listEntries().stream()
+                        .map(AdminDevController::cacheEntryResponse)
+                        .collect(Collectors.toList()));
         devInfoResponse.setDevMode(EnvKit.isDevMode());
         return pages.response(
                 requestIdentity.optional(), devInfoResponse, "", getRequest().getUri());
+    }
+
+    private static WebsiteKvEntryResponse cacheEntryResponse(WebsiteCacheService.Entry row) {
+        WebsiteKvEntryResponse response = new WebsiteKvEntryResponse();
+        response.setKey(row.name);
+        response.setValue(Objects.toString(row.value, ""));
+        response.setSize(row.size);
+        return response;
     }
 
     @ResponseBody

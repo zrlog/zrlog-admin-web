@@ -8,6 +8,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.ui.AdminUiComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import java.lang.reflect.Proxy;
 import java.util.Set;

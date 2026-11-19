@@ -10,6 +10,7 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.repository.LogRepository;
 import com.zrlog.data.security.AccountAccess;

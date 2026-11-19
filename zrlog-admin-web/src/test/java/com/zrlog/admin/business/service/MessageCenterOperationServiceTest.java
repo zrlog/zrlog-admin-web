@@ -14,7 +14,7 @@ import java.util.List;
 import org.junit.Test;
 
 public class MessageCenterOperationServiceTest {
-    private static final String KEY = "admin_cache:message_center_operation_notices_v2";
+    private static final String KEY = "cache_v1:message_center_operation_notices_v2";
 
     private String stored(InMemoryZrLogDatabase db) throws Exception {
         return String.valueOf(

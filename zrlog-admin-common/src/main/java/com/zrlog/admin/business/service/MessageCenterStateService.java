@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.data.repository.WebSiteRepository;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -16,7 +17,7 @@ import java.util.logging.Logger;
 @Singleton
 public class MessageCenterStateService {
     private static final String STATUS_KEY = "message_center_status";
-    private static final String STATUS_DB_KEY = WebsiteCacheService.KEY_PREFIX + STATUS_KEY;
+    private static final String STATUS_DB_KEY = WebsiteCacheService.storageKey(STATUS_KEY);
     private static final int UPDATE_RETRY_COUNT = 3;
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = LoggerUtil.getLogger(MessageCenterStateService.class);

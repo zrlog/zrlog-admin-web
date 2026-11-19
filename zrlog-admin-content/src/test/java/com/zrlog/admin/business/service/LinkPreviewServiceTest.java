@@ -318,8 +318,7 @@ public class LinkPreviewServiceTest {
             LinkPreviewResponse first = service.fetch("https://example.com/post", "Test\r\nAgent");
             LinkPreviewResponse second = service.fetch("https://example.com/post", "Other Agent");
             Map<String, Object> cacheRow =
-                    db.queryOne(
-                            "select value from website where name=?", "admin_cache:link_preview");
+                    db.queryOne("select value from website where name=?", "cache_v1:link_preview");
 
             assertTrue(first.isAvailable());
             assertEquals("Cached Title", first.getTitle());
