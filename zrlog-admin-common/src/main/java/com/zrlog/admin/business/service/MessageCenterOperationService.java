@@ -5,6 +5,7 @@ import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
+import com.zrlog.data.cache.WebsiteCacheService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.lang.reflect.Type;

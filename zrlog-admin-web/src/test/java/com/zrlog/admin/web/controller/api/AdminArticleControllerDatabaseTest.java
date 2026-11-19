@@ -1104,7 +1104,7 @@ public class AdminArticleControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.putWebsite("admin_cache:message_center_operation_notices_v2", "[]");
+            db.putWebsite("cache_v1:message_center_operation_notices_v2", "[]");
             AIPublishCheckService publishingService =
                     new AIPublishCheckService(
                             ApplicationServicesFixture.settings(db.dataSource()),
@@ -1125,7 +1125,7 @@ public class AdminArticleControllerDatabaseTest {
                     String.valueOf(
                             db.queryOne(
                                             "select value from website where name=?",
-                                            "admin_cache:message_center_operation_notices_v2")
+                                            "cache_v1:message_center_operation_notices_v2")
                                     .get("value"));
 
             assertTrue(stored.contains("Checked Article"));
@@ -1469,7 +1469,7 @@ public class AdminArticleControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.putWebsite("admin_cache:message_center_operation_notices_v2", "[]");
+            db.putWebsite("cache_v1:message_center_operation_notices_v2", "[]");
             CountDownLatch generationStarted = new CountDownLatch(1);
             CountDownLatch releaseGeneration = new CountDownLatch(1);
             CountDownLatch generationFinished = new CountDownLatch(1);
@@ -1555,7 +1555,7 @@ public class AdminArticleControllerDatabaseTest {
                     String.valueOf(
                             db.queryOne(
                                             "select value from website where name=?",
-                                            "admin_cache:message_center_operation_notices_v2")
+                                            "cache_v1:message_center_operation_notices_v2")
                                     .get("value"));
             assertEquals(1, countOccurrences(storedNotices, "Late publish check"));
             assertFalse(
@@ -1570,7 +1570,7 @@ public class AdminArticleControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.putWebsite("admin_cache:message_center_operation_notices_v2", "[]");
+            db.putWebsite("cache_v1:message_center_operation_notices_v2", "[]");
             CountDownLatch generationStarted = new CountDownLatch(1);
             CountDownLatch releaseGeneration = new CountDownLatch(1);
             CountDownLatch generationFinished = new CountDownLatch(1);
@@ -1600,7 +1600,7 @@ public class AdminArticleControllerDatabaseTest {
                     String.valueOf(
                             db.queryOne(
                                             "select value from website where name=?",
-                                            "admin_cache:message_center_operation_notices_v2")
+                                            "cache_v1:message_center_operation_notices_v2")
                                     .get("value"));
             assertEquals(1, countOccurrences(storedNotices, "Late failed publish check"));
             assertFalse(storedNotices.contains("late provider failure"));
@@ -1649,7 +1649,7 @@ public class AdminArticleControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.putWebsite("admin_cache:message_center_operation_notices_v2", "[]");
+            db.putWebsite("cache_v1:message_center_operation_notices_v2", "[]");
             CompletableFuture<PublishCheckResponse> future = new CompletableFuture<>();
             future.completeExceptionally(new IllegalStateException("provider unavailable"));
             PublishCheckTask task =
@@ -1664,7 +1664,7 @@ public class AdminArticleControllerDatabaseTest {
                     String.valueOf(
                             db.queryOne(
                                             "select value from website where name=?",
-                                            "admin_cache:message_center_operation_notices_v2")
+                                            "cache_v1:message_center_operation_notices_v2")
                                     .get("value"));
 
             assertEquals(1, countOccurrences(payload, "event: publish-check-error"));
@@ -1685,7 +1685,7 @@ public class AdminArticleControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            db.putWebsite("admin_cache:message_center_operation_notices_v2", "[]");
+            db.putWebsite("cache_v1:message_center_operation_notices_v2", "[]");
             AdminArticleController controller =
                     controller(
                             db.cacheService(),
@@ -1741,7 +1741,7 @@ public class AdminArticleControllerDatabaseTest {
                     String.valueOf(
                             db.queryOne(
                                             "select value from website where name=?",
-                                            "admin_cache:message_center_operation_notices_v2")
+                                            "cache_v1:message_center_operation_notices_v2")
                                     .get("value"));
             assertTrue(stored.contains("Publish Check"));
             assertTrue(stored.contains("admin.article.publishCheck.error.failed"));

@@ -40,7 +40,7 @@ public class MessageCenterServiceDatabaseTest {
             Map<String, Object> statusRow =
                     db.queryOne(
                             "select value from website where name=?",
-                            "admin_cache:message_center_status");
+                            "cache_v1:message_center_status");
             MessageCenterStatusResponse status =
                     new Gson()
                             .fromJson(

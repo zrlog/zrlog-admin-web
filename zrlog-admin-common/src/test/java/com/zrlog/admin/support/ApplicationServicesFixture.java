@@ -13,6 +13,7 @@ import com.zrlog.business.service.*;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.PublicWebSiteInfo;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.web.WebSiteInfoProvider;
@@ -147,7 +148,7 @@ public final class ApplicationServicesFixture {
     }
 
     public static WebsiteCacheService websiteCache(DataSourceWrapper source) {
-        return new WebsiteCacheService(websiteKv(source));
+        return new WebsiteCacheService(() -> new WebSiteRepository(source));
     }
 
     public static AdminAuditService audit(DataSourceWrapper source) {

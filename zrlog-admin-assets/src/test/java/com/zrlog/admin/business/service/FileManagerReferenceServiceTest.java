@@ -10,7 +10,9 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.data.repository.LogRepository;
+import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.test.support.TestLogCapture;
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
@@ -83,7 +85,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldReturnFalseWhenReferenceIndexCacheWriteFails() {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)) {
+                        new WebsiteCacheService(() -> new WebSiteRepository(null)) {
                             @Override
                             public boolean putJson(String key, Object value) {
                                 return false;
@@ -107,7 +109,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldReturnFalseWhenReferenceIndexCacheClearFails() {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)) {
+                        new WebsiteCacheService(() -> new WebSiteRepository(null)) {
                             @Override
                             public boolean remove(String key) {
                                 return false;
@@ -131,7 +133,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldReturnTrueWhenReferenceIndexCacheWriteSucceeds() {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)) {
+                        new WebsiteCacheService(() -> new WebSiteRepository(null)) {
                             @Override
                             public boolean putJson(String key, Object value) {
                                 return true;
@@ -150,7 +152,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldNormalizeContextPathLocalResource() {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
+                        ApplicationServicesFixture.websiteCache(null),
                         "/blog",
                         null,
                         () -> {
@@ -168,7 +170,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldNormalizePathsByRemovingQueryAndHash() {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
+                        ApplicationServicesFixture.websiteCache(null),
                         "/blog",
                         null,
                         () -> {
@@ -183,7 +185,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldApplyReferenceInfoToFilesAndDirectories() {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
+                        ApplicationServicesFixture.websiteCache(null),
                         "/blog",
                         null,
                         () -> {
@@ -223,7 +225,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldListExternalResourceDomainsAndDomainFilesFromRequestIndex() throws Exception {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
+                        ApplicationServicesFixture.websiteCache(null),
                         "/blog",
                         null,
                         () -> {
@@ -271,7 +273,7 @@ public class FileManagerReferenceServiceTest {
     public void shouldReturnMissingLocalResourceEntriesFromRequestIndex() throws Exception {
         FileManagerReferenceService service =
                 new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
+                        ApplicationServicesFixture.websiteCache(null),
                         "/blog",
                         null,
                         () -> {
@@ -320,8 +322,7 @@ public class FileManagerReferenceServiceTest {
                             + "[manual](https://cdn.example.com/files/manual.pdf)");
             FileManagerReferenceService service =
                     new FileManagerReferenceService(
-                            new WebsiteCacheService(
-                                    ApplicationServicesFixture.websiteKv(db.dataSource())),
+                            ApplicationServicesFixture.websiteCache(db.dataSource()),
                             "/blog",
                             null,
                             () -> new LogRepository(db.dataSource()));
@@ -331,7 +332,7 @@ public class FileManagerReferenceServiceTest {
             Map<String, Object> cacheRow =
                     db.queryOne(
                             "select value from website where name=?",
-                            "admin_cache:file_manager_reference_index");
+                            "cache_v1:file_manager_reference_index");
 
             assertTrue(local.containsKey("/attached/thumbs/cover.png"));
             assertTrue(local.get("/attached/thumbs/cover.png").get(0).isThumbnail());
@@ -347,8 +348,7 @@ public class FileManagerReferenceServiceTest {
 
             FileManagerReferenceService cachedService =
                     new FileManagerReferenceService(
-                            new WebsiteCacheService(
-                                    ApplicationServicesFixture.websiteKv(db.dataSource())),
+                            ApplicationServicesFixture.websiteCache(db.dataSource()),
                             "/blog",
                             null,
                             () -> new LogRepository(db.dataSource()));
@@ -368,7 +368,7 @@ public class FileManagerReferenceServiceTest {
                     "/attached/images/cover.png",
                     "<p>Hero <img src=\"/attached/images/a.png\"><a download href=\"/attached/images/doc.pdf\">Doc</a></p>",
                     "![asset](/attached/images/b.png)");
-            db.putWebsite("admin_cache:file_manager_reference_index", "{\"stale\":true}");
+            db.putWebsite("cache_v1:file_manager_reference_index", "{\"stale\":true}");
             var data =
                     com.zrlog.data.di.DaggerDataComponent.factory()
                             .create(db::dataSource, () -> true);
@@ -393,8 +393,7 @@ public class FileManagerReferenceServiceTest {
                                     markdown -> null);
             FileManagerReferenceService service =
                     new FileManagerReferenceService(
-                            new WebsiteCacheService(
-                                    ApplicationServicesFixture.websiteKv(db.dataSource())),
+                            ApplicationServicesFixture.websiteCache(db.dataSource()),
                             "",
                             content::resources,
                             () -> new LogRepository(db.dataSource()));
@@ -418,7 +417,7 @@ public class FileManagerReferenceServiceTest {
             Map<String, Object> cacheRow =
                     db.queryOne(
                             "select value from website where name=?",
-                            "admin_cache:file_manager_reference_index");
+                            "cache_v1:file_manager_reference_index");
 
             assertEquals(1, response.getScannedArticles());
             assertEquals(1, response.getUpdatedArticles());

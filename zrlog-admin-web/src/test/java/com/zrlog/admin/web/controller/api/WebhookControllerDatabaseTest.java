@@ -124,7 +124,7 @@ public class WebhookControllerDatabaseTest {
                     String.valueOf(
                                     db.queryOne(
                                                     "select value from website where name=?",
-                                                    "admin_cache:webhook_config")
+                                                    "cache_v1:webhook_config")
                                             .get("value"))
                             .contains("\"enabled\":true"));
             assertTrue(
@@ -169,7 +169,7 @@ public class WebhookControllerDatabaseTest {
                     String.valueOf(
                             db.queryOne(
                                             "select value from website where name=?",
-                                            "admin_cache:webhook_message_center_notices")
+                                            "cache_v1:webhook_message_center_notices")
                                     .get("value"));
             assertTrue(notices.contains("Deploy Done"));
             assertTrue(notices.contains("\"env\":\"test\""));
@@ -177,7 +177,7 @@ public class WebhookControllerDatabaseTest {
                     String.valueOf(
                                     db.queryOne(
                                                     "select value from website where name=?",
-                                                    "admin_cache:message_center_status")
+                                                    "cache_v1:message_center_status")
                                             .get("value"))
                             .contains("\"hasUnread\":true"));
         }

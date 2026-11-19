@@ -7,6 +7,7 @@ import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.data.cache.WebsiteCacheService;
 import com.zrlog.data.repository.WebSiteRepository;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -217,7 +218,7 @@ public class WebhookServiceTest {
         private Map<String, Object> values;
 
         FakeWebsiteCacheService(DataSourceWrapper testDataSource) {
-            super(ApplicationServicesFixture.websiteKv(testDataSource));
+            super(() -> new WebSiteRepository(testDataSource));
         }
 
         @Override

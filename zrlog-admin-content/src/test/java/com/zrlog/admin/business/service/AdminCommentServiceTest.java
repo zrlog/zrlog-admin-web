@@ -135,7 +135,7 @@ public class AdminCommentServiceTest {
             Map<String, Object> status =
                     db.queryOne(
                             "select value from website where name=?",
-                            "admin_cache:message_center_status");
+                            "cache_v1:message_center_status");
 
             assertEquals(0, readResponse.getError());
             assertEquals(
