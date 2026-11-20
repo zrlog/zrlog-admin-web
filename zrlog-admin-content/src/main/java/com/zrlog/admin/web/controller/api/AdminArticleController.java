@@ -8,7 +8,7 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticlePublishCheck;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
@@ -47,7 +47,7 @@ public class AdminArticleController extends BaseController {
     private final AdminPageDataFactory pages;
 
     private final ArticleQueryService articleService;
-    private final Supplier<ArticleAssistant> assistant;
+    private final Supplier<ArticlePublishCheck> publishCheck;
     private final ArticlePublishingService publishingService;
     private final AdminStaticSiteSsePublisher staticSitePublisher;
 
@@ -56,7 +56,7 @@ public class AdminArticleController extends BaseController {
             ArticleQueryService articleService,
             ArticlePublishingService publishingService,
             AdminStaticSiteSsePublisher staticSitePublisher,
-            Supplier<ArticleAssistant> assistant,
+            Supplier<ArticlePublishCheck> publishCheck,
             AdminPageDataFactory pages,
             UserPreferenceService userPreferenceService,
             AdminRequestIdentity requestIdentity) {
@@ -64,7 +64,7 @@ public class AdminArticleController extends BaseController {
         this.userPreferenceService = userPreferenceService;
 
         this.pages = pages;
-        this.assistant = Objects.requireNonNull(assistant);
+        this.publishCheck = Objects.requireNonNull(publishCheck);
         this.articleService = articleService;
         this.staticSitePublisher = staticSitePublisher;
         this.publishingService = publishingService;
@@ -181,8 +181,8 @@ public class AdminArticleController extends BaseController {
             PublishStartWriter publishStartWriter)
             throws IOException {
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.BLOG);
-        AtomicReference<ArticleAssistant.PublishProgress> progressRef =
-                new AtomicReference<>(ArticleAssistant.PublishProgress.NONE);
+        AtomicReference<ArticlePublishCheck.PublishProgress> progressRef =
+                new AtomicReference<>(ArticlePublishCheck.PublishProgress.NONE);
         staticSitePublisher.write(
                 response,
                 "transparent-publish",
@@ -193,7 +193,7 @@ public class AdminArticleController extends BaseController {
                     AdminPageDataResponse<ArticleGlobalResponse> detail =
                             publishStartWriter.write(emitter);
                     progressRef.set(
-                            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE)
+                            Objects.requireNonNullElse(publishCheck.get(), ArticlePublishCheck.NONE)
                                     .beginPublishCheck(
                                             requestIdentity.current(),
                                             detail.getData(),

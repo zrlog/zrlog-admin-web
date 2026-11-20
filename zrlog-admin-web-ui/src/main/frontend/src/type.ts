@@ -149,8 +149,15 @@ export type Version = {
     version: string;
 };
 
+export type MessageCenterNoticeScope = "site" | "account";
+
+export type MessageCenterNoticeSource = "versionUpdate" | "unreadComment" | "webhook" | "operation" | "assistant";
+
 type MessageCenterNoticeBase = {
     taskKey: string;
+    source?: MessageCenterNoticeSource;
+    scope?: MessageCenterNoticeScope;
+    referenceId?: string;
     type: "versionUpdate" | "unreadComment" | string;
     status: BackgroundTaskStatus;
     updatedAt: number;

@@ -1,3 +1,5 @@
+import type { MessageCenterNoticeScope, MessageCenterNoticeSource } from "../type";
+
 export type BackgroundTaskStatus = "pending" | "running" | "success" | "warning" | "error" | "cancelled" | "notice";
 
 export type BackgroundTaskFinishStatus = Extract<BackgroundTaskStatus, "success" | "warning" | "error" | "cancelled">;
@@ -11,6 +13,9 @@ export type BackgroundTask = {
     actionPath?: string;
     timeLabel?: string;
     closable?: boolean;
+    noticeScope?: MessageCenterNoticeScope;
+    noticeSource?: MessageCenterNoticeSource;
+    noticeReferenceId?: string;
     dismissPath?: string;
     dismissPayload?: Record<string, unknown>;
     status: BackgroundTaskStatus;
@@ -20,7 +25,7 @@ export type BackgroundTask = {
 
 const STORAGE_KEY = "zrlog-admin-background-tasks-v1";
 // Personal notices are restored from the authenticated server, never from a shared browser cache.
-const isPersonalNotice = (task: BackgroundTask) => task.taskKey?.startsWith("server.assistant.") === true;
+const isPersonalNotice = (task: BackgroundTask) => task.noticeScope === "account";
 const taskStatuses: BackgroundTaskStatus[] = [
     "pending",
     "running",
@@ -62,15 +67,25 @@ const normalizeStoredTask = (value: unknown): BackgroundTask | undefined => {
     ) {
         return undefined;
     }
+    // Older stored notifications used the key namespace to encode their scope.
+    const taskKey = typeof record.taskKey === "string" ? record.taskKey : undefined;
+    const noticeScope =
+        record.noticeScope === "site" || record.noticeScope === "account"
+            ? record.noticeScope
+            : taskKey?.startsWith("server.assistant.") ? "account"
+                : taskKey?.startsWith("server.") ? "site" : undefined;
     return {
         id: record.id,
-        taskKey: typeof record.taskKey === "string" ? record.taskKey : undefined,
+        taskKey,
         title: record.title,
         description: typeof record.description === "string" ? record.description : undefined,
         actionLabel: typeof record.actionLabel === "string" ? record.actionLabel : undefined,
         actionPath: typeof record.actionPath === "string" ? record.actionPath : undefined,
         timeLabel: typeof record.timeLabel === "string" ? record.timeLabel : undefined,
         closable: typeof record.closable === "boolean" ? record.closable : undefined,
+        noticeScope,
+        noticeSource: typeof record.noticeSource === "string" ? record.noticeSource as MessageCenterNoticeSource : undefined,
+        noticeReferenceId: typeof record.noticeReferenceId === "string" ? record.noticeReferenceId : undefined,
         dismissPath: typeof record.dismissPath === "string" ? record.dismissPath : undefined,
         dismissPayload:
             record.dismissPayload && typeof record.dismissPayload === "object"
@@ -177,12 +192,13 @@ export const upsertBackgroundTaskByKey = (
     taskKey: string,
     task: Omit<BackgroundTask, "id" | "createdAt" | "taskKey"> & { updatedAt?: number }
 ) => {
-    const exists = tasks.find((item) => item.taskKey === taskKey);
+    const matches = (item: BackgroundTask) => item.taskKey === taskKey && item.noticeScope === task.noticeScope;
+    const exists = tasks.some(matches);
     const now = Date.now();
     const taskUpdatedAt = task.updatedAt ?? now;
     if (exists) {
         tasks = tasks.map((item) => {
-            if (item.taskKey !== taskKey) {
+            if (!matches(item)) {
                 return item;
             }
             return {

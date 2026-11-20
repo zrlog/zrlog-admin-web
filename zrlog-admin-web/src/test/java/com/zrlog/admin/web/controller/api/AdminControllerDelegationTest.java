@@ -16,7 +16,7 @@ import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.automation.AutomationStore;
 import com.zrlog.admin.business.automation.TaskAuthority;
 import com.zrlog.admin.business.automation.UpgradeExecutionCoordinator;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.request.TagManageRequest;
@@ -1175,8 +1175,7 @@ public class AdminControllerDelegationTest {
                                         }),
                                 new ArticleQueryService(
                                         new InMemoryZrLogDatabase.TestCacheService(),
-                                        ApplicationServicesFixture.capability(
-                                                applicationConfig, ArticleAssistant.class),
+                                        () -> ArticleEditorDecorator.NONE,
                                         new AdminPageDataFactory(
                                                 ApplicationServicesFixture.site(applicationConfig),
                                                 () -> "test",
@@ -1998,8 +1997,7 @@ public class AdminControllerDelegationTest {
                                             () -> new AdminCommentRepository(db.dataSource())),
                                     new ArticleQueryService(
                                             db.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
-                                                    db.config(), ArticleAssistant.class),
+                                            () -> ArticleEditorDecorator.NONE,
                                             new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
@@ -2113,8 +2111,7 @@ public class AdminControllerDelegationTest {
                                             () -> new AdminCommentRepository(ignored.dataSource())),
                                     new ArticleQueryService(
                                             ignored.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
-                                                    ignored.config(), ArticleAssistant.class),
+                                            () -> ArticleEditorDecorator.NONE,
                                             new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(
                                                             ignored.config()),
@@ -2190,8 +2187,7 @@ public class AdminControllerDelegationTest {
                                 }),
                         new ArticleQueryService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
+                                () -> ArticleEditorDecorator.NONE,
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",

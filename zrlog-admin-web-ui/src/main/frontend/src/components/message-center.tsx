@@ -48,13 +48,7 @@ const MessageCenter = ({
     const [open, setOpen] = useState(false);
     const [allTasks, setTasks] = useState(getBackgroundTasks());
     const tasks = useMemo(
-        () =>
-            allTasks.filter(
-                (task) =>
-                    showSiteNotices ||
-                    !task.taskKey?.startsWith("server.") ||
-                    task.taskKey.startsWith("server.assistant.")
-            ),
+        () => allTasks.filter((task) => showSiteNotices || task.noticeScope !== "site"),
         [allTasks, showSiteNotices]
     );
     const mobileMode = screens.xs === true;

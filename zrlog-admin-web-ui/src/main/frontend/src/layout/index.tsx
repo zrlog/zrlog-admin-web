@@ -104,7 +104,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                 .get<ApiResponse<MessageCenterNotice[]>>("/api/admin/message-center", { showError: false } as any)
                 .then(({ data }) => {
                     if (requestSeq === messageCenterRequestSeqRef.current) {
-                        syncMessageCenterNotices(data.data || []);
+                        syncMessageCenterNotices(data.data || [], "site");
                         messageCenterSyncAtRef.current = Date.now();
                     }
                 })

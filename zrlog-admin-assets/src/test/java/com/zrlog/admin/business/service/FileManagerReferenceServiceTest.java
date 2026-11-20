@@ -389,6 +389,8 @@ public class FileManagerReferenceServiceTest {
                                     AccountServicesFixture.component(db.dataSource()),
                                     () -> null,
                                     () -> null,
+                                    () -> null,
+                                    () -> null,
                                     ApplicationServicesFixture.publisher(data.cache(), db.config()),
                                     markdown -> null);
             FileManagerReferenceService service =

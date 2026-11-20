@@ -234,6 +234,7 @@ public class MessageCenterOperationService {
             }
             notices.add(
                     MessageCenterNoticeResponse.of(
+                            MessageCenterNoticeResponse.Source.OPERATION,
                             notice.getTaskKey(),
                             OPERATION_TYPE,
                             normalizeStatus(notice.getStatus()),

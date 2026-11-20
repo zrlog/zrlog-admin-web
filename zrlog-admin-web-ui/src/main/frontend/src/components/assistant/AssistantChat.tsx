@@ -1,5 +1,4 @@
 import { getBackgroundTasks, subscribeBackgroundTasks } from "../../utils/background-task-store";
-import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
 import AssistantConversationActions from "./AssistantConversationActions";
 import { Alert, Button, Space, Spin, Typography } from "antd";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -164,7 +163,7 @@ export default function AssistantChat({
             () =>
                 taskId
                     ? getBackgroundTasks()
-                          .filter((task) => task.taskKey?.startsWith(ASSISTANT_NOTICE_PREFIX))
+                          .filter((task) => task.noticeSource === "assistant")
                           .map((task) => `${task.taskKey}:${task.updatedAt}:${task.status}`)
                           .sort()
                           .join("|")

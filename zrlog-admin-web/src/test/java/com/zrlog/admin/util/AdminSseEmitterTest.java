@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.hibegin.http.server.api.HttpResponse;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
@@ -125,11 +125,9 @@ public class AdminSseEmitterTest {
                                             PermissionErrorException.class,
                                             () ->
                                                     new AdminArticleService(
-                                                                    ApplicationServicesFixture
-                                                                            .capability(
-                                                                                    db.config(),
-                                                                                    ArticleAssistant
-                                                                                            .class),
+                                                                    () ->
+                                                                            ArticleConversationBindings
+                                                                                    .NONE,
                                                                     AccountServicesFixture
                                                                             .component(
                                                                                     db.dataSource())

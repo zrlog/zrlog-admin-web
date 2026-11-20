@@ -138,6 +138,7 @@ public class WebhookService {
             }
             notices.add(
                     MessageCenterNoticeResponse.of(
+                            MessageCenterNoticeResponse.Source.WEBHOOK,
                             notice.getTaskKey(),
                             WEBHOOK_MESSAGE_TYPE,
                             NOTICE_STATUS,

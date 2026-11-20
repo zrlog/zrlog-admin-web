@@ -10,7 +10,9 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
+import com.zrlog.admin.business.content.ArticlePublishCheck;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.security.GrantAuthority;
@@ -802,8 +804,9 @@ public class McpInterceptorTest {
                                         data,
                                         shared,
                                         account,
-                                        ApplicationServicesFixture.capability(
-                                                applicationConfig, ArticleAssistant.class),
+                                        () -> ArticleConversationBindings.NONE,
+                                        () -> ArticleEditorDecorator.NONE,
+                                        () -> ArticlePublishCheck.NONE,
                                         ApplicationServicesFixture.capability(
                                                 applicationConfig, AttachmentStorage.class),
                                         ApplicationServicesFixture.publisher(

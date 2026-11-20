@@ -59,6 +59,15 @@ public class MessageCenterService {
                 || operationService.markOperationNoticeRead(taskKey);
     }
 
+    public boolean markRead(String taskKey, String source) {
+        if (source == null) return markRead(taskKey);
+        if (MessageCenterNoticeResponse.Source.WEBHOOK.id().equals(source))
+            return webhookService.markMessageCenterNoticeRead(taskKey);
+        if (MessageCenterNoticeResponse.Source.OPERATION.id().equals(source))
+            return operationService.markOperationNoticeRead(taskKey);
+        return false;
+    }
+
     private MessageCenterNoticeResponse getVersionUpdateNotice() {
         StoredUpgradeNotice storedUpgradeNotice = upgradeNoticeService.getStoredUpgradeNotice();
         if (storedUpgradeNotice == null || storedUpgradeNotice.getVersion() == null) {
@@ -72,6 +81,7 @@ public class MessageCenterService {
             return null;
         }
         return MessageCenterNoticeResponse.of(
+                MessageCenterNoticeResponse.Source.VERSION_UPDATE,
                 "server.system.version-update",
                 VERSION_UPDATE_NOTICE_TYPE,
                 COMMENT_NOTICE_STATUS,
@@ -86,6 +96,7 @@ public class MessageCenterService {
             return null;
         }
         return MessageCenterNoticeResponse.of(
+                MessageCenterNoticeResponse.Source.UNREAD_COMMENT,
                 "server.comment.unread",
                 COMMENT_NOTICE_TYPE,
                 COMMENT_NOTICE_STATUS,

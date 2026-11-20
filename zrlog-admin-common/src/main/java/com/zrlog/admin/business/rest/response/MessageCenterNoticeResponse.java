@@ -6,6 +6,9 @@ import com.zrlog.util.I18nUtil;
 public class MessageCenterNoticeResponse {
 
     private String taskKey;
+    private String source;
+    private String scope;
+    private String referenceId;
     private String type;
     private String status;
     private Long updatedAt;
@@ -20,6 +23,39 @@ public class MessageCenterNoticeResponse {
         response.setUpdatedAt(updatedAt);
         response.setPayload(payload);
         return response;
+    }
+
+    public static MessageCenterNoticeResponse of(
+            Source source,
+            String taskKey,
+            String type,
+            String status,
+            Long updatedAt,
+            Object payload) {
+        MessageCenterNoticeResponse response = of(taskKey, type, status, updatedAt, payload);
+        response.source = source.id;
+        response.scope = source.scope;
+        return response;
+    }
+
+    public enum Source {
+        VERSION_UPDATE("versionUpdate", "site"),
+        UNREAD_COMMENT("unreadComment", "site"),
+        WEBHOOK("webhook", "site"),
+        OPERATION("operation", "site"),
+        ASSISTANT("assistant", "account");
+
+        private final String id;
+        private final String scope;
+
+        Source(String id, String scope) {
+            this.id = id;
+            this.scope = scope;
+        }
+
+        public String id() {
+            return id;
+        }
     }
 
     public static VersionUpdatePayload versionUpdatePayload(Version version) {
@@ -52,6 +88,22 @@ public class MessageCenterNoticeResponse {
 
     public String getTaskKey() {
         return taskKey;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public String getReferenceId() {
+        return referenceId;
+    }
+
+    public void setReferenceId(String referenceId) {
+        this.referenceId = referenceId;
     }
 
     public void setTaskKey(String taskKey) {

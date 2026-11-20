@@ -9,7 +9,7 @@ import com.hibegin.common.util.ObjectHelpers;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.response.*;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 public class ArticleQueryService {
     private static final Logger LOGGER = LoggerUtil.getLogger(ArticleQueryService.class);
     private final CacheService cacheService;
-    private final Supplier<ArticleAssistant> assistant;
+    private final Supplier<ArticleEditorDecorator> editorDecorator;
     private final AdminPageDataFactory pages;
     private final AccountPermissionService permissionService;
     private final UserPreferenceService userPreferenceService;
@@ -55,13 +55,13 @@ public class ArticleQueryService {
     @Inject
     public ArticleQueryService(
             CacheService cacheService,
-            Supplier<ArticleAssistant> assistant,
+            Supplier<ArticleEditorDecorator> editorDecorator,
             AdminPageDataFactory pages,
             AccountPermissionService permissionService,
             UserPreferenceService userPreferenceService,
             jakarta.inject.Provider<AdminLogRepository> logProvider) {
         this.cacheService = cacheService;
-        this.assistant = Objects.requireNonNull(assistant);
+        this.editorDecorator = Objects.requireNonNull(editorDecorator);
         this.pages = pages;
         this.permissionService = permissionService;
         this.userPreferenceService = userPreferenceService;
@@ -297,7 +297,7 @@ public class ArticleQueryService {
         response.setArticleEditAutoSaveInterval(editor.autoSaveInterval);
         Integer articleId = response.getArticle().getId();
         response =
-                Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE)
+                Objects.requireNonNullElse(editorDecorator.get(), ArticleEditorDecorator.NONE)
                         .enrichEditor(
                                 response,
                                 articleId == null ? draftContextId : articleId,

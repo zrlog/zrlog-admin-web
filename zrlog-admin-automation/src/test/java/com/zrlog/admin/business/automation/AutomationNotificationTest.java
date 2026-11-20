@@ -96,6 +96,9 @@ public class AutomationNotificationTest {
         tasks.delete(author, task.id, store.task(task.id).value.revision);
         var notices = inbox().list(author);
         assertEquals(1, notices.size());
+        assertEquals("assistant", notices.get(0).getSource());
+        assertEquals("account", notices.get(0).getScope());
+        assertEquals(run.id, notices.get(0).getReferenceId());
         assertTrue(inbox().list(owner).isEmpty());
         assertTrue(AutomationStore.JSON.toJson(notices).contains("My private reminder"));
         assertFalse(AutomationStore.JSON.toJson(notices).contains("executionActions"));
@@ -104,7 +107,7 @@ public class AutomationNotificationTest {
                                 .OperationTaskPayload)
                         notices.get(0).getPayload();
         assertEquals("/assistant/history?runId=" + run.id, payload.getActionPath());
-        assertTrue(inbox().markRead(author, notices.get(0).getTaskKey()));
+        assertTrue(inbox().markRead(author, notices.get(0).getTaskKey(), run.id));
         assertTrue(inbox().markRead(author, notices.get(0).getTaskKey()));
         assertTrue(inbox().list(author).isEmpty());
         assertEquals("My private reminder", store.run(run.id).value.result.text);

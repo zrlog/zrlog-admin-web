@@ -51,6 +51,8 @@ public class MessageCenterServiceDatabaseTest {
             MessageCenterNoticeResponse notice = notices.get(0);
             assertEquals("server.comment.unread", notice.getTaskKey());
             assertEquals("unreadComment", notice.getType());
+            assertEquals("unreadComment", notice.getSource());
+            assertEquals("site", notice.getScope());
             assertEquals("notice", notice.getStatus());
             assertNotNull(notice.getUpdatedAt());
             MessageCenterNoticeResponse.UnreadCommentPayload payload =

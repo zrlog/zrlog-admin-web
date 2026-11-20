@@ -4,7 +4,7 @@ import static org.junit.Assert.*;
 
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
 import com.zrlog.admin.business.rest.request.AdminDashboardCardRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
@@ -605,8 +605,7 @@ public class AdminDashboardServiceTest {
                                                 () -> new AdminCommentRepository(db.dataSource())),
                                         new ArticleQueryService(
                                                 db.unitCacheService(),
-                                                ApplicationServicesFixture.capability(
-                                                        db.config(), ArticleAssistant.class),
+                                                () -> ArticleEditorDecorator.NONE,
                                                 new AdminPageDataFactory(
                                                         ApplicationServicesFixture.site(
                                                                 db.config()),

@@ -63,20 +63,35 @@ public final class AutomationNotificationService {
                     "failed".equals(run.status)
                             ? "error"
                             : ATTENTION.contains(run.status) ? "warning" : "notice";
-            notices.add(
+            MessageCenterNoticeResponse notice =
                     MessageCenterNoticeResponse.of(
-                            PREFIX + run.id, "operationTask", status, run.finishedAt, payload));
+                            MessageCenterNoticeResponse.Source.ASSISTANT,
+                            PREFIX + run.id,
+                            "operationTask",
+                            status,
+                            run.finishedAt,
+                            payload);
+            notice.setReferenceId(run.id);
+            notices.add(notice);
             if (notices.size() == 50) break;
         }
         return notices;
     }
 
     public boolean markRead(AccountAccess actor, String taskKey) throws SQLException {
+        return markRead(actor, taskKey, null);
+    }
+
+    public boolean markRead(AccountAccess actor, String taskKey, String referenceId)
+            throws SQLException {
         actor = authority.current(actor);
         TaskAuthority.require(actor, AccountAction.SESSION.getId());
-        if (taskKey == null || !taskKey.startsWith(PREFIX))
+        if (taskKey == null
+                || (referenceId == null
+                        ? !taskKey.startsWith(PREFIX)
+                        : !taskKey.equals(PREFIX + referenceId)))
             throw new IllegalArgumentException("automation.invalidId");
-        String id = taskKey.substring(PREFIX.length());
+        String id = referenceId == null ? taskKey.substring(PREFIX.length()) : referenceId;
         AutomationStore.requireRunId(id);
         List<String> systemIds = tasks == null ? List.of() : tasks.systemTaskIds(actor);
         var row = store.run(id);

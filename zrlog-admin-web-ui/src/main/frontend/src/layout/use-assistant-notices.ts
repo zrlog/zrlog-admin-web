@@ -20,7 +20,7 @@ export function useAssistantNotices(session: string, enabled: boolean) {
         void api.get<ApiResponse<MessageCenterNotice[]>>("/api/admin/assistant/notices", {showError: false} as any)
             .then(({data}) => {
                 if (requestGeneration !== generation.current || session !== getSsDate().key || data.error) return;
-                syncMessageCenterNotices(data.data || [], true);
+                syncMessageCenterNotices(data.data || [], "account");
                 setHasUnread((data.data || []).length > 0);
             }).catch(() => undefined).finally(() => {
                 if (requestGeneration !== generation.current) return;
@@ -35,7 +35,7 @@ export function useAssistantNotices(session: string, enabled: boolean) {
         refreshPending.current = false;
         setHasUnread(false);
         setLoading(false);
-        syncMessageCenterNotices([], true);
+        syncMessageCenterNotices([], "account");
         if (enabled) refresh();
         const timer = enabled ? window.setInterval(() => {
             if (document.visibilityState === "visible") refresh();
@@ -43,7 +43,7 @@ export function useAssistantNotices(session: string, enabled: boolean) {
         return () => {
             generation.current++;
             window.clearInterval(timer);
-            syncMessageCenterNotices([], true);
+            syncMessageCenterNotices([], "account");
         };
     }, [enabled, refresh]);
     return {refresh, loading, hasUnread};

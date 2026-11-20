@@ -6,7 +6,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
@@ -78,8 +79,7 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleConversationBindings.NONE,
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
@@ -95,8 +95,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(
                                     db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleEditorDecorator.NONE,
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
@@ -191,8 +190,7 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setContent("Published content");
             new ArticlePublishingService(
                             new AdminArticleService(
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleConversationBindings.NONE,
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
@@ -208,8 +206,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(
                                     db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleEditorDecorator.NONE,
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
@@ -254,8 +251,7 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleConversationBindings.NONE,
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
@@ -271,8 +267,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(
                                     db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleEditorDecorator.NONE,
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),

@@ -1,6 +1,8 @@
 package com.zrlog.admin.web.di.content;
 
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
+import com.zrlog.admin.business.content.ArticlePublishCheck;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.service.*;
@@ -41,6 +43,8 @@ public interface ContentComponent {
 
     ArticlePublishingService publishing();
 
+    ArticlePublication articlePublication();
+
     ContentToolService contentTools();
 
     ContentToolFactory tools();
@@ -74,7 +78,9 @@ public interface ContentComponent {
                 @BindsInstance DataComponent data,
                 @BindsInstance ServiceComponent services,
                 @BindsInstance AccountComponent account,
-                @BindsInstance Supplier<ArticleAssistant> assistant,
+                @BindsInstance Supplier<ArticleConversationBindings> conversations,
+                @BindsInstance Supplier<ArticleEditorDecorator> editorDecorator,
+                @BindsInstance Supplier<ArticlePublishCheck> publishCheck,
                 @BindsInstance Supplier<AttachmentStorage> storage,
                 @BindsInstance AdminStaticSiteSsePublisher staticSites,
                 @BindsInstance MarkdownRenderer markdown);

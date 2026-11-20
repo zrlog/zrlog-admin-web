@@ -10,6 +10,7 @@ import dagger.Component;
 import jakarta.inject.Singleton;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 @Singleton
@@ -49,7 +50,7 @@ public interface AutomationComponent {
                 @BindsInstance DataComponent data,
                 @BindsInstance AccountComponent account,
                 @BindsInstance com.zrlog.business.di.ServiceComponent services,
-                @BindsInstance Supplier<List<ScheduledTaskProvider>> providers,
+                @BindsInstance Function<AutomationStore, List<ScheduledTaskProvider>> providers,
                 @BindsInstance BooleanSupplier faas,
                 @BindsInstance Supplier<AutomationAssistant> assistant);
     }

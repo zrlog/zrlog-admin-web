@@ -3,10 +3,18 @@ package com.zrlog.admin.web;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.LoggerUtil;
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.server.ApplicationContext;
 import com.hibegin.http.server.api.Interceptor;
+import com.hibegin.http.server.di.SwsBindings.Resolver;
+import com.hibegin.http.server.util.HttpRequestBuilder;
 import com.zrlog.admin.business.account.AvatarStorage;
+import com.zrlog.admin.business.automation.AutomaticUpgradeTaskProvider;
+import com.zrlog.admin.business.automation.AutomationStore;
+import com.zrlog.admin.business.automation.PluginScheduledTaskProvider;
 import com.zrlog.admin.business.automation.ReminderTaskProvider;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.automation.ScheduledTaskProvider;
+import com.zrlog.admin.business.automation.TaskExecutionContext;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.*;
@@ -17,6 +25,8 @@ import com.zrlog.admin.web.di.AdminComponent;
 import com.zrlog.admin.web.di.DaggerAdminComponent;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.account.DaggerAccountComponent;
+import com.zrlog.admin.web.di.ai.AIComponent;
+import com.zrlog.admin.web.di.assets.AssetsComponent;
 import com.zrlog.admin.web.di.automation.AutomationComponent;
 import com.zrlog.admin.web.di.automation.DaggerAutomationComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
@@ -26,6 +36,7 @@ import com.zrlog.blog.web.plugin.TemplateDownloadPlugin;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.plugin.StaticSitePlugin;
+import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.MarkdownRenderer;
 import com.zrlog.business.service.UpgradeNoticeService;
@@ -39,8 +50,10 @@ import com.zrlog.plugin.Plugins;
 import com.zrlog.web.TokenServiceProvider;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSiteInfoProvider;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 public class AdminWebSetup implements WebSetup, TokenServiceProvider {
@@ -76,6 +89,94 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
         capabilities.access = zrLogConfig.getWebSetup(AccessWebSetup.class) != null;
         capabilities.mcp = zrLogConfig.getWebSetup(McpWebSetup.class) != null;
         return capabilities;
+    }
+
+    private <T> T aiFeature(Function<AIWebSetup, T> feature) {
+        var ai = zrLogConfig.getWebSetup(AIWebSetup.class);
+        return ai == null ? null : feature.apply(ai);
+    }
+
+    private List<ScheduledTaskProvider> scheduledTasks(Resolver resolver, AutomationStore store) {
+        var services = resolver.get(ServiceComponent.class);
+        List<ScheduledTaskProvider> providers = new ArrayList<>();
+        providers.add(new ReminderTaskProvider());
+        providers.add(
+                new PluginScheduledTaskProvider(
+                        () -> zrLogConfig.getPlugin(PluginCorePlugin.class)));
+        providers.add(
+                new HostMaintenanceTaskProvider(
+                        resolver.get(CacheService.class),
+                        services,
+                        () -> zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class)));
+        providers.add(
+                automaticUpgradeTask(store, services, resolver.get(CacheRefreshService.class)));
+        if (zrLogConfig.getWebSetup(AttachmentStorage.class) != null) {
+            providers.add(resolver.get(AssetsComponent.class).cleanupTasks());
+        }
+        if (zrLogConfig.getWebSetup(ContentWebSetup.class) != null) {
+            providers.add(
+                    new ScheduledArticleTaskProvider(
+                            () -> resolver.get(ContentComponent.class).articlePublication(),
+                            execution ->
+                                    refreshPublishedArticle(
+                                            resolver.get(CacheRefreshService.class), execution)));
+        }
+        var aiTasks = aiFeature(ai -> resolver.get(AIComponent.class).scheduledTasks());
+        if (aiTasks != null) providers.add(aiTasks);
+        return providers;
+    }
+
+    private AutomaticUpgradeTaskProvider automaticUpgradeTask(
+            AutomationStore store, ServiceComponent services, CacheRefreshService refresh) {
+        var websiteKv = services.websiteKv();
+        var audit = new AdminAuditService(websiteKv);
+        var resources =
+                new HostUpgradeResourceSync(
+                        refresh,
+                        () -> zrLogConfig.getPluginsByClazz(StaticSitePlugin.class),
+                        () -> zrLogConfig.getWebSetup(AdminResourceProvider.class) != null,
+                        () ->
+                                HostUpgradeResourceSync.request(
+                                        siteInfo().getHost(),
+                                        websiteKv.getString("admin_static_resource_base_url"),
+                                        zrLogConfig.getRequestConfig(),
+                                        new ApplicationContext(zrLogConfig.getServerConfig())),
+                        audit);
+        var operations =
+                new HostAutomaticUpgradeOperations(
+                        services.upgrades(),
+                        websiteKv,
+                        () -> zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class),
+                        zrLogConfig::getUpdater,
+                        EnvKit::isFaaSMode,
+                        audit,
+                        resources);
+        return new AutomaticUpgradeTaskProvider(store, operations, System::currentTimeMillis);
+    }
+
+    private void refreshPublishedArticle(
+            CacheRefreshService refresh, TaskExecutionContext execution) throws Exception {
+        var request =
+                HttpRequestBuilder.buildRequest(
+                        HttpMethod.GET,
+                        "/",
+                        siteInfo().getHost(),
+                        "ZrLog Assistant",
+                        zrLogConfig.getRequestConfig(),
+                        new ApplicationContext(zrLogConfig.getServerConfig()));
+        refresh.updateCacheWithinBudget(
+                request,
+                List.of(StaticSiteType.BLOG),
+                execution.runId(),
+                execution.actor().getUserId(),
+                execution::remainingMillis,
+                () -> {
+                    try {
+                        execution.checkActive();
+                    } catch (Exception error) {
+                        throw new IllegalStateException("automation.executionExpired", error);
+                    }
+                });
     }
 
     @Override
@@ -125,209 +226,13 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                 r.get(DataComponent.class),
                                                 r.get(AccountComponent.class),
                                                 r.get(ServiceComponent.class),
-                                                () -> {
-                                                    java.util.List<
-                                                                    com.zrlog.admin.business
-                                                                            .automation
-                                                                            .ScheduledTaskProvider>
-                                                            providers = new java.util.ArrayList<>();
-                                                    providers.add(new ReminderTaskProvider());
-                                                    providers.add(
-                                                            new com.zrlog.admin.business.automation
-                                                                    .PluginScheduledTaskProvider(
-                                                                    () ->
-                                                                            zrLogConfig.getPlugin(
-                                                                                    com.zrlog
-                                                                                            .business
-                                                                                            .plugin
-                                                                                            .PluginCorePlugin
-                                                                                            .class)));
-                                                    providers.add(
-                                                            new HostMaintenanceTaskProvider(
-                                                                    r.get(CacheService.class),
-                                                                    r.get(ServiceComponent.class),
-                                                                    () ->
-                                                                            zrLogConfig.getPlugin(
-                                                                                    UpdateVersionInfoPlugin
-                                                                                            .class)));
-                                                    providers.add(
-                                                            new com.zrlog.admin.business.automation
-                                                                    .AutomaticUpgradeTaskProvider(
-                                                                    r.get(AutomationComponent.class)
-                                                                            .store(),
-                                                                    new HostAutomaticUpgradeOperations(
-                                                                            r.get(
-                                                                                            ServiceComponent
-                                                                                                    .class)
-                                                                                    .upgrades(),
-                                                                            r.get(
-                                                                                            ServiceComponent
-                                                                                                    .class)
-                                                                                    .websiteKv(),
-                                                                            () ->
-                                                                                    zrLogConfig
-                                                                                            .getPlugin(
-                                                                                                    UpdateVersionInfoPlugin
-                                                                                                            .class),
-                                                                            zrLogConfig::getUpdater,
-                                                                            EnvKit::isFaaSMode,
-                                                                            new AdminAuditService(
-                                                                                    r.get(
-                                                                                                    ServiceComponent
-                                                                                                            .class)
-                                                                                            .websiteKv()),
-                                                                            new HostUpgradeResourceSync(
-                                                                                    r.get(
-                                                                                            CacheRefreshService
-                                                                                                    .class),
-                                                                                    () ->
-                                                                                            zrLogConfig
-                                                                                                    .getPluginsByClazz(
-                                                                                                            StaticSitePlugin
-                                                                                                                    .class),
-                                                                                    () ->
-                                                                                            zrLogConfig
-                                                                                                            .getWebSetup(
-                                                                                                                    AdminResourceProvider
-                                                                                                                            .class)
-                                                                                                    != null,
-                                                                                    () ->
-                                                                                            HostUpgradeResourceSync
-                                                                                                    .request(
-                                                                                                            siteInfo()
-                                                                                                                    .getHost(),
-                                                                                                            r.get(
-                                                                                                                            ServiceComponent
-                                                                                                                                    .class)
-                                                                                                                    .websiteKv()
-                                                                                                                    .getString(
-                                                                                                                            "admin_static_resource_base_url"),
-                                                                                                            zrLogConfig
-                                                                                                                    .getRequestConfig(),
-                                                                                                            new com
-                                                                                                                    .hibegin
-                                                                                                                    .http
-                                                                                                                    .server
-                                                                                                                    .ApplicationContext(
-                                                                                                                    zrLogConfig
-                                                                                                                            .getServerConfig())),
-                                                                                    new AdminAuditService(
-                                                                                            r.get(
-                                                                                                            ServiceComponent
-                                                                                                                    .class)
-                                                                                                    .websiteKv()))),
-                                                                    System::currentTimeMillis));
-                                                    if (zrLogConfig.getWebSetup(
-                                                                    AttachmentStorage.class)
-                                                            != null) {
-                                                        providers.add(
-                                                                r.get(
-                                                                                com.zrlog.admin.web
-                                                                                        .di.assets
-                                                                                        .AssetsComponent
-                                                                                        .class)
-                                                                        .cleanupTasks());
-                                                    }
-                                                    if (zrLogConfig.getWebSetup(
-                                                                    ContentWebSetup.class)
-                                                            != null) {
-                                                        providers.add(
-                                                                new ScheduledArticleTaskProvider(
-                                                                        r.get(
-                                                                                        ContentComponent
-                                                                                                .class)
-                                                                                .contentTools(),
-                                                                        r.get(
-                                                                                        AccountComponent
-                                                                                                .class)
-                                                                                .permissions(),
-                                                                        execution -> {
-                                                                            var internalRequest =
-                                                                                    com.hibegin.http
-                                                                                            .server
-                                                                                            .util
-                                                                                            .HttpRequestBuilder
-                                                                                            .buildRequest(
-                                                                                                    com
-                                                                                                            .hibegin
-                                                                                                            .http
-                                                                                                            .HttpMethod
-                                                                                                            .GET,
-                                                                                                    "/",
-                                                                                                    siteInfo()
-                                                                                                            .getHost(),
-                                                                                                    "ZrLog Assistant",
-                                                                                                    zrLogConfig
-                                                                                                            .getRequestConfig(),
-                                                                                                    new com
-                                                                                                            .hibegin
-                                                                                                            .http
-                                                                                                            .server
-                                                                                                            .ApplicationContext(
-                                                                                                            zrLogConfig
-                                                                                                                    .getServerConfig()));
-                                                                            r.get(
-                                                                                            CacheRefreshService
-                                                                                                    .class)
-                                                                                    .updateCacheWithinBudget(
-                                                                                            internalRequest,
-                                                                                            List.of(
-                                                                                                    com
-                                                                                                            .zrlog
-                                                                                                            .business
-                                                                                                            .plugin
-                                                                                                            .type
-                                                                                                            .StaticSiteType
-                                                                                                            .BLOG),
-                                                                                            execution
-                                                                                                    .runId(),
-                                                                                            execution
-                                                                                                    .actor()
-                                                                                                    .getUserId(),
-                                                                                            execution
-                                                                                                    ::remainingMillis,
-                                                                                            () -> {
-                                                                                                try {
-                                                                                                    execution
-                                                                                                            .checkActive();
-                                                                                                } catch (
-                                                                                                        Exception
-                                                                                                                error) {
-                                                                                                    throw new IllegalStateException(
-                                                                                                            "automation.executionExpired",
-                                                                                                            error);
-                                                                                                }
-                                                                                            });
-                                                                        }));
-                                                    }
-                                                    if (zrLogConfig.getWebSetup(
-                                                                    com.zrlog.admin.web.AIWebSetup
-                                                                            .class)
-                                                            != null) {
-                                                        providers.add(
-                                                                r.get(
-                                                                                com.zrlog.admin.web
-                                                                                        .di.ai
-                                                                                        .AIComponent
-                                                                                        .class)
-                                                                        .scheduledTasks());
-                                                    }
-                                                    return providers;
-                                                },
+                                                store -> scheduledTasks(r, store),
                                                 EnvKit::isFaaSMode,
                                                 () ->
-                                                        zrLogConfig.getWebSetup(
-                                                                                com.zrlog.admin.web
-                                                                                        .AIWebSetup
-                                                                                        .class)
-                                                                        == null
-                                                                ? null
-                                                                : r.get(
-                                                                                com.zrlog.admin.web
-                                                                                        .di.ai
-                                                                                        .AIComponent
-                                                                                        .class)
-                                                                        .automationAssistant()))
+                                                        aiFeature(
+                                                                ai ->
+                                                                        r.get(AIComponent.class)
+                                                                                .automationAssistant())))
                 .singleton(AdminPageDataFactory.class, r -> r.get(AccountComponent.class).pages())
                 .singleton(BackendServerUrl.class, r -> r.get(AccountComponent.class).backend())
                 .singleton(
@@ -367,9 +272,9 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                 r.get(DataComponent.class),
                                                 r.get(ServiceComponent.class),
                                                 r.get(AccountComponent.class),
-                                                () ->
-                                                        zrLogConfig.getWebSetup(
-                                                                ArticleAssistant.class),
+                                                () -> aiFeature(AIWebSetup::articleConversations),
+                                                () -> aiFeature(AIWebSetup::articleEditor),
+                                                () -> aiFeature(AIWebSetup::articlePublishCheck),
                                                 () ->
                                                         zrLogConfig.getWebSetup(
                                                                 AttachmentStorage.class),

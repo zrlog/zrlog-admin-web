@@ -6,7 +6,7 @@ import dagger.Provides;
 import jakarta.inject.Singleton;
 import java.util.List;
 import java.util.function.BooleanSupplier;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 @Module
 public final class AutomationModule {
@@ -14,8 +14,10 @@ public final class AutomationModule {
 
     @Provides
     @Singleton
-    static TaskRegistry registry(Supplier<List<ScheduledTaskProvider>> providers) {
-        return new TaskRegistry(providers);
+    static TaskRegistry registry(
+            AutomationStore store,
+            Function<AutomationStore, List<ScheduledTaskProvider>> providers) {
+        return new TaskRegistry(() -> providers.apply(store));
     }
 
     @Provides

@@ -40,7 +40,8 @@ public class MessageCenterController extends BaseController {
     public UpdateRecordResponse read() {
         ReadMessageCenterNoticeRequest readRequest =
                 getRequestBodyWithNullCheck(ReadMessageCenterNoticeRequest.class);
-        return new UpdateRecordResponse(messageCenterService.markRead(readRequest.getTaskKey()));
+        return new UpdateRecordResponse(
+                messageCenterService.markRead(readRequest.getTaskKey(), readRequest.getSource()));
     }
 
     @ResponseBody

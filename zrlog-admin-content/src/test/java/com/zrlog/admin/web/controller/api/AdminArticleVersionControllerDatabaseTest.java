@@ -6,7 +6,9 @@ import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
+import com.zrlog.admin.business.content.ArticlePublishCheck;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
 import com.zrlog.admin.data.repository.LogVersionRepository;
@@ -154,7 +156,9 @@ public class AdminArticleVersionControllerDatabaseTest {
                                 data,
                                 services,
                                 AccountServicesFixture.component(testDataSource),
-                                () -> ArticleAssistant.NONE,
+                                () -> ArticleConversationBindings.NONE,
+                                () -> ArticleEditorDecorator.NONE,
+                                () -> ArticlePublishCheck.NONE,
                                 () -> null,
                                 ApplicationServicesFixture.publisher(
                                         data.cache(), applicationConfig),

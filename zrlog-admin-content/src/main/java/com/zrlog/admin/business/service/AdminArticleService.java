@@ -1,9 +1,10 @@
 package com.zrlog.admin.business.service;
 
 import com.hibegin.common.dao.entity.OptimisticLockException;
+import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.ObjectHelpers;
 import com.hibegin.common.util.StringUtils;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
 import com.zrlog.admin.business.content.ArticleResourceReferences;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
 import com.zrlog.admin.business.exception.ArticleMissingTypeException;
@@ -28,13 +29,16 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
 @Singleton
 public class AdminArticleService {
+    private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleService.class);
     private final DistributedLock.Factory locks;
-    private final Supplier<ArticleAssistant> assistant;
+    private final Supplier<ArticleConversationBindings> conversations;
     private final AccountIdentityService identities;
     private final AccountPermissionService permissionService;
     private final UserPreferenceService userPreferenceService;
@@ -44,7 +48,7 @@ public class AdminArticleService {
 
     @Inject
     public AdminArticleService(
-            Supplier<ArticleAssistant> assistant,
+            Supplier<ArticleConversationBindings> conversations,
             AccountPermissionService permissionService,
             AccountIdentityService identities,
             UserPreferenceService userPreferenceService,
@@ -52,7 +56,7 @@ public class AdminArticleService {
             ArticlePinningService articlePinningService,
             jakarta.inject.Provider<AdminLogRepository> logProvider,
             DistributedLock.Factory locks) {
-        this.assistant = Objects.requireNonNull(assistant);
+        this.conversations = Objects.requireNonNull(conversations);
         this.permissionService = permissionService;
         this.identities = identities;
         this.userPreferenceService = userPreferenceService;
@@ -182,8 +186,9 @@ public class AdminArticleService {
                             ? null
                             : createArticleRequest.getConversationId();
             if (conversationId != null) {
-                ArticleAssistant provider =
-                        Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE);
+                ArticleConversationBindings provider =
+                        Objects.requireNonNullElse(
+                                conversations.get(), ArticleConversationBindings.NONE);
                 try (var binding =
                         provider.prepareDraftConversationBinding(access, conversationId, runId)) {
                     var saved = persistArticle(access, createArticleRequest, null, false);
@@ -237,8 +242,15 @@ public class AdminArticleService {
             lock.unlock();
         }
         if (deleted) {
-            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE)
-                    .articleDeleted(logId);
+            try {
+                Objects.requireNonNullElse(conversations.get(), ArticleConversationBindings.NONE)
+                        .articleDeleted(logId);
+            } catch (RuntimeException error) {
+                LOGGER.log(
+                        Level.FINE,
+                        "Remove article conversations failed, articleId=" + logId,
+                        error);
+            }
         }
         return deleted;
     }

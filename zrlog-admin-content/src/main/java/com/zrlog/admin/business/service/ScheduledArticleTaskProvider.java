@@ -5,33 +5,21 @@ import com.zrlog.admin.business.automation.AutomationModels;
 import com.zrlog.admin.business.automation.ScheduledTaskProvider;
 import com.zrlog.admin.business.automation.TaskExecutionContext;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
-import com.zrlog.admin.business.knowledge.ContentToolModels;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import java.util.List;
-import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Scheduled publication uses the same version, ownership and audit chain as interactive
  * publication.
  */
 public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider {
-    private static final Set<String> SCOPES =
-            Set.of(
-                    "articles:read",
-                    "articles:read_drafts",
-                    "articles:read_private",
-                    "articles:all",
-                    "articles:write",
-                    "articles:publish");
-    private final ContentToolService content;
-    private final AccountPermissionService permissions;
+    private final Supplier<ArticlePublication> publication;
     private final Refresh refresh;
 
-    public ScheduledArticleTaskProvider(
-            ContentToolService content, AccountPermissionService permissions, Refresh refresh) {
-        this.content = content;
-        this.permissions = permissions;
+    public ScheduledArticleTaskProvider(Supplier<ArticlePublication> publication, Refresh refresh) {
+        this.publication = publication;
         this.refresh = refresh;
     }
 
@@ -77,18 +65,14 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
     @Override
     public JsonObject prepare(String type, JsonObject parameters, AccountAccess actor)
             throws Exception {
-        permissions.require(actor, AccountAction.ARTICLE_PUBLISH);
+        AccountPermissionService.requireAction(actor, AccountAction.ARTICLE_PUBLISH.getId());
         int id = integer(parameters, "articleId", 1);
         int version = integer(parameters, "version", 0);
-        ContentToolModels.ArticleDetails current = content.details(actor, id, SCOPES);
-        if (current.version != version)
-            throw new IllegalArgumentException("automation.articleChanged");
-        if (!"draft".equals(current.status))
-            throw new IllegalArgumentException("automation.articleNotDraft");
+        String title = publication.get().confirmSchedule(actor, id, version);
         JsonObject normalized = new JsonObject();
         normalized.addProperty("articleId", id);
         normalized.addProperty("version", version);
-        normalized.addProperty("title", current.title);
+        normalized.addProperty("title", title);
         return normalized;
     }
 
@@ -98,41 +82,35 @@ public final class ScheduledArticleTaskProvider implements ScheduledTaskProvider
         context.checkActive();
         int id = integer(parameters, "articleId", 1);
         int version = integer(parameters, "version", 0);
-        ContentToolModels.ArticleDetails current = content.details(context.actor(), id, SCOPES);
-        if (current.version != version || !"draft".equals(current.status)) {
-            return attention(id, "admin.assistant.error.articleChanged");
-        }
-        JsonObject args = new JsonObject();
-        args.addProperty("id", id);
-        args.addProperty("version", version);
-        ContentToolModels.SavedArticle saved;
+        ArticlePublication.ScheduledResult saved;
         try {
-            context.checkActive();
             saved =
-                    content.saveWithRefresh(
-                            context.actor(),
-                            "publish_article",
-                            args,
-                            SCOPES,
-                            context.audit(),
-                            () -> {
-                                try {
-                                    refresh.run(context);
-                                } catch (Exception error) {
-                                    throw new IllegalStateException(
-                                            "automation.publicationRefreshFailed", error);
-                                }
-                            });
+                    publication
+                            .get()
+                            .publishScheduledDraft(
+                                    context.actor(),
+                                    id,
+                                    version,
+                                    context.audit(),
+                                    context::checkActive,
+                                    () -> {
+                                        try {
+                                            refresh.run(context);
+                                        } catch (Exception error) {
+                                            throw new IllegalStateException(
+                                                    "automation.publicationRefreshFailed", error);
+                                        }
+                                    });
         } catch (UpdateArticleExpireException changed) {
             return attention(id, "admin.assistant.error.articleChanged");
         }
         var result =
-                "failed".equals(saved.refreshStatus)
+                saved.refresh == ArticlePublication.RefreshStatus.FAILED
                         ? attention(id, "admin.assistant.error.publicationRefreshFailed")
                         : AutomationModels.Result.success(
                                 "admin.assistant.publish.success.completed");
         result.actionPath = "/article-edit?id=" + id;
-        result.text = current.title;
+        result.text = saved.title;
         result.notifyOwner = "success".equals(result.status);
         return result;
     }
