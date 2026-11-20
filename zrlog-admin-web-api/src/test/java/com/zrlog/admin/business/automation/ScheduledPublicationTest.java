@@ -8,7 +8,6 @@ import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.service.ScheduledArticleTaskProvider;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.data.repository.UserRepository;
 import com.zrlog.data.security.AccountAccess;
@@ -75,15 +74,12 @@ public class ScheduledPublicationTest {
             throws Exception {
         try (var db = open()) {
             var content = db.component(ContentComponent.class);
-            var accounts = db.component(AccountComponent.class);
             var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             int id = draft(content, actor);
             AtomicInteger refreshed = new AtomicInteger();
             var provider =
                     new ScheduledArticleTaskProvider(
-                            content.contentTools(),
-                            accounts.permissions(),
-                            ctx -> refreshed.incrementAndGet());
+                            content::articlePublication, ctx -> refreshed.incrementAndGet());
             JsonObject prepared = provider.prepare("article.publish", parameters(id, 0), actor);
             com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
             var result = provider.execute("article.publish", prepared, context(actor));
@@ -107,12 +103,9 @@ public class ScheduledPublicationTest {
     public void editingAfterConfirmationStopsPublicationUntilThePlanIsUpdated() throws Exception {
         try (var db = open()) {
             var content = db.component(ContentComponent.class);
-            var accounts = db.component(AccountComponent.class);
             var actor = AccountAccess.from(new UserRepository(db.dataSource()).loadById(1L));
             int id = draft(content, actor);
-            var provider =
-                    new ScheduledArticleTaskProvider(
-                            content.contentTools(), accounts.permissions(), ctx -> {});
+            var provider = new ScheduledArticleTaskProvider(content::articlePublication, ctx -> {});
             JsonObject prepared = provider.prepare("article.publish", parameters(id, 0), actor);
             var edit = new UpdateArticleRequest();
             edit.setLogId(id);
@@ -148,8 +141,7 @@ public class ScheduledPublicationTest {
             int id = draft(content, actor);
             var provider =
                     new ScheduledArticleTaskProvider(
-                            content.contentTools(),
-                            db.component(AccountComponent.class).permissions(),
+                            content::articlePublication,
                             ctx -> {
                                 throw new IllegalStateException("offline");
                             });

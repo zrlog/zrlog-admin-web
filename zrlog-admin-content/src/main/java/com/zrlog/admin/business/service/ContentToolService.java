@@ -3,23 +3,18 @@ package com.zrlog.admin.business.service;
 import com.google.gson.JsonObject;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.audit.AdminAuditContext;
-import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.knowledge.ContentToolModels.ArticleDetails;
 import com.zrlog.admin.business.knowledge.ContentToolModels.SavedArticle;
 import com.zrlog.admin.business.knowledge.ContentToolModels.TaxonomyEntry;
 import com.zrlog.admin.business.knowledge.ContentToolModels.TaxonomyList;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.data.repository.TagRepository;
 import com.zrlog.data.repository.TypeRepository;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
-import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.model.Log;
 import com.zrlog.util.I18nUtil;
-import com.zrlog.util.ZrLogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.sql.SQLException;
@@ -36,10 +31,24 @@ public final class ContentToolService {
 
     private final AccountPermissionService permissionService;
 
-    private final ArticlePublishingService publishing;
+    private final ArticlePublication publication;
     private final Consumer<HttpRequest> refresh;
 
     @Inject
+    public ContentToolService(
+            ArticlePublication publication,
+            ArticlePublishingService publishing,
+            AccountPermissionService permissionService,
+            jakarta.inject.Provider<TagRepository> tagProvider,
+            jakarta.inject.Provider<TypeRepository> typeProvider) {
+        this(
+                publication,
+                publishing::updateBlogCacheWithStaticSyncNotice,
+                permissionService,
+                tagProvider,
+                typeProvider);
+    }
+
     public ContentToolService(
             ArticlePublishingService publishing,
             AccountPermissionService permissionService,
@@ -59,52 +68,39 @@ public final class ContentToolService {
             AccountPermissionService permissionService,
             jakarta.inject.Provider<TagRepository> tagProvider,
             jakarta.inject.Provider<TypeRepository> typeProvider) {
+        this(
+                new ArticlePublication(publishing, permissionService, typeProvider),
+                refresh,
+                permissionService,
+                tagProvider,
+                typeProvider);
+    }
+
+    private ContentToolService(
+            ArticlePublication publication,
+            Consumer<HttpRequest> refresh,
+            AccountPermissionService permissionService,
+            jakarta.inject.Provider<TagRepository> tagProvider,
+            jakarta.inject.Provider<TypeRepository> typeProvider) {
         this.tagProvider = tagProvider;
         this.typeProvider = typeProvider;
 
         this.permissionService = permissionService;
 
-        this.publishing = publishing;
+        this.publication = publication;
         this.refresh = refresh;
-    }
-
-    private static void copy(Log row, CreateArticleRequest body) {
-        body.setTitle(Objects.toString(row.getTitle(), ""));
-        body.setTypeId((long) Objects.requireNonNullElse(row.getTypeId(), 0));
-        body.setAlias(Objects.toString(row.getAlias(), ""));
-        body.setMarkdown(Objects.toString(row.getMarkdown(), ""));
-        body.setContent(Objects.toString(row.getContent(), ""));
-        body.setDigest(Objects.toString(row.getDigest(), ""));
-        body.setKeywords(Objects.toString(row.getKeywords(), ""));
-        body.setThumbnail(Objects.toString(row.getThumbnail(), ""));
-        body.setEditorType(Objects.toString(row.getEditorType(), ""));
-        body.setCanComment(Boolean.TRUE.equals(row.getCanComment()));
-        body.setRecommended(Boolean.TRUE.equals(row.getRecommended()));
-        body.setPrivacy(Boolean.TRUE.equals(row.getPrivacy()));
-        body.setRubbish(Boolean.TRUE.equals(row.getRubbish()));
     }
 
     private static String status(boolean draft, boolean privateArticle) {
         return draft ? "draft" : privateArticle ? "private" : "published";
     }
 
-    private static IllegalArgumentException invalid(String key) {
-        return new IllegalArgumentException(I18nUtil.getAdminBackendStringFromRes(key));
-    }
-
     public ArticleDetails details(AccountAccess account, int id, Set<String> scopes)
             throws SQLException {
-        permissionService.require(account, AccountAction.ARTICLE_READ);
-        Log row = permissionService.article(account, id, false);
-        if (!ArticleAccess.canRead(
-                account,
-                scopes,
-                Objects.requireNonNullElse(row.getUserId(), 0),
-                Boolean.TRUE.equals(row.getRubbish()),
-                Boolean.TRUE.equals(row.getPrivacy()))) throw new PermissionErrorException();
+        Log row = publication.readArticle(account, id, scopes);
         ArticleDetails details = new ArticleDetails();
         details.id = id;
-        details.version = Objects.requireNonNullElse(row.getVersion(), 0L).intValue();
+        details.version = ArticlePublication.version(row);
         details.typeId = Objects.requireNonNullElse(row.getTypeId(), 0);
         details.title = Objects.toString(row.getTitle(), "");
         details.alias = Objects.toString(row.getAlias(), "");
@@ -167,44 +163,8 @@ public final class ContentToolService {
             String conversationId,
             String runId)
             throws SQLException {
-        return saveWithRefresh(
-                account,
-                operation,
-                args,
-                scopes,
-                audit,
-                () -> refresh.accept(request),
-                conversationId,
-                runId);
-    }
-
-    /** Non-HTTP callers supply their own bounded refresh operation. */
-    public SavedArticle saveWithRefresh(
-            AccountAccess account,
-            String operation,
-            JsonObject args,
-            Set<String> scopes,
-            AdminAuditContext audit,
-            Runnable refreshOperation)
-            throws SQLException {
-        return saveWithRefresh(
-                account, operation, args, scopes, audit, refreshOperation, null, null);
-    }
-
-    private SavedArticle saveWithRefresh(
-            AccountAccess account,
-            String operation,
-            JsonObject args,
-            Set<String> scopes,
-            AdminAuditContext audit,
-            Runnable refreshOperation,
-            String conversationId,
-            String runId)
-            throws SQLException {
         boolean create = operation.equals("create_article");
-        permissionService.require(
-                account, create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
-        if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
+        publication.requireWriteAccess(account, create);
         Log old = null;
         CreateArticleRequest body;
         int version = 0;
@@ -216,45 +176,19 @@ public final class ContentToolService {
             body.setConversationId(conversationId);
         } else {
             int id = args.get("id").getAsInt();
-            old = permissionService.article(account, id, false);
             version = args.get("version").getAsInt();
-            if (version != Objects.requireNonNullElse(old.getVersion(), 0L).intValue())
-                throw new UpdateArticleExpireException();
-            UpdateArticleRequest update = new UpdateArticleRequest();
-            update.setLogId(id);
-            update.setVersion(version);
-            copy(old, update);
-            body = update;
+            old = publication.updateTarget(account, id, version);
+            body = ArticlePublication.updateRequest(old, id, version);
         }
         patch(args, body);
         if (operation.equals("publish_article")) {
             body.setRubbish(false);
             body.setPrivacy(false);
         }
-        int author =
-                old == null ? account.getUserId() : Objects.requireNonNullElse(old.getUserId(), 0);
-        if (!ArticleAccess.canWrite(
-                account,
-                scopes,
-                author,
-                old == null || Boolean.TRUE.equals(old.getRubbish()),
-                old != null && Boolean.TRUE.equals(old.getPrivacy()),
-                body.isRubbish(),
-                body.isPrivacy())) throw new PermissionErrorException();
-        body.doValid();
-        body.doClean();
-        if (this.typeProvider.get().loadById((long) (body.getTypeId())) == null)
-            throw invalid("admin.mcp.validation.category");
-        publishing.prepareRequest(body);
-        if (body.getMarkdown() != null
-                && !body.getMarkdown().isBlank()
-                && (body.getContent() == null || body.getContent().isBlank())) {
-            throw invalid("admin.mcp.validation.htmlRequired");
-        }
-        CreateOrUpdateArticleResponse saved =
-                create
-                        ? publishing.create(account, body, audit, runId)
-                        : publishing.update(account, (UpdateArticleRequest) body, audit);
+        var publicationResult =
+                publication.save(
+                        account, old, body, scopes, audit, () -> refresh.accept(request), runId);
+        CreateOrUpdateArticleResponse saved = publicationResult.article;
         SavedArticle result = new SavedArticle();
         result.id = saved.getLogId();
         result.version = create ? 0 : version + 1;
@@ -262,14 +196,11 @@ public final class ContentToolService {
                 status(
                         Boolean.TRUE.equals(saved.getRubbish()),
                         Boolean.TRUE.equals(saved.getPrivacy()));
-        if (saved.isPublicCacheRefreshRequired()) {
-            try {
-                refreshOperation.run();
-                result.refreshStatus = "updated";
-            } catch (RuntimeException e) {
-                result.refreshStatus = "failed";
-                result.warning = I18nUtil.getAdminBackendStringFromRes("admin.mcp.warning.refresh");
-            }
+        if (publicationResult.refresh == ArticlePublication.RefreshStatus.UPDATED) {
+            result.refreshStatus = "updated";
+        } else if (publicationResult.refresh == ArticlePublication.RefreshStatus.FAILED) {
+            result.refreshStatus = "failed";
+            result.warning = I18nUtil.getAdminBackendStringFromRes("admin.mcp.warning.refresh");
         }
         return result;
     }

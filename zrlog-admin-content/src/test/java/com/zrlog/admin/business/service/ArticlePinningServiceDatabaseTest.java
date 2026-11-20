@@ -3,7 +3,7 @@ package com.zrlog.admin.business.service;
 import static org.junit.Assert.*;
 
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
 import com.zrlog.admin.business.exception.ArticleNotPinnedException;
 import com.zrlog.admin.business.exception.ArticlePinningNotAllowedException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
@@ -208,8 +208,7 @@ public class ArticlePinningServiceDatabaseTest {
         request.setEditorType("markdown");
         CreateOrUpdateArticleResponse response =
                 new AdminArticleService(
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
+                                () -> ArticleConversationBindings.NONE,
                                 AccountServicesFixture.component(testDataSource).permissions(),
                                 AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).preferences(),

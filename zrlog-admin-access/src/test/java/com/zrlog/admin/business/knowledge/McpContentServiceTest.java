@@ -8,7 +8,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
@@ -233,8 +234,7 @@ public class McpContentServiceTest {
             CacheService cache, DataSourceWrapper testDataSource, AdminAuditService audit) {
         return new ArticlePublishingService(
                 new AdminArticleService(
-                        ApplicationServicesFixture.capability(
-                                applicationConfig, ArticleAssistant.class),
+                        () -> ArticleConversationBindings.NONE,
                         AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).preferences(),
@@ -249,8 +249,7 @@ public class McpContentServiceTest {
                         ApplicationServicesFixture.locks(testDataSource)),
                 new ArticleQueryService(
                         cache,
-                        ApplicationServicesFixture.capability(
-                                applicationConfig, ArticleAssistant.class),
+                        () -> ArticleEditorDecorator.NONE,
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
@@ -866,8 +865,7 @@ public class McpContentServiceTest {
                             new ContentToolService(
                                     new ArticlePublishingService(
                                             new AdminArticleService(
-                                                    ApplicationServicesFixture.capability(
-                                                            db.config(), ArticleAssistant.class),
+                                                    () -> ArticleConversationBindings.NONE,
                                                     AccountServicesFixture.component(
                                                                     db.dataSource())
                                                             .permissions(),
@@ -899,8 +897,7 @@ public class McpContentServiceTest {
                                             new com.zrlog.admin.business.service
                                                     .ArticleQueryService(
                                                     db.unitCacheService(),
-                                                    ApplicationServicesFixture.capability(
-                                                            db.config(), ArticleAssistant.class),
+                                                    () -> ArticleEditorDecorator.NONE,
                                                     new AdminPageDataFactory(
                                                             ApplicationServicesFixture.site(
                                                                     db.config()),
@@ -1027,9 +1024,7 @@ public class McpContentServiceTest {
                                 new ContentToolService(
                                         new ArticlePublishingService(
                                                 new AdminArticleService(
-                                                        ApplicationServicesFixture.capability(
-                                                                applicationConfig,
-                                                                ArticleAssistant.class),
+                                                        () -> ArticleConversationBindings.NONE,
                                                         AccountServicesFixture.component(
                                                                         db.dataSource())
                                                                 .permissions(),
@@ -1063,9 +1058,7 @@ public class McpContentServiceTest {
                                                 new com.zrlog.admin.business.service
                                                         .ArticleQueryService(
                                                         db.unitCacheService(),
-                                                        ApplicationServicesFixture.capability(
-                                                                applicationConfig,
-                                                                ArticleAssistant.class),
+                                                        () -> ArticleEditorDecorator.NONE,
                                                         new AdminPageDataFactory(
                                                                 ApplicationServicesFixture.site(
                                                                         applicationConfig),

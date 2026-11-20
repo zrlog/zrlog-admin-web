@@ -7,6 +7,8 @@ import com.zrlog.common.exception.ArgsException;
 public class ReadMessageCenterNoticeRequest implements Validator {
 
     private String taskKey;
+    private String source;
+    private String referenceId;
 
     @Override
     public void doValid() {
@@ -21,5 +23,13 @@ public class ReadMessageCenterNoticeRequest implements Validator {
 
     public void setTaskKey(String taskKey) {
         this.taskKey = taskKey;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getReferenceId() {
+        return referenceId;
     }
 }

@@ -5,7 +5,7 @@ import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIChatModels;
 import com.zrlog.admin.business.ai.model.AIFileModels;
-import com.zrlog.admin.business.content.ArticleAssistant.DraftConversationBinding;
+import com.zrlog.admin.business.content.ArticleConversationBindings.DraftConversationBinding;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;

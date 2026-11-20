@@ -10,7 +10,8 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.service.*;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckPersistenceGuard;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
+import com.zrlog.admin.business.content.ArticleEditorDecorator;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
@@ -1334,8 +1335,7 @@ public class AdminArticleControllerDatabaseTest {
             ArticlePublishingService publishingService =
                     new ArticlePublishingService(
                             new AdminArticleService(
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleConversationBindings.NONE,
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
@@ -1351,8 +1351,7 @@ public class AdminArticleControllerDatabaseTest {
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             new ArticleQueryService(
                                     db.cacheService(),
-                                    ApplicationServicesFixture.capability(
-                                            db.config(), ArticleAssistant.class),
+                                    () -> ArticleEditorDecorator.NONE,
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
@@ -1797,8 +1796,10 @@ public class AdminArticleControllerDatabaseTest {
                                 ApplicationServicesFixture.audit(testDataSource),
                                 ApplicationServicesFixture.operations(testDataSource)),
                         bindings.get(AdminStaticSiteSsePublisher.class),
-                        ApplicationServicesFixture.capability(
-                                applicationConfig, ArticleAssistant.class),
+                        () -> {
+                            AIWebSetup ai = applicationConfig.getWebSetup(AIWebSetup.class);
+                            return ai == null ? null : ai.articlePublishCheck();
+                        },
                         account.pages(),
                         account.preferences(),
                         account.requestIdentity());
@@ -1829,17 +1830,17 @@ public class AdminArticleControllerDatabaseTest {
     private String emitPublishCheck(
             PublishCheckTask task, boolean wait, Integer timeoutMillis, int attempts)
             throws Exception {
-        AIWebSetup controller = new AIWebSetup(applicationConfig.getServerConfig());
+        var publishCheck = applicationConfig.getWebSetup(AIWebSetup.class).articlePublishCheck();
         try (PipedInputStream inputStream = new PipedInputStream();
                 PipedOutputStream outputStream = new PipedOutputStream(inputStream)) {
             AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
             AtomicBoolean sent = new AtomicBoolean(false);
             for (int i = 0; i < attempts; i++) {
                 if (timeoutMillis == null) {
-                    invoke(controller, "sendPublishCheckIfReady", task, sent, emitter, wait);
+                    invoke(publishCheck, "sendPublishCheckIfReady", task, sent, emitter, wait);
                 } else {
                     invoke(
-                            controller,
+                            publishCheck,
                             "sendPublishCheckIfReady",
                             task,
                             sent,

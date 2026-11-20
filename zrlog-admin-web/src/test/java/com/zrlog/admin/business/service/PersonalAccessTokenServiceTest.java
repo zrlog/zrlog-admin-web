@@ -5,7 +5,7 @@ import static org.junit.Assert.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticleConversationBindings;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
@@ -473,9 +473,7 @@ public class PersonalAccessTokenServiceTest {
                                 PermissionErrorException.class,
                                 () ->
                                         new AdminArticleService(
-                                                        ApplicationServicesFixture.capability(
-                                                                db.config(),
-                                                                ArticleAssistant.class),
+                                                        () -> ArticleConversationBindings.NONE,
                                                         AccountServicesFixture.component(
                                                                         db.dataSource())
                                                                 .permissions(),

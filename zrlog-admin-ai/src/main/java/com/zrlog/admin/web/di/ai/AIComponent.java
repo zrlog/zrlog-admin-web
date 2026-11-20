@@ -1,11 +1,14 @@
 package com.zrlog.admin.web.di.ai;
 
+import com.zrlog.admin.business.ai.service.AIArticleConversations;
+import com.zrlog.admin.business.ai.service.AIArticleEditorDecorator;
 import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIReferenceService;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
+import com.zrlog.admin.web.AIArticlePublishCheck;
 import com.zrlog.admin.web.di.account.AccountBindingsModule;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.interceptor.PluginTokenValidator;
@@ -30,6 +33,12 @@ public interface AIComponent {
     com.zrlog.admin.business.ai.service.AIScheduledTaskProvider scheduledTasks();
 
     AIConversationService conversations();
+
+    AIArticleConversations articleConversations();
+
+    AIArticleEditorDecorator articleEditor();
+
+    AIArticlePublishCheck articlePublishCheck();
 
     AIPublishCheckService publishing();
 

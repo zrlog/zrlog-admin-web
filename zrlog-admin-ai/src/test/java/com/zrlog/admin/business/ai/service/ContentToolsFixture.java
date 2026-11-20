@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.knowledge.ContentToolProvider;
@@ -12,6 +11,7 @@ import com.zrlog.admin.data.repository.LogVersionRepository;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.AIWebSetup;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.repository.TagRepository;
 import com.zrlog.data.repository.TypeRepository;
@@ -21,9 +21,13 @@ final class ContentToolsFixture {
 
     static ContentToolFactory from(ZrLogConfig config) {
         var cache = new InMemoryZrLogDatabase.TestCacheService();
+        var ai = ApplicationServicesFixture.capability(config, AIWebSetup.class);
         var articles =
                 new AdminArticleService(
-                        ApplicationServicesFixture.capability(config, ArticleAssistant.class),
+                        () -> {
+                            AIWebSetup setup = ai.get();
+                            return setup == null ? null : setup.articleConversations();
+                        },
                         AccountServicesFixture.component(
                                         config == null
                                                 ? null
@@ -83,8 +87,10 @@ final class ContentToolsFixture {
                         articles,
                         new ArticleQueryService(
                                 cache,
-                                ApplicationServicesFixture.capability(
-                                        config, ArticleAssistant.class),
+                                () -> {
+                                    AIWebSetup setup = ai.get();
+                                    return setup == null ? null : setup.articleEditor();
+                                },
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(config),
                                         () -> "test",

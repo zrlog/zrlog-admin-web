@@ -60,6 +60,8 @@ public class AttachmentStorageTest {
                                     account,
                                     () -> null,
                                     () -> null,
+                                    () -> null,
+                                    () -> null,
                                     com.zrlog.admin.support.ApplicationServicesFixture.publisher(
                                             data.cache(), db.config()),
                                     markdown -> null);

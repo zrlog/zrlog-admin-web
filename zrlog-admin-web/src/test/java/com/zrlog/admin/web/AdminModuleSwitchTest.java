@@ -5,7 +5,7 @@ import static org.junit.Assert.*;
 import com.google.gson.Gson;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.ArticlePublishCheck;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
@@ -25,7 +25,6 @@ import com.zrlog.data.repository.LogRepository;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
@@ -97,7 +96,7 @@ public class AdminModuleSwitchTest {
             }
             assertEquals(
                     admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
-            assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
+            assertEquals(ai, config.getWebSetup(AIWebSetup.class) != null);
             assertEquals(assets, config.getWebSetup(AttachmentStorage.class) != null);
             assertEquals(
                     mcp, config.getServerConfig().getInterceptors().contains(McpInterceptor.class));
@@ -289,16 +288,13 @@ public class AdminModuleSwitchTest {
             assertEquals("Independent content", detail.getData().getArticle().getTitle());
             if (!ai)
                 assertSame(
-                        ArticleAssistant.PublishProgress.NONE,
-                        Objects.requireNonNullElse(
-                                        config.getWebSetup(ArticleAssistant.class),
-                                        ArticleAssistant.NONE)
-                                .beginPublishCheck(
-                                        com.zrlog.admin.business.ai.service.AIServiceDependencies
-                                                .actor(db.dataSource()),
-                                        detail.getData(),
-                                        article,
-                                        null));
+                        ArticlePublishCheck.PublishProgress.NONE,
+                        ArticlePublishCheck.NONE.beginPublishCheck(
+                                com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(
+                                        db.dataSource()),
+                                detail.getData(),
+                                article,
+                                null));
             assertTrue(
                     services.get(com.zrlog.admin.business.service.AdminArticleService.class)
                             .delete(

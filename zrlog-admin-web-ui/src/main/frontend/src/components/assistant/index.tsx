@@ -19,8 +19,7 @@ import { useAssistantStyles } from "./assistant-styles";
 import SystemTasks from "./tasks/SystemTasks";
 import RunChildren from "./tasks/RunChildren";
 import { useAssistantRequest } from "./use-assistant-request";
-import { removeBackgroundTaskByKey } from "../../utils/background-task-store";
-import { ASSISTANT_NOTICE_PREFIX } from "../../utils/message-center-notice-sync";
+import { removeNotice } from "../../utils/message-center-notice-sync";
 import ProposalForm from "./tasks/ProposalForm";
 import type { Overview, Plan, Run, Task } from "./tasks/types";
 
@@ -355,7 +354,7 @@ export default function AssistantWorkspace({
                                 setBusy(true);
                                 try {
                                     await request("deleteRun", { id: detail.id, version: detail.version });
-                                    removeBackgroundTaskByKey(ASSISTANT_NOTICE_PREFIX + detail.id);
+                                    removeNotice("assistant", detail.id);
                                     historyTrigger.current = historyPanel.current;
                                     setDetail(undefined);
                                     updateHistory({ runId: undefined, page: undefined }, true);

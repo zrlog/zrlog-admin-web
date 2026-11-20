@@ -68,7 +68,10 @@ public final class AutomationController extends BaseController {
         var input =
                 getRequestBodyWithNullCheck(
                         com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest.class);
-        return result(() -> notifications.markRead(identities.current(), input.getTaskKey()));
+        return result(
+                () ->
+                        notifications.markRead(
+                                identities.current(), input.getTaskKey(), input.getReferenceId()));
     }
 
     @ResponseBody
