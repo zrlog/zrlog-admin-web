@@ -72,6 +72,14 @@
         "parameterTypes": []
       },
       {
+        "name": "connections",
+        "parameterTypes": []
+      },
+      {
+        "name": "global",
+        "parameterTypes": []
+      },
+      {
         "name": "optimizeAiPrompt",
         "parameterTypes": []
       },
