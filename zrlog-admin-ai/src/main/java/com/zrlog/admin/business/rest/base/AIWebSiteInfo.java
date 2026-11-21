@@ -156,6 +156,18 @@ public class AIWebSiteInfo implements Validator {
 
     @Override
     public void doValid() {
+        validateTextConnection();
+        validateCompletionTokens(ai_max_completion_tokens);
+        validateImageConnection();
+    }
+
+    public static void validateCompletionTokens(Integer tokens) {
+        if (tokens != null && tokens < 1) {
+            throw new ArgsException("ai_max_completion_tokens");
+        }
+    }
+
+    public void validateTextConnection() {
         if (Objects.isNull(ai_provider)) {
             throw new ArgsException("ai_provider");
         }
@@ -164,9 +176,9 @@ public class AIWebSiteInfo implements Validator {
         }
         ai_model = ai_model.trim();
         ai_base_url = normalizeBaseUrl(ai_base_url);
-        if (Objects.nonNull(ai_max_completion_tokens) && ai_max_completion_tokens < 1) {
-            throw new ArgsException("ai_max_completion_tokens");
-        }
+    }
+
+    public void validateImageConnection() {
         ai_image_base_url = normalizeImageBaseUrl(ai_image_base_url);
         if (Objects.nonNull(ai_image_provider)) {
             if (StringUtils.isEmpty(ai_image_model) || StringUtils.isEmpty(ai_image_model.trim())) {

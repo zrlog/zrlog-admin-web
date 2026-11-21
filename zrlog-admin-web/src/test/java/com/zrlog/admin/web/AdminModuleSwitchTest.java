@@ -125,12 +125,16 @@ public class AdminModuleSwitchTest {
                         "/api/admin/article/clearAiMessages",
                         "/api/admin/article/cover/apply",
                         "/api/admin/website/ai",
+                        "/api/admin/website/ai/connections",
+                        "/api/admin/website/ai/global",
                         "/api/admin/website/optimizeAiPrompt"
                     }) {
                 var method = router.getMethod(path, HttpMethod.POST);
                 if (ai) assertNotNull(path, method);
                 else assertNull(path, method);
             }
+            assertNull(router.getMethod("/api/admin/website/ai/connections", HttpMethod.GET));
+            assertNull(router.getMethod("/api/admin/website/ai/global", HttpMethod.GET));
             assertEquals(
                     ai,
                     router.getMethod("/api/admin/assistant/chat/conversation", HttpMethod.GET)

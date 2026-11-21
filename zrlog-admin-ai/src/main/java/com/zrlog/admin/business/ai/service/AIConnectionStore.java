@@ -4,8 +4,11 @@ import com.google.gson.Gson;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.BeanUtil;
 import com.hibegin.common.util.StringUtils;
+import com.zrlog.admin.business.ai.exception.AIActiveConnectionException;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
+import com.zrlog.admin.business.rest.request.AIConnectionRequest;
+import com.zrlog.admin.business.rest.request.AIGlobalSettingsRequest;
 import com.zrlog.admin.business.rest.request.AISettingsRequest;
 import com.zrlog.admin.business.rest.response.AIConnectionResponse;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
@@ -21,6 +24,8 @@ public final class AIConnectionStore {
     static final String CONNECTIONS = "ai_connections";
     static final String TEXT_ID = "ai_connection_id";
     static final String IMAGE_ID = "ai_image_connection_id";
+    private static final String TEXT = "text";
+    private static final String IMAGE = "image";
     private static final Gson JSON = new Gson();
     private static final int MAX_CONNECTIONS = 64;
     private static final List<String> KEYS = new ArrayList<>(AIConfigService.AI_WEBSITE_INFO_KEYS);
@@ -74,7 +79,7 @@ public final class AIConnectionStore {
             for (Connection entry : entries) {
                 if (entry == null
                         || entry.ai_provider == null
-                        || !Set.of("text", "image").contains(entry.ai_kind)
+                        || !(TEXT.equals(entry.ai_kind) || IMAGE.equals(entry.ai_kind))
                         || entry.ai_connection_id == null
                         || !ids.add(entry.ai_connection_id)) {
                     throw new IllegalArgumentException();
@@ -137,6 +142,147 @@ public final class AIConnectionStore {
                         request.ai_image_connection_name);
         upsert(nextText);
         if (nextImage != null) upsert(nextImage);
+        // Fixed setting keys form a dynamic SQL value boundary, not an HTTP data contract.
+        Map<String, Object> values =
+                new LinkedHashMap<>(
+                        BeanUtil.convert(
+                                BeanUtil.convert(request, AIWebSiteInfo.class), Map.class));
+        values.keySet().retainAll(AIConfigService.AI_WEBSITE_INFO_KEYS);
+        for (String key : AIConfigService.AI_WEBSITE_INFO_KEYS) values.putIfAbsent(key, null);
+        saveConfiguration(values, nextText, nextImage);
+    }
+
+    void updateConnection(AIConnectionRequest request) throws SQLException {
+        Connection nextText = text;
+        Connection nextImage = image;
+        Map<String, Object> values = new LinkedHashMap<>();
+        switch (request.action) {
+            case SAVE:
+                {
+                    if (!(TEXT.equals(request.ai_kind) || IMAGE.equals(request.ai_kind))) {
+                        throw new ArgsException("ai_kind");
+                    }
+                    Connection previous =
+                            StringUtils.isEmpty(request.ai_connection_id)
+                                    ? null
+                                    : requireConnection(request);
+                    Connection connection = updatedConnection(request, previous);
+                    upsert(connection);
+                    if (previous != null && previous == text) {
+                        nextText = connection;
+                        putActiveSettings(values, nextText, false);
+                    } else if (previous != null && previous == image) {
+                        nextImage = connection;
+                        putActiveSettings(values, nextImage, true);
+                    }
+                    break;
+                }
+            case ACTIVATE:
+                {
+                    Connection connection = requireConnection(request);
+                    validateConnection(connection);
+                    boolean forImage = IMAGE.equals(connection.ai_kind);
+                    if (forImage) nextImage = connection;
+                    else nextText = connection;
+                    putActiveSettings(values, connection, forImage);
+                    break;
+                }
+            case DELETE:
+                {
+                    Connection connection = requireConnection(request);
+                    if (connection == text || connection == image) {
+                        throw new AIActiveConnectionException();
+                    }
+                    connections.remove(connection);
+                    break;
+                }
+            case DISABLE_IMAGE:
+                {
+                    if (StringUtils.isNotEmpty(request.ai_connection_id)
+                            && (image == null
+                                    || !Objects.equals(
+                                            request.ai_connection_id, image.ai_connection_id))) {
+                        throw new ArgsException(IMAGE_ID);
+                    }
+                    nextImage = null;
+                    putActiveSettings(values, null, true);
+                    break;
+                }
+        }
+        saveConfiguration(values, nextText, nextImage);
+    }
+
+    void saveGlobal(AIGlobalSettingsRequest request) throws SQLException {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("ai_prompt", request.ai_prompt);
+        values.put("ai_max_completion_tokens", request.ai_max_completion_tokens);
+        if (request.ai_reasoning_enabled != null) {
+            values.put(AIConfigService.AI_REASONING_ENABLED_KEY, request.ai_reasoning_enabled);
+        }
+        saveAtomically(values);
+    }
+
+    private Connection requireConnection(AIConnectionRequest request) {
+        return connections.stream()
+                .filter(
+                        connection ->
+                                Objects.equals(
+                                        connection.ai_connection_id, request.ai_connection_id))
+                .filter(
+                        connection ->
+                                request.ai_kind == null
+                                        || request.ai_kind.equals(connection.ai_kind))
+                .findFirst()
+                .orElseThrow(() -> new ArgsException(TEXT_ID));
+    }
+
+    private static Connection updatedConnection(AIConnectionRequest request, Connection previous) {
+        Connection next = new Connection();
+        next.ai_connection_id =
+                previous == null ? UUID.randomUUID().toString() : previous.ai_connection_id;
+        next.ai_kind = request.ai_kind;
+        next.ai_provider = request.ai_provider;
+        next.ai_model = request.ai_model;
+        next.ai_base_url = AIWebSiteInfo.normalizeBaseUrl(request.ai_base_url);
+        next.ai_api_key =
+                request.ai_api_key == null || request.ai_api_key.isBlank()
+                        ? ""
+                        : request.ai_api_key;
+        if (next.ai_api_key.isEmpty() && previous != null && sameEndpoint(next, previous)) {
+            next.ai_api_key = previous.ai_api_key;
+        }
+        validateConnection(next);
+        next.ai_model = next.ai_model.trim();
+        next.ai_connection_name =
+                connectionName(request.ai_connection_name, previous, next.ai_provider);
+        return next;
+    }
+
+    private static void validateConnection(Connection connection) {
+        boolean forImage = IMAGE.equals(connection.ai_kind);
+        AIWebSiteInfo info = new AIWebSiteInfo();
+        if (connection.ai_provider == null) throw new ArgsException("ai_provider");
+        apply(info, connection, forImage);
+        if (forImage) info.validateImageConnection();
+        else info.validateTextConnection();
+        if (StringUtils.isEmpty(connection.ai_base_url)
+                && StringUtils.isEmpty(connection.ai_api_key)) {
+            throw new ArgsException("ai_api_key");
+        }
+    }
+
+    private static void putActiveSettings(
+            Map<String, Object> values, Connection connection, boolean image) {
+        String prefix = image ? "ai_image_" : "ai_";
+        values.put(prefix + "provider", connection == null ? null : connection.ai_provider);
+        values.put(prefix + "model", connection == null ? null : connection.ai_model);
+        values.put(prefix + "base_url", connection == null ? null : connection.ai_base_url);
+        values.put(prefix + "api_key", connection == null ? null : connection.ai_api_key);
+    }
+
+    private void saveConfiguration(
+            Map<String, Object> values, Connection nextText, Connection nextImage)
+            throws SQLException {
         for (Connection connection : connections) {
             if (connection.ai_connection_id.startsWith("current-")) {
                 connection.ai_connection_id = UUID.randomUUID().toString();
@@ -146,15 +292,8 @@ public final class AIConnectionStore {
         if (connections.size() > MAX_CONNECTIONS || serialized.length() > 60000) {
             throw new ArgsException(CONNECTIONS);
         }
-        // Fixed setting keys form a dynamic SQL value boundary, not an HTTP data contract.
-        Map<String, Object> values =
-                new LinkedHashMap<>(
-                        BeanUtil.convert(
-                                BeanUtil.convert(request, AIWebSiteInfo.class), Map.class));
-        values.keySet().retainAll(AIConfigService.AI_WEBSITE_INFO_KEYS);
-        for (String key : AIConfigService.AI_WEBSITE_INFO_KEYS) values.putIfAbsent(key, null);
         values.put(CONNECTIONS, serialized);
-        values.put(TEXT_ID, nextText.ai_connection_id);
+        values.put(TEXT_ID, nextText == null ? "" : nextText.ai_connection_id);
         values.put(IMAGE_ID, nextImage == null ? "" : nextImage.ai_connection_id);
         saveAtomically(values);
     }
@@ -165,14 +304,20 @@ public final class AIConnectionStore {
         Connection selected = selected(id, image);
         boolean reuse = selected != null && sameEndpoint(next, selected);
         next.ai_connection_id = reuse ? selected.ai_connection_id : UUID.randomUUID().toString();
-        next.ai_connection_name =
-                name == null || name.isBlank()
-                        ? reuse
-                                ? selected.ai_connection_name
-                                : next.ai_provider.name().toLowerCase(Locale.ROOT)
-                        : name.trim();
-        if (next.ai_connection_name.length() > 80) throw new ArgsException("ai_connection_name");
+        next.ai_connection_name = connectionName(name, reuse ? selected : null, next.ai_provider);
         return next;
+    }
+
+    private static String connectionName(
+            String name, Connection previous, AIProviderType provider) {
+        String connectionName =
+                name == null || name.isBlank()
+                        ? previous != null && !StringUtils.isEmpty(previous.ai_connection_name)
+                                ? previous.ai_connection_name
+                                : provider.name().toLowerCase(Locale.ROOT)
+                        : name.trim();
+        if (connectionName.length() > 80) throw new ArgsException("ai_connection_name");
+        return connectionName;
     }
 
     private void saveAtomically(Map<String, Object> values) throws SQLException {
@@ -214,7 +359,7 @@ public final class AIConnectionStore {
                 .filter(
                         c ->
                                 Objects.equals(c.ai_connection_id, id)
-                                        && Objects.equals(c.ai_kind, image ? "image" : "text"))
+                                        && Objects.equals(c.ai_kind, image ? IMAGE : TEXT))
                 .findFirst()
                 .orElse(null);
     }
@@ -238,7 +383,7 @@ public final class AIConnectionStore {
 
     private static Connection fromSettings(AIWebSiteInfo info, boolean image) {
         Connection value = new Connection();
-        value.ai_kind = image ? "image" : "text";
+        value.ai_kind = image ? IMAGE : TEXT;
         value.ai_provider = image ? info.getAi_image_provider() : info.getAi_provider();
         value.ai_model = image ? info.getAi_image_model() : info.getAi_model();
         value.ai_base_url = image ? info.getAi_image_base_url() : info.getAi_base_url();

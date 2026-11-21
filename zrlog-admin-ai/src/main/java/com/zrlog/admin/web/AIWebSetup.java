@@ -156,6 +156,9 @@ public class AIWebSetup implements WebSetup {
                 "exportAiMessages");
         router.addMapper("/api/admin/website/ai", AIWebSiteController.class, "ai");
         router.addMapper(
+                "/api/admin/website/ai/connections", AIWebSiteController.class, "connections");
+        router.addMapper("/api/admin/website/ai/global", AIWebSiteController.class, "global");
+        router.addMapper(
                 "/api/admin/website/optimizeDescription",
                 AIWebSiteController.class,
                 "optimizeDescription");
