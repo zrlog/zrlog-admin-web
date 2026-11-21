@@ -6,12 +6,15 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
+import com.zrlog.admin.business.rest.request.AIConnectionRequest;
+import com.zrlog.admin.business.rest.request.AIGlobalSettingsRequest;
 import com.zrlog.admin.business.rest.request.AISettingsRequest;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.repository.WebSiteRepository;
 import com.zrlog.data.service.DistributedLock;
+import com.zrlog.util.I18nUtil;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -65,18 +68,51 @@ public class AIConfigService {
             WebSiteSettingsService settingsService)
             throws SQLException {
         settings.doValid();
+        updateStore(
+                store -> {
+                    mergeRetainedApiKeys(settings, store.retainedSettings(settings));
+                    store.save(settings);
+                });
+        settingsService.recordUpdate(settings, audit);
+    }
+
+    public void updateConnection(
+            AIConnectionRequest settings,
+            AdminAuditContext audit,
+            WebSiteSettingsService settingsService)
+            throws SQLException {
+        settings.doValid();
+        updateStore(store -> store.updateConnection(settings));
+        settingsService.recordUpdate(
+                audit, I18nUtil.getAdminBackendStringFromRes("admin.website.ai.manage"));
+    }
+
+    public void updateGlobal(
+            AIGlobalSettingsRequest settings,
+            AdminAuditContext audit,
+            WebSiteSettingsService settingsService)
+            throws SQLException {
+        settings.doValid();
+        updateStore(store -> store.saveGlobal(settings));
+        settingsService.recordUpdate(
+                audit, I18nUtil.getAdminBackendStringFromRes("admin.website.ai.manage"));
+    }
+
+    private void updateStore(StoreUpdate update) throws SQLException {
         try (DistributedLock lock = new DistributedLock(webSiteProvider, "ai_settings")) {
             if (!lock.tryLock(10, TimeUnit.SECONDS)) {
                 throw new SQLException("AI settings are being updated");
             }
-            AIConnectionStore store = new AIConnectionStore(webSiteProvider.get());
-            mergeRetainedApiKeys(settings, store.retainedSettings(settings));
-            store.save(settings);
+            update.apply(new AIConnectionStore(webSiteProvider.get()));
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new SQLException("AI settings update interrupted", interrupted);
         }
-        settingsService.recordUpdate(settings, audit);
+    }
+
+    @FunctionalInterface
+    private interface StoreUpdate {
+        void apply(AIConnectionStore store) throws SQLException;
     }
 
     public AIWebSiteInfoResponse aiResponse() {

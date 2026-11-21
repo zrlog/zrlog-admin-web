@@ -1,4 +1,5 @@
 import { useUiMessage } from "@zrlog/ui/feedback";
+import type { AxiosRequestConfig } from "axios";
 
 import { getRealRouteUrl, getRes, setRes } from "../../utils/constants";
 import BlogForm from "./BlogForm";
@@ -7,12 +8,14 @@ import OtherForm from "./OtherForm";
 import UpgradeSettingForm from "./UpgradeSettingForm";
 import { useLocation } from "react-router-dom";
 import AdminForm from "./AdminForm";
-import { FunctionComponent, useState } from "react";
+import { FunctionComponent, useRef, useState } from "react";
 import { AdminCommonProps, AIProviderType } from "../../type";
 import { getPageDataCacheKeyByPath } from "../../utils/cache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import AssistantSettings from "./AssistantSettings";
 import AIForm from "./AIForm";
+import type { AIGlobalSettings } from "./AIForm";
+import type { AIConnectionMutation } from "./AIConnections";
 import type { SettingsPage } from "../assistant/tasks/types";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
 import ArticleEditForm from "./ArticleEditForm";
@@ -24,6 +27,9 @@ import WebhookForm from "./WebhookForm";
 import PrivacyForm from "./PrivacyForm";
 import { refreshUserInfo } from "../../utils/user-info";
 import { getSsDate } from "../../base/SsData";
+import { getErrorMessage, getResponseMessage } from "../../utils/error-message";
+
+const aiMutationRequestConfig: AxiosRequestConfig & { showError: boolean } = { showError: false };
 
 export interface Basic {
     second_title: string;
@@ -194,6 +200,7 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
     const layoutSurface = { formContainer: { maxWidth: 800 } };
 
     const [loading, setLoading] = useState<boolean>(false);
+    const submitting = useRef(false);
     const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
 
     const axiosInstance = useAxiosBaseInstance();
@@ -220,14 +227,20 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
         window.location.reload();
     };
 
-    const onSubmit = async (form: WebSiteEntry): Promise<boolean> => {
-        if (offline || offlineData || loading) return false;
+    const onSubmit = async (
+        form: WebSiteEntry | AIGlobalSettings | AIConnectionMutation,
+        aiSection?: "connections" | "global"
+    ): Promise<boolean> => {
+        if (offline || offlineData || submitting.current) return false;
+        submitting.current = true;
         const session = getSsDate().key;
+        let response: { error?: number; message: string; data: WebSiteEntry };
         try {
             setLoading(true);
+            const endpoint = activeKey === "upgrade" ? "/api/admin/system/upgrade" : `/api/admin/website/${activeKey}`;
             const useRefreshCacheSse = ["basic", "blog", "admin", "other", "content-protector"].includes(activeKey);
-            const data = useRefreshCacheSse
-                ? await postRefreshCacheSse<any>("/api/admin/website/" + activeKey, {
+            response = useRefreshCacheSse
+                ? await postRefreshCacheSse<any>(endpoint, {
                       body: { ...form },
                       messageApi,
                       messageKey: "websiteRefreshCache",
@@ -236,28 +249,29 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
                   })
                 : (
                       await axiosInstance.post(
-                          activeKey === "upgrade" ? "/api/admin/system/upgrade" : "/api/admin/website/" + activeKey,
-                          { ...form }
+                          aiSection ? `${endpoint}/${aiSection}` : endpoint,
+                          { ...form },
+                          aiSection ? aiMutationRequestConfig : undefined
                       )
                   ).data;
-            setLoading(false);
-            if (data.error) {
-                await messageApi.error(data.message);
-                return false;
-            }
-            if (activeKey === "admin" && session === getSsDate().key) {
+            if (!response.error && activeKey === "admin" && session === getSsDate().key) {
                 await refreshUserInfo(axiosInstance).catch(() => undefined);
             }
-            onChanged(data.data);
-            await messageApi.success(data.message);
-            return true;
+            if (!response.error) onChanged(response.data);
         } catch (e) {
-            setLoading(false);
-            await messageApi.error((e as Error).message);
+            void messageApi.error(getErrorMessage(e, getRes().error.requestFailed));
             return false;
         } finally {
+            submitting.current = false;
             setLoading(false);
         }
+        if (response.error) {
+            void messageApi.error(getResponseMessage(response) ?? getRes().error.requestFailed);
+            return false;
+        }
+        const notification = messageApi.success(response.message);
+        if (!aiSection) await notification;
+        return true;
     };
 
     const getItemBody = () => {
@@ -418,8 +432,9 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
                             loading={loading}
                             offlineData={offlineData}
                             onSubmit={(newData) => {
-                                void onSubmit(newData);
+                                void onSubmit(newData, "global");
                             }}
+                            onConnectionChange={(request) => onSubmit(request, "connections")}
                             offline={offline}
                             data={data as AI}
                         />

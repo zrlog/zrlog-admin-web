@@ -91,10 +91,11 @@ public class WebSiteSettingsService {
     }
 
     public void recordUpdate(Object settings, AdminAuditContext audit) {
-        this.adminAuditService.record(
-                audit,
-                AdminAuditAction.UPDATE_SETTING,
-                settingAuditContent(settings, audit.getUri()));
+        recordUpdate(audit, settingAuditContent(settings, audit.getUri()));
+    }
+
+    public void recordUpdate(AdminAuditContext audit, String settingTitle) {
+        this.adminAuditService.record(audit, AdminAuditAction.UPDATE_SETTING, settingTitle);
     }
 
     public void updateAdmin(AdminWebSiteInfo settings, AdminAuditContext audit)

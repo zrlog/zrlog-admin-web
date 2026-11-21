@@ -3,8 +3,11 @@ package com.zrlog.admin.business.ai.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.Gson;
+import com.zrlog.admin.business.ai.exception.AIActiveConnectionException;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.audit.AdminAuditContext;
+import com.zrlog.admin.business.rest.request.AIConnectionRequest;
+import com.zrlog.admin.business.rest.request.AIGlobalSettingsRequest;
 import com.zrlog.admin.business.rest.request.AISettingsRequest;
 import com.zrlog.admin.business.rest.response.AIConnectionResponse;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
@@ -171,6 +174,122 @@ public class AIConnectionsTest {
         }
     }
 
+    @Test
+    public void standbyEditsRequireExplicitActivationAndKeepCredentialsBoundToTheirEndpoint()
+            throws Exception {
+        for (boolean webApi : new boolean[] {false, true}) {
+            try (ZrLogTestDatabase db =
+                    webApi ? ZrLogTestDatabase.openWebApi() : ZrLogTestDatabase.open()) {
+                seed(db);
+                AIConfigService service = service(db);
+                AIConnectionRequest standby =
+                        JSON.fromJson(
+                                "{\"action\":\"save\",\"ai_kind\":\"text\",\"ai_provider\":\"DEEP_SEEK\"} ",
+                                AIConnectionRequest.class);
+                standby.ai_connection_name = "另一个 DeepSeek";
+                standby.ai_model = " standby-model ";
+                standby.ai_api_key = "standby-secret";
+                updateConnection(db, standby);
+
+                AIWebSiteInfoResponse saved = service.aiResponse();
+                String previousId = saved.ai_connection_id;
+                String standbyId =
+                        saved.ai_connections.stream()
+                                .filter(
+                                        connection ->
+                                                standby.ai_connection_name.equals(
+                                                        connection.ai_connection_name))
+                                .findFirst()
+                                .orElseThrow()
+                                .ai_connection_id;
+                assertNotEquals(previousId, standbyId);
+                assertNotEquals("current-text", previousId);
+                assertEquals("legacy-secret", service.ai().getAi_api_key());
+                assertEquals("legacy-model", service.ai().getAi_model());
+                assertMasked(saved);
+
+                standby.ai_connection_id = standbyId;
+                standby.ai_api_key = "";
+                standby.ai_model = " another-model ";
+                updateConnection(db, standby);
+                assertEquals("legacy-model", service.ai().getAi_model());
+                updateConnection(db, action(AIConnectionRequest.Action.ACTIVATE, standbyId));
+                assertEquals("standby-secret", service.ai().getAi_api_key());
+                assertEquals("another-model", service.ai().getAi_model());
+                assertEquals("image-secret", service.ai().getAi_image_api_key());
+                assertEquals(standbyId, service.aiResponse().ai_connection_id);
+                assertThrows(
+                        AIActiveConnectionException.class,
+                        () ->
+                                updateConnection(
+                                        db, action(AIConnectionRequest.Action.DELETE, standbyId)));
+
+                standby.ai_base_url = "http://localhost:11434/v1/";
+                updateConnection(db, standby);
+                assertEquals(standbyId, service.aiResponse().ai_connection_id);
+                assertEquals("http://localhost:11434/v1", service.ai().getAi_base_url());
+                assertEquals("", service.ai().getAi_api_key());
+                assertEquals(3, service.aiResponse().ai_connections.size());
+
+                updateConnection(db, action(AIConnectionRequest.Action.ACTIVATE, previousId));
+                updateConnection(db, action(AIConnectionRequest.Action.DELETE, standbyId));
+                assertEquals("legacy-secret", service.ai().getAi_api_key());
+                assertEquals(2, service.aiResponse().ai_connections.size());
+                assertFalse(String.valueOf(value(db, "admin_audit_log")).contains("secret"));
+            }
+        }
+    }
+
+    @Test
+    public void disablingImagesRetainsTheirConnectionAndGlobalSettingsHaveIndependentWrites()
+            throws Exception {
+        try (ZrLogTestDatabase db = ZrLogTestDatabase.open()) {
+            AIGlobalSettingsRequest settings = new AIGlobalSettingsRequest();
+            settings.ai_prompt = "Updated before configuring a connection";
+            settings.ai_reasoning_enabled = false;
+            settings.ai_max_completion_tokens = 512;
+            service(db).updateGlobal(settings, audit("global"), settingsService(db));
+            assertNull(service(db).aiResponse().ai_connection_id);
+            assertNull(value(db, "ai_connections"));
+            assertEquals(settings.ai_prompt, service(db).ai().getAi_prompt());
+
+            seed(db);
+            AIConfigService service = service(db);
+            String legacyImage = service.aiResponse().ai_image_connection_id;
+            updateConnection(db, action(AIConnectionRequest.Action.DISABLE_IMAGE, legacyImage));
+            AIWebSiteInfoResponse disabled = service.aiResponse();
+            assertNull(disabled.ai_image_connection_id);
+            assertNull(disabled.getAi_image_provider());
+            assertFalse(disabled.isHasAiImageApiKey());
+            String imageId =
+                    disabled.ai_connections.stream()
+                            .filter(connection -> "image".equals(connection.ai_kind))
+                            .findFirst()
+                            .orElseThrow()
+                            .ai_connection_id;
+
+            Object connections = value(db, "ai_connections");
+            settings.ai_max_completion_tokens = null;
+            service.updateGlobal(settings, audit("global"), settingsService(db));
+            assertEquals(connections, value(db, "ai_connections"));
+            assertEquals(disabled.ai_connection_id, service.aiResponse().ai_connection_id);
+            assertNull(service.ai().getAi_max_completion_tokens());
+            assertFalse(service.ai().isReasoningEnabled());
+
+            updateConnection(db, action(AIConnectionRequest.Action.ACTIVATE, imageId));
+            assertEquals("image-secret", service.ai().getAi_image_api_key());
+            assertEquals("legacy-secret", service.ai().getAi_api_key());
+            assertEquals(settings.ai_prompt, service.ai().getAi_prompt());
+            assertThrows(
+                    ArgsException.class,
+                    () ->
+                            updateConnection(
+                                    db,
+                                    action(AIConnectionRequest.Action.DISABLE_IMAGE, legacyImage)));
+            assertEquals(imageId, service.aiResponse().ai_image_connection_id);
+        }
+    }
+
     private static void seed(ZrLogTestDatabase db) throws Exception {
         db.putWebsite("ai_provider", "DEEP_SEEK");
         db.putWebsite("ai_model", "legacy-model");
@@ -189,19 +308,37 @@ public class AIConnectionsTest {
     }
 
     private static void save(ZrLogTestDatabase db, AISettingsRequest request) throws Exception {
-        WebSiteSettingsService settings =
-                new WebSiteSettingsService(
-                        null,
-                        null,
-                        () -> null,
-                        ApplicationServicesFixture.audit(db.dataSource()),
-                        ApplicationServicesFixture.websiteKv(db.dataSource()),
-                        () -> new WebSiteRepository(db.dataSource()));
         service(db)
                 .updateAi(
                         request,
                         new AdminAuditContext(1, "127.0.0.1", "/api/admin/website/ai", "JUnit"),
-                        settings);
+                        settingsService(db));
+    }
+
+    private static void updateConnection(ZrLogTestDatabase db, AIConnectionRequest request)
+            throws SQLException {
+        service(db).updateConnection(request, audit("connections"), settingsService(db));
+    }
+
+    private static AdminAuditContext audit(String endpoint) {
+        return new AdminAuditContext(1, "127.0.0.1", "/api/admin/website/ai/" + endpoint, "JUnit");
+    }
+
+    private static WebSiteSettingsService settingsService(ZrLogTestDatabase db) {
+        return new WebSiteSettingsService(
+                null,
+                null,
+                () -> null,
+                ApplicationServicesFixture.audit(db.dataSource()),
+                ApplicationServicesFixture.websiteKv(db.dataSource()),
+                () -> new WebSiteRepository(db.dataSource()));
+    }
+
+    private static AIConnectionRequest action(AIConnectionRequest.Action action, String id) {
+        AIConnectionRequest request = new AIConnectionRequest();
+        request.action = action;
+        request.ai_connection_id = id;
+        return request;
     }
 
     private static AISettingsRequest request(AIWebSiteInfoResponse response) {

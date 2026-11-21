@@ -1,9 +1,13 @@
 package com.zrlog.admin.web.controller.ai;
 
 import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.service.AIConfigService;
 import com.zrlog.admin.business.ai.service.AIToolService;
+import com.zrlog.admin.business.rest.request.AIConnectionRequest;
+import com.zrlog.admin.business.rest.request.AIGlobalSettingsRequest;
 import com.zrlog.admin.business.rest.request.AISettingsRequest;
 import com.zrlog.admin.business.rest.request.OptimizeAiPromptRequest;
 import com.zrlog.admin.business.rest.request.OptimizeWebsiteDescriptionRequest;
@@ -82,6 +86,36 @@ public class AIWebSiteController extends BaseController {
                     settingsService);
         }
         return page(this.aIConfigService.aiResponse());
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
+    @RequestMethod(method = HttpMethod.POST)
+    public AdminPageDataResponse<AIWebSiteInfoResponse> connections() throws SQLException {
+        this.aIConfigService.updateConnection(
+                getRequestBodyWithNullCheck(AIConnectionRequest.class),
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                settingsService);
+        return updatedPage();
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
+    @RequestMethod(method = HttpMethod.POST)
+    public AdminPageDataResponse<AIWebSiteInfoResponse> global() throws SQLException {
+        this.aIConfigService.updateGlobal(
+                getRequestBodyWithNullCheck(AIGlobalSettingsRequest.class),
+                AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                settingsService);
+        return updatedPage();
+    }
+
+    private AdminPageDataResponse<AIWebSiteInfoResponse> updatedPage() {
+        return pages.response(
+                requestIdentity.optional(),
+                this.aIConfigService.aiResponse(),
+                I18nUtil.getAdminBackendStringFromRes("admin.common.update.success"),
+                AdminConstants.ADMIN_URI_BASE_PATH + "/website/ai");
     }
 
     private boolean isPost() {

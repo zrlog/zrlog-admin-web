@@ -50,6 +50,7 @@ public enum AdminErrorCode {
     AI_FILE_SIZE(9040, "ADMIN_AI_FILE_SIZE", "admin.ai.files.size"),
     AI_FILE_QUOTA(9041, "ADMIN_AI_FILE_QUOTA", "admin.ai.files.quota"),
     AI_FILE_UNAVAILABLE(9042, "ADMIN_AI_FILE_UNAVAILABLE", "admin.ai.files.unavailable"),
+    AI_ACTIVE_CONNECTION(9043, "ADMIN_AI_ACTIVE_CONNECTION", "admin.ai.error.activeConnection"),
     ARTICLE_UPDATE_EXPIRED(
             9094, "ADMIN_ARTICLE_UPDATE_EXPIRED", "admin.article.error.updateExpired"),
     ARTICLE_PINNING_NOT_ALLOWED(
