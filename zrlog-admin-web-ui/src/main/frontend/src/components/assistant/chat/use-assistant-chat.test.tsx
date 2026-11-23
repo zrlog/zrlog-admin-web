@@ -427,6 +427,16 @@ describe("knowledge assistant", () => {
         });
         expect(chat.messages).toHaveLength(0);
     });
+    it("shows the SSE failure when recovery returns the old approval", async () => {
+        const view = pausedRun();
+        get.mockResolvedValueOnce({ data: { error: 0, data: view } });
+        post.mockResolvedValueOnce({ data: 'data: {"type":"error","message":"Category read failed"}\n\n' });
+        await act(async () => {
+            await chat.decide(view, "approve", []);
+        });
+        expect(chat.messages[1].content).toBe("Category read failed");
+        expect(chat.messages[1].failed).toBe(true);
+    });
     it("reconciles a disconnected confirmation once and keeps the persisted task state", async () => {
         const view = pausedRun();
         post.mockRejectedValue(new Error("connection lost"));

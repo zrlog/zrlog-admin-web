@@ -7,6 +7,10 @@ final class AIChatErrorMessages {
     private AIChatErrorMessages() {}
 
     static String message(String code) {
+        return message(code, null);
+    }
+
+    static String message(String code, String status) {
         if (code == null || code.isBlank()) return null;
         String key;
         switch (code) {
@@ -14,7 +18,10 @@ final class AIChatErrorMessages {
                 key = "admin.ai.chat.error.permission";
                 break;
             case "saveFailed":
-                key = "admin.ai.chat.error.save";
+                key =
+                        "uncertain".equals(status)
+                                ? "admin.ai.chat.error.writeUnconfirmed"
+                                : "admin.ai.chat.error.save";
                 break;
             case "requestTimeout":
                 key = "admin.ai.error.timeout";

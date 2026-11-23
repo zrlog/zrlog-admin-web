@@ -18,6 +18,7 @@ export default function AssistantApproval({ run, disabled, onDecide, onRefresh }
         run.status === "expired" || (run.status === "awaiting_approval" && (approval?.expiresAt || 0) <= Date.now());
     const waiting = run.status === "awaiting_approval" && !expired;
     const running = run.status === "running" || run.status === "executing";
+    const hasError = run.status === "failed" || run.status === "uncertain";
     const title = waiting
         ? res.waiting
         : expired
@@ -51,11 +52,11 @@ export default function AssistantApproval({ run, disabled, onDecide, onRefresh }
     };
     return (
         <Alert
-            type={run.status === "failed" || run.status === "uncertain" ? "error" : "info"}
+            type={hasError ? "error" : "info"}
             title={title}
             description={
                 <Space orientation="vertical" style={{ width: "100%", minWidth: 0 }}>
-                    {run.status === "failed" && run.error && (
+                    {hasError && (run.message || run.error) && (
                         <Typography.Text>{run.message || getRes().articleEdit.knowledge.requestFailed}</Typography.Text>
                     )}
                     {approval && (

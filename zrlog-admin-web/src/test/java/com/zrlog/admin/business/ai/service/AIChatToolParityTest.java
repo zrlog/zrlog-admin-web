@@ -47,7 +47,7 @@ public class AIChatToolParityTest {
 
     @Parameterized.Parameters(name = "database={0}")
     public static String[] databases() {
-        return new String[] {"h2", "sqlite"};
+        return new String[] {"h2", "sqlite", "webapi"};
     }
 
     private static List<JsonObject> articleUpdates(String wire) {
@@ -107,10 +107,17 @@ public class AIChatToolParityTest {
     }
 
     private InMemoryZrLogDatabase open() throws Exception {
-        InMemoryZrLogDatabase db =
-                database.equals("sqlite")
-                        ? InMemoryZrLogDatabase.openSqlite()
-                        : InMemoryZrLogDatabase.open();
+        InMemoryZrLogDatabase db;
+        switch (database) {
+            case "webapi":
+                db = InMemoryZrLogDatabase.openWebApi();
+                break;
+            case "sqlite":
+                db = InMemoryZrLogDatabase.openSqlite();
+                break;
+            default:
+                db = InMemoryZrLogDatabase.open();
+        }
         db.putWebsite("ai_provider", "OPEN_AI");
         db.putWebsite("ai_model", "test");
         db.putWebsite("ai_base_url", "http://localhost:1234");
@@ -230,6 +237,28 @@ public class AIChatToolParityTest {
             assertFalse(audit.isEmpty());
             assertTrue(audit.stream().allMatch(entry -> entry.getActorUserId() == 1));
             assertSame(token, AdminTokenThreadLocal.getUser());
+        }
+    }
+
+    @Test
+    public void articleWriteSqlFailureReportsTheUnconfirmedWrite() throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            db.loadAdminWebModules();
+            applicationConfig = db.config();
+            db.execute("alter table log rename column markdown to unavailable_markdown");
+            Model model =
+                    new Model(
+                            db.dataSource(),
+                            tools(),
+                            tool(
+                                    "create_article",
+                                    "{\"title\":\"Test draft\",\"typeId\":1,\"status\":\"draft\",\"markdown\":\"test\",\"content\":\"<p>test</p>\"}"));
+            String wire = model.chat();
+            assertTrue(wire, wire.contains("\"error\":\"saveFailed\""));
+            assertTrue(wire, wire.contains("\"status\":\"uncertain\""));
+            assertTrue(
+                    wire, wire.contains("The database could not confirm the result of the write."));
+            assertEquals(0, ((Number) db.scalar("select count(*) from log")).intValue());
         }
     }
 

@@ -5,6 +5,7 @@ import static com.zrlog.admin.business.ai.service.AIChatRunExecutor.editorArticl
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.hibegin.common.util.EnvKit;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.*;
 import com.zrlog.admin.business.ai.model.*;
@@ -31,6 +32,7 @@ import java.io.*;
 import java.net.http.HttpTimeoutException;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /** Persistent conversations scoped to the account and optional article or task context. */
@@ -78,6 +80,17 @@ public class AIChatService {
     private static Long conversationId(AccountAccess actor, Long articleId) {
         if (articleId == null) return null;
         return articleId != null && articleId == 0 ? -(long) actor.getUserId() : articleId;
+    }
+
+    private static void logFailure(String action, Run run, Exception failure) {
+        String message =
+                action
+                        + ", runId="
+                        + run.id
+                        + (run.approval == null ? "" : ", tool=" + run.approval.tool)
+                        + ", exception="
+                        + failure.getClass().getSimpleName();
+        LOGGER.log(Level.WARNING, message, EnvKit.isDevMode() ? failure : null);
     }
 
     private static String errorCode(Exception e) {
@@ -680,7 +693,7 @@ public class AIChatService {
             view.answer = null;
             view.articleUpdates = List.of();
         }
-        view.message = AIChatErrorMessages.message(view.error);
+        view.message = AIChatErrorMessages.message(view.error, view.status);
         return view;
     }
 
@@ -809,11 +822,21 @@ public class AIChatService {
                                         answer.messages = entries;
                                     });
                         } catch (AIApprovalStore.Changed e) {
-                            emitState(
-                                    actor,
-                                    sink,
-                                    store.read(
-                                            run.userId, run.articleId, run.taskId, run.sessionId));
+                            try {
+                                Run current =
+                                        store.read(
+                                                run.userId,
+                                                run.articleId,
+                                                run.taskId,
+                                                run.sessionId);
+                                emitState(actor, sink, current);
+                            } catch (SQLException reloadError) {
+                                logFailure(
+                                        "Unable to reload assistant checkpoint", run, reloadError);
+                                Event event = new Event("error");
+                                event.error = errorCode(reloadError);
+                                events.write(sink, event);
+                            }
                         } catch (Exception e) {
                             run.error = errorCode(e);
                             if (run.revision != null
@@ -827,23 +850,21 @@ public class AIChatService {
                                                     ? "uncertain"
                                                     : "failed");
                                 } catch (Exception saveError) {
-                                    LOGGER.warning("Unable to save assistant failure checkpoint");
+                                    logFailure(
+                                            "Unable to save assistant failure checkpoint",
+                                            run,
+                                            saveError);
                                 }
                             }
-                            LOGGER.warning(
-                                    "Assistant request failed: error="
-                                            + run.error
-                                            + ", exception="
-                                            + e.getClass().getSimpleName());
-                            if (run.revision != null) emitState(actor, sink, run);
+                            logFailure("Assistant request failed: error=" + run.error, run, e);
                             Event event = new Event("error");
                             event.error = run.error;
+                            event.message = AIChatErrorMessages.message(run.error, run.status);
                             events.write(sink, event);
+                            if (run.revision != null) emitState(actor, sink, run);
                         }
-                    } catch (IOException ignored) {
-                        /* State is durable even if the client disconnects. */
-                    } catch (SQLException e) {
-                        LOGGER.warning("Unable to reload assistant checkpoint");
+                    } catch (IOException failure) {
+                        logFailure("Unable to deliver assistant stream", run, failure);
                     }
                 };
         ThreadUtils.start(task);
