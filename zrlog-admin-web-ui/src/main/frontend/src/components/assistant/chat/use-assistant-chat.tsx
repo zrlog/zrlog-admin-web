@@ -260,7 +260,7 @@ export const useAssistantChat = (
         contextRef.current.onMessagesChange?.(next, view.articleId);
     }, []);
     const refreshRun = useCallback(
-        async (articleId = contextRef.current.session?.articleId) => {
+        async (articleId = contextRef.current.session?.articleId, failure?: { runId: string; message: string }) => {
             if (articleId === undefined && !contextRef.current.session) return false;
             const revision = generation.current;
             try {
@@ -282,6 +282,10 @@ export const useAssistantChat = (
                     view.sessionId !== contextRef.current.session?.sessionId
                 )
                     return false;
+                if (failure) {
+                    if (view.runId !== failure.runId || activeRun(view)) return false;
+                    if (!view.message) view.message = failure.message;
+                }
                 const created = articleId === 0 ? createdArticleUpdate(view.articleUpdates || []) : undefined;
                 // A completed draft run has moved its conversation to the created article. A fresh
                 // new-article page must not reopen it; an interrupted local turn can still recover it.
@@ -406,6 +410,7 @@ export const useAssistantChat = (
         let lastSkillCount = 0;
         let latestCheckpoint: ChatRun | undefined;
         let restoredRun = false;
+        let serverFailure: string | undefined;
         const updatedVersions = new Set<string>();
         const draftUpdates: ArticleUpdatedEvent[] = [...(approval?.run.articleUpdates || [])];
         const receiveUpdate = (event: ArticleUpdatedEvent) => {
@@ -440,16 +445,20 @@ export const useAssistantChat = (
                         ...(event.created ? { created: true } : {}),
                     });
             }
+            const error = events.find((event) => event.type === "error");
+            if (error) serverFailure = error.message || res.requestFailed;
             const checkpoint = [...events]
                 .reverse()
                 .find((event) => ["approval-required", "interaction-required", "run-state"].includes(event.type));
             if (
                 checkpoint?.run &&
+                !(serverFailure && activeRun(checkpoint.run)) &&
                 checkpoint.run.articleId === articleId &&
                 checkpoint.run.taskId === taskId &&
                 checkpoint.run.sessionId === sessionId
             ) {
                 const view = checkpoint.run;
+                if (serverFailure && !view.message) view.message = serverFailure;
                 latestCheckpoint = view;
                 // A server-side run may still be active after a client disconnect. Its state
                 // response did not accept this new prompt; keep that prompt in the local queue.
@@ -462,8 +471,7 @@ export const useAssistantChat = (
                 restorePending.current = () => mergeRun(view, context);
                 return;
             }
-            const error = events.find((e) => e.type === "error");
-            if (error) throw new Error(error.message || res.requestFailed);
+            if (serverFailure) throw new Error(serverFailure);
             const progress = [...events]
                 .reverse()
                 .find((e) => ["tool", "thinking", "delta", "reasoning_delta", "reasoning"].includes(e.type));
@@ -583,8 +591,12 @@ export const useAssistantChat = (
             consume(typeof response.data === "string" ? response.data : "", true);
         } catch (error) {
             if (run === generation.current) outcome.current = false;
-            if (approval && run === generation.current && (restoredRun = await refreshRun(articleId))) return;
-            if (latestCheckpoint && run === generation.current) {
+            if (approval && run === generation.current) {
+                const failure = serverFailure ? { runId: approval.run.runId, message: serverFailure } : undefined;
+                restoredRun = await refreshRun(articleId, failure);
+                if (restoredRun) return;
+            }
+            if (latestCheckpoint && !serverFailure && run === generation.current) {
                 mergeRun(latestCheckpoint, context);
                 return;
             }
@@ -594,7 +606,7 @@ export const useAssistantChat = (
                     {
                         role: "assistant",
                         createdAt: question.createdAt,
-                        content: getErrorMessage(error, res.requestFailed),
+                        content: serverFailure || getErrorMessage(error, res.requestFailed),
                         thinking: false,
                         failed: true,
                         messageType: "knowledge",

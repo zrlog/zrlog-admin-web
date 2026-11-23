@@ -95,7 +95,8 @@ describe("article operation approval", () => {
         render(view);
         expect(container.textContent).toContain(getRes().articleEdit.approval.expired);
         expect(button(getRes().articleEdit.approval.approve)).toBeUndefined();
-        render({ ...paused(), status: "uncertain" });
+        render({ ...paused(), status: "uncertain", message: "Database write could not be confirmed" });
+        expect(container.textContent).toContain("Database write could not be confirmed");
         expect(button(getRes().articleEdit.approval.approve)).toBeUndefined();
         render({ ...paused(), status: "running" });
         expect(refresh).not.toHaveBeenCalled();
