@@ -149,13 +149,12 @@ public final class ArticlePublication {
                 body.isPrivacy())) throw new PermissionErrorException();
         body.doValid();
         body.doClean();
-        if (types.get().loadById(body.getTypeId()) == null)
-            throw invalid("admin.mcp.validation.category");
+        requireCategory(body.getTypeId());
         publishing.prepareRequest(body);
         if (body.getMarkdown() != null
                 && !body.getMarkdown().isBlank()
                 && (body.getContent() == null || body.getContent().isBlank())) {
-            throw invalid("admin.mcp.validation.htmlRequired");
+            throw new ValidationException("admin.mcp.validation.htmlRequired");
         }
         CreateOrUpdateArticleResponse saved =
                 old == null
@@ -171,8 +170,26 @@ public final class ArticlePublication {
         }
     }
 
-    private static IllegalArgumentException invalid(String key) {
-        return new IllegalArgumentException(I18nUtil.getAdminBackendStringFromRes(key));
+    private void requireCategory(long typeId) throws CategoryLookupException {
+        try {
+            if (types.get().queryFirstObj("select 1 from type where typeId=?", typeId) == null)
+                throw new ValidationException("admin.mcp.validation.category");
+        } catch (SQLException cause) {
+            throw new CategoryLookupException(cause);
+        }
+    }
+
+    public static final class CategoryLookupException extends SQLException {
+        private CategoryLookupException(SQLException cause) {
+            super("Could not verify the article category", cause);
+        }
+    }
+
+    /** The article was rejected before the publishing service attempted a write. */
+    public static final class ValidationException extends IllegalArgumentException {
+        private ValidationException(String key) {
+            super(I18nUtil.getAdminBackendStringFromRes(key));
+        }
     }
 
     @FunctionalInterface
