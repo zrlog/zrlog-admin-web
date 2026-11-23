@@ -172,7 +172,7 @@ public final class ArticlePublication {
 
     private void requireCategory(long typeId) throws CategoryLookupException {
         try {
-            if (types.get().queryFirstObj("select 1 from type where typeId=?", typeId) == null)
+            if (!types.get().existsById(typeId))
                 throw new ValidationException("admin.mcp.validation.category");
         } catch (SQLException cause) {
             throw new CategoryLookupException(cause);
