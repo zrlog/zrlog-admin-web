@@ -241,6 +241,38 @@ public class AIChatToolParityTest {
     }
 
     @Test
+    public void approvedDraftOnlyNeedsTheIdOfAnExistingCategory() throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            db.loadAdminWebModules();
+            applicationConfig = db.config();
+            db.execute("insert into type(typeId,typeName) values(5,'Other')");
+            db.execute("alter table type rename column pid to legacy_parent_id");
+            String sessionId =
+                    AIServiceDependencies.conversations(db.dataSource())
+                            .captureAccount(1)
+                            .openDraftConversation();
+            Model model =
+                    new Model(
+                            db.dataSource(),
+                            tools(),
+                            tool(
+                                    "create_article",
+                                    "{\"title\":\"Test draft\",\"typeId\":5,\"status\":\"draft\",\"markdown\":\"# Test\",\"content\":\"<h1>Test</h1>\"}"),
+                            ANSWER);
+            String wire = model.chat(0, sessionId);
+            assertTrue(wire, wire.contains("\"type\":\"done\""));
+            assertEquals(1, articleUpdates(wire).size());
+            assertEquals(
+                    1,
+                    ((Number)
+                                    db.scalar(
+                                            "select count(*) from log where typeId=5 and rubbish=?",
+                                            true))
+                            .intValue());
+        }
+    }
+
+    @Test
     public void articleWriteSqlFailureReportsTheUnconfirmedWrite() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
@@ -259,6 +291,63 @@ public class AIChatToolParityTest {
             assertTrue(
                     wire, wire.contains("The database could not confirm the result of the write."));
             assertEquals(0, ((Number) db.scalar("select count(*) from log")).intValue());
+        }
+    }
+
+    @Test
+    public void categoryReadFailureFailsTheRunBeforeWriting() throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            db.loadAdminWebModules();
+            applicationConfig = db.config();
+            db.execute("alter table type rename to unavailable_type");
+            Model model =
+                    new Model(
+                            db.dataSource(),
+                            tools(),
+                            tool(
+                                    "create_article",
+                                    "{\"title\":\"Test draft\",\"typeId\":1,\"status\":\"draft\"}"));
+            String wire = model.chat();
+            assertTrue(wire, wire.contains("\"status\":\"failed\""));
+            assertTrue(wire.contains("\"error\":\"categoryLookupFailed\""));
+            assertTrue(wire.contains("Could not read the article category"));
+            assertTrue(wire.indexOf("\"type\":\"error\"") < wire.indexOf("\"type\":\"run-state\""));
+            assertEquals(0, ((Number) db.scalar("select count(*) from log")).intValue());
+        }
+    }
+
+    @Test
+    public void missingCategoryCanBeCorrectedInTheConversationBeforeCreatingAnArticle()
+            throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            db.loadAdminWebModules();
+            applicationConfig = db.config();
+            Model model =
+                    new Model(
+                            db.dataSource(),
+                            tools(),
+                            tool(
+                                    "create_article",
+                                    "{\"title\":\"Test\",\"typeId\":999,\"status\":\"draft\"}"),
+                            tool("list_categories", "{}"),
+                            tool(
+                                    "create_article",
+                                    "{\"title\":\"Test\",\"typeId\":1,\"status\":\"draft\"}"),
+                            ANSWER);
+            String wire = model.chat();
+            assertTrue(wire, wire.contains("\"type\":\"done\""));
+            assertTrue(
+                    model.requests
+                            .get(1)
+                            .toString()
+                            .contains("The selected category does not exist"));
+            assertEquals(
+                    2,
+                    wire.lines()
+                            .filter(line -> line.contains("\"type\":\"approval-required\""))
+                            .count());
+            assertEquals(1, articleUpdates(wire).size());
+            assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
         }
     }
 
@@ -476,10 +565,14 @@ public class AIChatToolParityTest {
         }
 
         String chat(long articleId) throws Exception {
+            return chat(articleId, null);
+        }
+
+        String chat(long articleId, String sessionId) throws Exception {
             ChatRequest input = new ChatRequest();
-            input.articleId = 0L;
             input.input = "Save and publish the article as requested";
             input.articleId = articleId;
+            input.sessionId = sessionId;
             String chunk =
                     new String(
                             service.start(
@@ -512,6 +605,7 @@ public class AIChatToolParityTest {
                 var view = paused.get().getAsJsonObject("run");
                 var confirmation = new AIChatModels.ApprovalRequest();
                 confirmation.articleId = articleId;
+                confirmation.sessionId = sessionId;
                 confirmation.runId = view.get("runId").getAsString();
                 confirmation.approvalId = view.getAsJsonObject("approval").get("id").getAsString();
                 confirmation.decision = "approve";

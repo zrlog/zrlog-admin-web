@@ -18,6 +18,7 @@ import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.admin.business.knowledge.ToolProvider;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.business.service.ArticlePublication;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
@@ -251,9 +252,12 @@ public class AIChatRunExecutor {
                                 result = knowledge.call(call.function.name, args);
                             }
                         }
-                    } catch (PermissionErrorException e) {
+                    } catch (PermissionErrorException
+                            | ArticlePublication.CategoryLookupException e) {
                         run.status = "running";
                         throw e;
+                    } catch (ArticlePublication.ValidationException e) {
+                        result = new ToolError(e.getMessage());
                     } catch (JsonParseException | IllegalArgumentException | ArgsException e) {
                         // A storage/plugin implementation can throw unchecked errors after
                         // committing a write.

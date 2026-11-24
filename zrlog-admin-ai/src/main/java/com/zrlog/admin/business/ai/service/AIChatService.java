@@ -21,6 +21,7 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.business.service.ArticlePublication.CategoryLookupException;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.exception.ArgsException;
@@ -96,6 +97,7 @@ public class AIChatService {
     private static String errorCode(Exception e) {
         if (e instanceof PermissionErrorException) return "permission";
         if (e instanceof AIFileInputException) return "fileInputFailed";
+        if (e instanceof CategoryLookupException) return "categoryLookupFailed";
         if (e instanceof SQLException || e instanceof AIMessageSaveException) return "saveFailed";
         if (e instanceof HttpTimeoutException) return "requestTimeout";
         if (e instanceof AIIncompleteResponseException) return "responseIncomplete";

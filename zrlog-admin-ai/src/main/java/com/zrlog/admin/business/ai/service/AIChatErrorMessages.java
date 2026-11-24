@@ -23,6 +23,9 @@ final class AIChatErrorMessages {
                                 ? "admin.ai.chat.error.writeUnconfirmed"
                                 : "admin.ai.chat.error.save";
                 break;
+            case "categoryLookupFailed":
+                key = "admin.ai.chat.error.categoryLookup";
+                break;
             case "requestTimeout":
                 key = "admin.ai.error.timeout";
                 break;
