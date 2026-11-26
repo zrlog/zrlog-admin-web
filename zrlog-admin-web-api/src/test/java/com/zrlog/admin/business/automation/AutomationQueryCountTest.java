@@ -130,7 +130,7 @@ public class AutomationQueryCountTest {
         reset();
         assertTrue(notices.list(actor).isEmpty());
         assertEquals(queries.toString(), 2, reads.get());
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 51; i++) {
             var run = new AutomationModels.Run();
             long now = System.currentTimeMillis();
             run.id =
@@ -154,6 +154,22 @@ public class AutomationQueryCountTest {
         assertEquals(50, unread.size());
         assertEquals(queries.toString(), 2, reads.get());
         for (var notice : unread) assertTrue(notices.markRead(actor, notice.getTaskKey()));
+        reset();
+        var pages = db.component(com.zrlog.admin.web.di.account.AccountComponent.class).pages();
+        assertEquals(
+                Integer.valueOf(actor.getUserId()),
+                pages.response(actor, null).getMessageCenter().getAssistantUnreadUserId());
+        var inboxQueries =
+                queries.stream()
+                        .filter(sql -> sql.contains("assistant_task_run"))
+                        .collect(java.util.stream.Collectors.toList());
+        assertEquals(inboxQueries.toString(), 1, inboxQueries.size());
+        assertTrue(inboxQueries.get(0).startsWith("SELECT 1 "));
+        assertFalse(inboxQueries.get(0).contains("ORDER BY"));
+        var lastPage = notices.list(actor);
+        assertEquals(1, lastPage.size());
+        assertTrue(notices.markRead(actor, lastPage.get(0).getTaskKey()));
+        assertNull(pages.response(actor, null).getMessageCenter().getAssistantUnreadUserId());
         reset();
         assertTrue(notices.list(actor).isEmpty());
         assertEquals(queries.toString(), 2, reads.get());

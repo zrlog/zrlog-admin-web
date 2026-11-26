@@ -11,8 +11,11 @@ import com.zrlog.data.util.WebSiteUtils;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Assembles page metadata from the owning application at response time. */
 @Singleton
@@ -21,12 +24,28 @@ public final class AdminPageDataFactory {
     private final Supplier<String> buildId;
     private final MessageCenterStateService messages;
 
+    @FunctionalInterface
+    public interface AssistantUnreadStatus {
+        boolean hasUnread(AccountAccess actor) throws SQLException;
+    }
+
+    private final AssistantUnreadStatus assistantNotices;
+
+    public AdminPageDataFactory(
+            Supplier<PublicWebSiteInfo> site,
+            Supplier<String> buildId,
+            MessageCenterStateService messages) {
+        this(site, buildId, messages, actor -> false);
+    }
+
     @Inject
     public AdminPageDataFactory(
             Supplier<PublicWebSiteInfo> site,
             @Named("adminBuildId") Supplier<String> buildId,
-            MessageCenterStateService messages) {
+            MessageCenterStateService messages,
+            AssistantUnreadStatus assistantNotices) {
         this.messages = messages;
+        this.assistantNotices = assistantNotices;
 
         this.site = Objects.requireNonNull(site);
         this.buildId = Objects.requireNonNull(buildId);
@@ -51,6 +70,15 @@ public final class AdminPageDataFactory {
                 actor != null && AccountAction.DASHBOARD_READ.allowed(actor)
                         ? messages.current()
                         : new MessageCenterStatusResponse();
+        if (actor != null && AccountAction.SESSION.allowed(actor)) {
+            try {
+                if (assistantNotices.hasUnread(actor))
+                    status.setAssistantUnreadUserId(actor.getUserId());
+            } catch (SQLException e) {
+                Logger.getLogger(AdminPageDataFactory.class.getName())
+                        .log(Level.WARNING, "Could not read assistant notice status", e);
+            }
+        }
         return new AdminPageMetadata(
                 Objects.requireNonNullElse(buildId.get(), ""),
                 StringUtils.isNotEmpty(uri)

@@ -68,10 +68,27 @@ public final class AutomationController extends BaseController {
         var input =
                 getRequestBodyWithNullCheck(
                         com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest.class);
-        return result(
-                () ->
-                        notifications.markRead(
-                                identities.current(), input.getTaskKey(), input.getReferenceId()));
+        var actor = identities.current();
+        var result =
+                result(
+                        () ->
+                                notifications.markRead(
+                                        actor, input.getTaskKey(), input.getReferenceId()));
+        if (!Boolean.TRUE.equals(result.getData())) return result;
+        return new ReadNoticeResponse(tasks.hasUnreadNotices(actor));
+    }
+
+    public static final class ReadNoticeResponse extends ApiStandardResponse<Boolean> {
+        private final boolean hasUnread;
+
+        public ReadNoticeResponse(boolean hasUnread) {
+            super(true);
+            this.hasUnread = hasUnread;
+        }
+
+        public boolean isHasUnread() {
+            return hasUnread;
+        }
     }
 
     @ResponseBody

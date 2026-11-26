@@ -213,7 +213,11 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                                     .getStaticResourceBuildId();
                                                 },
                                                 zrLogConfig.getServerConfig()::getPort,
-                                                zrLogConfig.getServerConfig()::getContextPath))
+                                                zrLogConfig.getServerConfig()::getContextPath,
+                                                actor ->
+                                                        r.get(AutomationComponent.class)
+                                                                .tasks()
+                                                                .hasUnreadNotices(actor)))
                 .singleton(TokenService.class, r -> r.get(AccountComponent.class).tokens())
                 .singleton(
                         com.zrlog.admin.business.automation.AssistantTaskContextProvider.class,

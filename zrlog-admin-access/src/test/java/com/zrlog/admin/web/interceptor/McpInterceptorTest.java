@@ -793,7 +793,8 @@ public class McpInterceptorTest {
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
                                 serverConfig::getPort,
-                                serverConfig::getContextPath);
+                                serverConfig::getContextPath,
+                                actor -> false);
         serverConfig
                 .getBindings()
                 .instance(

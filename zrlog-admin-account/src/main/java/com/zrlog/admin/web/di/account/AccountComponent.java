@@ -74,6 +74,7 @@ public interface AccountComponent {
                 @BindsInstance Supplier<PublicWebSiteInfo> site,
                 @BindsInstance @Named("adminBuildId") Supplier<String> buildId,
                 @BindsInstance Supplier<Integer> listenerPort,
-                @BindsInstance @Named("contextPath") Supplier<String> contextPath);
+                @BindsInstance @Named("contextPath") Supplier<String> contextPath,
+                @BindsInstance AdminPageDataFactory.AssistantUnreadStatus assistantNotices);
     }
 }

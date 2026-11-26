@@ -5,6 +5,7 @@ import type {
     PublicKeyCredentialRequestOptionsJSON,
     RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
+import type {MessageCenterStatus} from "./utils/message-center-status";
 import type {BackgroundTaskStatus} from "./utils/background-task-store";
 
 export type AppCompactModeState = Required<Pick<ThemeAppearance, "compactMode">>;
@@ -91,10 +92,7 @@ export type ApiResponse<T> = {
     message: string;
     pageBuildId: string;
     documentTitle?: string;
-    messageCenter?: {
-        revision: number;
-        hasUnread: boolean;
-    };
+    messageCenter?: MessageCenterStatus;
 };
 
 export type UpgradeVersion = {
@@ -280,10 +278,7 @@ export type AdminCommonProps<P> = {
     userInfo?: BasicUserInfo;
     pageBuildId?: string;
     systemNotification?: string;
-    messageCenter?: {
-        revision: number;
-        hasUnread: boolean;
-    };
+    messageCenter?: MessageCenterStatus;
     updateCache?: (cache: P, cacheKey: string) => void;
 };
 
