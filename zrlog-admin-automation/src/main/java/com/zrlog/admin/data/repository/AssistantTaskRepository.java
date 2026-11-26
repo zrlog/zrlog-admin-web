@@ -1,8 +1,8 @@
 package com.zrlog.admin.data.repository;
 
 import com.hibegin.common.dao.DataSourceWrapper;
+import com.hibegin.common.dao.entity.BaseRepository;
 import com.zrlog.admin.data.entity.AssistantTask;
-import com.zrlog.data.repository.BaseRepository;
 import jakarta.inject.Inject;
 
 public final class AssistantTaskRepository extends BaseRepository<AssistantTask, String> {

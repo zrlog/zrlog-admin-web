@@ -1,8 +1,7 @@
 package com.zrlog.admin.data.repository;
 
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.data.repository.*;
-import com.zrlog.data.repository.BaseRepository;
+import com.hibegin.common.dao.entity.BaseRepository;
 import com.zrlog.model.LogVersion;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
