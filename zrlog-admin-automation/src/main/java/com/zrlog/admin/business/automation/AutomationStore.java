@@ -329,13 +329,29 @@ public final class AutomationStore {
 
     public List<Snapshot<AutomationModels.Run>> unreadNotices(
             int ownerId, List<String> systemIds, int limit) throws SQLException {
+        var query = unreadNoticeQuery(ownerId, systemIds);
+        query.order = "r.finishedAt DESC,r.id DESC";
+        return summaries(query, limit, 0);
+    }
+
+    boolean hasUnreadNotices(int ownerId, List<String> systemIds) throws SQLException {
+        var query = unreadNoticeQuery(ownerId, systemIds);
+        return runs.get()
+                        .queryFirstObj(
+                                "SELECT 1 FROM assistant_task_run r WHERE "
+                                        + query.where
+                                        + " LIMIT 1",
+                                query.parameters.toArray())
+                != null;
+    }
+
+    private static RunQuery unreadNoticeQuery(int ownerId, List<String> systemIds) {
         var query = visibleRunQuery(ownerId, systemIds, null);
         query.where +=
                 " AND r.notifyOwner=? AND r.finishedAt IS NOT NULL AND NOT EXISTS (SELECT 1 FROM assistant_notice_read n WHERE n.userId=? AND n.runId=r.id)";
         query.parameters.add(true);
         query.parameters.add(ownerId);
-        query.order = "r.finishedAt DESC,r.id DESC";
-        return summaries(query, limit, 0);
+        return query;
     }
 
     private List<Snapshot<AutomationModels.Run>> summaries(RunQuery query, int limit, int offset)

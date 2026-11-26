@@ -246,9 +246,14 @@ public class SystemTaskPermissionsTest {
         assertThrows(PermissionErrorException.class, () -> service.run(actor(3), run.id));
         assertTrue(service.runs(actor(3), null, 20, 0).isEmpty());
         var notices = new AutomationNotificationService(store, authority, service);
+        assertTrue(service.hasUnreadNotices(owner));
+        assertTrue(service.hasUnreadNotices(admin));
+        assertFalse(service.hasUnreadNotices(actor(3)));
         assertEquals(1, notices.list(owner).size());
         assertEquals(1, notices.list(admin).size());
         assertTrue(notices.markRead(admin, AutomationNotificationService.PREFIX + run.id));
+        assertFalse(service.hasUnreadNotices(admin));
+        assertTrue(service.hasUnreadNotices(owner));
         assertTrue(notices.list(admin).isEmpty());
         assertEquals(1, notices.list(owner).size());
         db.execute("UPDATE user SET role=? WHERE userId=?", "author", 2);

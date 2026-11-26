@@ -14,7 +14,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import {
     BackgroundTaskStatus,
-    clearFinishedBackgroundTasks,
+    BackgroundTask,
     getBackgroundTasks,
     isBackgroundTaskActive,
     removeBackgroundTask,
@@ -22,6 +22,8 @@ import {
 } from "../utils/background-task-store";
 import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../utils/constants";
 import { getAppState } from "../base/ConfigProviderApp";
+import { getSsDate } from "../base/SsData";
+import { syncAssistantUnreadStatus } from "../utils/message-center-status";
 import { useAxiosBaseInstance } from "../base/AppBase";
 
 const MessageCenter = ({
@@ -30,12 +32,14 @@ const MessageCenter = ({
     hasUnread = false,
     showSiteNotices = true,
     onRefresh,
+    onSiteNoticesChanged,
 }: {
     compact?: boolean;
     loading?: boolean;
     hasUnread?: boolean;
     showSiteNotices?: boolean;
     onRefresh?: (force?: boolean) => void;
+    onSiteNoticesChanged?: () => void;
 }) => {
     const { useBreakpoint } = Grid;
     const screens = useBreakpoint();
@@ -46,6 +50,7 @@ const MessageCenter = ({
     const location = useLocation();
     const axiosInstance = useAxiosBaseInstance();
     const [open, setOpen] = useState(false);
+    const [dismissing, setDismissing] = useState(false);
     const [allTasks, setTasks] = useState(getBackgroundTasks());
     const tasks = useMemo(
         () => allTasks.filter((task) => showSiteNotices || task.noticeScope !== "site"),
@@ -64,7 +69,10 @@ const MessageCenter = ({
     }, []);
 
     const runningCount = useMemo(() => tasks.filter((task) => task.status === "running").length, [tasks]);
-    const activeCount = useMemo(() => tasks.filter((task) => isBackgroundTaskActive(task.status)).length, [tasks]);
+    const activeCount = useMemo(
+        () => tasks.filter((task) => !task.noticeScope && isBackgroundTaskActive(task.status)).length,
+        [tasks]
+    );
     const hasFinishedTask = useMemo(() => tasks.some((task) => !isBackgroundTaskActive(task.status)), [tasks]);
 
     const getStatusMeta = (status: BackgroundTaskStatus) => {
@@ -125,42 +133,34 @@ const MessageCenter = ({
             <NotificationsIcon style={{ fontSize: triggerIconSize }} />
         );
 
-    const handleRemoveTask = async (taskId: string, dismissPath?: string, dismissPayload?: Record<string, unknown>) => {
-        if (dismissPath) {
-            const { data } = await axiosInstance.post(dismissPath, dismissPayload || {});
-            if (data?.error !== 0) {
-                onRefresh?.(true);
-                return;
+    const dismissTasks = async (toDismiss: BackgroundTask[]) => {
+        const session = getSsDate().key;
+        setDismissing(true);
+        let siteChanged = false;
+        try {
+            for (const task of toDismiss) {
+                if (session !== getSsDate().key) return;
+                if (task.dismissPath) {
+                    const { data } = await axiosInstance.post(task.dismissPath, task.dismissPayload || {});
+                    if (session !== getSsDate().key || data?.error !== 0 || data.data === false) return;
+                    if (task.noticeScope === "account" && typeof data.hasUnread === "boolean") {
+                        syncAssistantUnreadStatus(data.hasUnread ? getSsDate().user?.userId : undefined);
+                    }
+                    if (task.noticeScope === "site") siteChanged = true;
+                }
+                removeBackgroundTask(task.id);
             }
+        } catch {
+            // Failed dismissals remain available for retry.
+        } finally {
+            setDismissing(false);
+            if (siteChanged && session === getSsDate().key) onSiteNoticesChanged?.();
         }
-        removeBackgroundTask(taskId);
-        onRefresh?.(true);
-    };
-
-    const handleClearFinishedTasks = async () => {
-        const finishedTasks = tasks.filter((task) => !isBackgroundTaskActive(task.status));
-        for (const task of finishedTasks) {
-            if (!task.dismissPath) {
-                continue;
-            }
-            const { data } = await axiosInstance.post(task.dismissPath, task.dismissPayload || {});
-            if (data?.error !== 0) {
-                onRefresh?.(true);
-                return;
-            }
-        }
-        clearFinishedBackgroundTasks();
-        onRefresh?.(true);
-    };
-
-    const openMessageCenter = () => {
-        setOpen(true);
-        onRefresh?.();
     };
 
     const handleOpenChange = (nextOpen: boolean) => {
         setOpen(nextOpen);
-        if (nextOpen) {
+        if (nextOpen && !dismissing) {
             onRefresh?.();
         }
     };
@@ -172,7 +172,7 @@ const MessageCenter = ({
             aria-label={getRes().backgroundTask.title}
             aria-expanded={open}
             title={getRes().backgroundTask.title}
-            onClick={openMessageCenter}
+            onClick={mobileMode ? () => handleOpenChange(true) : undefined}
             style={
                 compact
                     ? undefined
@@ -207,6 +207,24 @@ const MessageCenter = ({
         </Button>
     );
 
+    const actions = (
+        <Space size={4}>
+            <Button type="link" size="small" disabled={loading || dismissing} onClick={() => onRefresh?.(true)}>
+                {getRes().common.refresh}
+            </Button>
+            {hasFinishedTask && (
+                <Button
+                    type="link"
+                    size="small"
+                    disabled={loading || dismissing}
+                    onClick={() => void dismissTasks(tasks.filter((task) => !isBackgroundTaskActive(task.status)))}
+                >
+                    {getRes().backgroundTask.clearFinished}
+                </Button>
+            )}
+        </Space>
+    );
+
     const popoverTitle = (
         <div
             style={{
@@ -217,11 +235,7 @@ const MessageCenter = ({
             }}
         >
             <Typography.Text strong>{getRes().backgroundTask.title}</Typography.Text>
-            {hasFinishedTask ? (
-                <Button type="link" size="small" onClick={() => void handleClearFinishedTasks()}>
-                    {getRes().backgroundTask.clearFinished}
-                </Button>
-            ) : null}
+            {actions}
         </div>
     );
 
@@ -346,9 +360,8 @@ const MessageCenter = ({
                                         <Button
                                             type="text"
                                             size="small"
-                                            onClick={() =>
-                                                void handleRemoveTask(task.id, task.dismissPath, task.dismissPayload)
-                                            }
+                                            disabled={dismissing}
+                                            onClick={() => void dismissTasks([task])}
                                         >
                                             {getRes().common.close}
                                         </Button>
@@ -444,13 +457,7 @@ const MessageCenter = ({
                             overflow: "hidden",
                         },
                     }}
-                    extra={
-                        hasFinishedTask ? (
-                            <Button type="link" size="small" onClick={() => clearFinishedBackgroundTasks()}>
-                                {getRes().backgroundTask.clearFinished}
-                            </Button>
-                        ) : null
-                    }
+                    extra={actions}
                 >
                     {contentBody}
                 </Drawer>

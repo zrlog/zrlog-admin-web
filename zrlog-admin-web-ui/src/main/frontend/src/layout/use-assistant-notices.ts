@@ -1,50 +1,45 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import {useAxiosBaseInstance} from "../base/AppBase";
-import {getSsDate} from "../base/SsData";
-import type {ApiResponse, MessageCenterNotice} from "../type";
-import {syncMessageCenterNotices} from "../utils/message-center-notice-sync";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAxiosBaseInstance } from "../base/AppBase";
+import { getSsDate } from "../base/SsData";
+import type { ApiResponse, MessageCenterNotice } from "../type";
+import { syncMessageCenterNotices } from "../utils/message-center-notice-sync";
+import { syncAssistantUnreadStatus } from "../utils/message-center-status";
 
 export function useAssistantNotices(session: string, enabled: boolean) {
     const api = useAxiosBaseInstance();
-    const generation = useRef(0);
-    const pending = useRef(false);
-    const refreshPending = useRef(false);
+    const pending = useRef<AbortController>();
     const [loading, setLoading] = useState(false);
-    const [hasUnread, setHasUnread] = useState(false);
-    const refresh = useCallback((force = false) => {
-        if (!enabled || session !== getSsDate().key) return;
-        if (pending.current) {if (force) refreshPending.current = true; return;}
-        const requestGeneration = generation.current;
-        pending.current = true;
-        setLoading(true);
-        void api.get<ApiResponse<MessageCenterNotice[]>>("/api/admin/assistant/notices", {showError: false} as any)
-            .then(({data}) => {
-                if (requestGeneration !== generation.current || session !== getSsDate().key || data.error) return;
-                syncMessageCenterNotices(data.data || [], "account");
-                setHasUnread((data.data || []).length > 0);
-            }).catch(() => undefined).finally(() => {
-                if (requestGeneration !== generation.current) return;
-                pending.current = false;
-                setLoading(false);
-                if (refreshPending.current) {refreshPending.current = false; refresh();}
-            });
-    }, [api, enabled, session]);
+
     useEffect(() => {
-        generation.current++;
-        pending.current = false;
-        refreshPending.current = false;
-        setHasUnread(false);
         setLoading(false);
-        syncMessageCenterNotices([], "account");
-        if (enabled) refresh();
-        const timer = enabled ? window.setInterval(() => {
-            if (document.visibilityState === "visible") refresh();
-        }, 30000) : undefined;
         return () => {
-            generation.current++;
-            window.clearInterval(timer);
+            pending.current?.abort();
+            pending.current = undefined;
             syncMessageCenterNotices([], "account");
         };
-    }, [enabled, refresh]);
-    return {refresh, loading, hasUnread};
+    }, [session, enabled]);
+
+    const refresh = useCallback(async () => {
+        if (!enabled || session !== getSsDate().key || pending.current) return;
+        const request = new AbortController();
+        pending.current = request;
+        setLoading(true);
+        try {
+            const { data } = await api.get<ApiResponse<MessageCenterNotice[]>>("/api/admin/assistant/notices", {
+                signal: request.signal,
+            });
+            if (request.signal.aborted || session !== getSsDate().key || data.error) return;
+            const notices = data.data || [];
+            syncMessageCenterNotices(notices, "account");
+            syncAssistantUnreadStatus(notices.length > 0 ? getSsDate().user?.userId : undefined);
+        } catch {
+            // The shared API client displays the error for this user-initiated request.
+        } finally {
+            if (pending.current === request) {
+                pending.current = undefined;
+                setLoading(false);
+            }
+        }
+    }, [api, enabled, session]);
+    return { refresh, loading };
 }

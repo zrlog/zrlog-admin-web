@@ -5,6 +5,16 @@ public class MessageCenterStatusResponse {
     private long revision;
     private boolean hasUnread;
 
+    private Integer assistantUnreadUserId;
+
+    public Integer getAssistantUnreadUserId() {
+        return assistantUnreadUserId;
+    }
+
+    public void setAssistantUnreadUserId(Integer assistantUnreadUserId) {
+        this.assistantUnreadUserId = assistantUnreadUserId;
+    }
+
     public MessageCenterStatusResponse() {}
 
     public MessageCenterStatusResponse(long revision, boolean hasUnread) {

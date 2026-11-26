@@ -15,6 +15,8 @@ public final class AutomationNativeImageUtils {
                         com.zrlog.business.plugin.PluginCacheRefreshResult.class,
                         com.zrlog.business.plugin.PluginViewRenderResult.class,
                         com.zrlog.business.plugin.PluginSchedulerTickResult.Child.class,
+                        com.zrlog.admin.web.controller.api.AutomationController.ReadNoticeResponse
+                                .class,
                         AutomationViews.Task.class,
                         AutomationViews.Overview.class,
                         AutomationViews.Runs.class,

@@ -92,7 +92,8 @@ public class AdminPageDataFactoryTest {
                     new AdminPageDataFactory(
                             db.unitCacheService()::getPublicWebSiteInfo,
                             () -> "",
-                            ApplicationServicesFixture.messages(db.dataSource()));
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            actor -> actor.getUserId() == 1);
             new MessageCenterStateService(
                             ApplicationServicesFixture.websiteCache(db.dataSource()),
                             () -> new WebSiteRepository(db.dataSource()))
@@ -112,6 +113,8 @@ public class AdminPageDataFactoryTest {
                                     .requestIdentity()
                                     .current(),
                             null);
+            assertEquals(
+                    Integer.valueOf(1), response.getMessageCenter().getAssistantUnreadUserId());
             assertFalse(response.getMessageCenter().isHasUnread());
             assertEquals(0, response.getMessageCenter().getRevision());
             assertEquals("", response.getPageBuildId());

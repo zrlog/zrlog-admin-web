@@ -125,14 +125,13 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
 
     useEffect(() => {
         return subscribeMessageCenterStatus((nextStatus) => {
-            const revisionChanged = nextStatus.revision !== messageCenterRevisionRef.current;
-            messageCenterRevisionRef.current = nextStatus.revision;
-            setMessageCenterStatus(nextStatus);
-            if (revisionChanged) {
-                refreshMessageCenter(true);
+            if (nextStatus.revision !== messageCenterRevisionRef.current) {
+                messageCenterSyncAtRef.current = 0;
+                messageCenterRevisionRef.current = nextStatus.revision;
             }
+            setMessageCenterStatus(nextStatus);
         });
-    }, [refreshMessageCenter]);
+    }, []);
 
     if (screens.xs === undefined) {
         return <></>;
@@ -411,11 +410,13 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                                 loading={messageCenterLoading || assistantNotices.loading}
                                 hasUnread={
                                     (hasAction("site.configure") && messageCenterStatus.hasUnread) ||
-                                    assistantNotices.hasUnread
+                                    (basicUserInfo.userId !== undefined &&
+                                        messageCenterStatus.assistantUnreadUserId === basicUserInfo.userId)
                                 }
+                                onSiteNoticesChanged={() => refreshMessageCenter(true)}
                                 onRefresh={(force) => {
                                     refreshMessageCenter(force);
-                                    assistantNotices.refresh(true);
+                                    void assistantNotices.refresh();
                                 }}
                             />
                         )}

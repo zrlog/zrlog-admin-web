@@ -2,6 +2,7 @@ package com.zrlog.admin.business.automation;
 
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
@@ -327,6 +328,12 @@ public final class AutomationService implements AssistantTaskContextProvider {
         if (row == null) throw new PermissionErrorException();
         authority.access(actor, row.value, registry.require(row.value.type).definition);
         return row;
+    }
+
+    /** The page request has already resolved the current account and its permissions. */
+    public boolean hasUnreadNotices(AccountAccess actor) throws SQLException {
+        TaskAuthority.require(actor, AccountAction.SESSION.getId());
+        return store.hasUnreadNotices(actor.getUserId(), systemTaskIds(actor));
     }
 
     public List<StoredTask> systemTasks(AccountAccess actor) throws SQLException {

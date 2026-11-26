@@ -1,6 +1,7 @@
 export type MessageCenterStatus = {
     revision: number;
     hasUnread: boolean;
+    assistantUnreadUserId?: number;
 };
 
 const defaultStatus: MessageCenterStatus = {
@@ -18,6 +19,7 @@ const normalizeStatus = (value?: Partial<MessageCenterStatus> | null): MessageCe
     return {
         revision: value.revision,
         hasUnread: value.hasUnread === true,
+        assistantUnreadUserId: value.assistantUnreadUserId,
     };
 };
 
@@ -35,9 +37,14 @@ export const syncMessageCenterStatus = (value?: Partial<MessageCenterStatus> | n
     if (!nextStatus) {
         return;
     }
-    if (nextStatus.revision === status.revision && nextStatus.hasUnread === status.hasUnread) {
+    if (nextStatus.revision === status.revision && nextStatus.hasUnread === status.hasUnread &&
+        nextStatus.assistantUnreadUserId === status.assistantUnreadUserId) {
         return;
     }
     status = nextStatus;
     listeners.forEach((listener) => listener(status));
+};
+
+export const syncAssistantUnreadStatus = (assistantUnreadUserId?: number) => {
+    syncMessageCenterStatus({ ...status, assistantUnreadUserId });
 };
