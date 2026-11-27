@@ -134,7 +134,7 @@ public class TemplateService {
     public TemplateDownloadResponse templateCenter(
             String protocol, String host, String contextPath) {
         return new TemplateDownloadResponse(
-                "https://store.zrlog.com/template/index.html?from="
+                "https://www.zrlog.com/template/index.html?from="
                         + protocol
                         + "://"
                         + host
